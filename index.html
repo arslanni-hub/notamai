@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOTAM Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --sky-top: #000510;
+  --sky-mid: #020d1f;
+  --horizon: #0a2040;
+  --glow: #1a4a8a;
+  --blue: #4a9eff;
+  --blue-dim: rgba(74,158,255,0.15);
+  --panel: rgba(8,16,28,0.82);
+  --border: rgba(74,158,255,0.18);
+  --border-bright: rgba(74,158,255,0.5);
+  --text: #c8daf0;
+  --text-dim: #4a6a8a;
+  --mono: 'Share Tech Mono', monospace;
+  --head: 'Orbitron', sans-serif;
+  --body: 'Rajdhani', sans-serif;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--sky-top);
+  font-family: var(--body);
+  color: var(--text);
+}
+
+/* ═══ COCKPIT FRAME ═══ */
+#scene {
+  position: fixed;
+  inset: 0;
+  perspective: 900px;
+}
+
+canvas#sky {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+}
+
+/* cockpit vignette overlay */
+.cockpit-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(2,8,18,0.95) 0%, transparent 100%),
+    radial-gradient(ellipse 20% 80% at 0% 50%, rgba(2,8,18,0.8) 0%, transparent 60%),
+    radial-gradient(ellipse 20% 80% at 100% 50%, rgba(2,8,18,0.8) 0%, transparent 60%),
+    radial-gradient(ellipse 100% 30% at 50% 0%, rgba(0,5,16,0.6) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* cockpit frame bezel */
+.cockpit-frame {
+  position: absolute;
+  inset: 0;
+  border: 28px solid #040810;
+  border-radius: 12px;
+  box-shadow: inset 0 0 60px rgba(0,0,0,0.9), inset 0 0 0 2px rgba(74,158,255,0.06);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* HUD scanline */
+.scanline {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* ═══ HUD ELEMENTS ═══ */
+.hud {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.hud-tl, .hud-tr, .hud-bl, .hud-br {
+  position: absolute;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: rgba(74,158,255,0.45);
+  line-height: 1.8;
+}
+.hud-tl { top: 44px; left: 44px; }
+.hud-tr { top: 44px; right: 44px; text-align: right; }
+.hud-bl { bottom: 44px; left: 44px; }
+.hud-br { bottom: 44px; right: 44px; text-align: right; }
+
+/* artificial horizon line */
+.horizon-line {
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(74,158,255,0.25) 20%, rgba(74,158,255,0.15) 80%, transparent);
+  transform: translateY(-50%);
+}
+
+/* center crosshair */
+.crosshair {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px; height: 40px;
+}
+.crosshair::before, .crosshair::after {
+  content: '';
+  position: absolute;
+  background: rgba(74,158,255,0.3);
+}
+.crosshair::before { width: 1px; height: 100%; top: 0; left: 50%; }
+.crosshair::after  { width: 100%; height: 1px; top: 50%; left: 0; }
+
+/* altitude tape (right side) */
+.alt-tape {
+  position: absolute;
+  right: 44px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: rgba(74,158,255,0.35);
+  letter-spacing: 1px;
+}
+
+/* ═══ MAIN UI ═══ */
+.ui {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  pointer-events: none;
+}
+
+/* logo */
+.logo {
+  font-family: var(--head);
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: rgba(255,255,255,0.9);
+  text-align: center;
+  margin-bottom: 4px;
+  pointer-events: auto;
+}
+.logo em {
+  font-style: normal;
+  color: var(--blue);
+}
+.logo-line {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: var(--text-dim);
+  text-align: center;
+  margin-bottom: 36px;
+  pointer-events: auto;
+}
+
+/* greeting */
+.greeting {
+  font-family: var(--head);
+  font-size: clamp(20px, 3vw, 32px);
+  font-weight: 400;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.85);
+  text-align: center;
+  margin-bottom: 8px;
+  pointer-events: auto;
+}
+.greeting-sub {
+  font-size: 15px;
+  font-weight: 300;
+  color: rgba(180,210,255,0.5);
+  text-align: center;
+  letter-spacing: 1px;
+  margin-bottom: 40px;
+  pointer-events: auto;
+}
+
+/* ═══ INPUT CARD ═══ */
+.input-card {
+  width: 100%;
+  max-width: 620px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  pointer-events: auto;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 0 0 1px rgba(74,158,255,0.06), 0 24px 60px rgba(0,0,0,0.6);
+  transition: border-color 0.3s;
+}
+.input-card:focus-within {
+  border-color: var(--border-bright);
+  box-shadow: 0 0 0 1px rgba(74,158,255,0.1), 0 0 40px rgba(74,158,255,0.08), 0 24px 60px rgba(0,0,0,0.7);
+}
+
+.input-field {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--body);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--text);
+  padding: 20px 20px 12px;
+  resize: none;
+  min-height: 64px;
+  max-height: 160px;
+  line-height: 1.5;
+}
+.input-field::placeholder { color: var(--text-dim); }
+
+.input-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid rgba(74,158,255,0.08);
+}
+
+/* attach button */
+.attach-btn {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  background: rgba(74,158,255,0.06);
+  border: 1px solid rgba(74,158,255,0.15);
+  color: rgba(74,158,255,0.6);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  position: relative;
+}
+.attach-btn:hover {
+  background: rgba(74,158,255,0.12);
+  border-color: rgba(74,158,255,0.4);
+  color: var(--blue);
+}
+.attach-btn input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.attach-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: rgba(74,158,255,0.35);
+  letter-spacing: 1px;
+}
+
+.spacer { flex: 1; }
+
+/* send button */
+.send-btn {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: var(--blue);
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+.send-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+}
+.send-btn:hover { background: #378add; transform: scale(1.05); }
+.send-btn:active { transform: scale(0.97); }
+
+/* ═══ FILE PREVIEW ═══ */
+.file-preview {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin: 0 20px 12px;
+  padding: 8px 12px;
+  background: rgba(74,158,255,0.06);
+  border: 1px solid rgba(74,158,255,0.15);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: rgba(74,158,255,0.7);
+  letter-spacing: 1px;
+}
+.file-preview.show { display: flex; }
+.file-remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: rgba(74,158,255,0.5);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+}
+
+/* ═══ RESULT OVERLAY ═══ */
+.result-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0,5,16,0.92);
+  display: none;
+  flex-direction: column;
+  backdrop-filter: blur(8px);
+}
+.result-overlay.open { display: flex; }
+
+.result-topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 24px;
+  border-bottom: 1px solid rgba(74,158,255,0.12);
+  background: rgba(4,10,20,0.9);
+  flex-shrink: 0;
+}
+.result-topbar-logo {
+  font-family: var(--head);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: rgba(255,255,255,0.7);
+}
+.result-topbar-logo em { font-style: normal; color: var(--blue); }
+
+.live-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #2ec4b6;
+  box-shadow: 0 0 8px #2ec4b6;
+  animation: livepulse 2s infinite;
+  flex-shrink: 0;
+}
+@keyframes livepulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+
+.result-status {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  flex: 1;
+}
+
+.back-btn {
+  background: rgba(74,158,255,0.08);
+  border: 1px solid rgba(74,158,255,0.2);
+  border-radius: 8px;
+  color: var(--blue);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.back-btn:hover { background: rgba(74,158,255,0.15); }
+
+.result-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.result-scroll::-webkit-scrollbar { width: 4px; }
+.result-scroll::-webkit-scrollbar-track { background: transparent; }
+.result-scroll::-webkit-scrollbar-thumb { background: rgba(74,158,255,0.2); border-radius: 2px; }
+
+/* loading state */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 24px;
+  padding: 40px;
+}
+.loading-ring {
+  width: 48px; height: 48px;
+  border: 2px solid rgba(74,158,255,0.1);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 3px;
+  text-align: center;
+}
+.loading-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: rgba(74,158,255,0.3);
+  letter-spacing: 2px;
+  text-align: center;
+}
+.loading-steps .active { color: var(--blue); }
+
+/* modal */
+.modal-bg {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+}
+.modal-bg.open { display: flex; }
+.modal-box {
+  background: #080f1c;
+  border: 1px solid rgba(74,158,255,0.2);
+  border-top: 2px solid #b57bff;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+}
+.modal-title {
+  font-family: var(--head);
+  font-size: 16px;
+  letter-spacing: 3px;
+  color: #b57bff;
+  margin-bottom: 8px;
+}
+.modal-desc {
+  font-size: 14px;
+  color: rgba(180,210,255,0.6);
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+.plan {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.plan:hover { border-color: rgba(181,123,255,0.4); }
+.plan.featured { border-color: rgba(181,123,255,0.3); background: rgba(181,123,255,0.04); }
+.plan-name { font-weight: 700; color: #fff; margin-bottom: 4px; font-size: 14px; }
+.plan-price { font-family: var(--head); font-size: 20px; color: #b57bff; margin-bottom: 8px; }
+.plan-price small { font-family: var(--body); font-size: 13px; color: rgba(180,210,255,0.4); }
+.plan-feat { font-size: 13px; color: rgba(180,210,255,0.5); line-height: 1.8; }
+.upgrade-btn {
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px;
+  background: #b57bff;
+  border: none;
+  border-radius: 10px;
+  font-family: var(--head);
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.upgrade-btn:hover { background: #9a5ae0; }
+.modal-close-btn {
+  float: right;
+  background: none;
+  border: none;
+  color: rgba(74,158,255,0.4);
+  font-size: 18px;
+  cursor: pointer;
+  margin-top: -8px;
+  margin-right: -8px;
+}
+</style>
+</head>
+<body>
+
+<!-- SKY CANVAS -->
+<div id="scene">
+  <canvas id="sky"></canvas>
+  <div class="cockpit-vignette"></div>
+  <div class="cockpit-frame"></div>
+  <div class="scanline"></div>
+
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud-tl" id="hudTL">
+      ALT <span id="altVal">35000</span> FT<br>
+      SPD <span id="spdVal">480</span> KTS<br>
+      HDG <span id="hdgVal">270</span>°
+    </div>
+    <div class="hud-tr" id="hudTR">
+      <span id="hudTime">--:-- UTC</span><br>
+      <span id="hudDate">-- --- ----</span><br>
+      AIRAC CURRENT
+    </div>
+    <div class="hud-bl">
+      GS <span id="gsVal">491</span> KTS<br>
+      OAT <span id="oatVal">-56</span>°C<br>
+      FL350
+    </div>
+    <div class="hud-br">
+      NOTAM INTEL v1.0<br>
+      ICAO ANNEX 15<br>
+      PANS-AIM DOC 10066
+    </div>
+    <div class="horizon-line"></div>
+    <div class="crosshair"></div>
+    <div class="alt-tape">
+      <span>360</span><span>355</span><span>350</span>
+      <span style="color:rgba(74,158,255,0.7);font-weight:bold">▶ 350</span>
+      <span>345</span><span>340</span><span>335</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN UI -->
+<div class="ui">
+  <div class="logo">NOTAM <em>INTELLIGENCE</em></div>
+  <div class="logo-line">AI-POWERED PRE-FLIGHT BRIEFING SYSTEM</div>
+
+  <div class="greeting" id="greeting">Good evening, Captain</div>
+  <div class="greeting-sub">Enter an ICAO code, a route, or paste your aviation data</div>
+
+  <div class="input-card">
+    <textarea
+      class="input-field"
+      id="mainInput"
+      placeholder="LTFM · LTFM EGLL · or paste NOTAM / METAR / TAF / SIGMET..."
+      rows="2"
+      oninput="autoResize(this)"
+    ></textarea>
+
+    <div class="file-preview" id="filePreview">
+      <span>📎</span>
+      <span id="fileName">document.pdf</span>
+      <button class="file-remove" onclick="removeFile()">✕</button>
+    </div>
+
+    <div class="input-bar">
+      <!-- attach -->
+      <button class="attach-btn" title="Attach NOTAM document or image">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8.5L8 3.5L13 8.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M8 3.5V13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M2 13.5H14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        <input type="file" accept=".pdf,.png,.jpg,.jpeg,.txt" onchange="handleFile(event)">
+      </button>
+      <span class="attach-label">ATTACH</span>
+
+      <div class="spacer"></div>
+
+      <!-- video briefing -->
+      <button class="attach-btn" title="AI Video Briefing (Pro)" onclick="openModal()" style="width:auto;padding:0 12px;gap:6px;font-family:var(--mono);font-size:10px;letter-spacing:1px;color:rgba(181,123,255,0.7);border-color:rgba(181,123,255,0.2)">
+        🎬 VIDEO
+      </button>
+
+      <!-- send -->
+      <button class="send-btn" onclick="handleSend()" title="Generate Briefing">
+        🪄
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT OVERLAY -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-topbar">
+    <div class="result-topbar-logo">NOTAM <em>INTELLIGENCE</em></div>
+    <div class="live-dot"></div>
+    <div class="result-status" id="resultStatus">GENERATING BRIEFING...</div>
+    <button class="back-btn" onclick="closeResult()">← NEW BRIEFING</button>
+  </div>
+  <div class="result-scroll" id="resultScroll">
+    <div class="loading-state" id="loadingState">
+      <div class="loading-ring"></div>
+      <div class="loading-text">ANALYZING NOTAM DATA</div>
+      <div class="loading-steps" id="loadSteps">
+        <div class="active" id="ls1">▶ FETCHING LIVE DATA...</div>
+        <div id="ls2">  RUNNING AI ANALYSIS</div>
+        <div id="ls3">  GENERATING BRIEFING</div>
+      </div>
+    </div>
+    <div id="resultContent" style="display:none"></div>
+  </div>
+</div>
+
+<!-- VIDEO BRIEFING MODAL -->
+<div class="modal-bg" id="videoModal">
+  <div class="modal-box">
+    <button class="modal-close-btn" onclick="closeModal()">✕</button>
+    <div class="modal-title">🎬 AI VIDEO BRIEFING</div>
+    <div class="modal-desc">A 60-second spoken pre-flight briefing delivered by an AI presenter. Upgrade to Pro to unlock.</div>
+    <div class="plan featured">
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">$299 <small>/ month</small></div>
+      <div class="plan-feat">✓ Live NOTAM auto-fetch<br>✓ Full route analysis<br>✓ AI Video Briefing 🎬<br>✓ PDF export & share link</div>
+    </div>
+    <div class="plan">
+      <div class="plan-name">Enterprise</div>
+      <div class="plan-price">$999 <small>/ month</small></div>
+      <div class="plan-feat">✓ Everything in Pro<br>✓ Unlimited users & API access<br>✓ Custom integration</div>
+    </div>
+    <button class="upgrade-btn">UPGRADE TO PRO →</button>
+  </div>
+</div>
+
+<script>
+/* ═══ SKY ANIMATION ═══ */
+const canvas = document.getElementById('sky');
+const ctx = canvas.getContext('2d');
+let W, H;
+let stars = [], clouds = [], planes = [];
+let t = 0;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  initScene();
+}
+
+function initScene() {
+  stars = Array.from({length: 220}, () => ({
+    x: Math.random() * W,
+    y: Math.random() * H * 0.65,
+    r: Math.random() * 1.4 + 0.2,
+    a: Math.random() * 0.6 + 0.2,
+    da: (Math.random() - 0.5) * 0.008,
+    twinkle: Math.random() * Math.PI * 2
+  }));
+
+  clouds = Array.from({length: 8}, (_, i) => ({
+    x: (i / 8) * W * 1.5,
+    y: H * 0.3 + Math.random() * H * 0.25,
+    w: 120 + Math.random() * 200,
+    h: 18 + Math.random() * 28,
+    speed: 0.06 + Math.random() * 0.1,
+    alpha: 0.03 + Math.random() * 0.07,
+    layers: 2 + Math.floor(Math.random() * 2)
+  }));
+
+  planes = [];
+  for (let i = 0; i < 2; i++) spawnPlane(true);
+}
+
+function spawnPlane(init = false) {
+  const dir = Math.random() > 0.5 ? 1 : -1;
+  planes.push({
+    x: init ? Math.random() * W : (dir === 1 ? -120 : W + 120),
+    y: H * 0.08 + Math.random() * H * 0.45,
+    spd: 0.3 + Math.random() * 0.5,
+    dir,
+    size: 0.5 + Math.random() * 0.6,
+    trail: [],
+    blink: 0
+  });
+}
+
+function skyGrad() {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#000408');
+  g.addColorStop(0.4, '#010918');
+  g.addColorStop(0.7, '#021428');
+  g.addColorStop(0.88, '#041c38');
+  g.addColorStop(1, '#030c1c');
+  return g;
+}
+
+function drawHorizonGlow() {
+  const hy = H * 0.62;
+  const g = ctx.createRadialGradient(W/2, hy, 0, W/2, hy, W * 0.6);
+  g.addColorStop(0, 'rgba(20,60,120,0.18)');
+  g.addColorStop(0.4, 'rgba(10,30,70,0.08)');
+  g.addColorStop(1, 'transparent');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, hy - 80, W, 160);
+}
+
+function drawCloud(c) {
+  ctx.save();
+  for (let l = 0; l < c.layers; l++) {
+    const ox = l * 20 - 10, oy = l * -6;
+    ctx.beginPath();
+    ctx.ellipse(c.x + ox, c.y + oy, c.w * (0.7 + l * 0.15), c.h * (0.5 + l * 0.2), 0, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(80,130,200,${c.alpha * (1 - l * 0.3)})`;
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawPlane(p) {
+  p.trail.push({x: p.x, y: p.y});
+  if (p.trail.length > 55) p.trail.shift();
+
+  // contrail
+  for (let i = 1; i < p.trail.length; i++) {
+    const pct = i / p.trail.length;
+    const w = pct * 2.5 * p.size;
+    ctx.beginPath();
+    ctx.moveTo(p.trail[i-1].x, p.trail[i-1].y - 1);
+    ctx.lineTo(p.trail[i].x, p.trail[i].y - 1);
+    ctx.strokeStyle = `rgba(180,210,255,${pct * 0.18})`;
+    ctx.lineWidth = w;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(p.trail[i-1].x, p.trail[i-1].y + 1);
+    ctx.lineTo(p.trail[i].x, p.trail[i].y + 1);
+    ctx.strokeStyle = `rgba(160,200,255,${pct * 0.12})`;
+    ctx.lineWidth = w * 0.5;
+    ctx.stroke();
+  }
+
+  // plane silhouette
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.scale(p.dir, 1);
+  const s = p.size * 7;
+
+  ctx.fillStyle = 'rgba(210,228,255,0.88)';
+  // fuselage
+  ctx.beginPath();
+  ctx.ellipse(0, 0, s * 2.2, s * 0.38, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // nose
+  ctx.beginPath();
+  ctx.ellipse(s * 1.8, 0, s * 0.6, s * 0.28, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // wing
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.3, 0);
+  ctx.lineTo(s * 0.5, -s * 1.1);
+  ctx.lineTo(s * 1.0, -s * 0.15);
+  ctx.lineTo(s * 0.7, s * 0.05);
+  ctx.fill();
+  // tail
+  ctx.beginPath();
+  ctx.moveTo(-s * 1.6, 0);
+  ctx.lineTo(-s * 1.2, -s * 0.65);
+  ctx.lineTo(-s * 0.8, -s * 0.05);
+  ctx.fill();
+
+  ctx.restore();
+
+  // nav lights
+  p.blink = (p.blink + 0.05) % (Math.PI * 2);
+  const on = Math.sin(p.blink) > 0;
+  ctx.beginPath();
+  ctx.arc(p.x + p.dir * p.size * 8, p.y - p.size * 7.5, 1.2, 0, Math.PI * 2);
+  ctx.fillStyle = on ? 'rgba(255,80,80,0.9)' : 'rgba(255,80,80,0.1)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(p.x - p.dir * p.size * 8, p.y - p.size * 7.5, 1.2, 0, Math.PI * 2);
+  ctx.fillStyle = on ? 'rgba(80,80,80,0.1)' : 'rgba(80,255,80,0.9)';
+  ctx.fill();
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  t++;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = skyGrad();
+  ctx.fillRect(0, 0, W, H);
+
+  drawHorizonGlow();
+
+  // stars
+  stars.forEach(s => {
+    s.twinkle += 0.02;
+    const a = s.a + Math.sin(s.twinkle) * 0.2;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(180,210,255,${Math.max(0, a)})`;
+    ctx.fill();
+  });
+
+  // clouds
+  clouds.forEach(c => {
+    c.x += c.speed;
+    if (c.x > W + 300) c.x = -300;
+    drawCloud(c);
+  });
+
+  // planes
+  planes.forEach((p, i) => {
+    p.x += p.spd * p.dir;
+    if ((p.dir === 1 && p.x > W + 150) || (p.dir === -1 && p.x < -150)) {
+      planes.splice(i, 1);
+      setTimeout(() => spawnPlane(), 4000 + Math.random() * 12000);
+    }
+    drawPlane(p);
+  });
+}
+
+/* ═══ HUD ═══ */
+function updateHUD() {
+  const now = new Date();
+  const hh = String(now.getUTCHours()).padStart(2,'0');
+  const mm = String(now.getUTCMinutes()).padStart(2,'0');
+  const ss = String(now.getUTCSeconds()).padStart(2,'0');
+  document.getElementById('hudTime').textContent = `${hh}:${mm}:${ss} UTC`;
+
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  document.getElementById('hudDate').textContent =
+    `${String(now.getUTCDate()).padStart(2,'0')} ${months[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
+
+  // slight altitude drift
+  const base = 35000;
+  const drift = Math.round(Math.sin(Date.now() * 0.0003) * 30);
+  document.getElementById('altVal').textContent = (base + drift).toLocaleString();
+  document.getElementById('spdVal').textContent = 480 + Math.round(Math.sin(Date.now() * 0.0005) * 4);
+  document.getElementById('gsVal').textContent  = 491 + Math.round(Math.sin(Date.now() * 0.0004) * 5);
+}
+
+/* ═══ GREETING ═══ */
+function setGreeting() {
+  const h = new Date().getHours();
+  const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('greeting').textContent = g + ', Captain';
+}
+
+/* ═══ INPUT ═══ */
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+let attachedFile = null;
+
+function handleFile(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  attachedFile = f;
+  document.getElementById('fileName').textContent = f.name;
+  document.getElementById('filePreview').classList.add('show');
+}
+
+function removeFile() {
+  attachedFile = null;
+  document.getElementById('filePreview').classList.remove('show');
+}
+
+async function handleSend() {
+  const val = document.getElementById('mainInput').value.trim();
+  if (!val && !attachedFile) return;
+
+  const parts = val.trim().toUpperCase().split(/\s+/);
+  const dep = parts[0] || '';
+  const arr = parts[1] || '';
+
+  showResult(val);
+
+  try {
+    const response = await fetch('/.netlify/functions/briefing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        icao_dep: dep,
+        icao_arr: arr,
+        notam_text: val
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.briefing_html) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('resultContent').style.display = 'block';
+      document.getElementById('resultContent').innerHTML = data.briefing_html;
+      document.getElementById('resultStatus').textContent = 'BRIEFING READY — ' + val.toUpperCase();
+    } else {
+      document.getElementById('loadingState').innerHTML =
+        '<div class="loading-text" style="color:#e63946">ERROR: ' + (data.error || 'No data returned') + '</div>';
+    }
+  } catch(err) {
+    document.getElementById('loadingState').innerHTML =
+      '<div class="loading-text" style="color:#e63946">CONNECTION ERROR — ' + err.message + '</div>';
+  }
+}
+
+/* ═══ RESULT ═══ */
+function showResult(input) {
+  const overlay = document.getElementById('resultOverlay');
+  const status  = document.getElementById('resultStatus');
+  const loading = document.getElementById('loadingState');
+  const content = document.getElementById('resultContent');
+
+  overlay.classList.add('open');
+  loading.style.display = 'flex';
+  content.style.display  = 'none';
+
+  let label = 'ANALYZING...';
+  const parts = input.trim().toUpperCase().split(/\s+/);
+  if (parts.length === 2 && parts[0].length <= 4 && parts[1].length <= 4) {
+    label = `ROUTE BRIEFING: ${parts[0]} → ${parts[1]}`;
+  } else if (parts.length === 1 && input.length <= 4) {
+    label = `AIRPORT BRIEFING: ${input.toUpperCase()}`;
+  } else {
+    label = 'NOTAM ANALYSIS IN PROGRESS';
+  }
+  status.textContent = label;
+
+  // animated loading steps
+  const steps = ['ls1','ls2','ls3'];
+  const msgs  = ['▶ FETCHING LIVE DATA...','▶ RUNNING AI ANALYSIS...','▶ GENERATING BRIEFING...'];
+  let step = 0;
+  const stepInt = setInterval(() => {
+    if (step < steps.length) {
+      steps.forEach((id, i) => {
+        document.getElementById(id).className = i === step ? 'active' : '';
+        document.getElementById(id).textContent = i <= step ? msgs[i] : `  ${msgs[i].slice(2)}`;
+      });
+      step++;
+    } else {
+      clearInterval(stepInt);
+      loading.style.display = 'none';
+      content.style.display = 'block';
+      content.innerHTML = getDemoBriefingHTML(input);
+      status.textContent = label + ' — COMPLETE';
+    }
+  }, 900);
+}
+
+function getDemoBriefingHTML(input) {
+  const parts = input.trim().toUpperCase().split(/\s+/);
+  const dep = parts[0] || 'LTFM';
+  const arr = parts[1] || '';
+  const route = arr ? `${dep} → ${arr}` : dep;
+
+  return `
+<div style="background:#060a0f;font-family:'Rajdhani',sans-serif;color:#cdd9e5;padding:32px 28px;min-height:100%">
+  <!-- HEADER -->
+  <div style="border:1px solid #22384f;border-top:3px solid #e63946;background:#0d1520;padding:24px 28px;margin-bottom:20px;border-radius:8px;position:relative;overflow:hidden">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px">
+      <div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:26px;font-weight:900;letter-spacing:4px;color:#fff;text-shadow:0 0 24px rgba(74,158,255,0.3)">${route}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-top:4px">PRE-FLIGHT OPERATIONAL INTELLIGENCE BRIEFING · NOTAM INTELLIGENCE</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;color:#e63946;letter-spacing:3px">🔴 HIGH</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#f4841a;margin-top:4px">📊 RISK SCORE 7.5 / 10</div>
+        <div style="display:flex;gap:3px;margin-top:6px;justify-content:flex-end">
+          ${Array.from({length:10},(_,i)=>`<div style="width:14px;height:5px;border-radius:2px;background:${i<8?(i<6?'#e63946':'#f4841a'):'#1a2a3a'};box-shadow:${i<8?'0 0 4px '+(i<6?'#e63946':'#f4841a'):'none'}"></div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:24px;margin-top:16px;padding-top:14px;border-top:1px solid #1a2a3a;flex-wrap:wrap">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px">AIRAC <span style="color:#4a9eff">CURRENT</span></div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px">SOURCE <span style="color:#4a9eff">LIVE · NOTAMIFY API</span></div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px">STANDARD <span style="color:#4a9eff">ICAO ANNEX 15</span></div>
+    </div>
+  </div>
+
+  <!-- EXEC SUMMARY -->
+  <div style="background:#0d1520;border:1px solid #22384f;border-left:4px solid #f4841a;padding:18px 22px;margin-bottom:20px;border-radius:0 8px 8px 0">
+    <p style="font-size:15px;line-height:1.7;font-weight:500">✈️ <strong>EXECUTIVE SUMMARY —</strong> Operational briefing generated for <strong>${route}</strong>. Multiple active constraints identified across departure, en-route, and arrival phases. Review all priority NOTAMs and confirm action items before requesting pushback clearance.</p>
+  </div>
+
+  <!-- NOTAM ANALYSIS HEADER -->
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#101820;border:1px solid #22384f;border-left:3px solid #4a9eff;margin-bottom:12px;margin-top:28px;border-radius:0 8px 8px 0">
+    <span style="font-size:15px">📋</span>
+    <span style="font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;color:#4a9eff">NOTAM ANALYSIS — PRIORITY ORDER</span>
+  </div>
+
+  <!-- NOTAM 1 -->
+  <div style="background:#0d1520;border:1px solid #1a2a3a;border-left:4px solid #e63946;padding:16px 18px;margin-bottom:10px;border-radius:0 8px 8px 0">
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px">
+      <div style="width:10px;height:10px;border-radius:50%;background:#e63946;box-shadow:0 0 8px #e63946;flex-shrink:0;margin-top:4px"></div>
+      <div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;margin-bottom:2px">🔴 PRIORITY 1 · TYPE: AERODROME NOTAM</div>
+        <div style="font-size:16px;font-weight:700;color:#fff">Runway Closure — Single Runway Operations</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;margin-bottom:10px">
+      <div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px">📍 Location</div><div style="font-size:13px;color:#cdd9e5;font-weight:500">${dep} — Primary runway complex</div></div>
+      <div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px">⏰ Time Window UTC</div><div style="font-size:13px;color:#cdd9e5;font-weight:500">0500Z – 0900Z (4-hour window)</div></div>
+      <div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px">✈️ Affected Operations</div><div style="font-size:13px;color:#cdd9e5;font-weight:500">All departures and arrivals — capacity reduced 50%</div></div>
+      <div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px">⚠️ Severity</div><div style="font-size:13px;color:#e63946;font-weight:600">HIGH — Extended taxi times expected</div></div>
+    </div>
+    <div style="background:rgba(0,0,0,0.3);border:1px solid #1a2a3a;padding:10px 14px;font-size:13px;color:#8a9bb0;font-weight:600">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;letter-spacing:2px;display:block;margin-bottom:4px">⚠️ REQUIRED ACTION</span>
+      Confirm runway in use via ATIS before pushback. Allow additional taxi time. Verify departure slot is valid for single-runway operations.
+    </div>
+  </div>
+
+  <!-- CONNECT NOTICE -->
+  <div style="background:rgba(74,158,255,0.04);border:1px solid rgba(74,158,255,0.12);border-radius:8px;padding:24px;text-align:center;margin-top:24px">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px">NOTAM INTELLIGENCE · BUILD IN PROGRESS</div>
+    <div style="font-size:14px;color:#8a9bb0;margin-bottom:16px">Connect Notamify API + Claude AI for full live briefing with all NOTAM sections, weather analysis, and Go/No-Go recommendation</div>
+    <div style="display:inline-flex;gap:8px;flex-wrap:wrap;justify-content:center">
+      <span style="padding:6px 14px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a9eff;letter-spacing:1px">NOTAMIFY API ✓</span>
+      <span style="padding:6px 14px;background:rgba(46,196,182,0.08);border:1px solid rgba(46,196,182,0.2);border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:1px">CLAUDE AI ✓</span>
+      <span style="padding:6px 14px;background:rgba(242,198,65,0.08);border:1px solid rgba(242,198,65,0.2);border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;letter-spacing:1px">METAR/TAF ✓</span>
+    </div>
+  </div>
+</div>`;
+}
+
+function closeResult() {
+  document.getElementById('resultOverlay').classList.remove('open');
+}
+
+function openModal()  { document.getElementById('videoModal').classList.add('open'); }
+function closeModal() { document.getElementById('videoModal').classList.remove('open'); }
+
+document.getElementById('mainInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+});
+
+/* ═══ INIT ═══ */
+window.addEventListener('resize', resize);
+resize();
+setGreeting();
+setInterval(updateHUD, 1000);
+setInterval(setGreeting, 60000);
+updateHUD();
+animate();
+</script>
+</body>
+</html>
