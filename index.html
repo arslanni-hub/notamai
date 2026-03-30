@@ -892,7 +892,7 @@ async function handleSend() {
   showResult(val);
 
   try {
-    const response = await fetch("/briefing", {
+    const response = await fetch('/functions/briefing', {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ icao_dep: dep, icao_arr: arr, notam_text: val })
