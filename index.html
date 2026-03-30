@@ -953,7 +953,7 @@ function showResult(input) {
       clearInterval(stepInt);
       loading.style.display = 'none';
       content.style.display = 'block';
-      content.innerHTML = getDemoBriefingHTML(input);
+      content.innerHTML = '<div class="loading-text" style="color:#e63946">No response received. Please try again.</div>';
       status.textContent = label + ' — COMPLETE';
     }
   }, 900);
