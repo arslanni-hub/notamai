@@ -303,7 +303,7 @@ ${notam_text ? `ADDITIONAL DATA: ${notam_text}` : ''}`;
 
         const claudeBody = JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 12000,
+          max_tokens: 6000,
           system: systemPrompt,
           messages: [{ role: 'user', content: userMessage }]
         });
