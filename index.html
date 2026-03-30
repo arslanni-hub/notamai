@@ -884,38 +884,27 @@ function removeFile() {
 async function handleSend() {
   const val = document.getElementById('mainInput').value.trim();
   if (!val && !attachedFile) return;
-
   const parts = val.trim().toUpperCase().split(/\s+/);
   const dep = parts[0] || '';
   const arr = parts[1] || '';
-
   showResult(val);
-
   try {
     const response = await fetch('/.netlify/functions/briefing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        icao_dep: dep,
-        icao_arr: arr,
-        notam_text: val
-      })
+      body: JSON.stringify({ icao_dep: dep, icao_arr: arr, notam_text: val })
     });
-
     const data = await response.json();
-
     if (data.briefing_html) {
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('resultContent').style.display = 'block';
       document.getElementById('resultContent').innerHTML = data.briefing_html;
       document.getElementById('resultStatus').textContent = 'BRIEFING READY — ' + val.toUpperCase();
     } else {
-      document.getElementById('loadingState').innerHTML =
-        '<div class="loading-text" style="color:#e63946">ERROR: ' + (data.error || 'No data returned') + '</div>';
+      document.getElementById('loadingState').innerHTML = '<div class="loading-text" style="color:#e63946">ERROR: ' + JSON.stringify(data) + '</div>';
     }
   } catch(err) {
-    document.getElementById('loadingState').innerHTML =
-      '<div class="loading-text" style="color:#e63946">CONNECTION ERROR — ' + err.message + '</div>';
+    document.getElementById('loadingState').innerHTML = '<div class="loading-text" style="color:#e63946">ERROR: ' + err.message + '</div>';
   }
 }
 
