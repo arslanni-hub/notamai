@@ -82,6 +82,8 @@ Use EXACTLY these CSS classes (already loaded):
 
 Include ALL sections: header, executive summary, compounding risk matrix, NOTAM analysis, airspace restrictions, aerodrome status, navigation aids, weather assessment, pilot action items, dispatch notes, go/no-go recommendation, footer.
 
+For each NOTAM card include ALL four grid fields with detailed content. Use warning-banner divs when NOTAMs compound with each other. For weather section include multiple colored wx-tags (ok/warn/crit) for wind, visibility, temperature, ceiling. For pilot action items include at least 8 numbered actions using action-num and action-text with em tags highlighting key terms in yellow. For dispatch notes fill all 4 cards (fuel/alternate/slot/ATC) with specific operational details using hl spans for highlights. Always include compounding risk matrix if multiple hazards exist. Make the briefing comprehensive, detailed and visually rich using all available CSS classes.
+
 Be specific and detailed using the actual provided data.`;
 
 const server = http.createServer(async (req, res) => {
