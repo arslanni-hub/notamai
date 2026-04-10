@@ -882,42 +882,13 @@ function removeFile() {
 }
 
 async function handleSend() {
-  const val = document.getElementById("mainInput").value.trim();
+  const val = document.getElementById('mainInput').value.trim();
   if (!val && !attachedFile) return;
 
   const parts = val.trim().toUpperCase().split(/\s+/);
-  const dep = parts[0] || "";
-  const arr = parts[1] || "";
+  const dep = parts[0] || '';
+  const arr = parts[1] || '';
 
-  showResult(val);
-
-  try {
-    const response = await fetch('/briefing', {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ icao_dep: dep, icao_arr: arr, notam_text: val })
-    });
-
-    const data = await response.json();
-    console.log("API response:", JSON.stringify(data).slice(0, 500));
-
-    if (data.briefing_html) {
-      document.getElementById("loadingState").style.display = "none";
-      document.getElementById("resultContent").style.display = "block";
-      document.getElementById("resultContent").innerHTML = data.briefing_html;
-      document.getElementById("resultStatus").textContent = "BRIEFING READY — " + val.toUpperCase();
-    } else if (data.error) {
-      document.getElementById("loadingState").innerHTML = "<div class=\"loading-text\" style=\"color:#e63946\">ERROR: " + data.error + "<br><span style=\"font-size:10px;color:#4a5f72\">" + (data.detail || "") + "</span></div>";
-    } else {
-      document.getElementById("loadingState").innerHTML = "<div class=\"loading-text\" style=\"color:#e63946\">UNEXPECTED: " + JSON.stringify(data).slice(0,200) + "</div>";
-    }
-  } catch(err) {
-    document.getElementById("loadingState").innerHTML = "<div class=\"loading-text\" style=\"color:#e63946\">ERROR: " + err.message + "</div>";
-  }
-}
-
-/* ═══ RESULT ═══ */
-function showResult(input) {
   const overlay = document.getElementById('resultOverlay');
   const status  = document.getElementById('resultStatus');
   const loading = document.getElementById('loadingState');
@@ -925,38 +896,50 @@ function showResult(input) {
 
   overlay.classList.add('open');
   loading.style.display = 'flex';
-  content.style.display  = 'none';
+  content.style.display = 'none';
 
-  let label = 'ANALYZING...';
-  const parts = input.trim().toUpperCase().split(/\s+/);
-  if (parts.length === 2 && parts[0].length <= 4 && parts[1].length <= 4) {
-    label = `ROUTE BRIEFING: ${parts[0]} → ${parts[1]}`;
-  } else if (parts.length === 1 && input.length <= 4) {
-    label = `AIRPORT BRIEFING: ${input.toUpperCase()}`;
-  } else {
-    label = 'NOTAM ANALYSIS IN PROGRESS';
-  }
+  let label = 'NOTAM ANALYSIS IN PROGRESS';
+  if (arr) label = `ROUTE BRIEFING: ${dep} → ${arr}`;
+  else if (dep.length <= 4) label = `AIRPORT BRIEFING: ${dep}`;
   status.textContent = label;
 
-  // animated loading steps
+  // Animate loading steps
   const steps = ['ls1','ls2','ls3'];
-  const msgs  = ['▶ FETCHING LIVE DATA...','▶ RUNNING AI ANALYSIS...','▶ GENERATING BRIEFING...'];
+  const msgs = ['▶ FETCHING LIVE DATA...','▶ RUNNING AI ANALYSIS...','▶ GENERATING BRIEFING...'];
   let step = 0;
   const stepInt = setInterval(() => {
     if (step < steps.length) {
       steps.forEach((id, i) => {
-        document.getElementById(id).className = i === step ? 'active' : '';
-        document.getElementById(id).textContent = i <= step ? msgs[i] : `  ${msgs[i].slice(2)}`;
+        const el = document.getElementById(id);
+        el.className = i === step ? 'active' : '';
+        el.textContent = i <= step ? msgs[i] : '  ' + msgs[i].slice(2);
       });
       step++;
-    } else {
-      clearInterval(stepInt);
+    }
+  }, 1200);
+
+  try {
+    const response = await fetch('/briefing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ icao_dep: dep, icao_arr: arr, notam_text: val })
+    });
+
+    const data = await response.json();
+    clearInterval(stepInt);
+
+    if (data.briefing_html) {
       loading.style.display = 'none';
       content.style.display = 'block';
-      content.innerHTML = '<div class="loading-text" style="color:#4a5f72">Generating briefing... please wait.</div>';
+      content.innerHTML = data.briefing_html;
       status.textContent = label + ' — COMPLETE';
+    } else {
+      loading.innerHTML = '<div class="loading-ring"></div><div class="loading-text" style="color:#e63946">ERROR: ' + (data.error || 'No data received') + '</div><div class="loading-text" style="font-size:10px;margin-top:8px;color:rgba(74,158,255,0.4)">' + (data.detail || '') + '</div>';
     }
-  }, 900);
+  } catch(err) {
+    clearInterval(stepInt);
+    loading.innerHTML = '<div class="loading-ring"></div><div class="loading-text" style="color:#e63946">CONNECTION ERROR</div><div class="loading-text" style="font-size:10px;margin-top:8px;color:rgba(74,158,255,0.4)">' + err.message + '</div>';
+  }
 }
 
 function getDemoBriefingHTML(input) {
