@@ -3,9 +3,6 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-process.on('uncaughtException', err => console.error('[UNCAUGHT]', err.stack));
-process.on('unhandledRejection', err => console.error('[UNHANDLED]', err));
-
 const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 const NOTAMIFY_KEY = process.env.NOTAMIFY_KEY;
 const PORT = process.env.PORT || 3000;
@@ -52,26 +49,31 @@ function fetchURL(url, options = {}) {
   });
 }
 
-// Priority score for NOTAM sorting — higher = more important
-function notamPriority(n) {
-  const text = (n.rawNotam || n.raw_notam || n.notamText || n.notam_text || n.text || n.condition || n.description || n.body || '').toUpperCase();
-  if (/RWY|RUNWAY|CLSD|CLOSED|AD CLSD|AERODROME CLOSED/.test(text)) return 100;
-  if (/TWY|TAXIWAY|CLSD/.test(text)) return 80;
-  if (/ILS|LOC|GP|GLIDE|NAV|VOR|NDB|DME|UNSERVICEABLE|U\/S/.test(text)) return 70;
-  if (/OBST|OBSTACLE|CRANE|TOWER|MAST/.test(text)) return 60;
-  if (/TFR|RESTRICTED|PROHIBITED|DANGER|MILITARY/.test(text)) return 50;
-  if (/BIRD|WILDLIFE|LASER/.test(text)) return 40;
-  if (/APRON|STAND|GATE|PARKING/.test(text)) return 30;
-  return 10;
-}
-
 async function fetchNotams(icao) {
   if (!icao) return '';
   try {
-    const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&page=1&limit=5`;
+    const now = new Date();
+    const end = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const fmt = d => d.toISOString().slice(0, 19);
+    const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&starts_at=${fmt(now)}&ends_at=${fmt(end)}&page=1`;
     const data = await fetchURL(url, { method: 'GET', headers: { 'Authorization': `Bearer ${NOTAMIFY_KEY}` } });
     if (!data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
-    return data.notams.slice(0, 5).map(n => (n.icao_message || '').slice(0, 500)).join('\n\n');
+    console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM object keys: ${JSON.stringify(Object.keys(data.notams[0]))}`);
+    console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM full object: ${JSON.stringify(data.notams[0])}`);
+    return data.notams.map(n => {
+      const rawText = n.rawNotam || n.raw_notam || n.notamText || n.notam_text || n.text || n.condition || n.description || n.body || '';
+      const fields = [
+        `NOTAM ${n.id || n.notam_id || n.notamId || ''}`,
+        `A) ${n.location || n.icao || icao}`,
+        `B) ${n.valid_from || n.validFrom || n.start_time || ''} C) ${n.valid_to || n.validTo || n.end_time || ''}`,
+        `E) ${rawText}`,
+      ];
+      const extra = Object.entries(n)
+        .filter(([k]) => !['id','notam_id','notamId','location','icao','valid_from','validFrom','start_time','valid_to','validTo','end_time','text','condition','description','body','rawNotam','raw_notam','notamText','notam_text'].includes(k))
+        .map(([k, v]) => `${k.toUpperCase()}) ${v}`)
+        .join('\n');
+      return fields.join('\n') + (extra ? '\n' + extra : '');
+    }).join('\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}.`; }
 }
 
@@ -393,6 +395,8 @@ REQUIRED SECTIONS IN ORDER:
 Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover all NOTAM types including SNOWTAM, BIRDTAM, ASHTAM, Military, Navigation, Airspace, Aerodrome NOTAMs.`;
 
 const server = http.createServer(async (req, res) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -412,6 +416,7 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const { icao_dep, icao_arr, notam_text } = JSON.parse(body);
+
         const [notamDep, notamArr, metarDep, metarArr, tafDep, tafArr] = await Promise.all([
           fetchNotams(icao_dep), fetchNotams(icao_arr),
           fetchMetar(icao_dep), fetchMetar(icao_arr),
@@ -470,7 +475,6 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         res.end(JSON.stringify({ briefing_html: fullHtml }));
 
       } catch (err) {
-        console.error('[ERROR]', err.stack || err.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
       }
