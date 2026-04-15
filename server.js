@@ -209,6 +209,17 @@ CRITICAL INSTRUCTIONS:
 2. Do NOT include <!DOCTYPE>, <html>, <head>, <style>, <body> or outer <div class="page"> tags
 3. Start directly with <div class="master-header"> and end with </div> for briefing-footer
 4. Use EXACTLY these CSS classes — they are already loaded
+5. NEVER write "Content Under Review", "Under Review", or any placeholder text. Always use the actual NOTAM data provided.
+6. AIRPORT NAMES — use correct official names:
+   - LTFM = Istanbul Airport (opened 2019, main Istanbul hub)
+   - LTAI = Antalya Airport
+   - LTBA = Istanbul Atatürk Airport (CLOSED to commercial ops since April 2019)
+   - LTAC = Ankara Esenboğa Airport
+   - LTBJ = İzmir Adnan Menderes Airport
+   - EGLL = London Heathrow | EGKK = London Gatwick | EHAM = Amsterdam Schiphol
+   - EDDF = Frankfurt | LFPG = Paris Charles de Gaulle | LEMD = Madrid Barajas
+   - LIRF = Rome Fiumicino | LSZH = Zurich | LOWW = Vienna | EKCH = Copenhagen
+   - For any other ICAO code not listed above, derive the name from standard ICAO knowledge.
 
 REQUIRED SECTIONS IN ORDER:
 
@@ -252,22 +263,24 @@ REQUIRED SECTIONS IN ORDER:
 4. NOTAM ANALYSIS:
 <div class="section-header"><span class="icon">📋</span><span class="title">NOTAM Analysis — Priority Order</span></div>
 <div class="notam-list">
-  [For EACH NOTAM use this EXACT structure:]
+  [For EACH NOTAM in the provided data use this EXACT structure — process every NOTAM, never skip or summarise:]
   <div class="notam-card [crit|high|med|low]">
     <div class="notam-head">
       <div class="notam-dot"></div>
       <div>
-        <div class="notam-id">[🔴/🟠/🟡/🟢] [NOTAM ID] | TYPE: [TYPE]</div>
-        <div class="notam-title">[Descriptive title]</div>
+        <div class="notam-id">[🔴/🟠/🟡/🟢] [EXACT NOTAM ID from data] | TYPE: [TYPE]</div>
+        <div class="notam-title">[Descriptive title derived from the NOTAM text]</div>
       </div>
     </div>
     <div class="notam-grid">
-      <div class="notam-field"><div class="notam-field-label">📍 Location</div><div class="notam-field-value">[detail]</div></div>
-      <div class="notam-field"><div class="notam-field-label">⏰ Time Window UTC</div><div class="notam-field-value">[detail]</div></div>
-      <div class="notam-field"><div class="notam-field-label">✈️ Affected Operations</div><div class="notam-field-value">[detail]</div></div>
-      <div class="notam-field"><div class="notam-field-label">📐 Impact</div><div class="notam-field-value">[detail]</div></div>
+      <div class="notam-field"><div class="notam-field-label">📍 Location</div><div class="notam-field-value">[exact location from NOTAM]</div></div>
+      <div class="notam-field"><div class="notam-field-label">⏰ Time Window UTC</div><div class="notam-field-value">[exact B/C times from NOTAM]</div></div>
+      <div class="notam-field"><div class="notam-field-label">✈️ Affected Operations</div><div class="notam-field-value">[what operations are affected]</div></div>
+      <div class="notam-field"><div class="notam-field-label">📐 Operational Impact</div><div class="notam-field-value">[specific impact on the flight]</div></div>
     </div>
-    <div class="notam-action"><span class="action-label">⚠️ REQUIRED ACTION</span>[specific action]</div>
+    <div class="notam-field" style="margin:10px 0 6px"><div class="notam-field-label">📄 RAW NOTAM TEXT</div><div class="notam-field-value" style="font-family:monospace;font-size:12px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-all">[verbatim raw NOTAM text exactly as received from the data]</div></div>
+    <div class="notam-field" style="margin:0 0 10px"><div class="notam-field-label">💬 DECODED PLAIN ENGLISH</div><div class="notam-field-value">[clear plain-English explanation of what this NOTAM means for crew — no jargon, full sentences]</div></div>
+    <div class="notam-action"><span class="action-label">⚠️ REQUIRED CREW ACTION</span>[specific action the crew must take because of this NOTAM]</div>
     [Optional: <div class="warning-banner">COMPOUNDS WITH: [detail]</div>]
   </div>
 </div>
@@ -284,12 +297,12 @@ REQUIRED SECTIONS IN ORDER:
 <div class="dual-col">
   <div class="status-panel dep">
     <div class="status-airport">[DEP]</div>
-    <div class="status-sub">[DEP NAME] — DEPARTURE</div>
+    <div class="status-sub">[DEP CORRECT FULL NAME] — DEPARTURE</div>
     [status-row divs with status-key and status-val (ok/warn/bad) spans]
   </div>
   <div class="status-panel arr">
     <div class="status-airport">[ARR]</div>
-    <div class="status-sub">[ARR NAME] — ARRIVAL</div>
+    <div class="status-sub">[ARR CORRECT FULL NAME] — ARRIVAL</div>
     [status-row divs]
   </div>
 </div>
