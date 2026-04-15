@@ -49,18 +49,45 @@ function fetchURL(url, options = {}) {
   });
 }
 
+// Priority score for NOTAM sorting — higher = more important
+function notamPriority(n) {
+  const text = (n.rawNotam || n.raw_notam || n.notamText || n.notam_text || n.text || n.condition || n.description || n.body || '').toUpperCase();
+  if (/RWY|RUNWAY|CLSD|CLOSED|AD CLSD|AERODROME CLOSED/.test(text)) return 100;
+  if (/TWY|TAXIWAY|CLSD/.test(text)) return 80;
+  if (/ILS|LOC|GP|GLIDE|NAV|VOR|NDB|DME|UNSERVICEABLE|U\/S/.test(text)) return 70;
+  if (/OBST|OBSTACLE|CRANE|TOWER|MAST/.test(text)) return 60;
+  if (/TFR|RESTRICTED|PROHIBITED|DANGER|MILITARY/.test(text)) return 50;
+  if (/BIRD|WILDLIFE|LASER/.test(text)) return 40;
+  if (/APRON|STAND|GATE|PARKING/.test(text)) return 30;
+  return 10;
+}
+
 async function fetchNotams(icao) {
   if (!icao) return '';
   try {
     const now = new Date();
     const end = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const fmt = d => d.toISOString().slice(0, 19);
-    const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&starts_at=${fmt(now)}&ends_at=${fmt(end)}&page=1`;
+    const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&starts_at=${fmt(now)}&ends_at=${fmt(end)}&page=1&limit=10`;
     const data = await fetchURL(url, { method: 'GET', headers: { 'Authorization': `Bearer ${NOTAMIFY_KEY}` } });
     if (!data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
     console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM object keys: ${JSON.stringify(Object.keys(data.notams[0]))}`);
     console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM full object: ${JSON.stringify(data.notams[0])}`);
-    return data.notams.map(n => {
+
+    const validFrom = k => n => !!(n[k]);
+    // Filter out NOTAMs with no valid time window and no meaningful text
+    let notams = data.notams.filter(n => {
+      const hasTime = n.valid_from || n.validFrom || n.start_time || n.valid_to || n.validTo || n.end_time;
+      const hasText = n.rawNotam || n.raw_notam || n.notamText || n.notam_text || n.text || n.condition || n.description || n.body;
+      return hasTime || hasText;
+    });
+
+    // Sort by priority descending, then slice to max 10
+    notams = notams
+      .sort((a, b) => notamPriority(b) - notamPriority(a))
+      .slice(0, 10);
+
+    return notams.map(n => {
       const rawText = n.rawNotam || n.raw_notam || n.notamText || n.notam_text || n.text || n.condition || n.description || n.body || '';
       const fields = [
         `NOTAM ${n.id || n.notam_id || n.notamId || ''}`,
@@ -68,8 +95,9 @@ async function fetchNotams(icao) {
         `B) ${n.valid_from || n.validFrom || n.start_time || ''} C) ${n.valid_to || n.validTo || n.end_time || ''}`,
         `E) ${rawText}`,
       ];
+      const knownKeys = new Set(['id','notam_id','notamId','location','icao','valid_from','validFrom','start_time','valid_to','validTo','end_time','text','condition','description','body','rawNotam','raw_notam','notamText','notam_text']);
       const extra = Object.entries(n)
-        .filter(([k]) => !['id','notam_id','notamId','location','icao','valid_from','validFrom','start_time','valid_to','validTo','end_time','text','condition','description','body','rawNotam','raw_notam','notamText','notam_text'].includes(k))
+        .filter(([k]) => !knownKeys.has(k))
         .map(([k, v]) => `${k.toUpperCase()}) ${v}`)
         .join('\n');
       return fields.join('\n') + (extra ? '\n' + extra : '');
