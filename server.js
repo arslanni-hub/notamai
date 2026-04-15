@@ -68,27 +68,11 @@ async function fetchNotams(icao) {
     const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&page=1&limit=5`;
     const data = await fetchURL(url, { method: 'GET', headers: { 'Authorization': `Bearer ${NOTAMIFY_KEY}` } });
     if (!data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
-    console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM object keys: ${JSON.stringify(Object.keys(data.notams[0]))}`);
-    console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM full object: ${JSON.stringify(data.notams[0])}`);
 
     // Sort by priority descending, include all returned NOTAMs
     const notams = data.notams.sort((a, b) => notamPriority(b) - notamPriority(a));
 
-    return notams.map(n => {
-      const rawText = n.rawNotam || n.raw_notam || n.notamText || n.notam_text || n.text || n.condition || n.description || n.body || '';
-      const fields = [
-        `NOTAM ${n.id || n.notam_id || n.notamId || ''}`,
-        `A) ${n.location || n.icao || icao}`,
-        `B) ${n.valid_from || n.validFrom || n.start_time || ''} C) ${n.valid_to || n.validTo || n.end_time || ''}`,
-        `E) ${rawText}`,
-      ];
-      const knownKeys = new Set(['id','notam_id','notamId','location','icao','valid_from','validFrom','start_time','valid_to','validTo','end_time','text','condition','description','body','rawNotam','raw_notam','notamText','notam_text']);
-      const extra = Object.entries(n)
-        .filter(([k]) => !knownKeys.has(k))
-        .map(([k, v]) => `${k.toUpperCase()}) ${v}`)
-        .join('\n');
-      return fields.join('\n') + (extra ? '\n' + extra : '');
-    }).join('\n\n');
+    return notams.map(n => n.icao_message || n.notam_number || n.id).join('\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}.`; }
 }
 
