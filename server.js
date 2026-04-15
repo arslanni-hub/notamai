@@ -7,6 +7,31 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 const NOTAMIFY_KEY = process.env.NOTAMIFY_KEY;
 const PORT = process.env.PORT || 3000;
 
+const AIRPORT_NAMES = {
+  LTFM: 'Istanbul Airport (IST)',
+  LTBA: 'Istanbul Atatürk Airport (closed)',
+  LTAI: 'Antalya Airport',
+  LTFD: 'Balıkesir Koca Seyit Airport',
+  LTBJ: 'İzmir Adnan Menderes Airport',
+  LTAC: 'Ankara Esenboğa Airport',
+  LTFE: 'Dalaman Airport',
+  LTBS: 'Bodrum Milas Airport',
+  EGLL: 'London Heathrow',
+  EGKK: 'London Gatwick',
+  EHAM: 'Amsterdam Schiphol',
+  EDDF: 'Frankfurt Airport',
+  LFPG: 'Paris Charles de Gaulle',
+  LEMD: 'Madrid Barajas',
+  LIRF: 'Rome Fiumicino',
+  LSZH: 'Zurich Airport',
+  LOWW: 'Vienna International Airport',
+  EKCH: 'Copenhagen Airport',
+};
+
+function airportName(icao) {
+  return icao ? (AIRPORT_NAMES[icao.toUpperCase()] || icao) : '';
+}
+
 function fetchURL(url, options = {}) {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http;
@@ -33,9 +58,22 @@ async function fetchNotams(icao) {
     const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&starts_at=${fmt(now)}&ends_at=${fmt(end)}&page=1`;
     const data = await fetchURL(url, { method: 'GET', headers: { 'Authorization': `Bearer ${NOTAMIFY_KEY}` } });
     if (!data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
-    return data.notams.map(n =>
-      `NOTAM ${n.id || ''}\nA) ${n.location || icao}\nB) ${n.valid_from || ''} C) ${n.valid_to || ''}\nE) ${n.text || n.condition || ''}`
-    ).join('\n\n');
+    console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM object keys: ${JSON.stringify(Object.keys(data.notams[0]))}`);
+    console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM full object: ${JSON.stringify(data.notams[0])}`);
+    return data.notams.map(n => {
+      const rawText = n.rawNotam || n.raw_notam || n.notamText || n.notam_text || n.text || n.condition || n.description || n.body || '';
+      const fields = [
+        `NOTAM ${n.id || n.notam_id || n.notamId || ''}`,
+        `A) ${n.location || n.icao || icao}`,
+        `B) ${n.valid_from || n.validFrom || n.start_time || ''} C) ${n.valid_to || n.validTo || n.end_time || ''}`,
+        `E) ${rawText}`,
+      ];
+      const extra = Object.entries(n)
+        .filter(([k]) => !['id','notam_id','notamId','location','icao','valid_from','validFrom','start_time','valid_to','validTo','end_time','text','condition','description','body','rawNotam','raw_notam','notamText','notam_text'].includes(k))
+        .map(([k, v]) => `${k.toUpperCase()}) ${v}`)
+        .join('\n');
+      return fields.join('\n') + (extra ? '\n' + extra : '');
+    }).join('\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}.`; }
 }
 
@@ -389,13 +427,13 @@ const server = http.createServer(async (req, res) => {
         const utcDate = now.toUTCString().slice(5, 16).toUpperCase();
 
         const userMessage = `TODAY'S DATE: ${utcDate}
-DEPARTURE: ${icao_dep || 'NOT PROVIDED'}
-ARRIVAL: ${icao_arr || 'NOT PROVIDED'}
+DEPARTURE: ${icao_dep || 'NOT PROVIDED'} — ${airportName(icao_dep)}
+ARRIVAL: ${icao_arr || 'NOT PROVIDED'} — ${airportName(icao_arr)}
 
-LIVE NOTAMs - DEPARTURE (${icao_dep}):
+LIVE NOTAMs - DEPARTURE (${icao_dep} / ${airportName(icao_dep)}):
 ${notamDep || 'No active NOTAMs retrieved'}
 
-LIVE NOTAMs - ARRIVAL (${icao_arr}):
+LIVE NOTAMs - ARRIVAL (${icao_arr} / ${airportName(icao_arr)}):
 ${notamArr || 'No active NOTAMs retrieved'}
 
 METAR DEPARTURE: ${metarDep || 'Not available'}
