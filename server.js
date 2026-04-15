@@ -65,7 +65,7 @@ function notamPriority(n) {
 async function fetchNotams(icao) {
   if (!icao) return '';
   try {
-    const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&page=1&limit=10`;
+    const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&page=1&limit=5`;
     const data = await fetchURL(url, { method: 'GET', headers: { 'Authorization': `Bearer ${NOTAMIFY_KEY}` } });
     if (!data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
     console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM object keys: ${JSON.stringify(Object.keys(data.notams[0]))}`);
@@ -461,7 +461,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
 
         const claudeBody = JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 8000,
+          max_tokens: 10000,
           system: systemPrompt,
           messages: [{ role: 'user', content: userMessage }]
         });
