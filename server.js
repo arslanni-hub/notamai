@@ -3,6 +3,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+process.on('uncaughtException', err => console.error('[UNCAUGHT]', err.stack));
+process.on('unhandledRejection', err => console.error('[UNHANDLED]', err));
+
 const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 const NOTAMIFY_KEY = process.env.NOTAMIFY_KEY;
 const PORT = process.env.PORT || 3000;
@@ -467,6 +470,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         res.end(JSON.stringify({ briefing_html: fullHtml }));
 
       } catch (err) {
+        console.error('[ERROR]', err.stack || err.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
       }
