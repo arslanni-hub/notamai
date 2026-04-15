@@ -32,7 +32,6 @@ async function fetchNotams(icao) {
     const fmt = d => d.toISOString().slice(0, 19);
     const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&starts_at=${fmt(now)}&ends_at=${fmt(end)}&page=1`;
     const data = await fetchURL(url, { method: 'GET', headers: { 'Authorization': `Bearer ${NOTAMIFY_KEY}` } });
-    if (icao === 'LTFM') console.log(`[DEBUG LTFM] Notamify raw response: ${JSON.stringify(data)}`);
     if (!data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
     return data.notams.map(n =>
       `NOTAM ${n.id || ''}\nA) ${n.location || icao}\nB) ${n.valid_from || ''} C) ${n.valid_to || ''}\nE) ${n.text || n.condition || ''}`
