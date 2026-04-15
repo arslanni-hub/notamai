@@ -344,6 +344,8 @@ REQUIRED SECTIONS IN ORDER:
 Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover all NOTAM types including SNOWTAM, BIRDTAM, ASHTAM, Military, Navigation, Airspace, Aerodrome NOTAMs.`;
 
 const server = http.createServer(async (req, res) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
