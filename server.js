@@ -68,11 +68,7 @@ async function fetchNotams(icao) {
     const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&page=1&limit=5`;
     const data = await fetchURL(url, { method: 'GET', headers: { 'Authorization': `Bearer ${NOTAMIFY_KEY}` } });
     if (!data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
-
-    // Sort by priority descending, include all returned NOTAMs
-    const notams = data.notams.sort((a, b) => notamPriority(b) - notamPriority(a));
-
-    return notams.map(n => n.icao_message || n.notam_number || n.id).join('\n\n');
+    return data.notams.slice(0, 5).map(n => (n.icao_message || '').slice(0, 500)).join('\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}.`; }
 }
 
@@ -394,8 +390,6 @@ REQUIRED SECTIONS IN ORDER:
 Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover all NOTAM types including SNOWTAM, BIRDTAM, ASHTAM, Military, Navigation, Airspace, Aerodrome NOTAMs.`;
 
 const server = http.createServer(async (req, res) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -415,15 +409,11 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const { icao_dep, icao_arr, notam_text } = JSON.parse(body);
-        console.log('[BRIEFING] DEP:', icao_dep, 'ARR:', icao_arr);
-
         const [notamDep, notamArr, metarDep, metarArr, tafDep, tafArr] = await Promise.all([
           fetchNotams(icao_dep), fetchNotams(icao_arr),
           fetchMetar(icao_dep), fetchMetar(icao_arr),
           fetchTaf(icao_dep), fetchTaf(icao_arr)
         ]);
-
-        console.log('[NOTAMS] DEP length:', notamDep.length, 'ARR length:', notamArr.length);
 
         const now = new Date();
         const utcDate = now.toUTCString().slice(5, 16).toUpperCase();
@@ -463,8 +453,6 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
           },
           body: claudeBody
         });
-
-        console.log('[CLAUDE] Response status:', claudeData.type || 'ok');
 
         if (!claudeData.content?.[0]?.text) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
