@@ -65,27 +65,14 @@ function notamPriority(n) {
 async function fetchNotams(icao) {
   if (!icao) return '';
   try {
-    const now = new Date();
-    const end = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const fmt = d => d.toISOString().slice(0, 19);
-    const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&starts_at=${fmt(now)}&ends_at=${fmt(end)}&page=1&limit=10`;
+    const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&page=1&limit=10`;
     const data = await fetchURL(url, { method: 'GET', headers: { 'Authorization': `Bearer ${NOTAMIFY_KEY}` } });
     if (!data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
     console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM object keys: ${JSON.stringify(Object.keys(data.notams[0]))}`);
     console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM full object: ${JSON.stringify(data.notams[0])}`);
 
-    const validFrom = k => n => !!(n[k]);
-    // Filter out NOTAMs with no valid time window and no meaningful text
-    let notams = data.notams.filter(n => {
-      const hasTime = n.valid_from || n.validFrom || n.start_time || n.valid_to || n.validTo || n.end_time;
-      const hasText = n.rawNotam || n.raw_notam || n.notamText || n.notam_text || n.text || n.condition || n.description || n.body;
-      return hasTime || hasText;
-    });
-
-    // Sort by priority descending, then slice to max 10
-    notams = notams
-      .sort((a, b) => notamPriority(b) - notamPriority(a))
-      .slice(0, 10);
+    // Sort by priority descending, include all returned NOTAMs
+    const notams = data.notams.sort((a, b) => notamPriority(b) - notamPriority(a));
 
     return notams.map(n => {
       const rawText = n.rawNotam || n.raw_notam || n.notamText || n.notam_text || n.text || n.condition || n.description || n.body || '';
