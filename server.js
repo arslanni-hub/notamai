@@ -56,6 +56,7 @@ async function fetchNotams(icao) {
     const end = now + (24 * 60 * 60);
     const url = `https://api.autorouter.aero/v1.0/notam?itemas=["${icao}"]&startvalidity=${now}&endvalidity=${end}&limit=10`;
     const data = await fetchURL(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
+    console.log('[AUTOROUTER RAW]', JSON.stringify(data).slice(0, 500));
     if (!data || !data.items || data.items.length === 0) return `WARNING: No active NOTAMs retrieved for ${icao}. NOTAM data may be unavailable.`;
     return data.items.slice(0, 5).map(n => {
       const msg = n.icaomessage || n.message || '';
