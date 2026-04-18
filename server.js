@@ -63,14 +63,15 @@ async function fetchNotams(icao) {
     if (data.error || !data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
     const now = new Date();
     const activeNotams = data.notams.filter(n => {
-      if (!n.expiration) return true;
+      if (!n.expiration || n.expiration.length < 12) return true;
       const e = n.expiration;
-      const fullYear = e.length === 10 ? parseInt(e.slice(0,4)) : parseInt('20' + e.slice(0,2));
-      const month = e.length === 10 ? parseInt(e.slice(4,6)) - 1 : parseInt(e.slice(2,4)) - 1;
-      const day = e.length === 10 ? parseInt(e.slice(6,8)) : parseInt(e.slice(4,6));
-      const hour = e.length === 10 ? parseInt(e.slice(8,10)) : parseInt(e.slice(6,8));
-      const min = e.length === 10 ? parseInt(e.slice(10,12)) : parseInt(e.slice(8,10));
-      const expDate = new Date(Date.UTC(fullYear, month, day, hour, min));
+      const expDate = new Date(Date.UTC(
+        parseInt(e.slice(0,4)),
+        parseInt(e.slice(4,6)) - 1,
+        parseInt(e.slice(6,8)),
+        parseInt(e.slice(8,10)),
+        parseInt(e.slice(10,12))
+      ));
       return expDate > now;
     });
     if (activeNotams.length === 0) return `No active NOTAMs for ${icao}.`;
@@ -395,7 +396,9 @@ REQUIRED SECTIONS IN ORDER:
 
 Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover all NOTAM types including SNOWTAM, BIRDTAM, ASHTAM, Military, Navigation, Airspace, Aerodrome NOTAMs.
 
-IMPORTANT: Be concise. Limit each NOTAM card to essential information only. Ensure ALL sections are completed including Go/No-Go and Footer.`;
+IMPORTANT: Be concise. Limit each NOTAM card to essential information only. Ensure ALL sections are completed including Go/No-Go and Footer.
+
+Display RAW NOTAM text exactly as provided, preserving all line breaks. Use <pre> tags for raw NOTAM text instead of div.`;
 
 const server = http.createServer(async (req, res) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
