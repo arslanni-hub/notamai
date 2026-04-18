@@ -52,10 +52,16 @@ function fetchURL(url, options = {}) {
 async function fetchNotams(icao) {
   if (!icao) return '';
   try {
-    const url = `https://www.avdelphi.com/api/1.0/notam.svc?api_key=${process.env.AVDELPHI_KEY}&api_access_token=${process.env.AVDELPHI_TOKEN}&cmd=latest&code_icao=${icao}&format=json`;
-    const data = await fetchURL(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
-    if (data.error || !data.result || data.result.length === 0) return `No active NOTAMs for ${icao}.`;
-    return data.result.slice(0, 5).map(n => (n.text || '').slice(0, 400)).filter(t => t.length > 10).join('\n\n');
+    const url = `https://skylink-api.p.rapidapi.com/v3/notams/${icao}`;
+    const data = await fetchURL(url, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-key': process.env.SKYLINK_KEY,
+        'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
+      }
+    });
+    if (data.error || !data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
+    return data.notams.slice(0, 5).map(n => (n.raw || n.body || '').slice(0, 400)).filter(t => t.length > 10).join('\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
 }
 
