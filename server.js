@@ -60,7 +60,6 @@ async function fetchNotams(icao) {
         'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
       }
     });
-    console.log('[SKYLINK]', JSON.stringify(data).slice(0, 500));
     if (data.error || !data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
     return data.notams.slice(0, 5).map(n => (n.raw || n.body || '').slice(0, 400)).filter(t => t.length > 10).join('\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
@@ -406,8 +405,10 @@ const server = http.createServer(async (req, res) => {
       try {
         const { icao_dep, icao_arr, notam_text } = JSON.parse(body);
 
-        const [notamDep, notamArr, metarDep, metarArr, tafDep, tafArr] = await Promise.all([
-          fetchNotams(icao_dep), fetchNotams(icao_arr),
+        const notamDep = await fetchNotams(icao_dep);
+        await new Promise(r => setTimeout(r, 1000));
+        const notamArr = await fetchNotams(icao_arr);
+        const [metarDep, metarArr, tafDep, tafArr] = await Promise.all([
           fetchMetar(icao_dep), fetchMetar(icao_arr),
           fetchTaf(icao_dep), fetchTaf(icao_arr)
         ]);
