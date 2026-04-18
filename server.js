@@ -52,7 +52,7 @@ function fetchURL(url, options = {}) {
 async function fetchNotams(icao) {
   if (!icao) return '';
   try {
-    const url = `https://skylink-api.p.rapidapi.com/v3/notams/${icao}`;
+    const url = `https://skylink-api.p.rapidapi.com/notams/${icao}`;
     const data = await fetchURL(url, {
       method: 'GET',
       headers: {
