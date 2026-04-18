@@ -60,6 +60,10 @@ async function fetchNotams(icao) {
         'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
       }
     });
+    if (data.notams && data.notams.length > 0) {
+      console.log('[NOTAM SAMPLE]', JSON.stringify(data.notams[0]));
+      console.log('[NOTAM TOTAL]', data.notams.length, 'for', icao);
+    }
     if (data.error || !data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
     const now = new Date();
     const activeNotams = data.notams.filter(n => {
