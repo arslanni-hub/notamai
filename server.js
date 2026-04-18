@@ -61,7 +61,14 @@ async function fetchNotams(icao) {
       }
     });
     if (data.error || !data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
-    return data.notams.slice(0, 3).map(n => (n.raw || n.body || '').slice(0, 300)).filter(t => t.length > 10).join('\n\n');
+    const now = new Date();
+    const activeNotams = data.notams.filter(n => {
+      if (!n.expiration) return true;
+      const exp = n.expiration.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:00Z');
+      return new Date(exp) > now;
+    });
+    if (activeNotams.length === 0) return `No active NOTAMs for ${icao}.`;
+    return activeNotams.slice(0, 5).map(n => (n.raw || n.body || '').slice(0, 400)).filter(t => t.length > 10).join('\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
 }
 
@@ -418,7 +425,9 @@ const server = http.createServer(async (req, res) => {
         const now = new Date();
         const utcDate = now.toUTCString().slice(5, 16).toUpperCase();
 
-        const userMessage = `TODAY'S DATE: ${utcDate}
+        const userMessage = `CRITICAL: Output maximum 5 NOTAM cards total. Be very concise in each section. Must complete ALL sections including Weather, Pilot Actions, Dispatch Notes, Go/No-Go and Footer.
+
+TODAY'S DATE: ${utcDate}
 DEPARTURE: ${icao_dep || 'NOT PROVIDED'} — ${airportName(icao_dep)}
 ARRIVAL: ${icao_arr || 'NOT PROVIDED'} — ${airportName(icao_arr)}
 
