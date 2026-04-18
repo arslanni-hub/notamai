@@ -60,19 +60,21 @@ async function fetchNotams(icao) {
         'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
       }
     });
-    if (data.notams && data.notams.length > 0) {
-      console.log('[NOTAM SAMPLE]', JSON.stringify(data.notams[0]));
-      console.log('[NOTAM TOTAL]', data.notams.length, 'for', icao);
-    }
     if (data.error || !data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
     const now = new Date();
     const activeNotams = data.notams.filter(n => {
       if (!n.expiration) return true;
-      const exp = n.expiration.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:00Z');
-      return new Date(exp) > now;
+      const e = n.expiration;
+      const fullYear = e.length === 10 ? parseInt(e.slice(0,4)) : parseInt('20' + e.slice(0,2));
+      const month = e.length === 10 ? parseInt(e.slice(4,6)) - 1 : parseInt(e.slice(2,4)) - 1;
+      const day = e.length === 10 ? parseInt(e.slice(6,8)) : parseInt(e.slice(4,6));
+      const hour = e.length === 10 ? parseInt(e.slice(8,10)) : parseInt(e.slice(6,8));
+      const min = e.length === 10 ? parseInt(e.slice(10,12)) : parseInt(e.slice(8,10));
+      const expDate = new Date(Date.UTC(fullYear, month, day, hour, min));
+      return expDate > now;
     });
     if (activeNotams.length === 0) return `No active NOTAMs for ${icao}.`;
-    return activeNotams.slice(0, 10).map(n => (n.raw || n.body || '').replace(/\\n/g, '\n').slice(0, 500)).filter(t => t.length > 10).join('\n\n');
+    return activeNotams.slice(0, 15).map(n => (n.raw || n.body || '').slice(0, 600)).filter(t => t.length > 10).join('\n\n---\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
 }
 
