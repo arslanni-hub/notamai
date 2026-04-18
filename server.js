@@ -61,7 +61,7 @@ async function fetchNotams(icao) {
       }
     });
     if (data.error || !data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
-    return data.notams.slice(0, 5).map(n => (n.raw || n.body || '').slice(0, 400)).filter(t => t.length > 10).join('\n\n');
+    return data.notams.slice(0, 3).map(n => (n.raw || n.body || '').slice(0, 300)).filter(t => t.length > 10).join('\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
 }
 
@@ -380,7 +380,9 @@ REQUIRED SECTIONS IN ORDER:
   <div class="footer-disclaimer">FLIGHT SAFETY IS THE OVERRIDING PRIORITY. THIS BRIEFING IS PREPARED IN ACCORDANCE WITH ICAO ANNEX 15, PANS-AIM DOC 10066, PANS-OPS DOC 8168, AND DOC 4444 PANS-ATM. ALWAYS CROSS-CHECK WITH CURRENT OPERATIONAL SOURCES BEFORE FLIGHT.</div>
 </div>
 
-Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover all NOTAM types including SNOWTAM, BIRDTAM, ASHTAM, Military, Navigation, Airspace, Aerodrome NOTAMs.`;
+Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover all NOTAM types including SNOWTAM, BIRDTAM, ASHTAM, Military, Navigation, Airspace, Aerodrome NOTAMs.
+
+IMPORTANT: Be concise. Limit each NOTAM card to essential information only. Ensure ALL sections are completed including Go/No-Go and Footer.`;
 
 const server = http.createServer(async (req, res) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
