@@ -52,29 +52,16 @@ function fetchURL(url, options = {}) {
 async function fetchNotams(icao) {
   if (!icao) return '';
   try {
-    const now = new Date();
-    const end = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const fmt = d => d.toISOString().slice(0, 19);
-    const url = `https://api.notamify.com/api/v2/notams?locations=${icao}&starts_at=${fmt(now)}&ends_at=${fmt(end)}&page=1`;
-    const data = await fetchURL(url, { method: 'GET', headers: { 'Authorization': `Bearer ${NOTAMIFY_KEY}` } });
-    if (!data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
-    console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM object keys: ${JSON.stringify(Object.keys(data.notams[0]))}`);
-    console.log(`[NOTAM STRUCTURE ${icao}] First NOTAM full object: ${JSON.stringify(data.notams[0])}`);
-    return data.notams.map(n => {
-      const rawText = n.rawNotam || n.raw_notam || n.notamText || n.notam_text || n.text || n.condition || n.description || n.body || '';
-      const fields = [
-        `NOTAM ${n.id || n.notam_id || n.notamId || ''}`,
-        `A) ${n.location || n.icao || icao}`,
-        `B) ${n.valid_from || n.validFrom || n.start_time || ''} C) ${n.valid_to || n.validTo || n.end_time || ''}`,
-        `E) ${rawText}`,
-      ];
-      const extra = Object.entries(n)
-        .filter(([k]) => !['id','notam_id','notamId','location','icao','valid_from','validFrom','start_time','valid_to','validTo','end_time','text','condition','description','body','rawNotam','raw_notam','notamText','notam_text'].includes(k))
-        .map(([k, v]) => `${k.toUpperCase()}) ${v}`)
-        .join('\n');
-      return fields.join('\n') + (extra ? '\n' + extra : '');
+    const now = Math.floor(Date.now() / 1000);
+    const end = now + (24 * 60 * 60);
+    const url = `https://api.autorouter.aero/v1.0/notam?itemas=["${icao}"]&startvalidity=${now}&endvalidity=${end}&limit=10`;
+    const data = await fetchURL(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
+    if (!data || !data.items || data.items.length === 0) return `WARNING: No active NOTAMs retrieved for ${icao}. NOTAM data may be unavailable.`;
+    return data.items.slice(0, 5).map(n => {
+      const msg = n.icaomessage || n.message || '';
+      return msg.slice(0, 500);
     }).join('\n\n');
-  } catch (e) { return `Could not fetch NOTAMs for ${icao}.`; }
+  } catch (e) { return `WARNING: Could not fetch NOTAMs for ${icao}: ${e.message}. Proceed with caution — NOTAM data unavailable.`; }
 }
 
 async function fetchMetar(icao) {
