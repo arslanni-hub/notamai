@@ -68,7 +68,7 @@ async function fetchNotams(icao) {
       return new Date(exp) > now;
     });
     if (activeNotams.length === 0) return `No active NOTAMs for ${icao}.`;
-    return activeNotams.slice(0, 5).map(n => (n.raw || n.body || '').slice(0, 400)).filter(t => t.length > 10).join('\n\n');
+    return activeNotams.slice(0, 10).map(n => (n.raw || n.body || '').replace(/\\n/g, '\n').slice(0, 500)).filter(t => t.length > 10).join('\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
 }
 
