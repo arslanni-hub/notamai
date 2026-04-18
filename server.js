@@ -52,17 +52,11 @@ function fetchURL(url, options = {}) {
 async function fetchNotams(icao) {
   if (!icao) return '';
   try {
-    const now = Math.floor(Date.now() / 1000);
-    const end = now + (24 * 60 * 60);
-    const url = `https://api.autorouter.aero/v1.0/notam?itemas=["${icao}"]&startvalidity=${now}&endvalidity=${end}&limit=10`;
+    const url = `https://www.avdelphi.com/api/1.0/notam.svc?api_key=${process.env.AVDELPHI_KEY}&api_access_token=${process.env.AVDELPHI_TOKEN}&cmd=latest&code_icao=${icao}&format=json`;
     const data = await fetchURL(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
-    console.log('[AUTOROUTER RAW]', JSON.stringify(data).slice(0, 500));
-    if (!data || !data.items || data.items.length === 0) return `WARNING: No active NOTAMs retrieved for ${icao}. NOTAM data may be unavailable.`;
-    return data.items.slice(0, 5).map(n => {
-      const msg = n.icaomessage || n.message || '';
-      return msg.slice(0, 500);
-    }).join('\n\n');
-  } catch (e) { return `WARNING: Could not fetch NOTAMs for ${icao}: ${e.message}. Proceed with caution — NOTAM data unavailable.`; }
+    if (data.error || !data.result || data.result.length === 0) return `No active NOTAMs for ${icao}.`;
+    return data.result.slice(0, 5).map(n => (n.text || '').slice(0, 400)).filter(t => t.length > 10).join('\n\n');
+  } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
 }
 
 async function fetchMetar(icao) {
