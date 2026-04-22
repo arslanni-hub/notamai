@@ -77,7 +77,10 @@ async function fetchNotams(icao) {
     });
     console.log('[FILTER]', icao, 'total:', data.notams.length, 'active after filter:', activeNotams.length);
     if (activeNotams.length === 0) return `No active NOTAMs for ${icao}.`;
-    return activeNotams.map(n => (n.raw || n.body || '').slice(0, 600)).filter(t => t.length > 10).join('\n\n---\n\n');
+    return activeNotams.slice(0, 8).map((n, i) => {
+      const raw = (n.raw || n.body || '').trim().slice(0, 500);
+      return `NOTAM ${i+1} [${n.notam_id || ''}]:\n${raw}`;
+    }).join('\n\n---\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
 }
 
@@ -438,10 +441,10 @@ const server = http.createServer(async (req, res) => {
         const now = new Date();
         const utcDate = now.toUTCString().slice(5, 16).toUpperCase();
 
-        // ── Call 1: NOTAM Analysis section only ──────────────────────────────
-        const notamSystemPrompt = `You are a senior AIM specialist. Analyze these NOTAMs and output ONLY the NOTAM Analysis section HTML. Start with the section-header div for NOTAM Analysis and end after the last notam-card closing div. Use the existing CSS classes: section-header, notam-list, notam-card (crit/high/med/low), notam-head, notam-dot, notam-id, notam-title, notam-grid, notam-field-label, notam-field-value, notam-action, warning-banner. For RAW NOTAM TEXT use pre tags with style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'. Include ALL provided NOTAMs.`;
+        const userMessage = `CRITICAL: Output maximum 5 NOTAM cards total. Be very concise in each section. Must complete ALL sections including Weather, Pilot Actions, Dispatch Notes, Go/No-Go and Footer.
 
-        const notamUserMessage = `DEPARTURE: ${icao_dep || 'NOT PROVIDED'} — ${airportName(icao_dep)}
+TODAY'S DATE: ${utcDate}
+DEPARTURE: ${icao_dep || 'NOT PROVIDED'} — ${airportName(icao_dep)}
 ARRIVAL: ${icao_arr || 'NOT PROVIDED'} — ${airportName(icao_arr)}
 
 LIVE NOTAMs - DEPARTURE (${icao_dep} / ${airportName(icao_dep)}):
@@ -449,95 +452,45 @@ ${notamDep || 'No active NOTAMs retrieved'}
 
 LIVE NOTAMs - ARRIVAL (${icao_arr} / ${airportName(icao_arr)}):
 ${notamArr || 'No active NOTAMs retrieved'}
-${notam_text ? `\nADDITIONAL USER NOTAMs:\n${notam_text}` : ''}
-
-Output the NOTAM Analysis HTML section now.`;
-
-        const notamBody = JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 6000,
-          system: notamSystemPrompt,
-          messages: [{ role: 'user', content: notamUserMessage }]
-        });
-
-        const notamData = await fetchURL('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': ANTHROPIC_KEY,
-            'anthropic-version': '2023-06-01',
-            'Content-Length': Buffer.byteLength(notamBody)
-          },
-          body: notamBody
-        });
-
-        if (!notamData.content?.[0]?.text) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Claude (NOTAM call) returned no content', detail: JSON.stringify(notamData) }));
-          return;
-        }
-
-        // ── Call 2: Rest of briefing (skip NOTAM Analysis section) ───────────
-        const notamSummary = (notamDep + '\n' + notamArr)
-          .split('\n')
-          .filter(l => l.match(/^!/))
-          .map(l => l.slice(0, 80))
-          .join('\n');
-
-        const briefingUserMessage = `CRITICAL: Be very concise. Must complete ALL sections including Weather, Pilot Actions, Dispatch Notes, Go/No-Go and Footer. Skip the NOTAM Analysis section — it is already rendered separately.
-
-TODAY'S DATE: ${utcDate}
-DEPARTURE: ${icao_dep || 'NOT PROVIDED'} — ${airportName(icao_dep)}
-ARRIVAL: ${icao_arr || 'NOT PROVIDED'} — ${airportName(icao_arr)}
-
-NOTAM SUMMARY (for risk assessment only):
-${notamSummary || 'See full NOTAM data provided separately'}
 
 METAR DEPARTURE: ${metarDep || 'Not available'}
 METAR ARRIVAL: ${metarArr || 'Not available'}
 TAF DEPARTURE: ${tafDep || 'Not available'}
 TAF ARRIVAL: ${tafArr || 'Not available'}
+${notam_text ? `\nADDITIONAL USER DATA:\n${notam_text}` : ''}
 
-Generate the complete briefing HTML EXCEPT the NOTAM Analysis section (sections: Master Header, Executive Summary, Compounding Risk Matrix, Airspace & Restrictions, Aerodrome Status, Navigation Aids, Weather Assessment, Pilot Action Items, Dispatch Notes, Go/No-Go, Footer).`;
+Generate the complete pre-flight operational intelligence briefing HTML content.`;
 
-        const briefingBody = JSON.stringify({
+        const claudeBody = JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 6000,
+          max_tokens: 8000,
           system: systemPrompt,
-          messages: [{ role: 'user', content: briefingUserMessage }]
+          messages: [{ role: 'user', content: userMessage }]
         });
 
-        const briefingData = await fetchURL('https://api.anthropic.com/v1/messages', {
+        const claudeData = await fetchURL('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'x-api-key': ANTHROPIC_KEY,
             'anthropic-version': '2023-06-01',
-            'Content-Length': Buffer.byteLength(briefingBody)
+            'Content-Length': Buffer.byteLength(claudeBody)
           },
-          body: briefingBody
+          body: claudeBody
         });
 
-        if (!briefingData.content?.[0]?.text) {
+        if (!claudeData.content?.[0]?.text) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Claude (briefing call) returned no content', detail: JSON.stringify(briefingData) }));
+          res.end(JSON.stringify({ error: 'Claude returned no content', detail: JSON.stringify(claudeData) }));
           return;
         }
 
-        // ── Combine: inject NOTAM section after Compounding Risk Matrix ───────
-        let notamSection = notamData.content[0].text;
-        notamSection = notamSection.replace(/```[\w]*\n([\s\S]*?)```/g,
+        let bodyContent = claudeData.content[0].text;
+
+        // Fix raw NOTAM text that Claude wraps in backtick code blocks
+        bodyContent = bodyContent.replace(/```[\w]*\n([\s\S]*?)```/g,
           "<pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>$1</pre>"
         );
-
-        let bodyContent = briefingData.content[0].text;
-        // Insert NOTAM section after the airspace section header or after compound-box, whichever comes first
-        const insertMarker = bodyContent.indexOf('<div class="section-header"');
-        if (insertMarker !== -1) {
-          bodyContent = bodyContent.slice(0, insertMarker) + notamSection + '\n' + bodyContent.slice(insertMarker);
-        } else {
-          bodyContent = notamSection + '\n' + bodyContent;
-        }
 
         const fullHtml = `${HTML_HEAD}${bodyContent}${HTML_FOOT}`;
 
