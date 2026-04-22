@@ -75,7 +75,7 @@ async function fetchNotams(icao) {
       return expDate > now;
     });
     if (activeNotams.length === 0) return `No active NOTAMs for ${icao}.`;
-    return activeNotams.slice(0, 10).map(n => (n.raw || n.body || '').slice(0, 800)).filter(t => t.length > 10).join('\n\n---\n\n');
+    return activeNotams.slice(0, 15).map(n => (n.raw || n.body || '').slice(0, 1000)).filter(t => t.length > 10).join('\n\n---\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
 }
 
@@ -398,8 +398,9 @@ Use real data from provided NOTAMs and weather. Be detailed and operationally sp
 
 IMPORTANT: Be concise. Limit each NOTAM card to essential information only. Ensure ALL sections are completed including Go/No-Go and Footer.
 
-For the RAW NOTAM TEXT field, use this exact HTML structure to preserve line breaks:
-<div class='notam-field'><div class='notam-field-label'>📄 RAW NOTAM TEXT</div><div class='notam-field-value' style='font-family:var(--mono);white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.2);padding:8px;border:1px solid var(--border);line-height:1.6;'>[RAW NOTAM TEXT HERE]</div></div>`;
+For RAW NOTAM TEXT field always use this HTML: <pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>[EXACT RAW NOTAM TEXT]</pre>
+
+The ! at the start of each NOTAM is standard ICAO format - keep it in the raw text display.`;
 
 const server = http.createServer(async (req, res) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
