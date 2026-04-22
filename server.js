@@ -497,9 +497,16 @@ Output the Master Header, Executive Summary, Compounding Risk Matrix, and NOTAM 
           .map(l => l.slice(0, 100))
           .join('\n');
 
+        const criticalNotams = [...notamDep.split('==='), ...notamArr.split('===')]
+          .filter(n => n.includes('CLSD') || n.includes('JAMM') || n.includes('U/S') || n.includes('EMERG'))
+          .join('\n\n---\n\n');
+
         const briefingPageMessage = `CRITICAL: Be concise. Output ONLY these sections: Airspace & Restrictions, Aerodrome Status, Navigation Aids, Weather Assessment, Pilot Action Items, Dispatch Notes, Go/No-Go, Footer. Do NOT output Master Header, Executive Summary, Compounding Risk Matrix, or NOTAM Analysis — those are on a separate page.
 
 ${notamRouteInfo}
+
+CRITICAL NOTAMs AFFECTING FULL BRIEFING:
+${criticalNotams || 'None identified'}
 
 NOTAM SUMMARY (for risk context only):
 ${notamSummary || 'See NOTAM Analysis page'}
