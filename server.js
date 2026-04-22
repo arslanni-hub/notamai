@@ -79,7 +79,7 @@ async function fetchNotams(icao) {
     if (activeNotams.length === 0) return `No active NOTAMs for ${icao}.`;
     return activeNotams.slice(0, 8).map((n, i) => {
       const raw = (n.raw || n.body || '').trim().slice(0, 500);
-      return `NOTAM ${i+1} [${n.notam_id || ''}]:\n${raw}`;
+      return `[${icao} NOTAM ${i+1}] ${n.notam_id || ''}:\n${raw}`;
     }).join('\n\n---\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
 }
@@ -245,7 +245,14 @@ const HTML_HEAD = `<!DOCTYPE html>
 
 const HTML_FOOT = `</div></body></html>`;
 
-const systemPrompt = `You are a senior Aeronautical Information Management (AIM) specialist with 20+ years of operational experience. Expert in ICAO Annex 15, PANS-AIM Doc 10066, PANS-OPS Doc 8168, DOC 4444 PANS-ATM.
+const systemPrompt = `MANDATORY RULES:
+- Show ALL NOTAMs provided in the data - never skip or summarize any NOTAM
+- Each NOTAM card must have correct risk color class: crit (red) for runway closures/GNSS/safety critical, high (orange) for navigation aids/UAS/obstacles, med (yellow) for taxiway/procedures, low (green) for administrative
+- Show the airport ICAO code for each NOTAM in the notam-id field
+- CRITICAL NOTAMs include: runway closures, GNSS jamming, dual runway closures, emergency-only airports
+- Never downgrade GNSS jamming or runway closures to medium or low risk
+
+You are a senior Aeronautical Information Management (AIM) specialist with 20+ years of operational experience. Expert in ICAO Annex 15, PANS-AIM Doc 10066, PANS-OPS Doc 8168, DOC 4444 PANS-ATM.
 
 Analyze the provided aviation data and produce a complete pre-flight operational intelligence briefing.
 
