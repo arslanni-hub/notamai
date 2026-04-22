@@ -902,6 +902,7 @@ async function handleSend() {
   overlay.classList.add('open');
   loading.style.display = 'flex';
   content.style.display = 'none';
+  const startTime = Date.now();
 
   let label = 'NOTAM ANALYSIS IN PROGRESS';
   if (arr) label = `ROUTE BRIEFING: ${dep} → ${arr}`;
@@ -958,8 +959,6 @@ async function handleSend() {
           if (evt.type === 'init') {
             htmlHead = evt.html_head;
             htmlFoot = evt.html_foot;
-            loading.style.display = 'none';
-            content.style.display = 'block';
             status.textContent = label + ' — STREAMING...';
           } else if (evt.type === 'chunk') {
             accumulated += evt.text;
@@ -974,6 +973,11 @@ async function handleSend() {
               "<pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>$1</pre>"
             );
             content.innerHTML = htmlHead + final + htmlFoot;
+            // Wait minimum 5 seconds from click before showing result
+            const elapsed = Date.now() - startTime;
+            if (elapsed < 5000) await new Promise(r => setTimeout(r, 5000 - elapsed));
+            loading.style.display = 'none';
+            content.style.display = 'block';
             status.textContent = label + ' — COMPLETE';
           } else if (evt.type === 'error') {
             loading.style.display = 'block';
