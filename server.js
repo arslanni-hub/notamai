@@ -482,7 +482,13 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
           return;
         }
 
-        const bodyContent = claudeData.content[0].text;
+        let bodyContent = claudeData.content[0].text;
+
+        // Fix raw NOTAM text that Claude wraps in backtick code blocks
+        bodyContent = bodyContent.replace(/```[\w]*\n([\s\S]*?)```/g,
+          "<pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>$1</pre>"
+        );
+
         const fullHtml = `${HTML_HEAD}${bodyContent}${HTML_FOOT}`;
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
