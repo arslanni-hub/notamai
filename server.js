@@ -77,7 +77,7 @@ async function fetchNotams(icao) {
     });
     console.log('[FILTER]', icao, 'total:', data.notams.length, 'active after filter:', activeNotams.length);
     if (activeNotams.length === 0) return `No active NOTAMs for ${icao}.`;
-    return activeNotams.slice(0, 8).map((n, i) => {
+    return activeNotams.map((n, i) => {
       const raw = (n.raw || n.body || '').trim().slice(0, 500);
       return `[${icao} NOTAM ${i+1}] ${n.notam_id || ''}:\n${raw}`;
     }).join('\n\n---\n\n');
@@ -448,61 +448,102 @@ const server = http.createServer(async (req, res) => {
         const now = new Date();
         const utcDate = now.toUTCString().slice(5, 16).toUpperCase();
 
-        const userMessage = `CRITICAL: Output maximum 5 NOTAM cards total. Be very concise in each section. Must complete ALL sections including Weather, Pilot Actions, Dispatch Notes, Go/No-Go and Footer.
-
-TODAY'S DATE: ${utcDate}
-DEPARTURE: ${icao_dep || 'NOT PROVIDED'} — ${airportName(icao_dep)}
+        const notamRouteInfo = `DEPARTURE: ${icao_dep || 'NOT PROVIDED'} — ${airportName(icao_dep)}
 ARRIVAL: ${icao_arr || 'NOT PROVIDED'} — ${airportName(icao_arr)}
+TODAY'S DATE: ${utcDate}`;
+
+        // ── Call 1: Page 1 — Header + Exec Summary + Compounding Risk + NOTAM Analysis ──
+        const notamPageSystem = `You are a senior AIM specialist. Output ONLY these sections in order: Master Header, Executive Summary, Compounding Risk Matrix, NOTAM Analysis. Use these exact CSS classes from the loaded stylesheet. Include ALL provided NOTAMs as individual cards — never skip any. Risk colors: runway closures/GNSS jamming/safety critical = crit (red), navigation aids/UAS/obstacles = high (orange), taxiway/procedures = med (yellow), administrative = low (green). Show airport ICAO in each notam-id field. Output starts with <div class="master-header"> and ends after the closing </div> of the notam-list div. Do NOT include any other sections.`;
+
+        const notamPageMessage = `${notamRouteInfo}
 
 LIVE NOTAMs - DEPARTURE (${icao_dep} / ${airportName(icao_dep)}):
 ${notamDep || 'No active NOTAMs retrieved'}
 
 LIVE NOTAMs - ARRIVAL (${icao_arr} / ${airportName(icao_arr)}):
 ${notamArr || 'No active NOTAMs retrieved'}
+${notam_text ? `\nADDITIONAL USER NOTAMs:\n${notam_text}` : ''}
 
-METAR DEPARTURE: ${metarDep || 'Not available'}
-METAR ARRIVAL: ${metarArr || 'Not available'}
-TAF DEPARTURE: ${tafDep || 'Not available'}
-TAF ARRIVAL: ${tafArr || 'Not available'}
-${notam_text ? `\nADDITIONAL USER DATA:\n${notam_text}` : ''}
+Output the Master Header, Executive Summary, Compounding Risk Matrix, and NOTAM Analysis sections now.`;
 
-Generate the complete pre-flight operational intelligence briefing HTML content.`;
-
-        const claudeBody = JSON.stringify({
+        const notamPageBody = JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 8000,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: userMessage }]
+          max_tokens: 6000,
+          system: notamPageSystem,
+          messages: [{ role: 'user', content: notamPageMessage }]
         });
 
-        const claudeData = await fetchURL('https://api.anthropic.com/v1/messages', {
+        const notamPageData = await fetchURL('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'x-api-key': ANTHROPIC_KEY,
             'anthropic-version': '2023-06-01',
-            'Content-Length': Buffer.byteLength(claudeBody)
+            'Content-Length': Buffer.byteLength(notamPageBody)
           },
-          body: claudeBody
+          body: notamPageBody
         });
 
-        if (!claudeData.content?.[0]?.text) {
+        if (!notamPageData.content?.[0]?.text) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Claude returned no content', detail: JSON.stringify(claudeData) }));
+          res.end(JSON.stringify({ error: 'Claude (page 1) returned no content', detail: JSON.stringify(notamPageData) }));
           return;
         }
 
-        let bodyContent = claudeData.content[0].text;
+        // ── Call 2: Page 2 — Everything else ─────────────────────────────────
+        const notamSummary = [notamDep, notamArr]
+          .join('\n').split('\n')
+          .filter(l => l.startsWith('['))
+          .map(l => l.slice(0, 100))
+          .join('\n');
 
-        // Fix raw NOTAM text that Claude wraps in backtick code blocks
-        bodyContent = bodyContent.replace(/```[\w]*\n([\s\S]*?)```/g,
+        const briefingPageMessage = `CRITICAL: Be concise. Output ONLY these sections: Airspace & Restrictions, Aerodrome Status, Navigation Aids, Weather Assessment, Pilot Action Items, Dispatch Notes, Go/No-Go, Footer. Do NOT output Master Header, Executive Summary, Compounding Risk Matrix, or NOTAM Analysis — those are on a separate page.
+
+${notamRouteInfo}
+
+NOTAM SUMMARY (for risk context only):
+${notamSummary || 'See NOTAM Analysis page'}
+
+METAR DEPARTURE: ${metarDep || 'Not available'}
+METAR ARRIVAL: ${metarArr || 'Not available'}
+TAF DEPARTURE: ${tafDep || 'Not available'}
+TAF ARRIVAL: ${tafArr || 'Not available'}
+
+Output the remaining briefing sections now.`;
+
+        const briefingPageBody = JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 5000,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: briefingPageMessage }]
+        });
+
+        const briefingPageData = await fetchURL('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_KEY,
+            'anthropic-version': '2023-06-01',
+            'Content-Length': Buffer.byteLength(briefingPageBody)
+          },
+          body: briefingPageBody
+        });
+
+        if (!briefingPageData.content?.[0]?.text) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Claude (page 2) returned no content', detail: JSON.stringify(briefingPageData) }));
+          return;
+        }
+
+        const fixBackticks = html => html.replace(/```[\w]*\n([\s\S]*?)```/g,
           "<pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>$1</pre>"
         );
 
-        const fullHtml = `${HTML_HEAD}${bodyContent}${HTML_FOOT}`;
+        const page1Html = `${HTML_HEAD}${fixBackticks(notamPageData.content[0].text)}${HTML_FOOT}`;
+        const page2Html = `${HTML_HEAD}${fixBackticks(briefingPageData.content[0].text)}${HTML_FOOT}`;
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ briefing_html: fullHtml }));
+        res.end(JSON.stringify({ page1_html: page1Html, page2_html: page2Html }));
 
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });

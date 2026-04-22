@@ -623,7 +623,12 @@ canvas#sky {
         <div id="ls3">  GENERATING BRIEFING</div>
       </div>
     </div>
+    <div id="pageTabs" style="display:none;gap:8px;padding:12px 24px 0;background:var(--bg2,#0b1118);border-bottom:1px solid #1a2a3a;">
+      <button id="tabBtn1" onclick="switchTab(1)" style="font-family:monospace;font-size:11px;letter-spacing:1px;padding:6px 16px;background:#143060;color:#4a9eff;border:1px solid #4a9eff;cursor:pointer;">📋 NOTAM ANALYSIS</button>
+      <button id="tabBtn2" onclick="switchTab(2)" style="font-family:monospace;font-size:11px;letter-spacing:1px;padding:6px 16px;background:transparent;color:#4a5f72;border:1px solid #1a2a3a;cursor:pointer;">🌤️ FULL BRIEFING</button>
+    </div>
     <div id="resultContent" style="display:none"></div>
+    <div id="resultContent2" style="display:none"></div>
   </div>
 </div>
 
@@ -928,7 +933,14 @@ async function handleSend() {
     const data = await response.json();
     clearInterval(stepInt);
 
-    if (data.briefing_html) {
+    if (data.page1_html || data.page2_html) {
+      loading.style.display = 'none';
+      document.getElementById('pageTabs').style.display = 'flex';
+      content.innerHTML = data.page1_html || '';
+      document.getElementById('resultContent2').innerHTML = data.page2_html || '';
+      content.style.display = 'block';
+      status.textContent = label + ' — COMPLETE';
+    } else if (data.briefing_html) {
       loading.style.display = 'none';
       content.style.display = 'block';
       content.innerHTML = data.briefing_html;
@@ -1015,6 +1027,23 @@ function getDemoBriefingHTML(input) {
     </div>
   </div>
 </div>`;
+}
+
+function switchTab(n) {
+  const c1 = document.getElementById('resultContent');
+  const c2 = document.getElementById('resultContent2');
+  const b1 = document.getElementById('tabBtn1');
+  const b2 = document.getElementById('tabBtn2');
+  const activeStyle = 'background:#143060;color:#4a9eff;border:1px solid #4a9eff;';
+  const inactiveStyle = 'background:transparent;color:#4a5f72;border:1px solid #1a2a3a;';
+  if (n === 1) {
+    c1.style.display = 'block'; c2.style.display = 'none';
+    b1.style.cssText += activeStyle; b2.style.cssText += inactiveStyle;
+  } else {
+    c1.style.display = 'none'; c2.style.display = 'block';
+    b1.style.cssText += inactiveStyle; b2.style.cssText += activeStyle;
+  }
+  document.getElementById('resultScroll').scrollTop = 0;
 }
 
 function closeResult() {
