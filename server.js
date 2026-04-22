@@ -61,19 +61,8 @@ async function fetchNotams(icao) {
       }
     });
     if (data.error || !data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
-    const now = new Date();
-    const activeNotams = data.notams.filter(n => {
-      if (!n.expiration || n.expiration.length < 12) return true;
-      const e = n.expiration;
-      const expDate = new Date(Date.UTC(
-        parseInt(e.slice(0,4)),
-        parseInt(e.slice(4,6)) - 1,
-        parseInt(e.slice(6,8)),
-        parseInt(e.slice(8,10)),
-        parseInt(e.slice(10,12))
-      ));
-      return expDate > now;
-    });
+    const activeNotams = data.notams;
+    console.log('[FILTER]', icao, 'total:', data.notams.length, 'active after filter:', activeNotams.length);
     if (activeNotams.length === 0) return `No active NOTAMs for ${icao}.`;
     return activeNotams.slice(0, 15).map(n => (n.raw || n.body || '').slice(0, 1000)).filter(t => t.length > 10).join('\n\n---\n\n');
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
@@ -398,7 +387,7 @@ Use real data from provided NOTAMs and weather. Be detailed and operationally sp
 
 IMPORTANT: Be concise. Limit each NOTAM card to essential information only. Ensure ALL sections are completed including Go/No-Go and Footer.
 
-For RAW NOTAM TEXT field always use this HTML: <pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>[EXACT RAW NOTAM TEXT]</pre>
+NEVER use markdown code blocks or backticks. For RAW NOTAM TEXT always output exactly this HTML with no modifications: <pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>NOTAM TEXT HERE</pre>
 
 The ! at the start of each NOTAM is standard ICAO format - keep it in the raw text display.`;
 
