@@ -102,6 +102,45 @@ async function fetchTaf(icao) {
   } catch { return ''; }
 }
 
+function streamClaude(requestBody, onChunk, onDone, onError) {
+  const req = https.request({
+    hostname: 'api.anthropic.com',
+    path: '/v1/messages',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+      'Content-Length': Buffer.byteLength(requestBody)
+    }
+  }, (claudeRes) => {
+    let buf = '';
+    claudeRes.on('data', chunk => {
+      buf += chunk.toString();
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (!raw || raw === '[DONE]') continue;
+        try {
+          const evt = JSON.parse(raw);
+          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+            onChunk(evt.delta.text);
+          } else if (evt.type === 'message_stop') {
+            onDone();
+          }
+        } catch (_) {}
+      }
+    });
+    claudeRes.on('end', onDone);
+    claudeRes.on('error', onError);
+  });
+  req.on('error', onError);
+  req.write(requestBody);
+  req.end();
+}
+
 const HTML_HEAD = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -471,42 +510,32 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         const claudeBody = JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 8000,
+          stream: true,
           system: systemPrompt,
           messages: [{ role: 'user', content: userMessage }]
         });
 
-        const claudeData = await fetchURL('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': ANTHROPIC_KEY,
-            'anthropic-version': '2023-06-01',
-            'Content-Length': Buffer.byteLength(claudeBody)
-          },
-          body: claudeBody
-        });
+        // Switch to SSE streaming response
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.writeHead(200);
 
-        if (!claudeData.content?.[0]?.text) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Claude returned no content', detail: JSON.stringify(claudeData) }));
-          return;
-        }
+        // Send HTML_HEAD and HTML_FOOT to client so it can wrap content
+        res.write(`data: ${JSON.stringify({ type: 'init', html_head: HTML_HEAD, html_foot: HTML_FOOT })}\n\n`);
 
-        let bodyContent = claudeData.content[0].text;
-
-        // Fix raw NOTAM text that Claude wraps in backtick code blocks
-        bodyContent = bodyContent.replace(/```[\w]*\n([\s\S]*?)```/g,
-          "<pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>$1</pre>"
+        let doneSent = false;
+        streamClaude(claudeBody,
+          (text) => { res.write(`data: ${JSON.stringify({ type: 'chunk', text })}\n\n`); },
+          () => { if (!doneSent) { doneSent = true; res.write('data: {"type":"done"}\n\n'); res.end(); } },
+          (err) => { if (!doneSent) { doneSent = true; res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`); res.end(); } }
         );
 
-        const fullHtml = `${HTML_HEAD}${bodyContent}${HTML_FOOT}`;
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ briefing_html: fullHtml }));
-
       } catch (err) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: err.message }));
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
       }
     });
     return;

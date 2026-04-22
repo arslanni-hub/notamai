@@ -930,23 +930,58 @@ async function handleSend() {
       body: JSON.stringify({ icao_dep: dep, icao_arr: arr, notam_text: val })
     });
 
-    const data = await response.json();
     clearInterval(stepInt);
 
-    if (data.page1_html || data.page2_html) {
-      loading.style.display = 'none';
-      document.getElementById('pageTabs').style.display = 'flex';
-      content.innerHTML = data.page1_html || '';
-      document.getElementById('resultContent2').innerHTML = data.page2_html || '';
-      content.style.display = 'block';
-      status.textContent = label + ' — COMPLETE';
-    } else if (data.briefing_html) {
-      loading.style.display = 'none';
-      content.style.display = 'block';
-      content.innerHTML = data.briefing_html;
-      status.textContent = label + ' — COMPLETE';
-    } else {
-      loading.innerHTML = '<div class="loading-ring"></div><div class="loading-text" style="color:#e63946">ERROR: ' + (data.error || 'No data received') + '</div><div class="loading-text" style="font-size:10px;margin-top:8px;color:rgba(74,158,255,0.4)">' + (data.detail || '') + '</div>';
+    if (!response.ok) throw new Error('Server error ' + response.status);
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let sseBuffer = '';
+    let htmlHead = '';
+    let htmlFoot = '';
+    let accumulated = '';
+    let lastRenderLen = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      sseBuffer += decoder.decode(value, { stream: true });
+      const lines = sseBuffer.split('\n');
+      sseBuffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (!raw) continue;
+        try {
+          const evt = JSON.parse(raw);
+          if (evt.type === 'init') {
+            htmlHead = evt.html_head;
+            htmlFoot = evt.html_foot;
+            loading.style.display = 'none';
+            content.style.display = 'block';
+            status.textContent = label + ' — STREAMING...';
+          } else if (evt.type === 'chunk') {
+            accumulated += evt.text;
+            // Re-render every ~1500 chars to show content building up
+            if (accumulated.length - lastRenderLen > 1500) {
+              lastRenderLen = accumulated.length;
+              content.innerHTML = htmlHead + accumulated + htmlFoot;
+            }
+          } else if (evt.type === 'done') {
+            // Final render with backtick fix
+            const final = accumulated.replace(/```[\w]*\n([\s\S]*?)```/g,
+              "<pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>$1</pre>"
+            );
+            content.innerHTML = htmlHead + final + htmlFoot;
+            status.textContent = label + ' — COMPLETE';
+          } else if (evt.type === 'error') {
+            loading.style.display = 'block';
+            content.style.display = 'none';
+            loading.innerHTML = '<div class="loading-ring"></div><div class="loading-text" style="color:#e63946">ERROR: ' + evt.message + '</div>';
+          }
+        } catch (_) {}
+      }
     }
   } catch(err) {
     clearInterval(stepInt);
