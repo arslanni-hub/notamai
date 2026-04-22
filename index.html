@@ -909,20 +909,20 @@ async function handleSend() {
   else if (dep.length <= 4) label = `AIRPORT BRIEFING: ${dep}`;
   status.textContent = label;
 
-  // Animate loading steps
+  // Animate loading steps at fixed times: step1@0s, step2@3s, step3@6s
   const steps = ['ls1','ls2','ls3'];
   const msgs = ['▶ FETCHING LIVE DATA...','▶ RUNNING AI ANALYSIS...','▶ GENERATING BRIEFING...'];
-  let step = 0;
-  const stepInt = setInterval(() => {
-    if (step < steps.length) {
-      steps.forEach((id, i) => {
-        const el = document.getElementById(id);
-        el.className = i === step ? 'active' : '';
-        el.textContent = i <= step ? msgs[i] : '  ' + msgs[i].slice(2);
-      });
-      step++;
-    }
-  }, 1200);
+  const stepInt = null; // kept for compat — no longer used
+  function activateStep(idx) {
+    steps.forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.className = i === idx ? 'active' : '';
+      el.textContent = i <= idx ? msgs[i] : '  ' + msgs[i].slice(2);
+    });
+  }
+  activateStep(0);
+  setTimeout(() => activateStep(1), 3000);
+  setTimeout(() => activateStep(2), 6000);
 
   try {
     const response = await fetch('/briefing', {
@@ -943,12 +943,12 @@ async function handleSend() {
     let accumulated = '';
     let lastRenderLen = 0;
 
-    // After exactly 5s: hide loading and reveal content regardless of stream state
+    // After exactly 10s: hide loading and reveal content regardless of stream state
     setTimeout(() => {
       loading.style.display = 'none';
       content.style.display = 'block';
       status.textContent = label + ' — STREAMING...';
-    }, 5000);
+    }, 10000);
 
     while (true) {
       const { done, value } = await reader.read();
