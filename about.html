@@ -284,7 +284,7 @@ footer {
     <a class="nav-logo" href="/"><span>NOTAM</span> INTELLIGENCE</a>
     <a class="nav-link active" href="/about">About</a>
     <a class="nav-link" href="#">Pricing</a>
-    <a class="nav-link" href="#">Support</a>
+    <a class="nav-link" href="#" onclick="openSupportModal(); return false;">Support</a>
     <button class="nav-btn-login" onclick="window.location.href='/'">Log In</button>
     <button class="nav-btn-start" onclick="window.location.href='/'">Get Started</button>
   </div>
@@ -358,6 +358,44 @@ footer {
     <a href="#">Terms of Service</a>
   </div>
 </footer>
+
+<!-- SUPPORT MODAL -->
+<div id="supportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:12px;padding:40px;max-width:480px;width:90%;position:relative;">
+    <button onclick="closeSupportModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#4a5f72;font-size:20px;cursor:pointer;">✕</button>
+    <div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#4a9eff;letter-spacing:3px;margin-bottom:16px;">SUPPORT</div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:22px;color:#fff;margin-bottom:8px;">How can we help?</div>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:15px;color:#8a9bb0;margin-bottom:32px;">Send us a message and we'll get back to you as soon as possible.</div>
+    <form onsubmit="sendSupportEmail(event)">
+      <input id="supportName" type="text" placeholder="Your name" required style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:12px 16px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:12px;outline:none;box-sizing:border-box;">
+      <input id="supportEmail" type="email" placeholder="Your email" required style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:12px 16px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:12px;outline:none;box-sizing:border-box;">
+      <textarea id="supportMessage" placeholder="How can we help you?" required rows="4" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:12px 16px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:20px;outline:none;box-sizing:border-box;resize:vertical;"></textarea>
+      <button type="submit" style="width:100%;background:#4a9eff;color:#060a0f;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:2px;padding:12px;border:none;border-radius:4px;cursor:pointer;text-transform:uppercase;">Send Message →</button>
+    </form>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;text-align:center;margin-top:20px;">Or email us directly: <a href="mailto:hello@notamai.com" style="color:#4a9eff;">hello@notamai.com</a></div>
+  </div>
+</div>
+
+<script>
+function openSupportModal() {
+  const m = document.getElementById('supportModal');
+  m.style.display = 'flex';
+}
+function closeSupportModal() {
+  document.getElementById('supportModal').style.display = 'none';
+}
+function sendSupportEmail(e) {
+  e.preventDefault();
+  const name = document.getElementById('supportName').value;
+  const email = document.getElementById('supportEmail').value;
+  const message = document.getElementById('supportMessage').value;
+  window.location.href = `mailto:hello@notamai.com?subject=Support Request from ${name}&body=${encodeURIComponent(message + '\n\nFrom: ' + name + '\nEmail: ' + email)}`;
+  closeSupportModal();
+}
+document.getElementById('supportModal').addEventListener('click', function(e) {
+  if (e.target === this) closeSupportModal();
+});
+</script>
 
 </body>
 </html>
