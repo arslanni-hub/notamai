@@ -33,6 +33,104 @@ html, body {
   color: var(--text);
 }
 
+/* ═══ NAVBAR ═══ */
+#navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  z-index: 1000;
+  background: rgba(6,10,15,0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(26,42,58,0.6);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 0;
+}
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.nav-logo-text {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 3px;
+}
+.nav-logo-text .n1 { color: #4a9eff; }
+.nav-logo-text .n2 { color: #cdd9e5; }
+.nav-version {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: rgba(74,158,255,0.45);
+  background: rgba(74,158,255,0.08);
+  border: 1px solid rgba(74,158,255,0.15);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin: 0 auto;
+}
+.nav-link {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: #8a9bb0;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 0.2s;
+  cursor: pointer;
+}
+.nav-link:hover { color: #c8daf0; }
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.nav-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-radius: 6px;
+  padding: 7px 16px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  text-decoration: none;
+}
+.nav-btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(74,158,255,0.2);
+  color: rgba(74,158,255,0.7);
+}
+.nav-btn-ghost:hover {
+  background: rgba(74,158,255,0.06);
+  border-color: rgba(74,158,255,0.4);
+  color: #4a9eff;
+}
+.nav-btn-solid {
+  background: rgba(74,158,255,0.12);
+  border: 1px solid rgba(74,158,255,0.35);
+  color: #4a9eff;
+}
+.nav-btn-solid:hover {
+  background: rgba(74,158,255,0.2);
+  border-color: rgba(74,158,255,0.6);
+}
+@media (max-width: 640px) {
+  .nav-links { display: none; }
+}
+
 /* ═══ COCKPIT FRAME ═══ */
 #scene {
   position: fixed;
@@ -515,6 +613,23 @@ canvas#sky {
 </style>
 </head>
 <body>
+
+<!-- NAVBAR -->
+<nav id="navbar">
+  <a class="nav-logo" href="#">
+    <span class="nav-logo-text"><span class="n1">NOTAM</span> <span class="n2">INTELLIGENCE</span></span>
+    <span class="nav-version">v1.0</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="#">About</a>
+    <a class="nav-link" href="#">Pricing</a>
+    <a class="nav-link" href="#">Support</a>
+  </div>
+  <div class="nav-actions">
+    <button class="nav-btn nav-btn-ghost">Sign In</button>
+    <button class="nav-btn nav-btn-solid" onclick="openModal()">Get Pro →</button>
+  </div>
+</nav>
 
 <!-- SKY CANVAS -->
 <div id="scene">
