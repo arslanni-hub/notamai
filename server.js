@@ -469,7 +469,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'GET' && req.url === '/about') {
+  if (req.method === 'GET' && (req.url === '/about' || req.url === '/about.html')) {
     const html = fs.readFileSync(path.join(__dirname, 'about.html'), 'utf8');
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end(html);
