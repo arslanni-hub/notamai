@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NOTAM Intelligence</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -34,160 +32,6 @@ html, body {
   font-family: var(--body);
   color: var(--text);
 }
-
-/* ═══ LOGIN SCREEN ═══ */
-#loginScreen {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  background: #060a0f;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-}
-#loginScreen::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,0,0,0.18) 2px,
-    rgba(0,0,0,0.18) 4px
-  );
-  pointer-events: none;
-}
-.login-logo {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 26px;
-  font-weight: 900;
-  letter-spacing: 8px;
-  color: rgba(255,255,255,0.92);
-  text-align: center;
-  margin-bottom: 6px;
-}
-.login-logo em {
-  font-style: normal;
-  color: #4a9eff;
-}
-.login-sub {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 4px;
-  color: rgba(74,158,255,0.55);
-  text-align: center;
-  margin-bottom: 52px;
-  text-transform: uppercase;
-}
-.login-card {
-  background: rgba(8,16,28,0.9);
-  border: 1px solid rgba(74,158,255,0.2);
-  border-radius: 12px;
-  padding: 40px 48px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  min-width: 320px;
-  box-shadow: 0 0 60px rgba(74,158,255,0.06), 0 0 120px rgba(0,0,0,0.8);
-  position: relative;
-  z-index: 1;
-}
-.login-card-title {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 11px;
-  letter-spacing: 3px;
-  color: rgba(74,158,255,0.6);
-  text-transform: uppercase;
-}
-.login-divider {
-  width: 100%;
-  height: 1px;
-  background: rgba(74,158,255,0.12);
-}
-.google-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(74,158,255,0.25);
-  border-radius: 8px;
-  padding: 13px 28px;
-  cursor: pointer;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  color: rgba(200,218,240,0.9);
-  text-transform: uppercase;
-  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
-  width: 100%;
-  justify-content: center;
-}
-.google-btn:hover {
-  background: rgba(74,158,255,0.08);
-  border-color: rgba(74,158,255,0.5);
-  box-shadow: 0 0 20px rgba(74,158,255,0.12);
-}
-.google-btn svg { flex-shrink: 0; }
-.login-note {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 1.5px;
-  color: rgba(74,106,138,0.7);
-  text-align: center;
-  line-height: 1.6;
-}
-
-/* ═══ USER BADGE ═══ */
-#userBadge {
-  position: fixed;
-  top: 18px;
-  right: 22px;
-  z-index: 500;
-  display: none;
-  align-items: center;
-  gap: 10px;
-  background: rgba(8,16,28,0.82);
-  border: 1px solid rgba(74,158,255,0.18);
-  border-radius: 30px;
-  padding: 5px 14px 5px 6px;
-  cursor: pointer;
-}
-#userBadge:hover { border-color: rgba(74,158,255,0.4); }
-#userAvatar {
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  border: 1px solid rgba(74,158,255,0.3);
-  object-fit: cover;
-  background: #1a2a3a;
-}
-#userEmail {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 1px;
-  color: rgba(74,158,255,0.8);
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-#signOutBtn {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 1.5px;
-  color: rgba(74,106,138,0.7);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  text-transform: uppercase;
-  display: block;
-}
-#signOutBtn:hover { color: #e63946; }
 
 /* ═══ COCKPIT FRAME ═══ */
 #scene {
@@ -671,35 +515,6 @@ canvas#sky {
 </style>
 </head>
 <body>
-
-<!-- LOGIN SCREEN -->
-<div id="loginScreen">
-  <div class="login-logo">NOTAM <em>INTELLIGENCE</em></div>
-  <div class="login-sub">AI-Powered Pre-Flight Briefing System</div>
-  <div class="login-card">
-    <div class="login-card-title">Crew Authentication Required</div>
-    <div class="login-divider"></div>
-    <button class="google-btn" onclick="signInWithGoogle()">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
-        <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-      </svg>
-      Sign in with Google
-    </button>
-    <div class="login-note">Authorized personnel only<br>All access is logged</div>
-  </div>
-</div>
-
-<!-- USER BADGE -->
-<div id="userBadge" onclick="toggleSignOut()">
-  <img id="userAvatar" src="" alt="">
-  <div>
-    <div id="userEmail"></div>
-    <button id="signOutBtn" onclick="event.stopPropagation(); signOut()">Sign Out</button>
-  </div>
-</div>
 
 <!-- SKY CANVAS -->
 <div id="scene">
@@ -1282,49 +1097,6 @@ function closeModal() { document.getElementById('videoModal').classList.remove('
 
 document.getElementById('mainInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-});
-
-/* ═══ FIREBASE AUTH ═══ */
-const firebaseConfig = {
-  apiKey: "AIzaSyDTTMQal3sXRUCv7xHhD78xV0HdsWWBLkA",
-  authDomain: "notamai-51839.firebaseapp.com",
-  projectId: "notamai-51839",
-  storageBucket: "notamai-51839.firebasestorage.app",
-  messagingSenderId: "261960871480",
-  appId: "1:261960871480:web:41bd7a0d81bffd35b340cd"
-};
-
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-
-function signInWithGoogle() {
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider).catch(err => {
-    console.error('Sign-in error:', err.message);
-  });
-}
-
-function signOut() {
-  auth.signOut();
-}
-
-function toggleSignOut() {
-  // badge is clickable but signout button handles itself
-}
-
-auth.onAuthStateChanged(user => {
-  const loginScreen = document.getElementById('loginScreen');
-  const badge = document.getElementById('userBadge');
-  if (user) {
-    loginScreen.style.display = 'none';
-    badge.style.display = 'flex';
-    document.getElementById('userAvatar').src = user.photoURL || '';
-    document.getElementById('userEmail').textContent = user.email || user.displayName || '';
-  } else {
-    loginScreen.style.display = 'flex';
-    badge.style.display = 'none';
-  }
 });
 
 /* ═══ INIT ═══ */
