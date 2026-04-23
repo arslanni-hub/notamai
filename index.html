@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 
 :root {
   --sky-top: #000510;
@@ -26,11 +27,13 @@
 }
 
 html, body {
-  width: 100%; height: 100%;
-  overflow: hidden;
+  width: 100%;
   background: var(--sky-top);
   font-family: var(--body);
   color: var(--text);
+}
+body {
+  overflow-x: hidden;
 }
 
 /* ═══ NAVBAR ═══ */
@@ -805,6 +808,185 @@ canvas#sky {
   margin-top: -8px;
   margin-right: -8px;
 }
+
+/* ═══ ABOUT SECTION ═══ */
+#about-section {
+  position: relative;
+  z-index: 10;
+  background: #060a0f;
+  overflow: hidden;
+}
+.about-scroll-sep {
+  width: 100%;
+  height: 80px;
+  background: linear-gradient(to bottom, transparent, #060a0f);
+  position: relative;
+  z-index: 10;
+}
+.about-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 32px 80px;
+}
+.about-hero {
+  text-align: center;
+  padding: 80px 0 60px;
+}
+.about-hero-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--blue);
+  margin-bottom: 24px;
+}
+.about-hero-title {
+  font-family: var(--head);
+  font-size: 48px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.15;
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+}
+.about-hero-sub {
+  font-family: var(--body);
+  font-size: 18px;
+  color: var(--text-dim);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+.about-cta {
+  display: inline-block;
+  margin-top: 28px;
+  background: var(--blue);
+  color: #060a0f;
+  font-family: var(--body);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 2px;
+  padding: 10px 28px;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+.about-cta:hover { background: #6ab4ff; }
+.about-stats {
+  display: flex;
+  justify-content: center;
+  gap: 80px;
+  margin: 0 auto 60px;
+  text-align: center;
+  flex-wrap: wrap;
+}
+.about-stat-number {
+  font-family: var(--head);
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--blue);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+.about-stat-label {
+  font-family: var(--body);
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.about-divider {
+  border: none;
+  border-top: 1px solid rgba(26,42,58,0.8);
+  margin: 0 0 60px;
+}
+.about-mission {
+  display: flex;
+  gap: 60px;
+  max-width: 900px;
+  margin: 0 auto 60px;
+  align-items: flex-start;
+}
+.about-mission-left { flex: 1; }
+.about-section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--blue);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.about-mission-title {
+  font-family: var(--head);
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
+  line-height: 1.3;
+  margin-bottom: 20px;
+}
+.about-mission-body {
+  font-family: var(--body);
+  font-size: 16px;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+.about-mission-right {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.about-feature-card {
+  background: #0d1520;
+  border: 1px solid #1a2a3a;
+  border-radius: 4px;
+  padding: 20px;
+}
+.about-feature-icon { font-size: 20px; margin-bottom: 8px; }
+.about-feature-title {
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.about-feature-desc {
+  font-family: var(--body);
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+.about-footer {
+  border-top: 1px solid #1a2a3a;
+  padding: 40px 32px;
+  text-align: center;
+}
+.about-footer-copy {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+.about-footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+.about-footer-links a {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+.about-footer-links a:hover { color: var(--blue); }
+@media (max-width: 700px) {
+  .about-hero-title { font-size: 32px; }
+  .about-mission { flex-direction: column; gap: 40px; }
+  .about-stats { gap: 40px; }
+  .about-mission-right { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -812,7 +994,7 @@ canvas#sky {
 <!-- NAVBAR -->
 <nav id="mainNavbar">
   <div class="nav-center">
-    <a class="nav-link" href="/about">About</a>
+    <a class="nav-link" href="#about-section">About</a>
     <a class="nav-link" href="#">Pricing</a>
     <a class="nav-link" href="#">Support</a>
     <button class="nav-btn-login" onclick="openAuthModal()">Log In</button>
@@ -1557,5 +1739,84 @@ setInterval(setGreeting, 60000);
 updateHUD();
 animate();
 </script>
+
+<!-- COCKPIT SPACER: pushes about section below the fold -->
+<div style="height:100vh"></div>
+
+<!-- SCROLL SEPARATOR -->
+<div class="about-scroll-sep"></div>
+
+<!-- ABOUT SECTION -->
+<div id="about-section">
+  <div class="about-page">
+
+    <!-- HERO -->
+    <section class="about-hero">
+      <div class="about-hero-badge">About NOTAM Intelligence</div>
+      <h2 class="about-hero-title">Pre-Flight Briefing,<br>Redefined.</h2>
+      <p class="about-hero-sub">Modern aviation generates thousands of NOTAMs, METARs, and advisories daily. We turn that complexity into clarity.</p>
+      <a href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" class="about-cta">Try It Free →</a>
+    </section>
+
+    <!-- STATS -->
+    <div class="about-stats">
+      <div>
+        <div class="about-stat-number">&lt; 60s</div>
+        <div class="about-stat-label">Briefing Generation Time</div>
+      </div>
+      <div>
+        <div class="about-stat-number">100%</div>
+        <div class="about-stat-label">Live NOTAM Coverage</div>
+      </div>
+      <div>
+        <div class="about-stat-number">ICAO</div>
+        <div class="about-stat-label">Annex 15 Compliant</div>
+      </div>
+    </div>
+
+    <hr class="about-divider">
+
+    <!-- MISSION -->
+    <div class="about-mission">
+      <div class="about-mission-left">
+        <div class="about-section-label">Our Mission</div>
+        <h3 class="about-mission-title">Built by aviation professionals, for aviation professionals.</h3>
+        <p class="about-mission-body">NOTAM Intelligence was created to solve a real problem: pre-flight briefing is time-consuming, error-prone, and often overwhelming. Our platform combines live aeronautical data with advanced AI analysis to deliver briefings that are not just fast — but operationally meaningful.</p>
+      </div>
+      <div class="about-mission-right">
+        <div class="about-feature-card">
+          <div class="about-feature-icon">🛰️</div>
+          <div class="about-feature-title">Live Data</div>
+          <div class="about-feature-desc">Real-time NOTAMs, METAR and TAF from official sources</div>
+        </div>
+        <div class="about-feature-card">
+          <div class="about-feature-icon">🤖</div>
+          <div class="about-feature-title">AI Analysis</div>
+          <div class="about-feature-desc">Advanced AI cross-references all data to identify compounding risks</div>
+        </div>
+        <div class="about-feature-card">
+          <div class="about-feature-icon">✈️</div>
+          <div class="about-feature-title">ICAO Compliant</div>
+          <div class="about-feature-desc">Built on ICAO Annex 15, PANS-AIM Doc 10066 standards</div>
+        </div>
+        <div class="about-feature-card">
+          <div class="about-feature-icon">⚡</div>
+          <div class="about-feature-title">Instant Briefing</div>
+          <div class="about-feature-desc">From query to complete briefing in under 60 seconds</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="about-footer">
+    <div class="about-footer-copy">© 2026 NOTAM Intelligence. All rights reserved.</div>
+    <div class="about-footer-links">
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms of Service</a>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
