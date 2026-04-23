@@ -498,6 +498,201 @@ canvas#sky {
 }
 .loading-steps .active { color: var(--blue); }
 
+/* ═══ AUTH MODAL ═══ */
+#authModalBg {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+#authModalBg.open { display: flex; }
+#authModal {
+  display: flex;
+  width: 90%;
+  max-width: 800px;
+  height: 500px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+/* Left panel */
+.auth-left {
+  width: 50%;
+  background: #ffffff;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.auth-left-logo {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  margin-bottom: 4px;
+}
+.auth-left-logo .al1 { color: #1a1a2e; }
+.auth-left-logo .al2 { color: #4a9eff; }
+.auth-left-badge {
+  display: inline-block;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #4a9eff;
+  background: rgba(74,158,255,0.08);
+  border: 1px solid rgba(74,158,255,0.2);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.auth-left-subtitle {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  color: #888;
+  margin-top: 6px;
+  margin-bottom: 32px;
+}
+.auth-provider-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 44px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0 16px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  text-align: left;
+  margin-bottom: 10px;
+}
+.auth-provider-btn:last-of-type { margin-bottom: 0; }
+.auth-provider-btn:hover { background: #f5f7fa; border-color: #bbb; }
+.auth-provider-icon { flex-shrink: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+.auth-terms {
+  margin-top: auto;
+  padding-top: 24px;
+  font-size: 11px;
+  color: #999;
+  line-height: 1.6;
+}
+.auth-terms a { color: #4a9eff; text-decoration: underline; }
+.auth-close {
+  position: absolute;
+  top: 14px; right: 16px;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #999;
+  cursor: pointer;
+  z-index: 10;
+  line-height: 1;
+  padding: 4px 6px;
+}
+.auth-close:hover { color: #333; }
+/* Right panel */
+.auth-right {
+  width: 50%;
+  background: #060a0f;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-shrink: 0;
+}
+.auth-right::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+.auth-right-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  padding: 0 10%;
+}
+.auth-right-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #cdd9e5;
+  text-align: center;
+}
+.auth-mock-input {
+  width: 100%;
+  background: #0d1520;
+  border: 1px solid #1a2a3a;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 16px;
+  color: #4a9eff;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+#authTyped { display: inline; }
+#authCursor {
+  display: inline-block;
+  width: 2px;
+  height: 18px;
+  background: #4a9eff;
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: cursorBlink 0.7s step-end infinite;
+}
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.auth-right-tagline {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: rgba(205,217,229,0.3);
+  text-align: center;
+  letter-spacing: 1px;
+}
+/* HUD corners on right panel */
+.auth-hud-tl, .auth-hud-tr, .auth-hud-bl, .auth-hud-br {
+  position: absolute;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  color: rgba(74,158,255,0.2);
+  line-height: 1.7;
+  z-index: 1;
+}
+.auth-hud-tl { top: 14px; left: 14px; }
+.auth-hud-tr { top: 14px; right: 14px; text-align: right; }
+.auth-hud-bl { bottom: 14px; left: 14px; }
+.auth-hud-br { bottom: 14px; right: 14px; text-align: right; }
+
 /* modal */
 .modal-bg {
   display: none;
@@ -582,8 +777,8 @@ canvas#sky {
     <a class="nav-link" href="#">About</a>
     <a class="nav-link" href="#">Pricing</a>
     <a class="nav-link" href="#">Support</a>
-    <button class="nav-btn-login">Log In</button>
-    <button class="nav-btn-start" onclick="openModal()">Get Started</button>
+    <button class="nav-btn-login" onclick="openAuthModal()">Log In</button>
+    <button class="nav-btn-start" onclick="openAuthModal()">Get Started</button>
   </div>
 </nav>
 
@@ -720,6 +915,87 @@ canvas#sky {
       <div class="plan-feat">✓ Everything in Pro<br>✓ Unlimited users & API access<br>✓ Custom integration</div>
     </div>
     <button class="upgrade-btn">UPGRADE TO PRO →</button>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div id="authModalBg" onclick="handleAuthBgClick(event)">
+  <div id="authModal">
+    <button class="auth-close" onclick="closeAuthModal()">✕</button>
+
+    <!-- Left panel -->
+    <div class="auth-left">
+      <div>
+        <div class="auth-left-logo">
+          <span class="al1">NOTAM</span> <span class="al2">INTELLIGENCE</span>
+          <span class="auth-left-badge">v1.0</span>
+        </div>
+        <div class="auth-left-subtitle">AI-Powered Pre-Flight Briefing</div>
+      </div>
+
+      <button class="auth-provider-btn">
+        <span class="auth-provider-icon">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908C16.658 14.38 17.64 12.07 17.64 9.205z" fill="#4285F4"/>
+            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+            <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+          </svg>
+        </span>
+        Continue with Google
+      </button>
+
+      <button class="auth-provider-btn">
+        <span class="auth-provider-icon">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M14.95 9.54c-.02-1.96 1.6-2.9 1.67-2.95-0.91-1.33-2.33-1.51-2.84-1.53-1.21-.12-2.37.71-2.98.71-.62 0-1.57-.7-2.59-.68-1.33.02-2.56.77-3.24 1.96-1.39 2.4-.35 5.96 1 7.91.66.95 1.45 2.02 2.48 1.98 1-.04 1.38-.64 2.59-.64 1.2 0 1.54.64 2.59.62 1.07-.02 1.75-0.97 2.4-1.92.76-1.1 1.07-2.16 1.09-2.22-.02-.01-2.09-.8-2.11-3.24zm-1.98-5.96c.55-.67.92-1.59.82-2.52-.79.03-1.75.53-2.32 1.19-.51.59-.96 1.53-.84 2.43.88.07 1.78-.45 2.34-1.1z" fill="#000"/>
+          </svg>
+        </span>
+        Continue with Apple
+      </button>
+
+      <button class="auth-provider-btn">
+        <span class="auth-provider-icon">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <rect x="1" y="1" width="7" height="7" fill="#F25022"/>
+            <rect x="10" y="1" width="7" height="7" fill="#7FBA00"/>
+            <rect x="1" y="10" width="7" height="7" fill="#00A4EF"/>
+            <rect x="10" y="10" width="7" height="7" fill="#FFB900"/>
+          </svg>
+        </span>
+        Continue with Microsoft
+      </button>
+
+      <button class="auth-provider-btn">
+        <span class="auth-provider-icon">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <rect x="2" y="4" width="14" height="10" rx="2" stroke="#555" stroke-width="1.4" fill="none"/>
+            <path d="M2 7l7 4 7-4" stroke="#555" stroke-width="1.4"/>
+          </svg>
+        </span>
+        Continue with Email
+      </button>
+
+      <div class="auth-terms">
+        By clicking continue, you agree to our
+        <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+      </div>
+    </div>
+
+    <!-- Right panel -->
+    <div class="auth-right">
+      <div class="auth-hud-tl">ALT 35000 FT<br>SPD 480 KTS</div>
+      <div class="auth-hud-tr">HDG 270°<br>FL350</div>
+      <div class="auth-hud-bl">ICAO ANNEX 15<br>PANS-AIM</div>
+      <div class="auth-hud-br">NOTAM INTEL<br>v1.0</div>
+      <div class="auth-right-content">
+        <div class="auth-right-title">Where are you flying?</div>
+        <div class="auth-mock-input">
+          <span id="authTyped"></span><span id="authCursor"></span>
+        </div>
+        <div class="auth-right-tagline">Trusted by aviation professionals worldwide</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1167,6 +1443,66 @@ function closeResult() {
 
 function openModal()  { document.getElementById('videoModal').classList.add('open'); }
 function closeModal() { document.getElementById('videoModal').classList.remove('open'); }
+
+/* ═══ AUTH MODAL ═══ */
+let authTypingTimer = null;
+
+function openAuthModal() {
+  document.getElementById('authModalBg').classList.add('open');
+  startAuthTyping();
+}
+function closeAuthModal() {
+  document.getElementById('authModalBg').classList.remove('open');
+  if (authTypingTimer) { clearTimeout(authTypingTimer); authTypingTimer = null; }
+  document.getElementById('authTyped').textContent = '';
+}
+function handleAuthBgClick(e) {
+  if (e.target === document.getElementById('authModalBg')) closeAuthModal();
+}
+
+/* Typing animation */
+(function() {
+  const sequences = ['KJFK EGLL', 'LTFM EGLL', 'EHAM LEMD'];
+  let seqIdx = 0, charIdx = 0, deleting = false;
+  function tick() {
+    const el = document.getElementById('authTyped');
+    if (!el) return;
+    const target = sequences[seqIdx];
+    if (!deleting) {
+      charIdx++;
+      el.textContent = target.slice(0, charIdx);
+      if (charIdx === target.length) {
+        deleting = true;
+        authTypingTimer = setTimeout(tick, 1500);
+        return;
+      }
+      authTypingTimer = setTimeout(tick, 100);
+    } else {
+      charIdx--;
+      el.textContent = target.slice(0, charIdx);
+      if (charIdx === 0) {
+        deleting = false;
+        seqIdx = (seqIdx + 1) % sequences.length;
+        authTypingTimer = setTimeout(tick, 400);
+        return;
+      }
+      authTypingTimer = setTimeout(tick, 55);
+    }
+  }
+  window._startAuthTyping = function() {
+    if (authTypingTimer) clearTimeout(authTypingTimer);
+    const el = document.getElementById('authTyped');
+    if (el) el.textContent = '';
+    seqIdx = 0; charIdx = 0; deleting = false;
+    authTypingTimer = setTimeout(tick, 600);
+  };
+})();
+
+function startAuthTyping() { window._startAuthTyping && window._startAuthTyping(); }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeAuthModal();
+});
 
 document.getElementById('mainInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
