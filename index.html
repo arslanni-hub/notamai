@@ -1826,18 +1826,18 @@ animate();
   <div style="display:flex;max-width:800px;width:90%;border-radius:12px;overflow:hidden;position:relative;">
 
     <!-- LEFT: form -->
-    <div style="width:50%;background:#0d1520;padding:40px;position:relative;flex-shrink:0;">
-      <button onclick="closeSupportModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#4a5f72;font-size:20px;cursor:pointer;">✕</button>
-      <div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#4a9eff;letter-spacing:3px;margin-bottom:16px;">SUPPORT</div>
-      <div style="font-family:'Orbitron',sans-serif;font-size:20px;color:#fff;margin-bottom:8px;">How can we help?</div>
-      <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#8a9bb0;margin-bottom:28px;line-height:1.6;">Send us a message and we'll get back to you as soon as possible.</div>
+    <div style="width:50%;background:#ffffff;padding:40px;position:relative;flex-shrink:0;">
+      <button onclick="closeSupportModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#999999;font-size:20px;cursor:pointer;">✕</button>
+      <div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#1a1a2e;letter-spacing:3px;margin-bottom:16px;">SUPPORT</div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:20px;color:#1a1a2e;margin-bottom:8px;">How can we help?</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#666666;margin-bottom:28px;line-height:1.6;">Send us a message and we'll get back to you as soon as possible.</div>
       <form onsubmit="sendSupportEmail(event)">
-        <input id="supportName" type="text" placeholder="Your name" required style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:11px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:10px;outline:none;box-sizing:border-box;">
-        <input id="supportEmail" type="email" placeholder="Your email" required style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:11px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:10px;outline:none;box-sizing:border-box;">
-        <textarea id="supportMessage" placeholder="How can we help you?" required rows="3" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:11px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:16px;outline:none;box-sizing:border-box;resize:vertical;"></textarea>
+        <input id="supportName" type="text" placeholder="Your name" required style="width:100%;background:#f5f5f5;border:1px solid #e0e0e0;color:#1a1a2e;padding:11px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:10px;outline:none;box-sizing:border-box;" placeholder-color="#999999">
+        <input id="supportEmail" type="email" placeholder="Your email" required style="width:100%;background:#f5f5f5;border:1px solid #e0e0e0;color:#1a1a2e;padding:11px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:10px;outline:none;box-sizing:border-box;">
+        <textarea id="supportMessage" placeholder="How can we help you?" required rows="3" style="width:100%;background:#f5f5f5;border:1px solid #e0e0e0;color:#1a1a2e;padding:11px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:16px;outline:none;box-sizing:border-box;resize:vertical;"></textarea>
         <button type="submit" style="width:100%;background:#4a9eff;color:#060a0f;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:2px;padding:11px;border:none;border-radius:4px;cursor:pointer;text-transform:uppercase;">Send Message →</button>
       </form>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:16px;">Or email: <a href="mailto:hello@notamai.com" style="color:#4a9eff;">hello@notamai.com</a></div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#999;text-align:center;margin-top:16px;">Or email: <a href="mailto:hello@notamai.com" style="color:#4a9eff;">hello@notamai.com</a></div>
     </div>
 
     <!-- RIGHT: animated panel -->
@@ -1851,7 +1851,7 @@ animate();
       <div style="position:absolute;bottom:14px;right:14px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(74,158,255,0.2);line-height:1.7;text-align:right;">NOTAM INTEL<br>v1.0</div>
       <!-- center content -->
       <div style="position:relative;z-index:1;text-align:center;padding:0 24px;">
-        <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;color:#4a9eff;margin-bottom:12px;">NOTAM<br>INTELLIGENCE</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;margin-bottom:12px;"><span style="color:#ffffff;">NOTAM</span><br><span style="color:#4a9eff;">INTELLIGENCE</span></div>
         <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#cdd9e5;margin-bottom:16px;">hello@notamai.com</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;letter-spacing:1px;">24/7 Aviation Support</div>
       </div>
