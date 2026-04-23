@@ -34,7 +34,7 @@ html, body {
 }
 
 /* ═══ NAVBAR ═══ */
-#navbar {
+#mainNavbar {
   position: fixed;
   top: 0; left: 0; right: 0;
   height: 52px;
@@ -55,7 +55,6 @@ html, body {
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 2px;
-  text-transform: uppercase;
   color: #8a9bb0;
   text-decoration: none;
   cursor: pointer;
@@ -70,7 +69,6 @@ html, body {
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 2px;
-  text-transform: uppercase;
   color: #8a9bb0;
   background: transparent;
   border: 1px solid rgba(74,158,255,0.3);
@@ -85,7 +83,6 @@ html, body {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 2px;
-  text-transform: uppercase;
   color: #060a0f;
   background: #4a9eff;
   border: 1px solid #4a9eff;
@@ -580,7 +577,7 @@ canvas#sky {
 <body>
 
 <!-- NAVBAR -->
-<nav id="navbar">
+<nav id="mainNavbar">
   <div class="nav-center">
     <a class="nav-link" href="#">About</a>
     <a class="nav-link" href="#">Pricing</a>
@@ -974,6 +971,7 @@ async function handleSend() {
   const content = document.getElementById('resultContent');
 
   overlay.classList.add('open');
+  document.getElementById('mainNavbar').style.display = 'none';
   loading.style.display = 'flex';
   content.style.display = 'none';
   const startTime = Date.now();
@@ -1164,6 +1162,7 @@ function switchTab(n) {
 
 function closeResult() {
   document.getElementById('resultOverlay').classList.remove('open');
+  document.getElementById('mainNavbar').style.display = 'flex';
 }
 
 function openModal()  { document.getElementById('videoModal').classList.add('open'); }
