@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>About — NOTAM Intelligence</title>
+<title>Pricing — NOTAM Intelligence</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -13,6 +13,7 @@
   --bg2: #0d1520;
   --border: #1a2a3a;
   --blue: #4a9eff;
+  --orange: #f4841a;
   --text: #cdd9e5;
   --text-dim: #8a9bb0;
   --text-muted: #4a5f72;
@@ -98,7 +99,7 @@ html, body {
 
 /* ═══ PAGE ═══ */
 .page {
-  max-width: 960px;
+  max-width: 1140px;
   margin: 0 auto;
   padding: 0 32px 100px;
 }
@@ -107,7 +108,7 @@ html, body {
 .hero {
   text-align: center;
   padding-top: 120px;
-  padding-bottom: 80px;
+  padding-bottom: 60px;
 }
 .hero-badge {
   font-family: var(--mono);
@@ -124,121 +125,158 @@ html, body {
   color: #ffffff;
   line-height: 1.15;
   letter-spacing: 2px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 .hero-subtitle {
   font-family: var(--body);
   font-size: 18px;
   color: var(--text-dim);
-  max-width: 600px;
-  margin: 0 auto 28px;
+  margin: 0 auto;
   line-height: 1.7;
 }
-.hero-cta {
-  display: inline-block;
-  background: var(--blue);
-  color: #060a0f;
-  font-family: var(--body);
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 2px;
-  padding: 10px 28px;
-  border-radius: 4px;
-  text-decoration: none;
-  transition: background 0.2s;
-}
-.hero-cta:hover { background: #6ab4ff; }
 
-/* STATS */
-.stats {
+/* ═══ PRICING GRID ═══ */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  max-width: 1100px;
+  margin: 60px auto 0;
+}
+
+.pricing-card {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 32px 24px 28px;
   display: flex;
-  justify-content: center;
-  gap: 80px;
-  margin: 0 auto 80px;
-  text-align: center;
-  flex-wrap: wrap;
+  flex-direction: column;
 }
-.stat-number {
-  font-family: var(--head);
-  font-size: 36px;
-  font-weight: 900;
-  color: var(--blue);
-  letter-spacing: 2px;
-  margin-bottom: 8px;
-}
-.stat-label {
-  font-family: var(--body);
-  font-size: 13px;
+
+.card-badge {
+  font-family: var(--mono);
+  font-size: 10px;
   letter-spacing: 2px;
   text-transform: uppercase;
+  margin-bottom: 20px;
+  min-height: 16px;
+}
+
+.card-name {
+  font-family: var(--head);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.card-price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.price-amount {
+  font-family: var(--head);
+  font-size: 42px;
+  font-weight: 900;
+  line-height: 1;
+}
+.price-period {
+  font-family: var(--body);
+  font-size: 16px;
   color: var(--text-dim);
 }
 
-/* DIVIDER */
-.divider {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 0 0 80px;
+.card-subtitle {
+  font-family: var(--body);
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 24px;
 }
 
-/* MISSION */
-.mission {
+.features-list {
+  list-style: none;
+  flex: 1;
+  margin-bottom: 28px;
+}
+.features-list li {
+  font-family: var(--body);
+  font-size: 14px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(26,42,58,0.6);
   display: flex;
-  gap: 60px;
-  max-width: 900px;
-  margin: 0 auto 80px;
   align-items: flex-start;
+  gap: 8px;
+  line-height: 1.4;
 }
-.mission-left { flex: 1; }
-.section-label {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 3px;
-  color: var(--blue);
+.features-list li:last-child { border-bottom: none; }
+.feat-check { flex-shrink: 0; font-size: 13px; margin-top: 1px; }
+.feat-on { color: var(--text); }
+.feat-off { color: var(--text-muted); }
+
+.card-btn {
+  width: 100%;
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
-.mission-title {
+.card-btn:hover { opacity: 0.85; }
+.card-btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.card-btn-blue {
+  background: var(--blue);
+  border: 1px solid var(--blue);
+  color: #060a0f;
+  font-weight: 700;
+}
+.card-btn-orange {
+  background: var(--orange);
+  border: 1px solid var(--orange);
+  color: #060a0f;
+  font-weight: 700;
+}
+
+/* ═══ FAQ ═══ */
+.faq-section {
+  max-width: 700px;
+  margin: 80px auto 0;
+}
+.faq-title {
   font-family: var(--head);
   font-size: 28px;
   font-weight: 700;
   color: #ffffff;
+  text-align: center;
   letter-spacing: 1px;
-  line-height: 1.3;
-  margin-bottom: 20px;
+  margin-bottom: 40px;
 }
-.mission-body {
+.faq-item {
+  border-bottom: 1px solid var(--border);
+  padding: 20px 0;
+}
+.faq-item:first-of-type { border-top: 1px solid var(--border); }
+.faq-q {
   font-family: var(--body);
   font-size: 16px;
-  color: var(--text-dim);
-  line-height: 1.8;
-}
-.mission-right {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.feature-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 20px;
-}
-.feature-icon { font-size: 20px; margin-bottom: 8px; }
-.feature-title {
-  font-family: var(--body);
-  font-size: 14px;
   font-weight: 700;
-  color: var(--text);
-  letter-spacing: 1px;
-  margin-bottom: 6px;
+  color: #ffffff;
+  margin-bottom: 8px;
 }
-.feature-desc {
+.faq-a {
   font-family: var(--body);
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-dim);
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 /* FOOTER */
@@ -268,11 +306,13 @@ footer {
 }
 .footer-links a:hover { color: var(--blue); }
 
-@media (max-width: 700px) {
-  .hero-title { font-size: 32px; }
-  .mission { flex-direction: column; gap: 40px; }
-  .stats { gap: 40px; }
-  .mission-right { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+  .hero-title { font-size: 36px; }
+}
+@media (max-width: 560px) {
+  .pricing-grid { grid-template-columns: 1fr; }
+  .hero-title { font-size: 28px; }
 }
 </style>
 </head>
@@ -282,8 +322,8 @@ footer {
 <nav id="mainNavbar">
   <div class="nav-center">
     <a class="nav-logo" href="/"><span>NOTAM</span> INTELLIGENCE</a>
-    <a class="nav-link active" href="/about">About</a>
-    <a class="nav-link" href="/pricing">Pricing</a>
+    <a class="nav-link" href="/about">About</a>
+    <a class="nav-link active" href="/pricing">Pricing</a>
     <a class="nav-link" href="#" onclick="openSupportModal(); return false;">Support</a>
     <button class="nav-btn-login" onclick="window.location.href='/'">Log In</button>
     <button class="nav-btn-start" onclick="window.location.href='/'">Get Started</button>
@@ -294,58 +334,120 @@ footer {
 
   <!-- HERO -->
   <section class="hero">
-    <div class="hero-badge">About NOTAM Intelligence</div>
-    <h1 class="hero-title">Pre-Flight Briefing, Redefined.</h1>
-    <p class="hero-subtitle">Modern aviation generates thousands of NOTAMs, METARs, and advisories daily. We turn that complexity into clarity.</p>
-    <a href="/" class="hero-cta">Try It Free →</a>
+    <div class="hero-badge">Pricing</div>
+    <h1 class="hero-title">Simple, Transparent Pricing.</h1>
+    <p class="hero-subtitle">Start free. Upgrade when you need more.</p>
   </section>
 
-  <!-- STATS -->
-  <div class="stats">
-    <div>
-      <div class="stat-number">&lt; 45s</div>
-      <div class="stat-label">Briefing Generation Time</div>
+  <!-- PRICING CARDS -->
+  <div class="pricing-grid">
+
+    <!-- FREE -->
+    <div class="pricing-card" style="border: 1px solid #1a2a3a;">
+      <div class="card-badge"></div>
+      <div class="card-name">FREE</div>
+      <div class="card-price">
+        <span class="price-amount" style="color:#ffffff;">$0</span>
+        <span class="price-period">/month</span>
+      </div>
+      <div class="card-subtitle">Try before you fly</div>
+      <ul class="features-list">
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">5 briefings per month</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">NOTAM number + one-line summary</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Basic METAR/TAF display</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">Decoded NOTAM analysis</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">Risk scoring &amp; Go/No-Go</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">Video briefing</span></li>
+      </ul>
+      <button class="card-btn card-btn-outline" onclick="window.location.href='/'">Get Started Free</button>
     </div>
-    <div>
-      <div class="stat-number">100%</div>
-      <div class="stat-label">Live NOTAM Coverage</div>
+
+    <!-- PRO -->
+    <div class="pricing-card" style="border: 1px solid #4a9eff;">
+      <div class="card-badge" style="color:#4a9eff;">MOST POPULAR</div>
+      <div class="card-name">PRO</div>
+      <div class="card-price">
+        <span class="price-amount" style="color:#4a9eff;">$49</span>
+        <span class="price-period">/month</span>
+      </div>
+      <div class="card-subtitle">For active pilots &amp; dispatchers</div>
+      <ul class="features-list">
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Unlimited briefings</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Full NOTAM analysis with decoded text</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Risk scoring CRITICAL/HIGH/MEDIUM/LOW</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Compounding risk matrix</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Go/No-Go recommendation</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Pilot action items &amp; dispatch notes</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Route query (DEP → ARR)</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">Video briefing</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">Favorite routes &amp; history</span></li>
+      </ul>
+      <button class="card-btn card-btn-blue" onclick="window.location.href='/'">Start Pro</button>
     </div>
-    <div>
-      <div class="stat-number">ICAO</div>
-      <div class="stat-label">Annex 15 Compliant</div>
+
+    <!-- PREMIUM -->
+    <div class="pricing-card" style="border: 1px solid #f4841a;">
+      <div class="card-badge" style="color:#f4841a;">BEST VALUE</div>
+      <div class="card-name">PREMIUM</div>
+      <div class="card-price">
+        <span class="price-amount" style="color:#f4841a;">$99</span>
+        <span class="price-period">/month</span>
+      </div>
+      <div class="card-subtitle">For aviation professionals</div>
+      <ul class="features-list">
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Pro</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">AI Video Briefing</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">PDF export &amp; share link</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Email NOTAM alerts</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Favorite routes &amp; history</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Priority support</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">API access</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">Multi-user access</span></li>
+      </ul>
+      <button class="card-btn card-btn-orange" onclick="window.location.href='/'">Start Premium</button>
     </div>
+
+    <!-- ENTERPRISE -->
+    <div class="pricing-card" style="border: 1px solid #1a2a3a;">
+      <div class="card-badge"></div>
+      <div class="card-name">ENTERPRISE</div>
+      <div class="card-price">
+        <span class="price-amount" style="color:#ffffff;">$499</span>
+        <span class="price-period">/month</span>
+      </div>
+      <div class="card-subtitle">For airlines &amp; operations centers</div>
+      <ul class="features-list">
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Premium</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">API access</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Multi-user &amp; team management</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Custom integrations</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Dedicated support</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">SLA guarantee</span></li>
+      </ul>
+      <button class="card-btn card-btn-outline" onclick="window.location.href='mailto:hello@notamai.com'">Contact Sales</button>
+    </div>
+
   </div>
 
-  <hr class="divider">
+  <!-- FAQ -->
+  <div class="faq-section">
+    <h2 class="faq-title">Frequently Asked Questions</h2>
 
-  <!-- MISSION -->
-  <div class="mission">
-    <div class="mission-left">
-      <div class="section-label">Our Mission</div>
-      <h2 class="mission-title">Built by aviation professionals, for aviation professionals.</h2>
-      <p class="mission-body">NOTAM Intelligence was created to solve a real problem: pre-flight briefing is time-consuming, error-prone, and often overwhelming. Our platform combines live aeronautical data with advanced AI analysis to deliver briefings that are not just fast — but operationally meaningful.</p>
+    <div class="faq-item">
+      <div class="faq-q">What counts as one briefing?</div>
+      <div class="faq-a">Each route or airport query counts as one briefing. LTFM EGLL and LTFM alone each count as one briefing.</div>
     </div>
-    <div class="mission-right">
-      <div class="feature-card">
-        <div class="feature-icon">🛰️</div>
-        <div class="feature-title">Live Data</div>
-        <div class="feature-desc">Real-time NOTAMs, METAR and TAF from official sources</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🤖</div>
-        <div class="feature-title">AI Analysis</div>
-        <div class="feature-desc">Advanced AI cross-references all data to identify compounding risks</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">✈️</div>
-        <div class="feature-title">ICAO Compliant</div>
-        <div class="feature-desc">Built on ICAO Annex 15, PANS-AIM Doc 10066 standards</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">⚡</div>
-        <div class="feature-title">Instant Briefing</div>
-        <div class="feature-desc">From query to complete briefing in under 45 seconds</div>
-      </div>
+    <div class="faq-item">
+      <div class="faq-q">Can I cancel anytime?</div>
+      <div class="faq-a">Yes. Cancel your subscription anytime with no cancellation fees.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Is my data secure?</div>
+      <div class="faq-a">Yes. All data is encrypted and we never share your flight data with third parties.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Do you offer a student discount?</div>
+      <div class="faq-a">Yes. Contact us at <a href="mailto:hello@notamai.com" style="color:#4a9eff;">hello@notamai.com</a> for student and flight school pricing.</div>
     </div>
   </div>
 
