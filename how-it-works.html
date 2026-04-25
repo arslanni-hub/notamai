@@ -603,10 +603,10 @@ footer {
       <div class="step-number">01</div>
       <div class="step-content">
         <div class="step-title">Enter Your Route</div>
-        <p class="step-desc">Type any ICAO code or route — LTFM, KJFK EGLL, or paste raw NOTAM data. Our system understands all standard aviation formats.</p>
+        <p class="step-desc">Type any ICAO code or route — KJFK, EGLL, EDDF, or paste raw NOTAM data. Our system understands all standard aviation formats.</p>
         <div class="step-visual">
           <div class="mock-input">
-            <span class="mock-input-text" id="mockInputText"></span>
+            <span class="mock-input-text">KJFK EGLL</span>
             <div class="mock-input-btn">🪄</div>
           </div>
         </div>
@@ -681,7 +681,7 @@ footer {
         <p class="step-desc">Receive a complete operational intelligence briefing — risk score, decoded NOTAMs, Go/No-Go recommendation, pilot action items, and dispatch notes.</p>
         <div class="step-visual">
           <div class="brief-header">
-            <div class="brief-route">LTFM → EGLL</div>
+            <div class="brief-route">KJFK → EGLL</div>
             <div class="brief-sub">PRE-FLIGHT OPERATIONAL INTELLIGENCE BRIEFING</div>
             <div class="brief-risk-row">
               <span class="brief-risk-label">CRITICAL</span>
@@ -823,24 +823,6 @@ footer {
 </div>
 
 <script>
-(function() {
-  const sequences = ['KJFK', 'EGLL', 'EDDF'];
-  const el = document.getElementById('mockInputText');
-  let si = 0, ci = 0, deleting = false;
-  function tick() {
-    const word = sequences[si];
-    if (!deleting) {
-      el.textContent = word.slice(0, ++ci);
-      if (ci === word.length) { deleting = true; setTimeout(tick, 1400); return; }
-    } else {
-      el.textContent = word.slice(0, --ci);
-      if (ci === 0) { deleting = false; si = (si + 1) % sequences.length; setTimeout(tick, 400); return; }
-    }
-    setTimeout(tick, deleting ? 80 : 120);
-  }
-  tick();
-})();
-
 function openSupportModal() {
   const m = document.getElementById('supportModal');
   m.style.display = 'flex';
