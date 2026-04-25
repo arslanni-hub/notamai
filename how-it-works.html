@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How It Works — NOTAM Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #060a0f;
+  --bg2: #0d1520;
+  --border: #1a2a3a;
+  --blue: #4a9eff;
+  --orange: #f4841a;
+  --red: #e63946;
+  --green: #2ec4b6;
+  --text: #cdd9e5;
+  --text-dim: #8a9bb0;
+  --text-muted: #4a5f72;
+  --head: 'Orbitron', sans-serif;
+  --body: 'Rajdhani', sans-serif;
+  --mono: 'Share Tech Mono', monospace;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+/* ═══ NAVBAR ═══ */
+#mainNavbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.nav-center {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  pointer-events: auto;
+}
+.nav-logo {
+  font-family: var(--head);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-decoration: none;
+  color: var(--text);
+}
+.nav-logo span { color: var(--blue); }
+.nav-link {
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.nav-link:hover { color: var(--text); }
+.nav-link.active { color: var(--blue); }
+.nav-btn-login {
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid rgba(74,158,255,0.3);
+  border-radius: 6px;
+  padding: 7px 18px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.nav-btn-login:hover { color: var(--text); border-color: rgba(74,158,255,0.6); }
+.nav-btn-start {
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #060a0f;
+  background: var(--blue);
+  border: 1px solid var(--blue);
+  border-radius: 6px;
+  padding: 7px 18px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.nav-btn-start:hover { background: #6ab4ff; border-color: #6ab4ff; }
+
+/* ═══ PAGE ═══ */
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 32px 100px;
+}
+
+/* HERO */
+.hero {
+  text-align: center;
+  padding-top: 120px;
+  padding-bottom: 80px;
+}
+.hero-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--blue);
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+.hero-title {
+  font-family: var(--head);
+  font-size: 48px;
+  font-weight: 900;
+  color: #ffffff;
+  line-height: 1.15;
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+}
+.hero-subtitle {
+  font-family: var(--body);
+  font-size: 18px;
+  color: var(--text-dim);
+  max-width: 640px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* ═══ STEPS ═══ */
+.steps {
+  max-width: 900px;
+  margin: 0 auto 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.step {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+  padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+.step:last-child { border-bottom: none; }
+.step-number {
+  font-family: var(--head);
+  font-size: 64px;
+  font-weight: 900;
+  color: rgba(74,158,255,0.15);
+  line-height: 1;
+  flex-shrink: 0;
+  width: 100px;
+  text-align: right;
+  letter-spacing: -2px;
+}
+.step-content { flex: 1; }
+.step-title {
+  font-family: var(--head);
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+.step-desc {
+  font-family: var(--body);
+  font-size: 16px;
+  color: var(--text-dim);
+  line-height: 1.8;
+  margin-bottom: 24px;
+}
+
+/* Step visuals */
+.step-visual {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px 20px;
+}
+
+/* Step 1 – mock input */
+.mock-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #060a0f;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 16px;
+}
+.mock-input-text {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: #ffffff;
+  flex: 1;
+  letter-spacing: 1px;
+}
+.mock-input-btn {
+  background: var(--blue);
+  border: none;
+  border-radius: 4px;
+  color: #060a0f;
+  font-family: var(--body);
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+/* Step 2 – data cards */
+.data-cards {
+  display: flex;
+  gap: 10px;
+}
+.data-card {
+  flex: 1;
+  background: #060a0f;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 14px;
+}
+.data-card-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--blue);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+.data-card-line {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  margin-bottom: 5px;
+  position: relative;
+  overflow: hidden;
+}
+.data-card-line::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(74,158,255,0.4), transparent);
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+.data-card-line.w80 { width: 80%; }
+.data-card-line.w60 { width: 60%; }
+.data-card-line.w90 { width: 90%; }
+
+/* Step 3 – risk bars */
+.risk-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.risk-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.risk-bar-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  width: 72px;
+  flex-shrink: 0;
+}
+.risk-bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.risk-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+
+/* Step 4 – briefing header */
+.brief-header {
+  background: #060a0f;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--red);
+  border-radius: 4px;
+  padding: 16px 20px;
+}
+.brief-route {
+  font-family: var(--head);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+.brief-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  margin-bottom: 14px;
+}
+.brief-risk-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.brief-risk-label {
+  font-family: var(--head);
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--red);
+  letter-spacing: 3px;
+}
+.brief-pips {
+  display: flex;
+  gap: 3px;
+}
+.brief-pip {
+  width: 14px;
+  height: 5px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.brief-pip.on { background: var(--red); }
+
+/* ═══ PREVIEW SECTION ═══ */
+.preview-section {
+  max-width: 900px;
+  margin: 0 auto 80px;
+}
+.section-title {
+  font-family: var(--head);
+  font-size: 28px;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: center;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.section-subtitle {
+  font-family: var(--body);
+  font-size: 15px;
+  color: var(--text-dim);
+  text-align: center;
+  margin-bottom: 40px;
+}
+.preview-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+/* Preview card 1 */
+.prev-card {
+  background: var(--bg2);
+  border-radius: 6px;
+  padding: 20px;
+}
+.prev-notam-id {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.prev-notam-title {
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+.prev-notam-body {
+  font-family: var(--body);
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+.prev-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+
+/* Preview card 2 */
+.prev-risk-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.prev-risk-score {
+  font-family: var(--head);
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--red);
+  text-align: center;
+  margin-bottom: 12px;
+}
+.prev-pips {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+.prev-pip {
+  width: 18px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.prev-pip.on { background: var(--red); }
+.prev-critical-badge {
+  display: block;
+  text-align: center;
+  font-family: var(--head);
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: var(--red);
+  animation: critPulse 2s ease-in-out infinite;
+}
+@keyframes critPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Preview card 3 */
+.prev-gonogo-title {
+  font-family: var(--head);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--orange);
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+  line-height: 1.3;
+}
+.prev-condition {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-family: var(--body);
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+.prev-condition-check {
+  color: var(--green);
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+/* ═══ CTA ═══ */
+.cta-section {
+  text-align: center;
+  margin: 60px auto 0;
+  max-width: 600px;
+}
+.cta-title {
+  font-family: var(--head);
+  font-size: 32px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 2px;
+  margin-bottom: 14px;
+}
+.cta-subtitle {
+  font-family: var(--body);
+  font-size: 17px;
+  color: var(--text-dim);
+  margin-bottom: 32px;
+  line-height: 1.7;
+}
+.cta-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.cta-btn-primary {
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  background: var(--blue);
+  color: #060a0f;
+  border: none;
+  border-radius: 4px;
+  padding: 12px 32px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+.cta-btn-primary:hover { background: #6ab4ff; }
+.cta-btn-secondary {
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px 32px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s, border-color 0.2s;
+}
+.cta-btn-secondary:hover { color: var(--text); border-color: rgba(74,158,255,0.4); }
+
+/* FOOTER */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 40px 32px;
+  text-align: center;
+}
+.footer-copy {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+.footer-links a {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.footer-links a:hover { color: var(--blue); }
+
+@media (max-width: 700px) {
+  .hero-title { font-size: 32px; }
+  .step { flex-direction: column; gap: 16px; }
+  .step-number { width: auto; text-align: left; font-size: 48px; }
+  .preview-cards { grid-template-columns: 1fr; }
+  .data-cards { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav id="mainNavbar">
+  <div class="nav-center">
+    <a class="nav-logo" href="/"><span>NOTAM</span> INTELLIGENCE</a>
+    <a class="nav-link" href="/about">About</a>
+    <a class="nav-link active" href="/how-it-works">How It Works</a>
+    <a class="nav-link" href="/pricing">Pricing</a>
+    <a class="nav-link" href="#" onclick="openSupportModal(); return false;">Support</a>
+    <button class="nav-btn-login" onclick="window.location.href='/'">Log In</button>
+    <button class="nav-btn-start" onclick="window.location.href='/'">Get Started</button>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">How It Works</div>
+    <h1 class="hero-title">From query to briefing in seconds.</h1>
+    <p class="hero-subtitle">See how NOTAM Intelligence transforms complex aviation data into clear, actionable pre-flight briefings.</p>
+  </section>
+
+  <!-- STEPS -->
+  <div class="steps">
+
+    <!-- STEP 01 -->
+    <div class="step">
+      <div class="step-number">01</div>
+      <div class="step-content">
+        <div class="step-title">Enter Your Route</div>
+        <p class="step-desc">Type any ICAO code or route — LTFM, KJFK EGLL, or paste raw NOTAM data. Our system understands all standard aviation formats.</p>
+        <div class="step-visual">
+          <div class="mock-input">
+            <span class="mock-input-text">LTFM → EGLL</span>
+            <div class="mock-input-btn">🪄</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 02 -->
+    <div class="step">
+      <div class="step-number">02</div>
+      <div class="step-content">
+        <div class="step-title">Live Data Fetched Instantly</div>
+        <p class="step-desc">We pull real-time NOTAMs from official sources, current METAR and TAF weather data — all in seconds, automatically.</p>
+        <div class="step-visual">
+          <div class="data-cards">
+            <div class="data-card">
+              <div class="data-card-label">NOTAM</div>
+              <div class="data-card-line w90"></div>
+              <div class="data-card-line w60"></div>
+              <div class="data-card-line w80"></div>
+            </div>
+            <div class="data-card">
+              <div class="data-card-label">METAR</div>
+              <div class="data-card-line w80"></div>
+              <div class="data-card-line w90"></div>
+              <div class="data-card-line w60"></div>
+            </div>
+            <div class="data-card">
+              <div class="data-card-label">TAF</div>
+              <div class="data-card-line w60"></div>
+              <div class="data-card-line w80"></div>
+              <div class="data-card-line w90"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 03 -->
+    <div class="step">
+      <div class="step-number">03</div>
+      <div class="step-content">
+        <div class="step-title">AI Analyzes Everything</div>
+        <p class="step-desc">Our AI cross-references all active NOTAMs, identifies compounding risks, and applies ICAO Annex 15 operational standards to assess your specific route.</p>
+        <div class="step-visual">
+          <div class="risk-bars">
+            <div class="risk-bar-row">
+              <span class="risk-bar-label" style="color:#e63946;">CRITICAL</span>
+              <div class="risk-bar-track"><div class="risk-bar-fill" style="width:85%;background:#e63946;"></div></div>
+            </div>
+            <div class="risk-bar-row">
+              <span class="risk-bar-label" style="color:#f4841a;">HIGH</span>
+              <div class="risk-bar-track"><div class="risk-bar-fill" style="width:60%;background:#f4841a;"></div></div>
+            </div>
+            <div class="risk-bar-row">
+              <span class="risk-bar-label" style="color:#f2c641;">MEDIUM</span>
+              <div class="risk-bar-track"><div class="risk-bar-fill" style="width:40%;background:#f2c641;"></div></div>
+            </div>
+            <div class="risk-bar-row">
+              <span class="risk-bar-label" style="color:#2ec4b6;">LOW</span>
+              <div class="risk-bar-track"><div class="risk-bar-fill" style="width:20%;background:#2ec4b6;"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 04 -->
+    <div class="step">
+      <div class="step-number">04</div>
+      <div class="step-content">
+        <div class="step-title">Get Your Full Briefing</div>
+        <p class="step-desc">Receive a complete operational intelligence briefing — risk score, decoded NOTAMs, Go/No-Go recommendation, pilot action items, and dispatch notes.</p>
+        <div class="step-visual">
+          <div class="brief-header">
+            <div class="brief-route">LTFM → EGLL</div>
+            <div class="brief-sub">PRE-FLIGHT OPERATIONAL INTELLIGENCE BRIEFING</div>
+            <div class="brief-risk-row">
+              <span class="brief-risk-label">CRITICAL</span>
+              <div class="brief-pips">
+                <div class="brief-pip on"></div>
+                <div class="brief-pip on"></div>
+                <div class="brief-pip on"></div>
+                <div class="brief-pip on"></div>
+                <div class="brief-pip on"></div>
+                <div class="brief-pip on"></div>
+                <div class="brief-pip on"></div>
+                <div class="brief-pip on"></div>
+                <div class="brief-pip"></div>
+                <div class="brief-pip"></div>
+              </div>
+              <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#f4841a;">8.5 / 10</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PREVIEW SECTION -->
+  <div class="preview-section">
+    <h2 class="section-title">What a full briefing looks like</h2>
+    <p class="section-subtitle">Real LTFM → EGLL briefing excerpt</p>
+    <div class="preview-cards">
+
+      <!-- Card 1: NOTAM Sample -->
+      <div class="prev-card" style="border-left: 4px solid #e63946;">
+        <div class="prev-notam-id">B1428/2026</div>
+        <div class="prev-notam-title">🔴 RUNWAY CLOSURE</div>
+        <div class="prev-notam-body">RWY 18/36 CLSD TO TFC DUE TO MAINT — Istanbul Airport runway closed until 14 JUN. All operations redirected to parallel runways.</div>
+        <span class="prev-tag" style="background:rgba(230,57,70,0.15);color:#e63946;">CRITICAL</span>
+      </div>
+
+      <!-- Card 2: Risk Score -->
+      <div class="prev-card" style="border: 1px solid #1a2a3a;">
+        <div class="prev-risk-label">RISK SCORE</div>
+        <div class="prev-risk-score">8.5 / 10</div>
+        <div class="prev-pips">
+          <div class="prev-pip on"></div>
+          <div class="prev-pip on"></div>
+          <div class="prev-pip on"></div>
+          <div class="prev-pip on"></div>
+          <div class="prev-pip on"></div>
+          <div class="prev-pip on"></div>
+          <div class="prev-pip on"></div>
+          <div class="prev-pip on"></div>
+          <div class="prev-pip"></div>
+          <div class="prev-pip"></div>
+        </div>
+        <span class="prev-critical-badge">CRITICAL</span>
+      </div>
+
+      <!-- Card 3: Go/No-Go -->
+      <div class="prev-card" style="border-left: 4px solid #f4841a; border-top: 3px solid #f4841a;">
+        <div class="prev-gonogo-title">GO WITH CONDITIONS ⚠️</div>
+        <div class="prev-condition">
+          <span class="prev-condition-check">✓</span>
+          <span>Confirm runway availability with ATC before departure</span>
+        </div>
+        <div class="prev-condition">
+          <span class="prev-condition-check">✓</span>
+          <span>Review alternate airport NOTAMs for EGLL diversion</span>
+        </div>
+        <div class="prev-condition">
+          <span class="prev-condition-check">✓</span>
+          <span>Brief crew on compounding NOTAM risks en route</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-section">
+    <h2 class="cta-title">Ready to try it?</h2>
+    <p class="cta-subtitle">Start with a free briefing. No credit card required for your first try.</p>
+    <div class="cta-buttons">
+      <a href="/" class="cta-btn-primary">Try Free →</a>
+      <a href="/pricing" class="cta-btn-secondary">View Pricing →</a>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div class="footer-copy">© 2026 NOTAM Intelligence. All rights reserved.</div>
+  <div class="footer-links">
+    <a href="#">Privacy Policy</a>
+    <a href="#">Terms of Service</a>
+  </div>
+</footer>
+
+<!-- SUPPORT MODAL -->
+<style>
+@keyframes navyFlow {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+</style>
+<div id="supportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:10000;align-items:center;justify-content:center;">
+  <div style="display:flex;max-width:800px;width:90%;border-radius:12px;overflow:hidden;position:relative;">
+
+    <!-- LEFT: form -->
+    <div style="width:50%;background:#0d1520;padding:40px;position:relative;flex-shrink:0;">
+      <button onclick="closeSupportModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#4a5f72;font-size:20px;cursor:pointer;">✕</button>
+      <div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#4a9eff;letter-spacing:3px;margin-bottom:16px;">SUPPORT</div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:20px;color:#fff;margin-bottom:8px;">How can we help?</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#8a9bb0;margin-bottom:28px;line-height:1.6;">Send us a message and we'll get back to you as soon as possible.</div>
+      <form onsubmit="sendSupportEmail(event)">
+        <input id="supportName" type="text" placeholder="Your name" required style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:11px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:10px;outline:none;box-sizing:border-box;">
+        <input id="supportEmail" type="email" placeholder="Your email" required style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:11px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:10px;outline:none;box-sizing:border-box;">
+        <textarea id="supportMessage" placeholder="How can we help you?" required rows="3" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:11px 14px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:16px;outline:none;box-sizing:border-box;resize:vertical;"></textarea>
+        <button type="submit" style="width:100%;background:#4a9eff;color:#060a0f;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:2px;padding:11px;border:none;border-radius:4px;cursor:pointer;text-transform:uppercase;">Send Message →</button>
+      </form>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:16px;">Or email: <a href="mailto:hello@notamai.com" style="color:#4a9eff;">hello@notamai.com</a></div>
+    </div>
+
+    <!-- RIGHT: animated panel -->
+    <div style="width:50%;background:linear-gradient(135deg,#000510,#000d1a,#001428,#000510);background-size:400% 400%;animation:navyFlow 8s ease infinite;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.18) 2px,rgba(0,0,0,0.18) 4px);pointer-events:none;"></div>
+      <div style="position:absolute;top:14px;left:14px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(74,158,255,0.2);line-height:1.7;">ALT 35000 FT<br>SPD 480 KTS</div>
+      <div style="position:absolute;top:14px;right:14px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(74,158,255,0.2);line-height:1.7;text-align:right;">HDG 270°<br>FL350</div>
+      <div style="position:absolute;bottom:14px;left:14px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(74,158,255,0.2);line-height:1.7;">ICAO ANNEX 15<br>PANS-AIM</div>
+      <div style="position:absolute;bottom:14px;right:14px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(74,158,255,0.2);line-height:1.7;text-align:right;">NOTAM INTEL<br>v1.0</div>
+      <div style="position:relative;z-index:1;text-align:center;padding:0 24px;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;margin-bottom:12px;"><span style="color:#ffffff;">NOTAM</span><br><span style="color:#4a9eff;">INTELLIGENCE</span></div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#cdd9e5;margin-bottom:16px;">hello@notamai.com</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;letter-spacing:1px;">24/7 Aviation Support</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function openSupportModal() {
+  const m = document.getElementById('supportModal');
+  m.style.display = 'flex';
+}
+function closeSupportModal() {
+  document.getElementById('supportModal').style.display = 'none';
+}
+function sendSupportEmail(e) {
+  e.preventDefault();
+  const name = document.getElementById('supportName').value;
+  const email = document.getElementById('supportEmail').value;
+  const message = document.getElementById('supportMessage').value;
+  window.location.href = `mailto:hello@notamai.com?subject=Support Request from ${name}&body=${encodeURIComponent(message + '\n\nFrom: ' + name + '\nEmail: ' + email)}`;
+  closeSupportModal();
+}
+document.getElementById('supportModal').addEventListener('click', function(e) {
+  if (e.target === this) closeSupportModal();
+});
+</script>
+
+</body>
+</html>
