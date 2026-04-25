@@ -710,53 +710,103 @@ footer {
   <div class="preview-section">
     <h2 class="section-title">What a full briefing looks like</h2>
     <p class="section-subtitle">Real KJFK → EGLL briefing excerpt</p>
-    <div class="preview-cards">
 
-      <!-- Card 1: NOTAM Sample -->
-      <div class="prev-card" style="border-left: 4px solid #e63946;">
-        <div class="prev-notam-id">B1428/2026</div>
-        <div class="prev-notam-title">🔴 RUNWAY CLOSURE</div>
-        <div class="prev-notam-body">RWY 13R/31L CLSD TO TFC DUE TO MAINT — KJFK - John F. Kennedy International runway closed until 14 JUN. All operations redirected to parallel runways.</div>
-        <span class="prev-tag" style="background:rgba(230,57,70,0.15);color:#e63946;">CRITICAL</span>
+    <!-- Row 1: 2 columns -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+
+      <!-- Card 1: Executive Summary -->
+      <div class="prev-card" style="border-left:4px solid #f4841a;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#f4841a;margin-bottom:10px;">✈️ EXECUTIVE SUMMARY</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;line-height:1.6;">KJFK-EGLL rotation faces HIGH operational risk driven by three simultaneous active hazards. ILS CAT III unserviceable at arrival, active UAS swarm operations near final approach, and moderate turbulence SIGMET FL180-FL280 over London FIR create compounding risk during arrival phase.</div>
       </div>
 
-      <!-- Card 2: Risk Score -->
-      <div class="prev-card" style="border: 1px solid #1a2a3a;">
-        <div class="prev-risk-label">RISK SCORE</div>
-        <div class="prev-risk-score">8.5 / 10</div>
-        <div class="prev-pips">
-          <div class="prev-pip on"></div>
-          <div class="prev-pip on"></div>
-          <div class="prev-pip on"></div>
-          <div class="prev-pip on"></div>
-          <div class="prev-pip on"></div>
-          <div class="prev-pip on"></div>
-          <div class="prev-pip on"></div>
-          <div class="prev-pip on"></div>
-          <div class="prev-pip"></div>
-          <div class="prev-pip"></div>
-        </div>
-        <span class="prev-critical-badge">CRITICAL</span>
+      <!-- Card 2: Compounding Risk Matrix -->
+      <div class="prev-card" style="background:rgba(230,57,70,0.06);border:1px solid #7a1a20;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#e63946;margin-bottom:10px;">🔴 COMPOUNDING RISK MATRIX</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#ff8a8a;border-bottom:1px solid rgba(230,57,70,0.15);padding:6px 0;">⚡ ILS CAT III U/S + Low Visibility TEMPO — approach minima severely degraded</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#ff8a8a;border-bottom:1px solid rgba(230,57,70,0.15);padding:6px 0;">⚡ UAS Swarm + Degraded ILS — crew attention split at critical phase</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#ff8a8a;padding:6px 0;">⚡ Turbulence SIGMET + Obstacle Activity — compound arrival workload</div>
       </div>
 
-      <!-- Card 3: Go/No-Go -->
-      <div class="prev-card" style="border-left: 4px solid #f4841a; border-top: 3px solid #f4841a;">
-        <div class="prev-gonogo-title">GO WITH CONDITIONS ⚠️</div>
-        <div class="prev-condition">
-          <span class="prev-condition-check">✓</span>
-          <span>Confirm runway availability with ATC before departure</span>
+    </div>
+
+    <!-- Row 2: 3 columns -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;">
+
+      <!-- Card 3: NOTAM Sample -->
+      <div class="prev-card" style="border-left:4px solid #e63946;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;margin-bottom:6px;">🔴 A1286/2026 | TYPE: NAVIGATION</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ffffff;margin-bottom:10px;">LON VOR/DME Partially Unserviceable</div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a2a3a;font-size:12px;">
+          <span style="font-family:'Rajdhani',sans-serif;color:#4a5f72;">📍 Location</span>
+          <span style="font-family:'Rajdhani',sans-serif;color:#cdd9e5;text-align:right;">EGLL — LON VOR 113.60MHz</span>
         </div>
-        <div class="prev-condition">
-          <span class="prev-condition-check">✓</span>
-          <span>Review alternate airport NOTAMs for EGLL diversion</span>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;margin-bottom:10px;">
+          <span style="font-family:'Rajdhani',sans-serif;color:#4a5f72;">⏰ Time Window</span>
+          <span style="font-family:'Rajdhani',sans-serif;color:#cdd9e5;text-align:right;">09 APR 0800Z — 09 JUL 1900Z</span>
         </div>
-        <div class="prev-condition">
-          <span class="prev-condition-check">✓</span>
-          <span>Brief crew on compounding NOTAM risks en route</span>
+        <div style="background:rgba(0,0,0,0.3);border:1px solid #1a2a3a;padding:8px;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#f2c641;margin-bottom:4px;">⚠️ REQUIRED ACTION</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;">Use RNAV/GPS backup. Brief alternative approach procedures.</div>
+        </div>
+      </div>
+
+      <!-- Card 4: Risk Score -->
+      <div class="prev-card" style="border:1px solid #1a2a3a;text-align:center;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#8a9bb0;letter-spacing:2px;margin-bottom:8px;">RISK SCORE</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:36px;font-weight:900;color:#e63946;">8.5 / 10</div>
+        <div style="display:flex;justify-content:center;gap:3px;margin:10px auto;">
+          <div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div>
+          <div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div>
+          <div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div>
+          <div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div>
+          <div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div>
+          <div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div>
+          <div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div>
+          <div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div>
+          <div style="width:16px;height:6px;border-radius:2px;background:#1a2a3a;"></div>
+          <div style="width:16px;height:6px;border-radius:2px;background:#1a2a3a;"></div>
+        </div>
+        <span style="display:inline-block;background:rgba(230,57,70,0.15);color:#e63946;border:1px solid #7a1a20;padding:3px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;margin-top:10px;">CRITICAL</span>
+      </div>
+
+      <!-- Card 5: Pilot Action Items -->
+      <div class="prev-card" style="border:1px solid #1a2a3a;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#4a9eff;margin-bottom:12px;">✅ PILOT ACTION ITEMS</div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #1a2a3a;">
+          <span style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;min-width:24px;">01</span>
+          <span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;"><em style="color:#f2c641;font-style:normal;">ILS APPROACH BRIEF</em> — Review CAT I minima (DH 200ft / RVR 550m), missed approach procedure fully reviewed</span>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #1a2a3a;">
+          <span style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;min-width:24px;">02</span>
+          <span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;"><em style="color:#f2c641;font-style:normal;">GPS BACKUP</em> — Verify RNAV capability, LON VOR unreliable, cross-check with ILS DME</span>
+        </div>
+        <div style="display:flex;gap:10px;padding:8px 0;">
+          <span style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;min-width:24px;">03</span>
+          <span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;"><em style="color:#f2c641;font-style:normal;">TURBULENCE BRIEF</em> — Seatbelt sign ON before London FIR, cabin secured FL180-FL280</span>
         </div>
       </div>
 
     </div>
+
+    <!-- Row 3: Card 6 full width centered -->
+    <div style="max-width:600px;margin:0 auto;">
+
+      <!-- Card 6: Go/No-Go -->
+      <div class="prev-card" style="background:rgba(244,132,26,0.07);border:1px solid #7a3a08;border-top:3px solid #f4841a;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#f4841a;margin-bottom:12px;">🎯 GO / NO-GO RECOMMENDATION</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:18px;font-weight:700;color:#f4841a;margin-bottom:12px;">GO WITH CONDITIONS ⚠️</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;margin-bottom:12px;">Flight viable with enhanced crew awareness. ILS degradation and UAS activity require strict procedural adherence during arrival phase.</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;margin-bottom:6px;">✓ <span style="color:#2ec4b6;">CAT I approach briefed</span> — DH 200ft / RVR 550m for arrival runway</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;margin-bottom:6px;">✓ <span style="color:#2ec4b6;">GPS/RNAV backup verified</span> — LON VOR unreliable, alternative nav confirmed</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;margin-bottom:12px;">✓ <span style="color:#2ec4b6;">Additional fuel loaded</span> — missed approach + holding contingency included</div>
+        <div style="background:rgba(230,57,70,0.08);border:1px solid #7a1a20;padding:10px;">
+          <span style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;color:#e63946;">✕ NO-GO IF: Visibility drops below CAT I minimums or GPS systems unserviceable</span>
+        </div>
+      </div>
+
+    </div>
+
   </div>
 
   <!-- CTA -->
