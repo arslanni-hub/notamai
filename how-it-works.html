@@ -606,7 +606,7 @@ footer {
         <p class="step-desc">Type any ICAO code or route — LTFM, KJFK EGLL, or paste raw NOTAM data. Our system understands all standard aviation formats.</p>
         <div class="step-visual">
           <div class="mock-input">
-            <span class="mock-input-text">LTFM → EGLL</span>
+            <span class="mock-input-text" id="mockInputText"></span>
             <div class="mock-input-btn">🪄</div>
           </div>
         </div>
@@ -709,14 +709,14 @@ footer {
   <!-- PREVIEW SECTION -->
   <div class="preview-section">
     <h2 class="section-title">What a full briefing looks like</h2>
-    <p class="section-subtitle">Real LTFM → EGLL briefing excerpt</p>
+    <p class="section-subtitle">Real KJFK → EGLL briefing excerpt</p>
     <div class="preview-cards">
 
       <!-- Card 1: NOTAM Sample -->
       <div class="prev-card" style="border-left: 4px solid #e63946;">
         <div class="prev-notam-id">B1428/2026</div>
         <div class="prev-notam-title">🔴 RUNWAY CLOSURE</div>
-        <div class="prev-notam-body">RWY 18/36 CLSD TO TFC DUE TO MAINT — Istanbul Airport runway closed until 14 JUN. All operations redirected to parallel runways.</div>
+        <div class="prev-notam-body">RWY 13R/31L CLSD TO TFC DUE TO MAINT — KJFK - John F. Kennedy International runway closed until 14 JUN. All operations redirected to parallel runways.</div>
         <span class="prev-tag" style="background:rgba(230,57,70,0.15);color:#e63946;">CRITICAL</span>
       </div>
 
@@ -823,6 +823,24 @@ footer {
 </div>
 
 <script>
+(function() {
+  const sequences = ['KJFK', 'EGLL', 'EDDF'];
+  const el = document.getElementById('mockInputText');
+  let si = 0, ci = 0, deleting = false;
+  function tick() {
+    const word = sequences[si];
+    if (!deleting) {
+      el.textContent = word.slice(0, ++ci);
+      if (ci === word.length) { deleting = true; setTimeout(tick, 1400); return; }
+    } else {
+      el.textContent = word.slice(0, --ci);
+      if (ci === 0) { deleting = false; si = (si + 1) % sequences.length; setTimeout(tick, 400); return; }
+    }
+    setTimeout(tick, deleting ? 80 : 120);
+  }
+  tick();
+})();
+
 function openSupportModal() {
   const m = document.getElementById('supportModal');
   m.style.display = 'flex';
