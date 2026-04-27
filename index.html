@@ -40,14 +40,10 @@ body { overflow-x: hidden; }
   top: 0; left: 0; right: 0;
   height: 52px;
   z-index: 1000;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
-  padding: 0 32px;
+  justify-content: center;
   pointer-events: none;
-}
-.nav-logo-left {
-  pointer-events: auto;
 }
 .nav-center {
   display: flex;
@@ -55,12 +51,13 @@ body { overflow-x: hidden; }
   gap: 32px;
   pointer-events: auto;
 }
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  pointer-events: auto;
-  justify-content: flex-end;
+.nav-logo {
+  font-family: var(--head);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-decoration: none;
+  color: #4a9eff;
 }
 .nav-link {
   font-family: 'Rajdhani', sans-serif;
@@ -824,16 +821,12 @@ canvas#sky {
 
 <!-- NAVBAR -->
 <nav id="mainNavbar">
-  <div class="nav-logo-left">
-    <a href="/" style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;text-decoration:none;letter-spacing:2px;"><span style="color:#ffffff;">NOTAM</span><span style="color:#4a9eff;"> INTELLIGENCE</span></a>
-  </div>
   <div class="nav-center">
+    <a class="nav-logo" href="/"><span style="color:#ffffff;">NOTAM</span> <span style="color:#4a9eff;">INTELLIGENCE</span></a>
     <a class="nav-link" href="/about">About</a>
     <a class="nav-link" href="/how-it-works">How It Works</a>
     <a class="nav-link" href="/pricing">Pricing</a>
     <a class="nav-link" href="#" onclick="openSupportModal(); return false;">Support</a>
-  </div>
-  <div class="nav-right">
     <button class="nav-btn-login" onclick="openAuthModal()">Log In</button>
     <button class="nav-btn-start" onclick="openAuthModal()">Get Started</button>
   </div>
