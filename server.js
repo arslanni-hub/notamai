@@ -490,6 +490,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && req.url === '/logo.svg') {
+    const svg = fs.readFileSync(path.join(__dirname, 'logo.svg'), 'utf8');
+    res.writeHead(200, { 'Content-Type': 'image/svg+xml' });
+    res.end(svg);
+    return;
+  }
+
+  if (req.method === 'GET' && req.url === '/logo-wide.svg') {
+    const svg = fs.readFileSync(path.join(__dirname, 'logo-wide.svg'), 'utf8');
+    res.writeHead(200, { 'Content-Type': 'image/svg+xml' });
+    res.end(svg);
+    return;
+  }
+
   if (req.method === 'POST' && req.url === '/briefing') {
     let body = '';
     req.on('data', chunk => body += chunk);
