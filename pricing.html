@@ -455,6 +455,16 @@ canvas#sky {
     All paid plans include a 7-day free trial. Cancel anytime before day 7 and you won't be charged.
   </div>
 
+  <!-- BILLING TOGGLE -->
+  <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:32px;">
+    <span id="monthlyLabel" style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:2px;color:#cdd9e5;">MONTHLY</span>
+    <div id="billingToggle" onclick="toggleBilling()" style="width:52px;height:28px;background:#1a2a3a;border-radius:14px;position:relative;cursor:pointer;border:1px solid #22384f;transition:background 0.3s;">
+      <div id="toggleDot" style="width:22px;height:22px;background:#4a9eff;border-radius:50%;position:absolute;top:2px;left:2px;transition:left 0.3s;"></div>
+    </div>
+    <span id="yearlyLabel" style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:2px;color:#4a5f72;">YEARLY</span>
+    <span id="saveBadge" style="display:none;background:rgba(46,196,182,0.15);color:#2ec4b6;border:1px solid #0e5a54;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:2px;">SAVE 15%</span>
+  </div>
+
   <!-- PRICING CARDS -->
   <div class="pricing-grid">
 
@@ -483,10 +493,10 @@ canvas#sky {
       <div class="card-badge" style="color:#4a9eff;">MOST POPULAR</div>
       <div class="card-name">Pro</div>
       <div class="card-price">
-        <span class="price-amount" style="color:#4a9eff;">$49</span>
-        <span class="price-period">/month</span>
+        <span class="price-amount" id="proPrice" data-monthly="49" data-yearly="42" style="color:#4a9eff;">$49</span>
+        <span class="price-period" id="proPeriod">/month</span>
       </div>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
+      <div id="proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
       <div class="card-subtitle">For active pilots &amp; dispatchers</div>
       <ul class="features-list">
         <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Free</span></li>
@@ -508,10 +518,10 @@ canvas#sky {
       <div class="card-badge" style="color:#f4841a;">BEST VALUE</div>
       <div class="card-name">Premium</div>
       <div class="card-price">
-        <span class="price-amount" style="color:#f4841a;">$99</span>
-        <span class="price-period">/month</span>
+        <span class="price-amount" id="premiumPrice" data-monthly="99" data-yearly="84" style="color:#f4841a;">$99</span>
+        <span class="price-period" id="premiumPeriod">/month</span>
       </div>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
+      <div id="premiumNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
       <div class="card-subtitle">For aviation professionals</div>
       <ul class="features-list">
         <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Pro</span></li>
@@ -576,6 +586,26 @@ canvas#sky {
     </div>
   </div>
 
+  <!-- REFERRAL SECTION -->
+  <div style="max-width:700px;margin:60px auto;text-align:center;">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:3px;margin-bottom:16px;">REFERRAL PROGRAM</div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#ffffff;margin-bottom:12px;">Fly together, save together.</div>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;line-height:1.8;margin-bottom:32px;">Every member gets a unique referral code. Share it with your crew — they get 15% off their first month, and you get 15% off your next bill.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:500px;margin:0 auto;">
+      <div style="background:#0d1520;border:1px solid #1a2a3a;padding:24px;border-radius:4px;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#4a9eff;margin-bottom:8px;">15%</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">YOUR FRIEND SAVES</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-top:8px;">On their first month when they sign up with your code</div>
+      </div>
+      <div style="background:#0d1520;border:1px solid #1a2a3a;padding:24px;border-radius:4px;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#2ec4b6;margin-bottom:8px;">15%</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">YOU SAVE</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-top:8px;">On your next bill for every successful referral</div>
+      </div>
+    </div>
+    <div style="margin-top:24px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;">Your referral code is available in your dashboard after signing up.</div>
+  </div>
+
 </div>
 
 <footer>
@@ -633,6 +663,36 @@ canvas#sky {
 </div>
 
 <script>
+let isYearly = false;
+function toggleBilling() {
+  isYearly = !isYearly;
+  const dot = document.getElementById('toggleDot');
+  const toggle = document.getElementById('billingToggle');
+  const badge = document.getElementById('saveBadge');
+  const monthlyLabel = document.getElementById('monthlyLabel');
+  const yearlyLabel = document.getElementById('yearlyLabel');
+  if (isYearly) {
+    dot.style.left = '28px';
+    toggle.style.background = '#4a9eff';
+    badge.style.display = 'inline-block';
+    monthlyLabel.style.color = '#4a5f72';
+    yearlyLabel.style.color = '#cdd9e5';
+    document.getElementById('proPrice').textContent = '42';
+    document.getElementById('premiumPrice').textContent = '84';
+    document.getElementById('proNote').textContent = '$504/year · Save $108';
+    document.getElementById('premiumNote').textContent = '$1,008/year · Save $180';
+  } else {
+    dot.style.left = '2px';
+    toggle.style.background = '#1a2a3a';
+    badge.style.display = 'none';
+    monthlyLabel.style.color = '#cdd9e5';
+    yearlyLabel.style.color = '#4a5f72';
+    document.getElementById('proPrice').textContent = '49';
+    document.getElementById('premiumPrice').textContent = '99';
+    document.getElementById('proNote').textContent = '7-day free trial · Cancel anytime';
+    document.getElementById('premiumNote').textContent = '7-day free trial · Cancel anytime';
+  }
+}
 function openSupportModal() {
   const m = document.getElementById('supportModal');
   m.style.display = 'flex';
