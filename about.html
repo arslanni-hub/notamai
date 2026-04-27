@@ -507,8 +507,8 @@ canvas#sky {
       <div style="position:absolute;bottom:14px;right:14px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(74,158,255,0.2);line-height:1.7;text-align:right;">NOTAM INTEL<br>v1.0</div>
       <!-- center content -->
       <div style="position:relative;z-index:1;text-align:center;padding:0 24px;">
-        <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;margin-bottom:12px;"><span style="color:#ffffff;">NOTAM</span><br><span style="color:#4a9eff;">INTELLIGENCE</span></div>
-        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#cdd9e5;margin-bottom:16px;">hello@notamai.com</div>
+        <div onclick="closeSupportModal(); openLoginModal();" style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;margin-bottom:12px;cursor:pointer;"><span style="color:#ffffff;">NOTAM</span><br><span style="color:#4a9eff;">INTELLIGENCE</span></div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#cdd9e5;margin-bottom:16px;"><a href="mailto:hello@notamai.com" style="color:#4a9eff;text-decoration:none;cursor:pointer;">hello@notamai.com</a></div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;letter-spacing:1px;">24/7 Aviation Support</div>
       </div>
     </div>
@@ -535,6 +535,7 @@ function sendSupportEmail(e) {
 document.getElementById('supportModal').addEventListener('click', function(e) {
   if (e.target === this) closeSupportModal();
 });
+function openLoginModal() { window.location.href = '/'; }
 </script>
 
 <script>
