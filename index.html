@@ -40,16 +40,27 @@ body { overflow-x: hidden; }
   top: 0; left: 0; right: 0;
   height: 52px;
   z-index: 1000;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: center;
+  padding: 0 32px;
   pointer-events: none;
+}
+.nav-logo-left {
+  pointer-events: auto;
 }
 .nav-center {
   display: flex;
   align-items: center;
   gap: 32px;
   pointer-events: auto;
+}
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+  justify-content: flex-end;
 }
 .nav-link {
   font-family: 'Rajdhani', sans-serif;
@@ -807,193 +818,22 @@ canvas#sky {
   margin-right: -8px;
 }
 
-/* ═══ ABOUT SECTION ═══ */
-#about-section {
-  position: relative;
-  z-index: 10;
-}
-.about-sep {
-  width: 100%;
-  height: 80px;
-  background: linear-gradient(to bottom, transparent, #060a0f);
-  position: relative;
-  z-index: 10;
-}
-.about-inner {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 0 32px 80px;
-}
-.about-hero {
-  text-align: center;
-  padding: 80px 0 60px;
-}
-.about-badge {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 3px;
-  color: var(--blue);
-  text-transform: uppercase;
-  margin-bottom: 24px;
-}
-.about-title {
-  font-family: var(--head);
-  font-size: 48px;
-  font-weight: 900;
-  color: #fff;
-  line-height: 1.15;
-  letter-spacing: 2px;
-  margin-bottom: 20px;
-}
-.about-sub {
-  font-family: var(--body);
-  font-size: 18px;
-  color: var(--text-dim);
-  max-width: 600px;
-  margin: 0 auto 28px;
-  line-height: 1.7;
-}
-.about-cta-btn {
-  display: inline-block;
-  background: var(--blue);
-  color: #060a0f;
-  font-family: var(--body);
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 2px;
-  padding: 10px 28px;
-  border-radius: 4px;
-  text-decoration: none;
-  transition: background 0.2s;
-}
-.about-cta-btn:hover { background: #6ab4ff; }
-.about-stats {
-  display: flex;
-  justify-content: center;
-  gap: 80px;
-  margin: 0 auto 60px;
-  text-align: center;
-  flex-wrap: wrap;
-}
-.about-stat-num {
-  font-family: var(--head);
-  font-size: 36px;
-  font-weight: 900;
-  color: var(--blue);
-  letter-spacing: 2px;
-  margin-bottom: 8px;
-}
-.about-stat-lbl {
-  font-family: var(--body);
-  font-size: 13px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-.about-div {
-  border: none;
-  border-top: 1px solid #1a2a3a;
-  margin: 0 0 60px;
-}
-.about-mission {
-  display: flex;
-  gap: 60px;
-  max-width: 900px;
-  margin: 0 auto 60px;
-  align-items: flex-start;
-}
-.about-mission-l { flex: 1; }
-.about-sec-lbl {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 3px;
-  color: var(--blue);
-  text-transform: uppercase;
-  margin-bottom: 14px;
-}
-.about-mission-ttl {
-  font-family: var(--head);
-  font-size: 26px;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: 1px;
-  line-height: 1.3;
-  margin-bottom: 20px;
-}
-.about-mission-body {
-  font-family: var(--body);
-  font-size: 16px;
-  color: var(--text-dim);
-  line-height: 1.8;
-}
-.about-mission-r {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.about-card {
-  background: #0d1520;
-  border: 1px solid #1a2a3a;
-  border-radius: 4px;
-  padding: 20px;
-}
-.about-card-icon { font-size: 20px; margin-bottom: 8px; }
-.about-card-ttl {
-  font-family: var(--body);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: 1px;
-  margin-bottom: 6px;
-}
-.about-card-desc {
-  font-family: var(--body);
-  font-size: 13px;
-  color: var(--text-dim);
-  line-height: 1.6;
-}
-.about-footer {
-  border-top: 1px solid #1a2a3a;
-  padding: 40px 32px;
-  text-align: center;
-}
-.about-footer-copy {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-bottom: 12px;
-}
-.about-footer-links {
-  display: flex;
-  justify-content: center;
-  gap: 24px;
-}
-.about-footer-links a {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 1px;
-  color: var(--text-muted);
-  text-decoration: none;
-}
-.about-footer-links a:hover { color: var(--blue); }
-@media (max-width: 700px) {
-  .about-title { font-size: 32px; }
-  .about-mission { flex-direction: column; gap: 40px; }
-  .about-stats { gap: 40px; }
-  .about-mission-r { grid-template-columns: 1fr; }
-}
 </style>
 </head>
 <body>
 
 <!-- NAVBAR -->
 <nav id="mainNavbar">
+  <div class="nav-logo-left">
+    <a href="/" style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;text-decoration:none;letter-spacing:2px;"><span style="color:#ffffff;">NOTAM</span><span style="color:#4a9eff;"> INTELLIGENCE</span></a>
+  </div>
   <div class="nav-center">
-    <a class="nav-link" href="#about-section">About</a>
+    <a class="nav-link" href="/about">About</a>
     <a class="nav-link" href="/how-it-works">How It Works</a>
     <a class="nav-link" href="/pricing">Pricing</a>
     <a class="nav-link" href="#" onclick="openSupportModal(); return false;">Support</a>
+  </div>
+  <div class="nav-right">
     <button class="nav-btn-login" onclick="openAuthModal()">Log In</button>
     <button class="nav-btn-start" onclick="openAuthModal()">Get Started</button>
   </div>
@@ -1739,81 +1579,6 @@ animate();
 
 <!-- COCKPIT SPACER -->
 <div style="height:100vh;position:relative;z-index:0;pointer-events:none;"></div>
-
-<!-- GRADIENT SEPARATOR -->
-<div class="about-sep"></div>
-
-<!-- ABOUT SECTION -->
-<div id="about-section" style="background:#060a0f;">
-  <div class="about-inner">
-
-    <!-- HERO -->
-    <section class="about-hero">
-      <div class="about-badge">About NOTAM Intelligence</div>
-      <h2 class="about-title">Pre-Flight Briefing, Redefined.</h2>
-      <p class="about-sub">Modern aviation generates thousands of NOTAMs, METARs, and advisories daily. We turn that complexity into clarity.</p>
-      <a href="/" class="about-cta-btn">Try It Free →</a>
-    </section>
-
-    <!-- STATS -->
-    <div class="about-stats">
-      <div>
-        <div class="about-stat-num">&lt; 45s</div>
-        <div class="about-stat-lbl">Briefing Generation Time</div>
-      </div>
-      <div>
-        <div class="about-stat-num">100%</div>
-        <div class="about-stat-lbl">Live NOTAM Coverage</div>
-      </div>
-      <div>
-        <div class="about-stat-num">ICAO</div>
-        <div class="about-stat-lbl">Annex 15 Compliant</div>
-      </div>
-    </div>
-
-    <hr class="about-div">
-
-    <!-- MISSION -->
-    <div class="about-mission">
-      <div class="about-mission-l">
-        <div class="about-sec-lbl">Our Mission</div>
-        <h3 class="about-mission-ttl">Built by aviation professionals, for aviation professionals.</h3>
-        <p class="about-mission-body">NOTAM Intelligence was created to solve a real problem: pre-flight briefing is time-consuming, error-prone, and often overwhelming. Our platform combines live aeronautical data with advanced AI analysis to deliver briefings that are not just fast — but operationally meaningful.</p>
-      </div>
-      <div class="about-mission-r">
-        <div class="about-card">
-          <div class="about-card-icon">🛰️</div>
-          <div class="about-card-ttl">Live Data</div>
-          <div class="about-card-desc">Real-time NOTAMs, METAR and TAF from official sources</div>
-        </div>
-        <div class="about-card">
-          <div class="about-card-icon">🤖</div>
-          <div class="about-card-ttl">AI Analysis</div>
-          <div class="about-card-desc">Advanced AI cross-references all data to identify compounding risks</div>
-        </div>
-        <div class="about-card">
-          <div class="about-card-icon">✈️</div>
-          <div class="about-card-ttl">ICAO Compliant</div>
-          <div class="about-card-desc">Built on ICAO Annex 15, PANS-AIM Doc 10066 standards</div>
-        </div>
-        <div class="about-card">
-          <div class="about-card-icon">⚡</div>
-          <div class="about-card-ttl">Instant Briefing</div>
-          <div class="about-card-desc">From query to complete briefing in under 45 seconds</div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="about-footer">
-    <div class="about-footer-copy">© 2026 NOTAM Intelligence. All rights reserved.</div>
-    <div class="about-footer-links">
-      <a href="#">Privacy Policy</a>
-      <a href="#">Terms of Service</a>
-    </div>
-  </div>
-</div>
 
 <!-- SUPPORT MODAL -->
 <style>
