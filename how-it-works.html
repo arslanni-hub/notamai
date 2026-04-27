@@ -561,6 +561,9 @@ footer {
 }
 .footer-links a:hover { color: var(--blue); }
 
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.cursor { animation: blink 0.7s infinite; color: #4a9eff; }
+
 @media (max-width: 700px) {
   .hero-title { font-size: 32px; }
   .step { flex-direction: column; gap: 16px; }
@@ -605,7 +608,7 @@ footer {
         <p class="step-desc">Type any ICAO code or route — KJFK, EGLL, EDDF — or search by NOTAM number, or paste raw NOTAM, METAR, or TAF data. Our system understands all standard aviation formats.</p>
         <div class="step-visual">
           <div class="mock-input">
-            <span class="mock-input-text">KJFK EGLL</span>
+            <span class="mock-input-text"><span id="typingText"></span><span class="cursor">|</span></span>
             <div class="mock-input-btn">🪄</div>
           </div>
         </div>
@@ -670,7 +673,7 @@ footer {
     <div class="step">
       <div class="step-number">04</div>
       <div class="step-content">
-        <div class="step-title">Get Your Full Briefing</div>
+        <div class="step-title">Get Your Full AI Briefing</div>
         <p class="step-desc">Receive a complete operational intelligence briefing — risk score, decoded NOTAMs, Go/No-Go recommendation, pilot action items, and dispatch notes.</p>
         <div class="step-visual">
           <div class="brief-header">
@@ -701,7 +704,7 @@ footer {
 
   <!-- PREVIEW SECTION -->
   <div class="preview-section">
-    <h2 class="section-title">What a full briefing looks like</h2>
+    <h2 class="section-title">What a full AI briefing looks like</h2>
     <p class="section-subtitle">Real KJFK → EGLL briefing excerpt</p>
 
     <!-- Row 1: 2 columns -->
@@ -888,6 +891,30 @@ function sendSupportEmail(e) {
 document.getElementById('supportModal').addEventListener('click', function(e) {
   if (e.target === this) closeSupportModal();
 });
+
+const text = "KJFK EGLL";
+let idx = 0;
+let deleting = false;
+const el = document.getElementById('typingText');
+function type() {
+  if (!deleting && idx <= text.length) {
+    el.textContent = text.slice(0, idx);
+    idx++;
+    setTimeout(type, idx === text.length + 1 ? 2000 : 120);
+  } else if (!deleting && idx > text.length) {
+    deleting = true;
+    setTimeout(type, 120);
+  } else if (deleting && idx >= 0) {
+    el.textContent = text.slice(0, idx);
+    idx--;
+    setTimeout(type, idx < 0 ? 1000 : 80);
+  } else {
+    deleting = false;
+    idx = 0;
+    setTimeout(type, 500);
+  }
+}
+type();
 </script>
 
 </body>
