@@ -823,9 +823,9 @@ canvas#sky {
 <nav id="mainNavbar">
   <div class="nav-center">
     <a class="nav-logo" href="/"><span style="color:#ffffff;">NOTAM</span> <span style="color:#4a9eff;">INTELLIGENCE</span></a>
-    <a class="nav-link" href="/about">About</a>
-    <a class="nav-link" href="/how-it-works">How It Works</a>
-    <a class="nav-link" href="/pricing">Pricing</a>
+    <a class="nav-link" href="#about-section">About</a>
+    <a class="nav-link" href="#how-it-works-section">How It Works</a>
+    <a class="nav-link" href="#pricing-section">Pricing</a>
     <a class="nav-link" href="#" onclick="openSupportModal(); return false;">Support</a>
     <button class="nav-btn-login" onclick="openAuthModal()">Log In</button>
     <button class="nav-btn-start" onclick="openAuthModal()">Get Started</button>
@@ -1618,6 +1618,634 @@ function sendSupportEmail(e) {
 document.getElementById('supportModal').addEventListener('click', function(e) {
   if (e.target === this) closeSupportModal();
 });
+</script>
+
+
+<style>
+/* ═══ CSS VARIABLES OVERRIDE FOR EMBEDDED SECTIONS ═══ */
+#about-section, #how-it-works-section, #pricing-section {
+  --bg: #060a0f; --bg2: #0d1520; --border: #1a2a3a; --blue: #4a9eff;
+  --orange: #f4841a; --red: #e63946; --green: #2ec4b6;
+  --text: #cdd9e5; --text-dim: #8a9bb0; --text-muted: #4a5f72;
+  --head: 'Orbitron', sans-serif; --body: 'Rajdhani', sans-serif;
+  --mono: 'Share Tech Mono', monospace;
+}
+
+/* ═══ SHARED HERO ═══ */
+#about-section .hero, #how-it-works-section .hero {
+  text-align: center; padding-top: 80px; padding-bottom: 60px;
+}
+#pricing-section .hero {
+  text-align: center; padding-top: 80px; padding-bottom: 40px;
+}
+#about-section .hero-badge, #how-it-works-section .hero-badge, #pricing-section .hero-badge {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 3px;
+  color: var(--blue); text-transform: uppercase; margin-bottom: 24px;
+}
+#about-section .hero-title, #how-it-works-section .hero-title, #pricing-section .hero-title {
+  font-family: var(--head); font-size: 48px; font-weight: 900; color: #ffffff;
+  line-height: 1.15; letter-spacing: 2px; margin-bottom: 20px;
+}
+#about-section .hero-subtitle, #how-it-works-section .hero-subtitle, #pricing-section .hero-subtitle {
+  font-family: var(--body); font-size: 18px; color: var(--text-dim);
+  max-width: 640px; margin: 0 auto 28px; line-height: 1.7;
+}
+#about-section .hero-cta {
+  display: inline-block; background: var(--blue); color: #060a0f;
+  font-family: var(--body); font-weight: 700; font-size: 14px;
+  letter-spacing: 2px; padding: 10px 28px; border-radius: 4px;
+  text-decoration: none; transition: background 0.2s;
+}
+#about-section .hero-cta:hover { background: #6ab4ff; }
+
+/* ═══ ABOUT: STATS ═══ */
+#about-section .stats {
+  display: flex; justify-content: center; gap: 80px; margin: 0 auto 80px;
+  text-align: center; flex-wrap: wrap;
+}
+#about-section .stat-number {
+  font-family: var(--head); font-size: 36px; font-weight: 900;
+  color: var(--blue); letter-spacing: 2px; margin-bottom: 8px;
+}
+#about-section .stat-label {
+  font-family: var(--body); font-size: 13px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--text-dim);
+}
+#about-section .divider { border: none; border-top: 1px solid var(--border); margin: 0 0 80px; }
+#about-section .mission {
+  display: flex; gap: 60px; max-width: 900px; margin: 0 auto 80px; align-items: flex-start;
+}
+#about-section .mission-left { flex: 1; }
+#about-section .section-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 3px;
+  color: var(--blue); text-transform: uppercase; margin-bottom: 14px;
+}
+#about-section .mission-title {
+  font-family: var(--head); font-size: 28px; font-weight: 700; color: #ffffff;
+  letter-spacing: 1px; line-height: 1.3; margin-bottom: 20px;
+}
+#about-section .mission-body {
+  font-family: var(--body); font-size: 16px; color: var(--text-dim); line-height: 1.8;
+}
+#about-section .mission-right { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+#about-section .feature-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 20px;
+}
+#about-section .feature-icon { font-size: 20px; margin-bottom: 8px; }
+#about-section .feature-title {
+  font-family: var(--body); font-size: 14px; font-weight: 700;
+  color: var(--text); letter-spacing: 1px; margin-bottom: 6px;
+}
+#about-section .feature-desc {
+  font-family: var(--body); font-size: 13px; color: var(--text-dim); line-height: 1.6;
+}
+@media (max-width: 700px) {
+  #about-section .hero-title { font-size: 32px; }
+  #about-section .mission { flex-direction: column; gap: 40px; }
+  #about-section .stats { gap: 40px; }
+  #about-section .mission-right { grid-template-columns: 1fr; }
+}
+
+/* ═══ HOW IT WORKS: STEPS ═══ */
+#how-it-works-section .steps {
+  max-width: 900px; margin: 0 auto 80px; display: flex; flex-direction: column; gap: 0;
+}
+#how-it-works-section .step {
+  display: flex; gap: 40px; align-items: flex-start; padding: 48px 0;
+  border-bottom: 1px solid var(--border);
+}
+#how-it-works-section .step:last-child { border-bottom: none; }
+#how-it-works-section .step-number {
+  font-family: var(--head); font-size: 64px; font-weight: 900;
+  color: rgba(74,158,255,0.15); line-height: 1; flex-shrink: 0;
+  width: 100px; text-align: right; letter-spacing: -2px;
+}
+#how-it-works-section .step-content { flex: 1; }
+#how-it-works-section .step-title {
+  font-family: var(--head); font-size: 20px; font-weight: 700;
+  color: #ffffff; letter-spacing: 1px; margin-bottom: 12px;
+}
+#how-it-works-section .step-desc {
+  font-family: var(--body); font-size: 16px; color: var(--text-dim);
+  line-height: 1.8; margin-bottom: 24px;
+}
+#how-it-works-section .step-visual {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 16px 20px;
+}
+#how-it-works-section .mock-input {
+  display: flex; align-items: center; gap: 12px; background: #060a0f;
+  border: 1px solid var(--border); border-radius: 4px; padding: 10px 16px;
+}
+#how-it-works-section .mock-input-text {
+  font-family: var(--mono); font-size: 15px; color: #ffffff; flex: 1; letter-spacing: 1px;
+}
+#how-it-works-section .mock-input-btn {
+  background: var(--blue); border: none; border-radius: 4px; color: #060a0f;
+  font-size: 18px; width: 32px; height: 32px; display: flex;
+  align-items: center; justify-content: center; cursor: default;
+}
+#how-it-works-section .data-cards { display: flex; gap: 10px; }
+#how-it-works-section .data-card {
+  flex: 1; background: #060a0f; border: 1px solid var(--border); border-radius: 4px; padding: 10px 14px;
+}
+#how-it-works-section .data-card-label {
+  font-family: var(--mono); font-size: 9px; color: var(--blue);
+  letter-spacing: 2px; margin-bottom: 8px;
+}
+#how-it-works-section .risk-bars { display: flex; flex-direction: column; gap: 8px; }
+#how-it-works-section .risk-bar-row { display: flex; align-items: center; gap: 12px; }
+#how-it-works-section .risk-bar-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1px; width: 72px; flex-shrink: 0;
+}
+#how-it-works-section .risk-bar-track {
+  flex: 1; height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden;
+}
+#how-it-works-section .risk-bar-fill { height: 100%; border-radius: 4px; }
+#how-it-works-section .brief-header {
+  background: #060a0f; border: 1px solid var(--border); border-top: 3px solid #e63946;
+  border-radius: 4px; padding: 16px 20px;
+}
+#how-it-works-section .brief-route {
+  font-family: var(--head); font-size: 22px; font-weight: 900;
+  letter-spacing: 3px; color: #ffffff; margin-bottom: 4px;
+}
+#how-it-works-section .brief-sub {
+  font-family: var(--mono); font-size: 10px; color: var(--text-muted);
+  letter-spacing: 2px; margin-bottom: 14px;
+}
+#how-it-works-section .brief-risk-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+#how-it-works-section .brief-risk-label {
+  font-family: var(--head); font-size: 18px; font-weight: 900; color: #e63946; letter-spacing: 3px;
+}
+#how-it-works-section .brief-pips { display: flex; gap: 3px; }
+#how-it-works-section .brief-pip { width: 14px; height: 5px; border-radius: 2px; background: var(--border); }
+#how-it-works-section .brief-pip.on { background: #e63946; }
+#how-it-works-section .preview-section { max-width: 900px; margin: 0 auto 80px; }
+#how-it-works-section .section-title {
+  font-family: var(--head); font-size: 28px; font-weight: 700; color: #ffffff;
+  text-align: center; letter-spacing: 1px; margin-bottom: 8px;
+}
+#how-it-works-section .section-subtitle {
+  font-family: var(--body); font-size: 15px; color: var(--text-dim);
+  text-align: center; margin-bottom: 40px;
+}
+#how-it-works-section .prev-card { background: var(--bg2); border-radius: 6px; padding: 20px; }
+#how-it-works-section .cta-section { text-align: center; margin: 60px auto 0; max-width: 600px; }
+#how-it-works-section .cta-title {
+  font-family: var(--head); font-size: 32px; font-weight: 900; color: #ffffff;
+  letter-spacing: 2px; margin-bottom: 14px;
+}
+#how-it-works-section .cta-subtitle {
+  font-family: var(--body); font-size: 17px; color: var(--text-dim);
+  margin-bottom: 32px; line-height: 1.7;
+}
+#how-it-works-section .cta-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+#how-it-works-section .cta-btn-primary {
+  font-family: var(--body); font-size: 14px; font-weight: 700; letter-spacing: 2px;
+  background: var(--blue); color: #060a0f; border: none; border-radius: 4px;
+  padding: 12px 32px; cursor: pointer; text-decoration: none; transition: background 0.2s;
+}
+#how-it-works-section .cta-btn-primary:hover { background: #6ab4ff; }
+#how-it-works-section .cta-btn-secondary {
+  font-family: var(--body); font-size: 14px; font-weight: 500; letter-spacing: 2px;
+  background: transparent; color: var(--text-dim); border: 1px solid var(--border);
+  border-radius: 4px; padding: 12px 32px; cursor: pointer; text-decoration: none;
+  transition: color 0.2s, border-color 0.2s;
+}
+#how-it-works-section .cta-btn-secondary:hover { color: var(--text); border-color: rgba(74,158,255,0.4); }
+#how-it-works-section .cursor { animation: hiw-blink 0.7s infinite; color: #4a9eff; }
+@keyframes hiw-blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes hiw-shimmer { 0% { left: -100%; } 100% { left: 100%; } }
+@keyframes hiw-critPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+@media (max-width: 700px) {
+  #how-it-works-section .hero-title { font-size: 32px; }
+  #how-it-works-section .step { flex-direction: column; gap: 16px; }
+  #how-it-works-section .step-number { width: auto; text-align: left; font-size: 48px; }
+  #how-it-works-section .data-cards { flex-direction: column; }
+}
+
+/* ═══ PRICING ═══ */
+#pricing-section .pricing-grid {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 20px;
+  max-width: 1100px; margin: 60px auto 0;
+}
+#pricing-section .pricing-card {
+  background: var(--bg2); border-radius: 8px; padding: 32px 24px 28px;
+  display: flex; flex-direction: column;
+}
+#pricing-section .card-badge {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+  text-transform: uppercase; margin-bottom: 20px; min-height: 16px;
+}
+#pricing-section .card-name {
+  font-family: var(--head); font-size: 13px; font-weight: 700;
+  letter-spacing: 2px; color: var(--text); margin-bottom: 16px;
+}
+#pricing-section .card-price { display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px; }
+#pricing-section .price-amount { font-family: var(--head); font-size: 42px; font-weight: 900; line-height: 1; }
+#pricing-section .price-period { font-family: var(--body); font-size: 16px; color: var(--text-dim); }
+#pricing-section .card-subtitle { font-family: var(--body); font-size: 13px; color: var(--text-dim); margin-bottom: 24px; }
+#pricing-section .features-list { list-style: none; flex: 1; margin-bottom: 28px; }
+#pricing-section .features-list li {
+  font-family: var(--body); font-size: 14px; padding: 6px 0;
+  border-bottom: 1px solid rgba(26,42,58,0.6); display: flex;
+  align-items: flex-start; gap: 8px; line-height: 1.4;
+}
+#pricing-section .features-list li:last-child { border-bottom: none; }
+#pricing-section .feat-check { flex-shrink: 0; font-size: 13px; margin-top: 1px; }
+#pricing-section .feat-on { color: var(--text); }
+#pricing-section .feat-off { color: var(--text-muted); }
+#pricing-section .card-btn {
+  width: 100%; font-family: var(--body); font-size: 13px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase; padding: 12px;
+  border-radius: 4px; cursor: pointer; transition: opacity 0.2s;
+}
+#pricing-section .card-btn:hover { opacity: 0.85; }
+#pricing-section .card-btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+#pricing-section .card-btn-blue { background: var(--blue); border: 1px solid var(--blue); color: #060a0f; font-weight: 700; }
+#pricing-section .card-btn-orange { background: #f4841a; border: 1px solid #f4841a; color: #060a0f; font-weight: 700; }
+#pricing-section .faq-section { max-width: 700px; margin: 80px auto 0; }
+#pricing-section .faq-title {
+  font-family: var(--head); font-size: 28px; font-weight: 700; color: #ffffff;
+  text-align: center; letter-spacing: 1px; margin-bottom: 40px;
+}
+#pricing-section .faq-item { border-bottom: 1px solid var(--border); padding: 20px 0; }
+#pricing-section .faq-item:first-of-type { border-top: 1px solid var(--border); }
+#pricing-section .faq-q { font-family: var(--body); font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 8px; }
+#pricing-section .faq-a { font-family: var(--body); font-size: 15px; color: var(--text-dim); line-height: 1.7; }
+@media (max-width: 900px) {
+  #pricing-section .pricing-grid { grid-template-columns: repeat(2,1fr); }
+  #pricing-section .hero-title { font-size: 36px; }
+}
+@media (max-width: 560px) {
+  #pricing-section .pricing-grid { grid-template-columns: 1fr; }
+  #pricing-section .hero-title { font-size: 28px; }
+}
+</style>
+
+<!-- ═══ ABOUT SECTION ═══ -->
+<section id="about-section" style="position:relative;z-index:2;background:#060a0f;border-top:1px solid rgba(26,42,58,0.6);">
+  <div style="max-width:960px;margin:0 auto;padding:0 32px;">
+    <section class="hero">
+      <div class="hero-badge">About NOTAM Intelligence</div>
+      <h1 class="hero-title">Pre-Flight Briefing, Redefined.</h1>
+      <p class="hero-subtitle">Modern aviation generates thousands of NOTAMs, METARs, and advisories daily. We turn that complexity into clarity.</p>
+      <a href="#" onclick="openAuthModal();return false;" class="hero-cta">Try It Free →</a>
+    </section>
+    <div class="stats">
+      <div><div class="stat-number">&lt; 45s</div><div class="stat-label">Briefing Generation Time</div></div>
+      <div><div class="stat-number">100%</div><div class="stat-label">Live NOTAM Coverage</div></div>
+      <div><div class="stat-number">ICAO</div><div class="stat-label">Annex 15 Compliant</div></div>
+    </div>
+    <hr class="divider">
+    <div class="mission">
+      <div class="mission-left">
+        <div class="section-label">Our Mission</div>
+        <h2 class="mission-title">Built by aviation professionals, for aviation professionals.</h2>
+        <p class="mission-body">NOTAM Intelligence was created to solve a real problem: pre-flight briefing is time-consuming, error-prone, and often overwhelming. Our platform combines live aeronautical data with advanced AI analysis to deliver briefings that are not just fast — but operationally meaningful.</p>
+      </div>
+      <div class="mission-right">
+        <div class="feature-card"><div class="feature-icon">🛰️</div><div class="feature-title">Live Data</div><div class="feature-desc">Real-time NOTAMs, METAR and TAF from official sources</div></div>
+        <div class="feature-card"><div class="feature-icon">🤖</div><div class="feature-title">AI Analysis</div><div class="feature-desc">Advanced AI cross-references all data to identify compounding risks</div></div>
+        <div class="feature-card"><div class="feature-icon">✈️</div><div class="feature-title">ICAO Compliant</div><div class="feature-desc">Built on ICAO Annex 15, PANS-AIM Doc 10066 standards</div></div>
+        <div class="feature-card"><div class="feature-icon">⚡</div><div class="feature-title">Instant Briefing</div><div class="feature-desc">From query to complete briefing in under 45 seconds</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ HOW IT WORKS SECTION ═══ -->
+<section id="how-it-works-section" style="position:relative;z-index:2;background:#060a0f;border-top:1px solid rgba(26,42,58,0.6);">
+  <div style="max-width:960px;margin:0 auto;padding:0 32px;">
+    <section class="hero">
+      <div class="hero-badge">How It Works</div>
+      <h1 class="hero-title">From query to briefing in seconds.</h1>
+      <p class="hero-subtitle">See how NOTAM Intelligence transforms complex aviation data into clear, actionable pre-flight briefings.</p>
+    </section>
+    <div class="steps">
+      <!-- STEP 01 -->
+      <div class="step">
+        <div class="step-number">01</div>
+        <div class="step-content">
+          <div class="step-title">Enter Your Route</div>
+          <p class="step-desc">Type any ICAO code or route — KJFK, EGLL, EDDF — or search by NOTAM number, or paste raw NOTAM, METAR, or TAF data. Our system understands all standard aviation formats.</p>
+          <div class="step-visual">
+            <div class="mock-input">
+              <span class="mock-input-text"><span id="hiw_typingText"></span><span class="cursor">|</span></span>
+              <div class="mock-input-btn">🪄</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- STEP 02 -->
+      <div class="step">
+        <div class="step-number">02</div>
+        <div class="step-content">
+          <div class="step-title">Live Data Fetched Instantly</div>
+          <p class="step-desc">We pull real-time NOTAMs from official sources, current METAR and TAF weather data — all in seconds, automatically.</p>
+          <div class="step-visual">
+            <div class="data-cards">
+              <div class="data-card"><div class="data-card-label">NOTAM</div><div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;margin-top:8px;">B1428/26 — RWY 18/36 CLSD</div></div>
+              <div class="data-card"><div class="data-card-label">METAR</div><div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#2ec4b6;margin-top:8px;">EGLL 221150Z 09018KT 9999 NCD</div></div>
+              <div class="data-card"><div class="data-card-label">TAF</div><div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#f2c641;margin-top:8px;">TEMPO 1600/1800 SHRA BKN012</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- STEP 03 -->
+      <div class="step">
+        <div class="step-number">03</div>
+        <div class="step-content">
+          <div class="step-title">AI Analyzes Everything</div>
+          <p class="step-desc">Our AI cross-references all active NOTAMs, identifies compounding risks, and applies ICAO Annex 15 operational standards to assess your specific route.</p>
+          <div class="step-visual">
+            <div class="risk-bars">
+              <div class="risk-bar-row"><span class="risk-bar-label" style="color:#e63946;">CRITICAL</span><div class="risk-bar-track"><div class="risk-bar-fill" style="width:85%;background:#e63946;"></div></div></div>
+              <div class="risk-bar-row"><span class="risk-bar-label" style="color:#f4841a;">HIGH</span><div class="risk-bar-track"><div class="risk-bar-fill" style="width:60%;background:#f4841a;"></div></div></div>
+              <div class="risk-bar-row"><span class="risk-bar-label" style="color:#f2c641;">MEDIUM</span><div class="risk-bar-track"><div class="risk-bar-fill" style="width:40%;background:#f2c641;"></div></div></div>
+              <div class="risk-bar-row"><span class="risk-bar-label" style="color:#2ec4b6;">LOW</span><div class="risk-bar-track"><div class="risk-bar-fill" style="width:20%;background:#2ec4b6;"></div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- STEP 04 -->
+      <div class="step">
+        <div class="step-number">04</div>
+        <div class="step-content">
+          <div class="step-title">Get Your Full AI Briefing</div>
+          <p class="step-desc">Receive a complete operational intelligence briefing — risk score, decoded NOTAMs, Go/No-Go recommendation, pilot action items, and dispatch notes.</p>
+          <div class="step-visual">
+            <div class="brief-header">
+              <div class="brief-route">KJFK → EGLL</div>
+              <div class="brief-sub">PRE-FLIGHT OPERATIONAL INTELLIGENCE BRIEFING</div>
+              <div class="brief-risk-row">
+                <span class="brief-risk-label">CRITICAL</span>
+                <div class="brief-pips">
+                  <div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip"></div><div class="brief-pip"></div>
+                </div>
+                <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#f4841a;">8.5 / 10</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PREVIEW SECTION -->
+    <div class="preview-section">
+      <h2 class="section-title">What a full AI briefing looks like</h2>
+      <p class="section-subtitle">Real KJFK → EGLL briefing excerpt</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div class="prev-card" style="border-left:4px solid #f4841a;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#f4841a;margin-bottom:10px;">✈️ EXECUTIVE SUMMARY</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;line-height:1.6;">KJFK-EGLL rotation faces HIGH operational risk driven by three simultaneous active hazards. ILS CAT III unserviceable at arrival, active UAS swarm operations near final approach, and moderate turbulence SIGMET FL180-FL280 over London FIR create compounding risk during arrival phase.</div>
+        </div>
+        <div class="prev-card" style="background:rgba(230,57,70,0.06);border:1px solid #7a1a20;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#e63946;margin-bottom:10px;">🔴 COMPOUNDING RISK MATRIX</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#ff8a8a;border-bottom:1px solid rgba(230,57,70,0.15);padding:6px 0;">⚡ ILS CAT III U/S + Low Visibility TEMPO — approach minima severely degraded</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#ff8a8a;border-bottom:1px solid rgba(230,57,70,0.15);padding:6px 0;">⚡ UAS Swarm + Degraded ILS — crew attention split at critical phase</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#ff8a8a;padding:6px 0;">⚡ Turbulence SIGMET + Obstacle Activity — compound arrival workload</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div class="prev-card" style="border-left:4px solid #e63946;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;margin-bottom:6px;">🔴 A1286/2026 | TYPE: NAVIGATION</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ffffff;margin-bottom:10px;">LON VOR/DME Partially Unserviceable</div>
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a2a3a;font-size:12px;"><span style="font-family:'Rajdhani',sans-serif;color:#4a5f72;">📍 Location</span><span style="font-family:'Rajdhani',sans-serif;color:#cdd9e5;">EGLL — LON VOR 113.60MHz</span></div>
+          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;margin-bottom:10px;"><span style="font-family:'Rajdhani',sans-serif;color:#4a5f72;">⏰ Time Window</span><span style="font-family:'Rajdhani',sans-serif;color:#cdd9e5;">09 APR 0800Z — 09 JUL 1900Z</span></div>
+          <div style="background:rgba(0,0,0,0.3);border:1px solid #1a2a3a;padding:8px;"><div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#f2c641;margin-bottom:4px;">⚠️ REQUIRED ACTION</div><div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;">Use RNAV/GPS backup. Brief alternative approach procedures.</div></div>
+        </div>
+        <div class="prev-card" style="border:1px solid #1a2a3a;text-align:center;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#8a9bb0;letter-spacing:2px;margin-bottom:8px;">RISK SCORE</div>
+          <div style="font-family:'Orbitron',sans-serif;font-size:36px;font-weight:900;color:#e63946;">8.5 / 10</div>
+          <div style="display:flex;justify-content:center;gap:3px;margin:10px auto;">
+            <div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#1a2a3a;"></div><div style="width:16px;height:6px;border-radius:2px;background:#1a2a3a;"></div>
+          </div>
+          <span style="display:inline-block;background:rgba(230,57,70,0.15);color:#e63946;border:1px solid #7a1a20;padding:3px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;margin-top:10px;">CRITICAL</span>
+        </div>
+        <div class="prev-card" style="border:1px solid #1a2a3a;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#4a9eff;margin-bottom:12px;">✅ PILOT ACTION ITEMS</div>
+          <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #1a2a3a;"><span style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;min-width:24px;">01</span><span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;"><em style="color:#f2c641;font-style:normal;">ILS APPROACH BRIEF</em> — Review CAT I minima (DH 200ft / RVR 550m), missed approach procedure fully reviewed</span></div>
+          <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #1a2a3a;"><span style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;min-width:24px;">02</span><span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;"><em style="color:#f2c641;font-style:normal;">GPS BACKUP</em> — Verify RNAV capability, LON VOR unreliable, cross-check with ILS DME</span></div>
+          <div style="display:flex;gap:10px;padding:8px 0;"><span style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;min-width:24px;">03</span><span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;"><em style="color:#f2c641;font-style:normal;">TURBULENCE BRIEF</em> — Seatbelt sign ON before London FIR, cabin secured FL180-FL280</span></div>
+        </div>
+      </div>
+      <div style="max-width:600px;margin:0 auto;">
+        <div class="prev-card" style="background:rgba(244,132,26,0.07);border:1px solid #7a3a08;border-top:3px solid #f4841a;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#f4841a;margin-bottom:12px;">🎯 GO / NO-GO RECOMMENDATION</div>
+          <div style="font-family:'Orbitron',sans-serif;font-size:18px;font-weight:700;color:#f4841a;margin-bottom:12px;">GO WITH CONDITIONS ⚠️</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;margin-bottom:12px;">Flight viable with enhanced crew awareness. ILS degradation and UAS activity require strict procedural adherence during arrival phase.</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;margin-bottom:6px;">✓ <span style="color:#2ec4b6;">CAT I approach briefed</span> — DH 200ft / RVR 550m for arrival runway</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;margin-bottom:6px;">✓ <span style="color:#2ec4b6;">GPS/RNAV backup verified</span> — LON VOR unreliable, alternative nav confirmed</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;margin-bottom:12px;">✓ <span style="color:#2ec4b6;">Additional fuel loaded</span> — missed approach + holding contingency included</div>
+          <div style="background:rgba(230,57,70,0.08);border:1px solid #7a1a20;padding:10px;"><span style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;color:#e63946;">✕ NO-GO IF: Visibility drops below CAT I minimums or GPS systems unserviceable</span></div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:24px;">
+        <a href="#pricing-section" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a9eff;text-decoration:none;letter-spacing:1px;">This is what you get with Pro →</a>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-section">
+      <h2 class="cta-title">Ready to try it?</h2>
+      <p class="cta-subtitle">Start your 7-day free trial. Full access. Cancel anytime.</p>
+      <div class="cta-buttons">
+        <a href="#" onclick="openAuthModal();return false;" class="cta-btn-primary">Start Free Trial →</a>
+        <a href="#pricing-section" class="cta-btn-secondary">View Pricing →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PRICING SECTION ═══ -->
+<section id="pricing-section" style="position:relative;z-index:2;background:#060a0f;border-top:1px solid rgba(26,42,58,0.6);">
+  <div style="max-width:1140px;margin:0 auto;padding:0 32px;">
+    <section class="hero">
+      <div class="hero-badge">Pricing</div>
+      <h1 class="hero-title">Simple, Transparent Pricing.</h1>
+      <p class="hero-subtitle">Start free. Upgrade when you need more.</p>
+    </section>
+    <!-- TRIAL BANNER -->
+    <div style="background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);border-radius:4px;padding:12px 24px;text-align:center;font-family:'Rajdhani',sans-serif;font-size:14px;color:#4a9eff;margin-bottom:40px;">
+      All paid plans include a 7-day free trial. Cancel anytime before day 7 and you won't be charged.
+    </div>
+    <!-- BILLING TOGGLE -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:32px;">
+      <span id="pricing_monthlyLabel" style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:2px;color:#cdd9e5;">MONTHLY</span>
+      <div id="pricing_billingToggle" onclick="pricing_toggleBilling()" style="width:52px;height:28px;background:#1a2a3a;border-radius:14px;position:relative;cursor:pointer;border:1px solid #22384f;transition:background 0.3s;">
+        <div id="pricing_toggleDot" style="width:22px;height:22px;background:#4a9eff;border-radius:50%;position:absolute;top:2px;left:2px;transition:left 0.3s;"></div>
+      </div>
+      <span id="pricing_yearlyLabel" style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:2px;color:#4a5f72;">YEARLY</span>
+      <span id="pricing_saveBadge" style="display:none;background:rgba(46,196,182,0.15);color:#2ec4b6;border:1px solid #0e5a54;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:2px;">SAVE 15%</span>
+    </div>
+    <!-- PRICING CARDS -->
+    <div class="pricing-grid">
+      <!-- FREE -->
+      <div class="pricing-card" style="border:1px solid #1a2a3a;">
+        <div class="card-badge"></div>
+        <div class="card-name">Free</div>
+        <div class="card-price"><span class="price-amount" style="color:#ffffff;">$0</span><span class="price-period">/month</span></div>
+        <div class="card-subtitle">Try before you commit</div>
+        <ul class="features-list">
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Unlimited NOTAM/METAR decode (paste raw text)</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">1 full AI briefing included</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Basic risk assessment</span></li>
+          <li><span class="feat-check feat-off">✗</span><span class="feat-off">Live NOTAM auto-fetch</span></li>
+          <li><span class="feat-check feat-off">✗</span><span class="feat-off">Route analysis DEP → ARR</span></li>
+          <li><span class="feat-check feat-off">✗</span><span class="feat-off">Go/No-Go recommendation</span></li>
+        </ul>
+        <button class="card-btn card-btn-outline" onclick="openAuthModal()">Start Free</button>
+      </div>
+      <!-- PRO -->
+      <div class="pricing-card" style="border:1px solid #4a9eff;">
+        <div class="card-badge" style="color:#4a9eff;">MOST POPULAR</div>
+        <div class="card-name">Pro</div>
+        <div class="card-price">
+          <span class="price-amount" id="pricing_proPrice" style="color:#4a9eff;">$49</span>
+          <span class="price-period" id="pricing_proPeriod">/month</span>
+        </div>
+        <div id="pricing_proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
+        <div class="card-subtitle">For active pilots &amp; dispatchers</div>
+        <ul class="features-list">
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Free</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Unlimited full AI briefings</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Live NOTAM auto-fetch</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Route analysis (DEP → ARR)</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Risk scoring CRITICAL/HIGH/MEDIUM/LOW</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Compounding risk matrix</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Go/No-Go recommendation</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Pilot action items &amp; dispatch notes</span></li>
+          <li><span class="feat-check feat-off">✗</span><span class="feat-off">AI Video Briefing</span></li>
+          <li><span class="feat-check feat-off">✗</span><span class="feat-off">Favorite routes &amp; history</span></li>
+        </ul>
+        <button class="card-btn card-btn-blue" onclick="openAuthModal()">Start Free Trial →</button>
+      </div>
+      <!-- PREMIUM -->
+      <div class="pricing-card" style="border:1px solid #f4841a;">
+        <div class="card-badge" style="color:#f4841a;">BEST VALUE</div>
+        <div class="card-name">Premium</div>
+        <div class="card-price">
+          <span class="price-amount" id="pricing_premiumPrice" style="color:#f4841a;">$99</span>
+          <span class="price-period" id="pricing_premiumPeriod">/month</span>
+        </div>
+        <div id="pricing_premiumNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
+        <div class="card-subtitle">For aviation professionals</div>
+        <ul class="features-list">
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Pro</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">AI Video Briefing 🎬</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">PDF export &amp; share link</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Email NOTAM alerts</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Favorite routes &amp; history</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">NOTAM number search</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Priority support</span></li>
+          <li><span class="feat-check feat-off">✗</span><span class="feat-off">API access</span></li>
+          <li><span class="feat-check feat-off">✗</span><span class="feat-off">Multi-user access</span></li>
+        </ul>
+        <button class="card-btn card-btn-orange" onclick="openAuthModal()">Start Free Trial →</button>
+      </div>
+      <!-- ENTERPRISE -->
+      <div class="pricing-card" style="border:1px solid #1a2a3a;">
+        <div class="card-badge"></div>
+        <div class="card-name">Enterprise</div>
+        <div class="card-price"><span class="price-amount" style="color:#ffffff;">$499</span><span class="price-period">/month</span></div>
+        <div class="card-subtitle">For airlines &amp; operations centers</div>
+        <ul class="features-list">
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Premium</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Full API access</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Multi-user &amp; team management</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Custom integrations</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Dedicated account manager</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">SLA guarantee</span></li>
+          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Custom onboarding</span></li>
+        </ul>
+        <button class="card-btn card-btn-outline" onclick="window.location.href='mailto:hello@notamai.com'">Contact Sales</button>
+      </div>
+    </div>
+    <!-- REFERRAL SECTION -->
+    <div style="max-width:700px;margin:60px auto;text-align:center;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:3px;margin-bottom:16px;">REFERRAL PROGRAM</div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#ffffff;margin-bottom:12px;">Fly together, save together.</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;line-height:1.8;margin-bottom:32px;">Every member gets a unique referral code. Share it with your crew — they get 15% off their first month, and you get 15% off your next bill.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:500px;margin:0 auto;">
+        <div style="background:#0d1520;border:1px solid #1a2a3a;padding:24px;border-radius:4px;"><div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#4a9eff;margin-bottom:8px;">15%</div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">YOUR FRIEND SAVES</div><div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-top:8px;">On their first month when they sign up with your code</div></div>
+        <div style="background:#0d1520;border:1px solid #1a2a3a;padding:24px;border-radius:4px;"><div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#2ec4b6;margin-bottom:8px;">15%</div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">YOU SAVE</div><div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-top:8px;">On your next bill for every successful referral</div></div>
+      </div>
+      <div style="margin-top:24px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;">Your referral code is available in your dashboard after signing up.</div>
+    </div>
+    <!-- FAQ -->
+    <div class="faq-section">
+      <h2 class="faq-title">Frequently Asked Questions</h2>
+      <div class="faq-item"><div class="faq-q">What counts as one briefing?</div><div class="faq-a">Each route or airport query counts as one briefing. LTFM EGLL and LTFM alone each count as one briefing.</div></div>
+      <div class="faq-item"><div class="faq-q">Can I cancel anytime?</div><div class="faq-a">Yes. Cancel your subscription anytime with no cancellation fees.</div></div>
+      <div class="faq-item"><div class="faq-q">Is my data secure?</div><div class="faq-a">Yes. All data is encrypted and we never share your flight data with third parties.</div></div>
+      <div class="faq-item"><div class="faq-q">Do you offer a student discount?</div><div class="faq-a">Yes. Contact us at <a href="mailto:hello@notamai.com" style="color:#4a9eff;">hello@notamai.com</a> for student and flight school pricing.</div></div>
+      <div class="faq-item"><div class="faq-q">How does the 7-day free trial work?</div><div class="faq-a">Enter your credit card to start. You won't be charged for 7 days. Cancel anytime before the trial ends and pay nothing.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer style="position:relative;z-index:2;background:#060a0f;padding:32px;text-align:center;border-top:1px solid rgba(26,42,58,0.6);">
+  <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;margin-bottom:8px;">© 2026 NOTAM Intelligence. All rights reserved.</div>
+  <div>
+    <a href="/privacy" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;text-decoration:none;margin:0 16px;">Privacy Policy</a>
+    <a href="/terms" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;text-decoration:none;margin:0 16px;">Terms of Service</a>
+  </div>
+</footer>
+
+<script>
+/* ═══ HOW IT WORKS TYPING ANIMATION ═══ */
+(function() {
+  const hiw_text = "KJFK EGLL";
+  let hiw_idx = 0, hiw_deleting = false;
+  const hiw_el = document.getElementById('hiw_typingText');
+  function hiw_type() {
+    if (!hiw_el) return;
+    if (!hiw_deleting && hiw_idx <= hiw_text.length) {
+      hiw_el.textContent = hiw_text.slice(0, hiw_idx);
+      hiw_idx++;
+      setTimeout(hiw_type, hiw_idx === hiw_text.length + 1 ? 2000 : 120);
+    } else if (!hiw_deleting && hiw_idx > hiw_text.length) {
+      hiw_deleting = true; setTimeout(hiw_type, 120);
+    } else if (hiw_deleting && hiw_idx >= 0) {
+      hiw_el.textContent = hiw_text.slice(0, hiw_idx);
+      hiw_idx--;
+      setTimeout(hiw_type, hiw_idx < 0 ? 1000 : 80);
+    } else {
+      hiw_deleting = false; hiw_idx = 0; setTimeout(hiw_type, 500);
+    }
+  }
+  hiw_type();
+})();
+
+/* ═══ PRICING BILLING TOGGLE ═══ */
+let pricing_isYearly = false;
+function pricing_toggleBilling() {
+  pricing_isYearly = !pricing_isYearly;
+  const dot = document.getElementById('pricing_toggleDot');
+  const toggle = document.getElementById('pricing_billingToggle');
+  const badge = document.getElementById('pricing_saveBadge');
+  const monthlyLabel = document.getElementById('pricing_monthlyLabel');
+  const yearlyLabel = document.getElementById('pricing_yearlyLabel');
+  if (pricing_isYearly) {
+    dot.style.left = '28px'; toggle.style.background = '#4a9eff';
+    badge.style.display = 'inline-block';
+    monthlyLabel.style.color = '#4a5f72'; yearlyLabel.style.color = '#cdd9e5';
+    document.getElementById('pricing_proPrice').textContent = '$42';
+    document.getElementById('pricing_premiumPrice').textContent = '$84';
+    document.getElementById('pricing_proNote').textContent = '$504/year · Save $108';
+    document.getElementById('pricing_premiumNote').textContent = '$1,008/year · Save $180';
+  } else {
+    dot.style.left = '2px'; toggle.style.background = '#1a2a3a';
+    badge.style.display = 'none';
+    monthlyLabel.style.color = '#cdd9e5'; yearlyLabel.style.color = '#4a5f72';
+    document.getElementById('pricing_proPrice').textContent = '$49';
+    document.getElementById('pricing_premiumPrice').textContent = '$99';
+    document.getElementById('pricing_proNote').textContent = '7-day free trial · Cancel anytime';
+    document.getElementById('pricing_premiumNote').textContent = '7-day free trial · Cancel anytime';
+  }
+}
 </script>
 
 </body>
