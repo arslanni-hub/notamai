@@ -1251,6 +1251,24 @@ function autoResize(el) {
 
 let attachedFile = null;
 
+async function readFileAsBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+async function readFileAsText(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsText(file);
+  });
+}
+
 function handleFile(e) {
   const f = e.target.files[0];
   if (!f) return;
@@ -1304,10 +1322,24 @@ async function handleSend() {
   setTimeout(() => activateStep(2), 6000);
 
   try {
+    const payload = { icao_dep: dep, icao_arr: arr, notam_text: val };
+    if (attachedFile) {
+      const mime = attachedFile.type;
+      if (mime === 'text/plain') {
+        const txt = await readFileAsText(attachedFile);
+        payload.notam_text = val ? val + '\n\n' + txt : txt;
+      } else if (mime === 'application/pdf') {
+        payload.pdf_base64 = await readFileAsBase64(attachedFile);
+      } else if (mime.startsWith('image/')) {
+        payload.image_base64 = await readFileAsBase64(attachedFile);
+        payload.image_type = mime;
+      }
+    }
+
     const response = await fetch('/briefing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ icao_dep: dep, icao_arr: arr, notam_text: val })
+      body: JSON.stringify(payload)
     });
 
     clearInterval(stepInt);

@@ -295,6 +295,8 @@ You are a senior Aeronautical Information Management (AIM) specialist with 20+ y
 
 Analyze the provided aviation data and produce a complete pre-flight operational intelligence briefing.
 
+If an image or PDF is provided, analyze it as aviation documentation (NOTAM, chart, weather report, or operational document) and include findings in the briefing.
+
 CRITICAL INSTRUCTIONS:
 1. Output ONLY the HTML body content — everything that goes INSIDE <div class="page">...</div>
 2. Do NOT include <!DOCTYPE>, <html>, <head>, <style>, <body> or outer <div class="page"> tags
@@ -495,7 +497,7 @@ const server = http.createServer(async (req, res) => {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { icao_dep, icao_arr, notam_text } = JSON.parse(body);
+        const { icao_dep, icao_arr, notam_text, image_base64, image_type, pdf_base64 } = JSON.parse(body);
 
         const notamDep = await fetchNotams(icao_dep);
         await new Promise(r => setTimeout(r, 1000));
@@ -528,12 +530,26 @@ ${notam_text ? `\nADDITIONAL USER DATA:\n${notam_text}` : ''}
 
 Generate the complete pre-flight operational intelligence briefing HTML content.`;
 
+        const contentBlocks = [{ type: 'text', text: userMessage }];
+        if (image_base64) {
+          contentBlocks.push({
+            type: 'image',
+            source: { type: 'base64', media_type: image_type || 'image/jpeg', data: image_base64 }
+          });
+        }
+        if (pdf_base64) {
+          contentBlocks.push({
+            type: 'document',
+            source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 }
+          });
+        }
+
         const claudeBody = JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 8000,
           stream: true,
           system: systemPrompt,
-          messages: [{ role: 'user', content: userMessage }]
+          messages: [{ role: 'user', content: contentBlocks }]
         });
 
         // Switch to SSE streaming response
