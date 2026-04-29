@@ -1624,7 +1624,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
 <style>
 /* ═══ CSS VARIABLES OVERRIDE FOR EMBEDDED SECTIONS ═══ */
 #about-section, #how-it-works-section, #pricing-section {
-  --bg: #060a0f; --bg2: #0d1520; --border: #1a2a3a; --blue: #4a9eff;
+  --bg: transparent; --bg2: rgba(13,21,32,0.82); --border: #1a2a3a; --blue: #4a9eff;
   --orange: #f4841a; --red: #e63946; --green: #2ec4b6;
   --text: #cdd9e5; --text-dim: #8a9bb0; --text-muted: #4a5f72;
   --head: 'Orbitron', sans-serif; --body: 'Rajdhani', sans-serif;
@@ -1733,7 +1733,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
   background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 16px 20px;
 }
 #how-it-works-section .mock-input {
-  display: flex; align-items: center; gap: 12px; background: #060a0f;
+  display: flex; align-items: center; gap: 12px; background: rgba(6,10,15,0.6);
   border: 1px solid var(--border); border-radius: 4px; padding: 10px 16px;
 }
 #how-it-works-section .mock-input-text {
@@ -1746,7 +1746,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
 }
 #how-it-works-section .data-cards { display: flex; gap: 10px; }
 #how-it-works-section .data-card {
-  flex: 1; background: #060a0f; border: 1px solid var(--border); border-radius: 4px; padding: 10px 14px;
+  flex: 1; background: rgba(6,10,15,0.6); border: 1px solid var(--border); border-radius: 4px; padding: 10px 14px;
 }
 #how-it-works-section .data-card-label {
   font-family: var(--mono); font-size: 9px; color: var(--blue);
@@ -1762,7 +1762,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
 }
 #how-it-works-section .risk-bar-fill { height: 100%; border-radius: 4px; }
 #how-it-works-section .brief-header {
-  background: #060a0f; border: 1px solid var(--border); border-top: 3px solid #e63946;
+  background: rgba(6,10,15,0.6); border: 1px solid var(--border); border-top: 3px solid #e63946;
   border-radius: 4px; padding: 16px 20px;
 }
 #how-it-works-section .brief-route {
@@ -1884,7 +1884,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
 </style>
 
 <!-- ═══ ABOUT SECTION ═══ -->
-<section id="about-section" style="position:relative;z-index:2;background:#060a0f;border-top:1px solid rgba(26,42,58,0.6);">
+<section id="about-section" style="position:relative;z-index:2;border-top:1px solid rgba(26,42,58,0.6);">
   <div style="max-width:960px;margin:0 auto;padding:0 32px;">
     <section class="hero">
       <div class="hero-badge">About NOTAM Intelligence</div>
@@ -1915,7 +1915,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
 </section>
 
 <!-- ═══ HOW IT WORKS SECTION ═══ -->
-<section id="how-it-works-section" style="position:relative;z-index:2;background:#060a0f;border-top:1px solid rgba(26,42,58,0.6);">
+<section id="how-it-works-section" style="position:relative;z-index:2;border-top:1px solid rgba(26,42,58,0.6);">
   <div style="max-width:960px;margin:0 auto;padding:0 32px;">
     <section class="hero">
       <div class="hero-badge">How It Works</div>
@@ -2059,7 +2059,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
 </section>
 
 <!-- ═══ PRICING SECTION ═══ -->
-<section id="pricing-section" style="position:relative;z-index:2;background:#060a0f;border-top:1px solid rgba(26,42,58,0.6);">
+<section id="pricing-section" style="position:relative;z-index:2;border-top:1px solid rgba(26,42,58,0.6);">
   <div style="max-width:1140px;margin:0 auto;padding:0 32px;">
     <section class="hero">
       <div class="hero-badge">Pricing</div>
@@ -2168,8 +2168,8 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
       <div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#ffffff;margin-bottom:12px;">Fly together, save together.</div>
       <div style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;line-height:1.8;margin-bottom:32px;">Every member gets a unique referral code. Share it with your crew — they get 15% off their first month, and you get 15% off your next bill.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:500px;margin:0 auto;">
-        <div style="background:#0d1520;border:1px solid #1a2a3a;padding:24px;border-radius:4px;"><div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#4a9eff;margin-bottom:8px;">15%</div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">YOUR FRIEND SAVES</div><div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-top:8px;">On their first month when they sign up with your code</div></div>
-        <div style="background:#0d1520;border:1px solid #1a2a3a;padding:24px;border-radius:4px;"><div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#2ec4b6;margin-bottom:8px;">15%</div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">YOU SAVE</div><div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-top:8px;">On your next bill for every successful referral</div></div>
+        <div style="background:rgba(13,21,32,0.82);border:1px solid #1a2a3a;padding:24px;border-radius:4px;"><div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#4a9eff;margin-bottom:8px;">15%</div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">YOUR FRIEND SAVES</div><div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-top:8px;">On their first month when they sign up with your code</div></div>
+        <div style="background:rgba(13,21,32,0.82);border:1px solid #1a2a3a;padding:24px;border-radius:4px;"><div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#2ec4b6;margin-bottom:8px;">15%</div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">YOU SAVE</div><div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-top:8px;">On your next bill for every successful referral</div></div>
       </div>
       <div style="margin-top:24px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;">Your referral code is available in your dashboard after signing up.</div>
     </div>
@@ -2186,7 +2186,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
 </section>
 
 <!-- FOOTER -->
-<footer style="position:relative;z-index:2;background:#060a0f;padding:32px;text-align:center;border-top:1px solid rgba(26,42,58,0.6);">
+<footer style="position:relative;z-index:2;padding:32px;text-align:center;border-top:1px solid rgba(26,42,58,0.6);">
   <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;margin-bottom:8px;">© 2026 NOTAM Intelligence. All rights reserved.</div>
   <div>
     <a href="/privacy" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;text-decoration:none;margin:0 16px;">Privacy Policy</a>
