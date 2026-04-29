@@ -578,8 +578,10 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
     return;
   }
 
-  res.writeHead(404);
-  res.end('Not found');
+  // Catch-all: serve index.html for unknown routes (handles Firebase auth redirects)
+  const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  res.writeHead(200, { 'Content-Type': 'text/html' });
+  res.end(html);
 });
 
 server.timeout = 120000;
