@@ -1006,9 +1006,11 @@ canvas#sky {
           <div style="flex:1;height:1px;background:#e0e0e0;"></div>
         </div>
 
-        <input id="emailInput" type="email" placeholder="Enter your email" style="width:100%;padding:12px 16px;border:1px solid #e0e0e0;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:14px;color:#333;background:#fff;outline:none;box-sizing:border-box;margin-bottom:12px;">
+        <input id="emailInput" type="email" placeholder="Enter your email" style="width:100%;padding:12px 16px;border:1px solid #e0e0e0;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:14px;color:#333;background:#fff;outline:none;box-sizing:border-box;margin-bottom:12px;" onblur="showPasswordField()">
 
-        <button class="continue-btn" style="width:100%;padding:12px;background:#1a1a2e;color:#ffffff;border:none;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;cursor:pointer;text-transform:uppercase;" onclick="sendMagicLink()">Continue</button>
+        <input id="passwordInput" type="password" placeholder="Enter your password" style="display:none;width:100%;padding:12px 16px;border:1px solid #e0e0e0;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:14px;color:#333;background:#fff;outline:none;box-sizing:border-box;margin-bottom:12px;">
+
+        <button style="width:100%;padding:12px;background:#1a1a2e;color:#ffffff;border:none;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;cursor:pointer;text-transform:uppercase;" onclick="signInWithEmail()">Continue</button>
       </div>
 
       <div class="auth-terms">
@@ -1611,42 +1613,32 @@ function signInWithGoogle() {
   });
 }
 
-async function sendMagicLink() {
-  const email = document.getElementById('emailInput').value;
-  if (!email || !email.includes('@')) {
-    alert('Please enter a valid email address.');
-    return;
-  }
-  const actionCodeSettings = {
-    url: 'https://notamai.com',
-    handleCodeInApp: true
-  };
-  try {
-    await firebase.auth().sendSignInLinkToEmail(email, actionCodeSettings);
-    window.localStorage.setItem('emailForSignIn', email);
-    document.getElementById('emailInput').value = '';
-    document.getElementById('emailInput').placeholder = '✓ Check your email for the sign-in link!';
-    document.getElementById('emailInput').style.borderColor = '#2ec4b6';
-    document.getElementById('emailInput').disabled = true;
-    document.querySelector('.continue-btn').disabled = true;
-    document.querySelector('.continue-btn').style.opacity = '0.5';
-  } catch(e) {
-    alert('Error: ' + e.message);
+function showPasswordField() {
+  const email = document.getElementById('emailInput').value.trim();
+  if (email) {
+    document.getElementById('passwordInput').style.display = 'block';
   }
 }
 
-if (firebase.auth().isSignInWithEmailLink(window.location.href)) {
-  let email = window.localStorage.getItem('emailForSignIn');
-  if (!email) {
-    email = window.prompt('Please provide your email for confirmation:');
+function signInWithEmail() {
+  const email = document.getElementById('emailInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  if (!email) { alert('Please enter your email.'); return; }
+  if (!password) {
+    document.getElementById('passwordInput').style.display = 'block';
+    document.getElementById('passwordInput').focus();
+    return;
   }
-  firebase.auth().signInWithEmailLink(email, window.location.href)
-    .then((result) => {
-      window.localStorage.removeItem('emailForSignIn');
-      window.history.replaceState({}, document.title, '/');
-    })
-    .catch((error) => {
-      console.error(error);
+  auth.signInWithEmailAndPassword(email, password)
+    .then(() => { closeAuthModal(); })
+    .catch(err => {
+      if (err.code === 'auth/user-not-found') {
+        auth.createUserWithEmailAndPassword(email, password)
+          .then(() => { closeAuthModal(); })
+          .catch(e => { alert(e.message); });
+      } else {
+        alert(err.message);
+      }
     });
 }
 
