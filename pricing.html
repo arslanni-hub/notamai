@@ -679,8 +679,8 @@ function toggleBilling() {
     yearlyLabel.style.color = '#cdd9e5';
     document.getElementById('proPrice').textContent = '42';
     document.getElementById('premiumPrice').textContent = '84';
-    document.getElementById('proNote').textContent = '$504/year · Save $108';
-    document.getElementById('premiumNote').textContent = '$1,008/year · Save $180';
+    document.getElementById('proNote').innerHTML = '$504/year · <span style="color:#2ec4b6;font-weight:700;">Save $108</span>';
+    document.getElementById('premiumNote').innerHTML = '$1,008/year · <span style="color:#2ec4b6;font-weight:700;">Save $180</span>';
   } else {
     dot.style.left = '2px';
     toggle.style.background = '#1a2a3a';
