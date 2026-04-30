@@ -1542,12 +1542,15 @@ document.getElementById('mainInput').addEventListener('keydown', e => {
 
 /* ═══ PLACEHOLDER ANIMATION ═══ */
 const placeholders = [
-  "ICAO route or paste a NOTAM / METAR / TAF / SIGMET...",
-  "KJFK EGLL",
-  "LTFM EGLL",
+  "KJFK · KJFK EGLL · or paste a NOTAM / METAR / TAF / SIGMET...",
+  "KJFK",
+  "EDDF",
   "EDDF OMDB",
-  "Paste raw NOTAM text here...",
-  "ICAO route or paste a NOTAM / METAR / TAF / SIGMET..."
+  "LFPG EHAM",
+  "paste a raw NOTAM",
+  "paste a METAR",
+  "paste a TAF",
+  "paste a SIGMET"
 ];
 let pIdx = 0, pChar = 0, pDeleting = false;
 const mainInput = document.getElementById('mainInput');
@@ -1560,14 +1563,18 @@ function animatePlaceholder() {
   if (!pDeleting && pChar <= current.length) {
     mainInput.placeholder = current.slice(0, pChar);
     pChar++;
-    setTimeout(animatePlaceholder, pChar === current.length + 1 ? 2500 : 60);
+    if (pChar === current.length + 1) {
+      setTimeout(animatePlaceholder, pIdx === 0 ? 3000 : 1500);
+    } else {
+      setTimeout(animatePlaceholder, 60);
+    }
   } else if (!pDeleting && pChar > current.length) {
     pDeleting = true;
-    setTimeout(animatePlaceholder, 60);
+    setTimeout(animatePlaceholder, 40);
   } else if (pDeleting && pChar >= 0) {
     mainInput.placeholder = current.slice(0, pChar);
     pChar--;
-    setTimeout(animatePlaceholder, pChar < 0 ? 600 : 40);
+    setTimeout(animatePlaceholder, 40);
   } else {
     pDeleting = false;
     pChar = 0;
