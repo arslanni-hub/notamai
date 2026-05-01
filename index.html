@@ -112,9 +112,11 @@ body { overflow-x: hidden; }
 }
 
 canvas#sky {
-  position: absolute;
-  inset: 0;
-  width: 100%; height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
 }
 
 /* cockpit vignette overlay */
@@ -171,18 +173,6 @@ canvas#sky {
 .hud-bl { bottom: 44px; left: 44px; }
 .hud-br { bottom: 44px; right: 44px; text-align: right; }
 
-/* HUD corner brackets */
-.hud-corner {
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  pointer-events: none;
-  z-index: 6;
-}
-.hud-corner-tl { top: 10px; left: 10px; border-top: 1.5px solid rgba(74,158,255,0.45); border-left: 1.5px solid rgba(74,158,255,0.45); }
-.hud-corner-tr { top: 10px; right: 10px; border-top: 1.5px solid rgba(74,158,255,0.45); border-right: 1.5px solid rgba(74,158,255,0.45); }
-.hud-corner-bl { bottom: 10px; left: 10px; border-bottom: 1.5px solid rgba(74,158,255,0.45); border-left: 1.5px solid rgba(74,158,255,0.45); }
-.hud-corner-br { bottom: 10px; right: 10px; border-bottom: 1.5px solid rgba(74,158,255,0.45); border-right: 1.5px solid rgba(74,158,255,0.45); }
 
 /* artificial horizon line */
 .horizon-line {
@@ -906,10 +896,6 @@ canvas#sky {
       ICAO ANNEX 15<br>
       PANS-AIM DOC 10066
     </div>
-    <div class="hud-corner hud-corner-tl"></div>
-    <div class="hud-corner hud-corner-tr"></div>
-    <div class="hud-corner hud-corner-bl"></div>
-    <div class="hud-corner hud-corner-br"></div>
     <div class="horizon-line"></div>
     <div class="crosshair"></div>
     <div class="alt-tape">
@@ -1163,8 +1149,8 @@ let stars = [], clouds = [], planes = [];
 let t = 0;
 
 function resize() {
-  W = canvas.width = window.innerWidth;
-  H = canvas.height = window.innerHeight;
+  W = canvas.width = canvas.offsetWidth || window.innerWidth;
+  H = canvas.height = canvas.offsetHeight || window.innerHeight;
   initScene();
 }
 
@@ -1361,10 +1347,12 @@ function updateHUD() {
 }
 
 /* ═══ GREETING ═══ */
+let _greetingName = null;
 function setGreeting() {
   const h = new Date().getHours();
   const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  document.getElementById('greeting').textContent = g + ', Captain';
+  const el = document.getElementById('greeting');
+  if (el) el.textContent = g + ', ' + (_greetingName ? 'Cpt. ' + _greetingName : 'Captain');
 }
 
 /* ═══ INPUT ═══ */
@@ -1810,13 +1798,18 @@ function toggleSidebar() {
   sidebarOpen = !sidebarOpen;
   if (sidebarOpen) {
     sidebar.style.width = '260px';
+    canvas.style.left = '260px';
+    canvas.style.width = 'calc(100vw - 260px)';
     if (scene) scene.style.left = '260px';
     if (mainContent) mainContent.style.left = '260px';
   } else {
     sidebar.style.width = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100vw';
     if (scene) scene.style.left = '0';
     if (mainContent) mainContent.style.left = '0';
   }
+  setTimeout(resize, 0);
 }
 
 function toggleUserPopup() {
@@ -1854,6 +1847,8 @@ firebase.auth().onAuthStateChanged(user => {
     sidebar.style.display = 'flex';
     sidebar.style.width = '260px';
     if (navbar) navbar.style.display = 'none';
+    canvas.style.left = '260px';
+    canvas.style.width = 'calc(100vw - 260px)';
     if (scene) scene.style.left = '260px';
     if (mainContent) mainContent.style.left = '260px';
 
@@ -1872,15 +1867,14 @@ firebase.auth().onAuthStateChanged(user => {
     document.getElementById('popupEmail').textContent = user.email;
     document.getElementById('refCode').textContent = generateReferralCode(user.uid);
 
-    const greeting = document.getElementById('greeting');
-    if (greeting) {
-      const hour = new Date().getHours();
-      const tod = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-      greeting.textContent = 'Good ' + tod + ', Cpt. ' + name;
-    }
+    _greetingName = name;
+    setGreeting();
+    setTimeout(resize, 0);
   } else {
     sidebar.style.display = 'none';
     if (navbar) navbar.style.display = 'flex';
+    canvas.style.left = '0';
+    canvas.style.width = '100vw';
     if (scene) scene.style.left = '';
     if (mainContent) mainContent.style.left = '';
 
@@ -1890,6 +1884,10 @@ firebase.auth().onAuthStateChanged(user => {
     });
     const footer = document.querySelector('footer');
     if (footer) footer.style.display = '';
+
+    _greetingName = null;
+    setGreeting();
+    setTimeout(resize, 0);
   }
 });
 
