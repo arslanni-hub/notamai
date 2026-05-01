@@ -822,6 +822,7 @@ canvas#sky {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
+  margin: 1px 8px;
   border-radius: 6px;
   cursor: pointer;
   font-family: 'Rajdhani', sans-serif;
@@ -830,7 +831,7 @@ canvas#sky {
   letter-spacing: 0.5px;
   transition: background 0.15s, color 0.15s;
 }
-.sidebar-nav-item:hover { background: rgba(255,255,255,0.04); color: #cdd9e5; }
+.sidebar-nav-item:hover { background: rgba(255,255,255,0.06); color: #cdd9e5; }
 .popup-item {
   display: flex;
   align-items: center;
@@ -1787,14 +1788,17 @@ let sidebarOpen = true;
 
 function toggleSidebar() {
   const sidebar = document.getElementById('appSidebar');
+  const scene = document.getElementById('scene');
   const mainContent = document.getElementById('mainContent');
   sidebarOpen = !sidebarOpen;
   if (sidebarOpen) {
-    sidebar.style.width = '240px';
-    if (mainContent) { mainContent.style.left = '240px'; mainContent.style.right = '0'; mainContent.style.width = 'auto'; }
+    sidebar.style.width = '260px';
+    if (scene) scene.style.left = '260px';
+    if (mainContent) mainContent.style.left = '260px';
   } else {
-    sidebar.style.width = '52px';
-    if (mainContent) { mainContent.style.left = '52px'; mainContent.style.right = '0'; mainContent.style.width = 'auto'; }
+    sidebar.style.width = '0';
+    if (scene) scene.style.left = '0';
+    if (mainContent) mainContent.style.left = '0';
   }
 }
 
@@ -1825,11 +1829,23 @@ firebase.auth().onAuthStateChanged(user => {
   const sidebar = document.getElementById('appSidebar');
   const navbar  = document.getElementById('mainNavbar');
   const mainContent = document.getElementById('mainContent');
+  const scene = document.getElementById('scene');
+  const scrollSections = ['about-section','how-it-works-section','pricing-section'];
 
   if (user) {
+    sidebarOpen = true;
     sidebar.style.display = 'flex';
+    sidebar.style.width = '260px';
     if (navbar) navbar.style.display = 'none';
-    if (mainContent) { mainContent.style.left = '240px'; mainContent.style.right = '0'; mainContent.style.width = 'auto'; }
+    if (scene) scene.style.left = '260px';
+    if (mainContent) mainContent.style.left = '260px';
+
+    scrollSections.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    const footer = document.querySelector('footer');
+    if (footer) footer.style.display = 'none';
 
     const initials = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
     const name = user.displayName || user.email.split('@')[0];
@@ -1840,11 +1856,23 @@ firebase.auth().onAuthStateChanged(user => {
     document.getElementById('refCode').textContent = generateReferralCode(user.uid);
 
     const greeting = document.getElementById('greeting');
-    if (greeting) greeting.textContent = 'Good evening, Cpt. ' + name;
+    if (greeting) {
+      const hour = new Date().getHours();
+      const tod = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+      greeting.textContent = 'Good ' + tod + ', Cpt. ' + name;
+    }
   } else {
     sidebar.style.display = 'none';
     if (navbar) navbar.style.display = 'flex';
-    if (mainContent) { mainContent.style.left = ''; mainContent.style.right = ''; mainContent.style.width = ''; }
+    if (scene) scene.style.left = '';
+    if (mainContent) mainContent.style.left = '';
+
+    scrollSections.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
+    const footer = document.querySelector('footer');
+    if (footer) footer.style.display = '';
   }
 });
 
@@ -2603,68 +2631,60 @@ function pricing_toggleBilling() {
 </script>
 
 <!-- APP SIDEBAR -->
-<div id="appSidebar" style="display:none;position:fixed;left:0;top:0;width:240px;height:100vh;background:#0a0f18;border-right:1px solid #1a2a3a;z-index:500;flex-direction:column;font-family:'Rajdhani',sans-serif;">
+<div id="appSidebar" style="display:none;position:fixed;left:0;top:0;width:260px;height:100vh;background:#0f1117;border-right:1px solid #2a2a3a;z-index:50;flex-direction:column;font-family:'Rajdhani',sans-serif;overflow:hidden;">
 
-  <!-- TOP: Logo + Toggle -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid #1a2a3a;">
-    <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:6px;">
-      <span style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:#ffffff;">NOTAM</span>
-      <span style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:#4a9eff;">INTEL</span>
+  <!-- HEADER -->
+  <div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 12px;flex-shrink:0;">
+    <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:4px;">
+      <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:#ffffff;letter-spacing:1px;">NOTAM</span>
+      <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:#4a9eff;letter-spacing:1px;">INTEL</span>
     </a>
-    <button onclick="toggleSidebar()" style="background:none;border:none;cursor:pointer;color:#4a5f72;padding:4px;display:flex;align-items:center;justify-content:center;" title="Collapse sidebar">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    <button onclick="toggleSidebar()" style="background:none;border:none;cursor:pointer;color:#6b7280;padding:4px;display:flex;align-items:center;justify-content:center;border-radius:4px;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#6b7280'" title="Close sidebar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
     </button>
   </div>
 
-  <!-- NEW BRIEFING BUTTON -->
-  <div style="padding:12px 16px;border-bottom:1px solid #1a2a3a;">
-    <button onclick="startNewBriefing()" style="width:100%;display:flex;align-items:center;gap:8px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#4a9eff;padding:8px 12px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  <!-- NAV ITEMS -->
+  <div style="flex:1;overflow-y:auto;padding:4px 0;">
+
+    <div class="sidebar-nav-item" onclick="startNewBriefing()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
       New Briefing
-    </button>
-  </div>
-
-  <!-- SEARCH -->
-  <div style="padding:12px 16px;border-bottom:1px solid #1a2a3a;">
-    <div style="display:flex;align-items:center;gap:8px;background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:7px 10px;">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a5f72" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input placeholder="Search..." style="background:none;border:none;outline:none;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:13px;width:100%;">
     </div>
-  </div>
 
-  <!-- MAIN NAV -->
-  <div style="flex:1;overflow-y:auto;padding:8px;">
+    <div class="sidebar-nav-item">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Recent Briefings
+    </div>
 
-    <div style="padding:8px 8px 4px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">RECENT</div>
-    <div id="recentBriefings" style="padding:4px 0;">
+    <div class="sidebar-nav-item">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Favorites
+    </div>
+
+    <div class="sidebar-nav-item">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      Alerts
+    </div>
+
+    <div class="sidebar-nav-item">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M17.66 17.66l-1.41-1.41M6.34 17.66l1.41-1.41"/></svg>
+      Settings
+    </div>
+
+    <!-- RECENT SECTION -->
+    <div style="padding:16px 16px 4px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-top:8px;">RECENT</div>
+    <div id="recentBriefings" style="padding:0 8px;">
       <div style="padding:8px;font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;text-align:center;">No recent briefings</div>
     </div>
 
-    <div style="margin-top:8px;border-top:1px solid #1a2a3a;padding-top:8px;">
-      <div class="sidebar-nav-item">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        My Briefings
-      </div>
-      <div class="sidebar-nav-item">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        Favorites
-      </div>
-      <div class="sidebar-nav-item">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        Alerts
-      </div>
-      <div class="sidebar-nav-item">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M17.66 17.66l-1.41-1.41M6.34 17.66l1.41-1.41"/></svg>
-        Settings
-      </div>
-    </div>
   </div>
 
-  <!-- BOTTOM: User Card -->
-  <div style="border-top:1px solid #1a2a3a;padding:8px;position:relative;">
+  <!-- USER CARD -->
+  <div style="border-top:1px solid #2a2a3a;padding:8px;position:relative;">
     <!-- User Popup -->
-    <div id="userPopup" style="display:none;position:absolute;bottom:80px;left:8px;right:8px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:6px;z-index:600;box-shadow:0 -8px 32px rgba(0,0,0,0.4);">
-      <div id="popupEmail" style="padding:8px 10px;font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;letter-spacing:1px;border-bottom:1px solid #1a2a3a;margin-bottom:4px;"></div>
+    <div id="userPopup" style="display:none;position:absolute;bottom:72px;left:8px;right:8px;background:#1a1a2e;border:1px solid #2a2a3a;border-radius:8px;padding:6px;z-index:600;box-shadow:0 -8px 32px rgba(0,0,0,0.5);">
+      <div id="popupEmail" style="padding:8px 10px;font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;letter-spacing:1px;border-bottom:1px solid #2a2a3a;margin-bottom:4px;"></div>
       <div class="popup-item">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         Profile
@@ -2684,12 +2704,11 @@ function pricing_toggleBilling() {
     </div>
 
     <div id="sidebarUserCard" onclick="toggleUserPopup()" style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:6px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='none'">
-      <div id="sidebarAvatar" style="width:30px;height:30px;border-radius:50%;background:#4a9eff;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:11px;color:#060a0f;flex-shrink:0;font-weight:700;"></div>
-      <div style="flex:1;overflow:hidden;">
+      <div id="sidebarAvatar" style="width:28px;height:28px;border-radius:50%;background:#4a9eff;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:11px;color:#060a0f;flex-shrink:0;font-weight:700;"></div>
+      <div style="flex:1;min-width:0;">
         <div id="sidebarName" style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-        <div id="sidebarPlan" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a9eff;letter-spacing:1px;">FREE PLAN</div>
       </div>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5f72" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+      <span style="font-size:16px;color:#6b7280;letter-spacing:2px;flex-shrink:0;">···</span>
     </div>
   </div>
 </div>
