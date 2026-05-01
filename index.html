@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NOTAM Intelligence</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
@@ -821,61 +819,6 @@ canvas#sky {
 </head>
 <body>
 
-<!-- APP SIDEBAR -->
-<div id="appSidebar" style="display:none;flex-direction:column;position:fixed;left:0;top:0;width:260px;height:100vh;background:#0a0f18;border-right:1px solid #1a2a3a;z-index:100;">
-
-  <!-- Top section -->
-  <div style="padding:16px;">
-    <div style="margin-bottom:4px;">
-      <span style="color:#fff;font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;">NOTAM</span><span style="color:#4a9eff;font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;"> INTELLIGENCE</span>
-    </div>
-    <div id="sidebarPlanBadge" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;">FREE PLAN</div>
-
-    <button onclick="newBriefing()" style="width:100%;background:#4a9eff;color:#060a0f;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;letter-spacing:2px;padding:10px;border:none;border-radius:4px;margin-top:16px;cursor:pointer;text-transform:uppercase;">+ New Briefing</button>
-
-    <input placeholder="Search briefings..." style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:13px;margin-top:12px;box-sizing:border-box;outline:none;">
-  </div>
-
-  <!-- Middle section -->
-  <div style="padding:8px 16px;flex:1;overflow-y:auto;">
-    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin:16px 0 8px;">RECENT</div>
-    <div id="recentBriefings" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;padding:8px 0;">No recent briefings yet.</div>
-
-    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin:16px 0 8px;">FAVORITES</div>
-    <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;padding:8px 0;">No favorites yet.</div>
-
-    <div style="margin-top:16px;">
-      <div onclick="" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:4px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:14px;color:#8a9bb0;letter-spacing:1px;" onmouseover="this.style.background='rgba(74,158,255,0.08)'" onmouseout="this.style.background='none'">📋 My Briefings</div>
-      <div onclick="" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:4px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:14px;color:#8a9bb0;letter-spacing:1px;" onmouseover="this.style.background='rgba(74,158,255,0.08)'" onmouseout="this.style.background='none'">🔔 NOTAM Alerts</div>
-      <div onclick="" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:4px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:14px;color:#8a9bb0;letter-spacing:1px;" onmouseover="this.style.background='rgba(74,158,255,0.08)'" onmouseout="this.style.background='none'">⚙️ Settings</div>
-    </div>
-  </div>
-
-  <!-- Bottom user card -->
-  <div style="position:absolute;bottom:0;width:100%;padding:16px;border-top:1px solid #1a2a3a;">
-    <!-- User popup -->
-    <div id="userPopup" style="display:none;position:absolute;bottom:90px;left:16px;right:16px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:8px;z-index:200;">
-      <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:8px 12px;border-radius:4px;cursor:pointer;" onmouseover="this.style.background='rgba(74,158,255,0.08)'" onmouseout="this.style.background='none'">👤 Profile</div>
-      <div id="referralCode" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;padding:8px 12px;border-top:1px solid #1a2a3a;margin-top:4px;">
-        REFERRAL CODE<br>
-        <span id="refCode" style="color:#4a9eff;letter-spacing:2px;font-size:13px;cursor:pointer;" onclick="copyReferralCode()">NI-XXXXXX</span>
-        <span style="color:#4a5f72;font-size:10px;"> (click to copy)</span>
-      </div>
-      <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:8px 12px;border-radius:4px;cursor:pointer;border-top:1px solid #1a2a3a;margin-top:4px;" onmouseover="this.style.background='rgba(74,158,255,0.08)'" onmouseout="this.style.background='none'">💳 Manage Subscription</div>
-      <div onclick="firebase.auth().signOut()" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#e63946;padding:8px 12px;border-radius:4px;cursor:pointer;border-top:1px solid #1a2a3a;margin-top:4px;" onmouseover="this.style.background='rgba(230,57,70,0.08)'" onmouseout="this.style.background='none'">🚪 Sign Out</div>
-    </div>
-
-    <div id="userCard" onclick="toggleUserPopup()" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:4px;cursor:pointer;background:rgba(74,158,255,0.04);border:1px solid #1a2a3a;">
-      <div id="sidebarAvatar" style="width:32px;height:32px;border-radius:50%;background:#4a9eff;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:12px;color:#060a0f;flex-shrink:0;"></div>
-      <div style="flex:1;overflow:hidden;">
-        <div id="sidebarName" style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-        <div id="sidebarPlan" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a9eff;letter-spacing:1px;">FREE PLAN</div>
-      </div>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5f72" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
-    </div>
-  </div>
-</div>
-
 <!-- NAVBAR -->
 <nav id="mainNavbar">
   <div class="nav-center">
@@ -1526,9 +1469,7 @@ function switchTab(n) {
 
 function closeResult() {
   document.getElementById('resultOverlay').classList.remove('open');
-  if (document.getElementById('appSidebar').style.display === 'none') {
-    document.getElementById('mainNavbar').style.display = 'flex';
-  }
+  document.getElementById('mainNavbar').style.display = 'flex';
 }
 
 function openModal()  { document.getElementById('videoModal').classList.add('open'); }
@@ -1651,81 +1592,6 @@ setInterval(updateHUD, 1000);
 setInterval(setGreeting, 60000);
 updateHUD();
 animate();
-</script>
-
-<!-- FIREBASE AUTH + SIDEBAR -->
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCH8bj9-775vmXU1HnqRFjf09g1yUXvnpo",
-  authDomain: "notamai-a9d57.firebaseapp.com",
-  projectId: "notamai-a9d57",
-  storageBucket: "notamai-a9d57.firebasestorage.app",
-  messagingSenderId: "793570221190",
-  appId: "1:793570221190:web:aab696c96dbde26d9f4507"
-};
-
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-
-function signInWithGoogle() {
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider).then(() => { closeAuthModal(); }).catch(err => { alert(err.message); });
-}
-
-function generateReferralCode(uid) {
-  return 'NI-' + uid.substring(0, 6).toUpperCase();
-}
-
-function toggleUserPopup() {
-  const popup = document.getElementById('userPopup');
-  popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
-}
-
-function copyReferralCode() {
-  const el = document.getElementById('refCode');
-  const code = el.textContent;
-  navigator.clipboard.writeText(code);
-  el.textContent = 'Copied!';
-  setTimeout(() => { el.textContent = code; }, 2000);
-}
-
-function newBriefing() {
-  const input = document.getElementById('mainInput');
-  input.value = '';
-  input.focus();
-}
-
-auth.onAuthStateChanged(user => {
-  const sidebar = document.getElementById('appSidebar');
-  const navbar  = document.getElementById('mainNavbar');
-  const ui      = document.querySelector('.ui');
-
-  if (user) {
-    sidebar.style.display = 'flex';
-    navbar.style.display  = 'none';
-    ui.style.left         = '260px';
-    ui.style.right        = '0';
-    ui.style.width        = 'auto';
-
-    // Avatar
-    const avatar = document.getElementById('sidebarAvatar');
-    if (user.photoURL) {
-      avatar.innerHTML = `<img src="${user.photoURL}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">`;
-    } else {
-      const letter = (user.displayName || user.email || 'U')[0].toUpperCase();
-      avatar.textContent = letter;
-    }
-    document.getElementById('sidebarName').textContent = user.displayName || user.email || 'User';
-    document.getElementById('refCode').textContent = generateReferralCode(user.uid);
-  } else {
-    sidebar.style.display = 'none';
-    navbar.style.display  = 'flex';
-    ui.style.left         = '';
-    ui.style.right        = '';
-    ui.style.width        = '';
-  }
-});
 </script>
 
 <!-- COCKPIT SPACER -->
