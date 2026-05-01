@@ -458,7 +458,7 @@ canvas#sky {
   <!-- BILLING TOGGLE -->
   <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:32px;">
     <span id="monthlyLabel" style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:2px;color:#cdd9e5;">MONTHLY</span>
-    <div id="billingToggle" onclick="toggleBilling()" style="width:52px;height:28px;background:#1a2a3a;border-radius:14px;position:relative;cursor:pointer;border:1px solid #22384f;transition:background 0.3s;">
+    <div id="billingToggle" onclick="pricing_toggleBilling()" style="width:52px;height:28px;background:#1a2a3a;border-radius:14px;position:relative;cursor:pointer;border:1px solid #22384f;transition:background 0.3s;">
       <div id="toggleDot" style="width:22px;height:22px;background:#4a9eff;border-radius:50%;position:absolute;top:2px;left:2px;transition:left 0.3s;"></div>
     </div>
     <span id="yearlyLabel" style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:2px;color:#4a5f72;">YEARLY</span>
@@ -664,7 +664,7 @@ canvas#sky {
 
 <script>
 let isYearly = false;
-function toggleBilling() {
+function pricing_toggleBilling() {
   isYearly = !isYearly;
   const dot = document.getElementById('toggleDot');
   const toggle = document.getElementById('billingToggle');
