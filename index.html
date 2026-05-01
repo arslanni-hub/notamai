@@ -887,7 +887,7 @@ canvas#sky {
     <textarea
       class="input-field"
       id="mainInput"
-      placeholder="KJFK · KJFK EGLL · or paste NOTAM / METAR / TAF / SIGMET..."
+      placeholder=""
       rows="2"
       oninput="autoResize(this)"
     ></textarea>
@@ -1650,6 +1650,45 @@ document.addEventListener('keydown', e => {
 document.getElementById('mainInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
 });
+
+/* ═══ PLACEHOLDER ANIMATION ═══ */
+const placeholders = [
+  "KJFK · KJFK EGLL · or paste a NOTAM / METAR / TAF / SIGMET...",
+  "KJFK",
+  "KJFK EGLL",
+  "LFPG EHAM",
+  "paste a raw NOTAM text...",
+  "paste a METAR text...",
+  "paste a TAF text...",
+  "paste a SIGMET text..."
+];
+let pIdx = 0, pChar = 0, pDeleting = false;
+const mainInput = document.getElementById('mainInput');
+function animatePlaceholder() {
+  if (document.activeElement === mainInput || mainInput.value.length > 0) {
+    setTimeout(animatePlaceholder, 500);
+    return;
+  }
+  const current = placeholders[pIdx];
+  if (!pDeleting && pChar <= current.length) {
+    mainInput.placeholder = current.slice(0, pChar);
+    pChar++;
+    setTimeout(animatePlaceholder, pChar === current.length + 1 ? (pIdx === 0 ? 3000 : 1500) : 60);
+  } else if (!pDeleting && pChar > current.length) {
+    pDeleting = true;
+    setTimeout(animatePlaceholder, 60);
+  } else if (pDeleting && pChar >= 0) {
+    mainInput.placeholder = current.slice(0, pChar);
+    pChar--;
+    setTimeout(animatePlaceholder, pChar < 0 ? 600 : 40);
+  } else {
+    pDeleting = false;
+    pChar = 0;
+    pIdx = (pIdx + 1) % placeholders.length;
+    setTimeout(animatePlaceholder, 400);
+  }
+}
+animatePlaceholder();
 
 /* ═══ INIT ═══ */
 window.addEventListener('resize', resize);
