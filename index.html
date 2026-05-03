@@ -1843,7 +1843,7 @@ function toggleSidebar() {
     sidebar.style.overflow = 'hidden';
     sidebar.classList.remove('collapsed');
     document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = '');
-    document.getElementById('sidebarLogoFull').style.display = '';
+    document.getElementById('sidebarLogoFull').style.display = 'flex';
     document.getElementById('sidebarLogoCollapsed').style.display = 'none';
     if (scene) scene.style.left = '260px';
     if (mainContent) mainContent.style.left = '260px';
