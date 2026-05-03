@@ -1390,10 +1390,11 @@ function updateHUD() {
 }
 
 /* ═══ GREETING ═══ */
+let greetingName = 'Captain';
 function setGreeting() {
   const h = new Date().getHours();
   const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  document.getElementById('greeting').textContent = g + ', Captain';
+  document.getElementById('greeting').textContent = g + ', ' + greetingName;
 }
 
 /* ═══ INPUT ═══ */
@@ -1948,12 +1949,8 @@ firebase.auth().onAuthStateChanged(user => {
     document.getElementById('popupEmail').textContent = user.email;
     document.getElementById('refCode').textContent = generateReferralCode(user.uid);
 
-    const greeting = document.getElementById('greeting');
-    if (greeting) {
-      const hour = new Date().getHours();
-      const tod = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-      greeting.textContent = 'Good ' + tod + ', Cpt. ' + name;
-    }
+    greetingName = 'Cpt. ' + name;
+    setGreeting();
   } else {
     sidebar.style.display = 'none';
     if (navbar) navbar.style.display = 'flex';
@@ -1961,6 +1958,8 @@ firebase.auth().onAuthStateChanged(user => {
     if (mainContent) mainContent.style.left = '';
     document.body.classList.remove('sidebar-open');
     document.body.classList.remove('sidebar-collapsed');
+    greetingName = 'Captain';
+    setGreeting();
     document.querySelector('.ui').style.position = 'absolute';
     document.querySelector('.ui').style.left = '0';
     document.querySelector('.ui').style.width = '100vw';
