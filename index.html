@@ -1843,8 +1843,6 @@ function toggleSidebar() {
     if (scene) scene.style.left = '260px';
     if (mainContent) mainContent.style.left = '260px';
     if (ui) ui.style.marginLeft = '260px';
-    console.log('Sidebar opening - window size:', window.innerWidth, window.innerHeight);
-    console.log('Canvas before:', cv ? cv.width : 'null', cv ? cv.height : 'null', cv ? cv.style.width : 'null', cv ? cv.style.left : 'null');
     if (cv) {
       cv.style.position = 'fixed';
       cv.style.top = '0';
@@ -1857,15 +1855,13 @@ function toggleSidebar() {
     setTimeout(() => {
       const canvas = document.querySelector('canvas');
       if (canvas) {
-        const newWidth = window.innerWidth - (sidebarOpen ? 260 : 52);
-        const newHeight = window.innerHeight;
-        canvas.style.width = newWidth + 'px';
-        canvas.style.height = newHeight + 'px';
-        canvas.width = newWidth;
-        canvas.height = newHeight;
-        const ctx = canvas.getContext('2d');
-        if (ctx) ctx.clearRect(0, 0, newWidth, newHeight);
-        console.log('Canvas after reset:', canvas.width, canvas.height, canvas.style.width, canvas.style.left);
+        canvas.style.left = '260px';
+        canvas.style.top = '0';
+        canvas.style.position = 'fixed';
+        canvas.style.width = '';
+        canvas.style.height = '';
+        canvas.removeAttribute('width');
+        canvas.removeAttribute('height');
       }
       restartAnimation();
     }, 100);
