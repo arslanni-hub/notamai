@@ -1852,7 +1852,20 @@ function toggleSidebar() {
       cv.width = window.innerWidth - 260;
       cv.height = window.innerHeight;
     }
-    setTimeout(restartAnimation, 50);
+    setTimeout(() => {
+      const canvas = document.querySelector('canvas');
+      if (canvas) {
+        const newWidth = window.innerWidth - (sidebarOpen ? 260 : 52);
+        const newHeight = window.innerHeight;
+        canvas.style.width = newWidth + 'px';
+        canvas.style.height = newHeight + 'px';
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, newWidth, newHeight);
+      }
+      restartAnimation();
+    }, 100);
   } else {
     sidebar.style.width = '52px';
     sidebar.style.overflow = 'visible';
@@ -1872,7 +1885,20 @@ function toggleSidebar() {
       cv.width = window.innerWidth - 52;
       cv.height = window.innerHeight;
     }
-    setTimeout(restartAnimation, 50);
+    setTimeout(() => {
+      const canvas = document.querySelector('canvas');
+      if (canvas) {
+        const newWidth = window.innerWidth - (sidebarOpen ? 260 : 52);
+        const newHeight = window.innerHeight;
+        canvas.style.width = newWidth + 'px';
+        canvas.style.height = newHeight + 'px';
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, newWidth, newHeight);
+      }
+      restartAnimation();
+    }, 100);
   }
 }
 
