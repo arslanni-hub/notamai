@@ -216,7 +216,7 @@ canvas#sky {
 
 /* ═══ MAIN UI ═══ */
 .ui {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   width: 100vw;
@@ -1915,6 +1915,7 @@ firebase.auth().onAuthStateChanged(user => {
       if (mainContent) mainContent.style.left = '52px';
       document.body.classList.add('sidebar-collapsed');
       document.body.classList.remove('sidebar-open');
+      document.querySelector('.ui').style.position = 'fixed';
       document.querySelector('.ui').style.left = '52px';
       document.querySelector('.ui').style.width = 'calc(100vw - 52px)';
       document.querySelector('.ui').style.marginLeft = '0';
@@ -1925,6 +1926,7 @@ firebase.auth().onAuthStateChanged(user => {
       if (mainContent) mainContent.style.left = '260px';
       document.body.classList.add('sidebar-open');
       document.body.classList.remove('sidebar-collapsed');
+      document.querySelector('.ui').style.position = 'fixed';
       document.querySelector('.ui').style.left = '260px';
       document.querySelector('.ui').style.width = 'calc(100vw - 260px)';
       document.querySelector('.ui').style.marginLeft = '0';
@@ -1959,6 +1961,7 @@ firebase.auth().onAuthStateChanged(user => {
     if (mainContent) mainContent.style.left = '';
     document.body.classList.remove('sidebar-open');
     document.body.classList.remove('sidebar-collapsed');
+    document.querySelector('.ui').style.position = 'absolute';
     document.querySelector('.ui').style.left = '0';
     document.querySelector('.ui').style.width = '100vw';
     document.querySelector('.ui').style.marginLeft = '0';
