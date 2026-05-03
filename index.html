@@ -114,17 +114,17 @@ body { overflow-x: hidden; }
 canvas#sky {
   position: fixed;
   top: 0;
-  left: 260px;
-  width: calc(100vw - 260px);
+  left: 0;
+  width: 100vw;
   height: 100vh;
 }
-body.sidebar-collapsed canvas#sky {
-  left: 52px;
-  width: calc(100vw - 52px);
+body.sidebar-open canvas {
+  left: 260px !important;
+  width: calc(100vw - 260px) !important;
 }
-body.sidebar-open canvas#sky {
-  left: 260px;
-  width: calc(100vw - 260px);
+body.sidebar-collapsed canvas {
+  left: 52px !important;
+  width: calc(100vw - 52px) !important;
 }
 
 /* cockpit vignette overlay */
@@ -1949,6 +1949,8 @@ firebase.auth().onAuthStateChanged(user => {
     if (navbar) navbar.style.display = 'flex';
     if (scene) scene.style.left = '';
     if (mainContent) mainContent.style.left = '';
+    document.body.classList.remove('sidebar-open');
+    document.body.classList.remove('sidebar-collapsed');
 
     scrollSections.forEach(id => {
       const el = document.getElementById(id);
