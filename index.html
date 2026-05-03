@@ -173,6 +173,18 @@ canvas#sky {
 .hud-bl { bottom: 44px; left: 44px; }
 .hud-br { bottom: 44px; right: 44px; text-align: right; }
 
+/* HUD corner brackets */
+.hud-corner {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
+  z-index: 6;
+}
+.hud-corner-tl { top: 10px; left: 10px; border-top: 1.5px solid rgba(74,158,255,0.45); border-left: 1.5px solid rgba(74,158,255,0.45); }
+.hud-corner-tr { top: 10px; right: 10px; border-top: 1.5px solid rgba(74,158,255,0.45); border-right: 1.5px solid rgba(74,158,255,0.45); }
+.hud-corner-bl { bottom: 10px; left: 10px; border-bottom: 1.5px solid rgba(74,158,255,0.45); border-left: 1.5px solid rgba(74,158,255,0.45); }
+.hud-corner-br { bottom: 10px; right: 10px; border-bottom: 1.5px solid rgba(74,158,255,0.45); border-right: 1.5px solid rgba(74,158,255,0.45); }
 
 /* artificial horizon line */
 .horizon-line {
@@ -896,6 +908,10 @@ canvas#sky {
       ICAO ANNEX 15<br>
       PANS-AIM DOC 10066
     </div>
+    <div class="hud-corner hud-corner-tl"></div>
+    <div class="hud-corner hud-corner-tr"></div>
+    <div class="hud-corner hud-corner-bl"></div>
+    <div class="hud-corner hud-corner-br"></div>
     <div class="horizon-line"></div>
     <div class="crosshair"></div>
     <div class="alt-tape">
