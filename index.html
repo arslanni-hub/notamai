@@ -1834,38 +1834,10 @@ function toggleSidebar() {
   const ui = document.querySelector('.ui') || mainContent;
   sidebarOpen = !sidebarOpen;
   if (sidebarOpen) {
-    sidebar.style.width = '260px';
-    sidebar.style.overflow = 'hidden';
-    sidebar.classList.remove('collapsed');
-    document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = '');
-    document.getElementById('sidebarLogoFull').style.display = 'flex';
-    document.getElementById('sidebarLogoCollapsed').style.display = 'none';
-    if (scene) scene.style.left = '260px';
-    if (mainContent) mainContent.style.left = '260px';
-    if (ui) ui.style.marginLeft = '260px';
-    if (cv) {
-      cv.style.position = 'fixed';
-      cv.style.top = '0';
-      cv.style.left = '260px';
-      cv.style.width = 'calc(100vw - 260px)';
-      cv.style.height = '100vh';
-      cv.width = window.innerWidth - 260;
-      cv.height = window.innerHeight;
-    }
-    setTimeout(() => {
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
-        canvas.style.left = '260px';
-        canvas.style.top = '0';
-        canvas.style.position = 'fixed';
-        canvas.style.width = '';
-        canvas.style.height = '';
-        canvas.removeAttribute('width');
-        canvas.removeAttribute('height');
-      }
-      restartAnimation();
-    }, 100);
+    localStorage.setItem('sidebarOpen', 'true');
+    window.location.reload();
   } else {
+    localStorage.setItem('sidebarOpen', 'false');
     sidebar.style.width = '52px';
     sidebar.style.overflow = 'visible';
     sidebar.classList.add('collapsed');
@@ -1887,7 +1859,7 @@ function toggleSidebar() {
     setTimeout(() => {
       const canvas = document.querySelector('canvas');
       if (canvas) {
-        const newWidth = window.innerWidth - (sidebarOpen ? 260 : 52);
+        const newWidth = window.innerWidth - 52;
         const newHeight = window.innerHeight;
         canvas.style.width = newWidth + 'px';
         canvas.style.height = newHeight + 'px';
@@ -1932,12 +1904,25 @@ firebase.auth().onAuthStateChanged(user => {
   const scrollSections = ['about-section','how-it-works-section','pricing-section'];
 
   if (user) {
-    sidebarOpen = true;
+    const savedState = localStorage.getItem('sidebarOpen');
+    sidebarOpen = savedState !== 'false';
     sidebar.style.display = 'flex';
-    sidebar.style.width = '260px';
+    if (!sidebarOpen) {
+      sidebar.style.width = '52px';
+      sidebar.style.overflow = 'visible';
+      sidebar.classList.add('collapsed');
+      document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = 'none');
+      document.getElementById('sidebarLogoFull').style.display = 'none';
+      document.getElementById('sidebarLogoCollapsed').style.display = 'flex';
+      if (scene) scene.style.left = '52px';
+      if (mainContent) mainContent.style.left = '52px';
+    } else {
+      sidebar.style.width = '260px';
+      sidebar.style.overflow = 'hidden';
+      if (scene) scene.style.left = '260px';
+      if (mainContent) mainContent.style.left = '260px';
+    }
     if (navbar) navbar.style.display = 'none';
-    if (scene) scene.style.left = '260px';
-    if (mainContent) mainContent.style.left = '260px';
 
     scrollSections.forEach(id => {
       const el = document.getElementById(id);
