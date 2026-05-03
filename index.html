@@ -120,10 +120,8 @@ canvas#sky {
 }
 
 @keyframes flyRight {
-  0%   { transform: translateX(0) translateY(0); opacity: 1; }
-  60%  { transform: translateX(280px) translateY(-30px); opacity: 0.8; }
-  80%  { transform: translateX(350px) translateY(-50px); opacity: 0; }
-  100% { transform: translateX(350px) translateY(-50px); opacity: 0; }
+  0%   { transform: translateX(0) translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateX(400px) translateY(-40px) scale(0.6); opacity: 0; }
 }
 @keyframes logoAppear {
   0%   { opacity: 0; transform: translateY(4px); }
@@ -1863,7 +1861,7 @@ function toggleSidebar() {
     document.querySelector('.ui').style.width = 'calc(100vw - 260px)';
     document.querySelector('.ui').style.marginLeft = '0';
     const planeIcon = document.getElementById('sidebarLogoCollapsed');
-    planeIcon.style.animation = 'flyRight 1.2s ease-in forwards';
+    planeIcon.style.animation = 'flyRight 0.9s ease-in forwards';
     setTimeout(() => {
       planeIcon.style.animation = '';
       planeIcon.style.display = 'none';
@@ -1871,7 +1869,7 @@ function toggleSidebar() {
       fullLogo.style.display = 'flex';
       fullLogo.style.animation = 'logoAppear 0.4s ease-out forwards';
       setTimeout(() => fullLogo.style.animation = '', 400);
-    }, 1200);
+    }, 900);
   } else {
     localStorage.setItem('sidebarOpen', 'false');
     sidebar.style.width = '52px';
@@ -2763,9 +2761,12 @@ function pricing_toggleBilling() {
 
   <!-- COLLAPSED HEADER (visible when collapsed) -->
   <div id="sidebarLogoCollapsed" onclick="toggleSidebar()" onmouseenter="showSidebarTooltip('Open Sidebar',this)" onmouseleave="hideSidebarTooltip()" style="display:none;flex-direction:column;align-items:center;padding:14px 0;cursor:pointer;flex-shrink:0;">
-    <svg width="28" height="28" viewBox="0 0 100 60" fill="#4a9eff">
-      <path d="M5,30 Q20,20 50,28 L85,18 L90,22 L60,32 L85,42 L80,46 L55,38 L30,50 L15,46 Z"/>
-      <path d="M50,28 L60,32 L55,38 L42,36 Z" fill="rgba(74,158,255,0.4)"/>
+    <svg width="26" height="26" viewBox="-55 -30 110 60" fill="#4a9eff">
+      <path d="M-38,2 C-20,2 10,-2 40,0 C30,0 10,5 -38,5 Z"/>
+      <path d="M40,0 L48,2 L40,5 Z"/>
+      <path d="M-5,-2 L20,-22 L26,-18 L12,0 Z"/>
+      <path d="M-30,2 L-22,-10 L-18,-8 L-24,3 Z" opacity="0.85"/>
+      <path d="M-32,2 L-28,-16 L-24,-14 L-26,3 Z"/>
     </svg>
   </div>
 
