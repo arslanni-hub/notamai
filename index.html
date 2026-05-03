@@ -1190,7 +1190,11 @@ let stars = [], clouds = [], planes = [];
 let t = 0;
 
 function resize() {
-  W = canvas.width = window.innerWidth;
+  const sidebarEl = document.getElementById('appSidebar');
+  const sidebarWidth = sidebarEl && sidebarEl.style.display !== 'none'
+    ? (sidebarOpen ? 260 : 52)
+    : 0;
+  W = canvas.width = window.innerWidth - sidebarWidth;
   H = canvas.height = window.innerHeight;
   initScene();
 }
@@ -1862,7 +1866,7 @@ function toggleSidebar() {
     if (mainContent) mainContent.style.left = '260px';
     document.body.classList.add('sidebar-open');
     document.body.classList.remove('sidebar-collapsed');
-    setTimeout(restartAnimation, 150);
+    setTimeout(resize, 50);
   } else {
     localStorage.setItem('sidebarOpen', 'false');
     sidebar.style.width = '52px';
@@ -1875,7 +1879,7 @@ function toggleSidebar() {
     if (mainContent) mainContent.style.left = '52px';
     document.body.classList.add('sidebar-collapsed');
     document.body.classList.remove('sidebar-open');
-    setTimeout(restartAnimation, 150);
+    setTimeout(resize, 50);
   }
 }
 
@@ -1931,7 +1935,7 @@ firebase.auth().onAuthStateChanged(user => {
       if (mainContent) mainContent.style.left = '260px';
       document.body.classList.add('sidebar-open');
       document.body.classList.remove('sidebar-collapsed');
-      setTimeout(restartAnimation, 150);
+      setTimeout(resize, 50);
     }
     if (navbar) navbar.style.display = 'none';
 
