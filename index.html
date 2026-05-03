@@ -118,22 +118,6 @@ canvas#sky {
   width: 100vw;
   height: 100vh;
 }
-body.sidebar-open canvas {
-  left: 260px !important;
-  top: 0 !important;
-  width: calc(100vw - 260px) !important;
-  height: 100vh !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-body.sidebar-collapsed canvas {
-  left: 52px !important;
-  top: 0 !important;
-  width: calc(100vw - 52px) !important;
-  height: 100vh !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
 
 /* cockpit vignette overlay */
 .cockpit-vignette {
@@ -1190,11 +1174,7 @@ let stars = [], clouds = [], planes = [];
 let t = 0;
 
 function resize() {
-  const sidebarEl = document.getElementById('appSidebar');
-  const sidebarWidth = sidebarEl && sidebarEl.style.display !== 'none'
-    ? (sidebarOpen ? 260 : 52)
-    : 0;
-  W = canvas.width = window.innerWidth - sidebarWidth;
+  W = canvas.width = window.innerWidth;
   H = canvas.height = window.innerHeight;
   initScene();
 }
@@ -1866,7 +1846,8 @@ function toggleSidebar() {
     if (mainContent) mainContent.style.left = '260px';
     document.body.classList.add('sidebar-open');
     document.body.classList.remove('sidebar-collapsed');
-    setTimeout(resize, 50);
+    document.querySelector('.ui').style.marginLeft = '260px';
+    document.querySelector('.ui').style.width = 'calc(100vw - 260px)';
   } else {
     localStorage.setItem('sidebarOpen', 'false');
     sidebar.style.width = '52px';
@@ -1879,7 +1860,8 @@ function toggleSidebar() {
     if (mainContent) mainContent.style.left = '52px';
     document.body.classList.add('sidebar-collapsed');
     document.body.classList.remove('sidebar-open');
-    setTimeout(resize, 50);
+    document.querySelector('.ui').style.marginLeft = '52px';
+    document.querySelector('.ui').style.width = 'calc(100vw - 52px)';
   }
 }
 
@@ -1928,6 +1910,8 @@ firebase.auth().onAuthStateChanged(user => {
       if (mainContent) mainContent.style.left = '52px';
       document.body.classList.add('sidebar-collapsed');
       document.body.classList.remove('sidebar-open');
+      document.querySelector('.ui').style.marginLeft = '52px';
+      document.querySelector('.ui').style.width = 'calc(100vw - 52px)';
     } else {
       sidebar.style.width = '260px';
       sidebar.style.overflow = 'hidden';
@@ -1935,7 +1919,8 @@ firebase.auth().onAuthStateChanged(user => {
       if (mainContent) mainContent.style.left = '260px';
       document.body.classList.add('sidebar-open');
       document.body.classList.remove('sidebar-collapsed');
-      setTimeout(resize, 50);
+      document.querySelector('.ui').style.marginLeft = '260px';
+      document.querySelector('.ui').style.width = 'calc(100vw - 260px)';
     }
     if (navbar) navbar.style.display = 'none';
 
@@ -1967,6 +1952,8 @@ firebase.auth().onAuthStateChanged(user => {
     if (mainContent) mainContent.style.left = '';
     document.body.classList.remove('sidebar-open');
     document.body.classList.remove('sidebar-collapsed');
+    document.querySelector('.ui').style.marginLeft = '0';
+    document.querySelector('.ui').style.width = '100vw';
 
     scrollSections.forEach(id => {
       const el = document.getElementById(id);
