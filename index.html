@@ -1371,12 +1371,13 @@ function animate() {
 
 function restartAnimation() {
   if (animationFrameId) cancelAnimationFrame(animationFrameId);
-  const cv = document.querySelector('canvas');
-  if (cv) {
-    cv.width = window.innerWidth - (sidebarOpen ? 260 : 52);
-    cv.height = window.innerHeight;
-    W = cv.width;
-    H = cv.height;
+  const canvas = document.querySelector('canvas');
+  if (canvas) {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    W = canvas.width;
+    H = canvas.height;
   }
   animate();
 }
@@ -1861,12 +1862,7 @@ function toggleSidebar() {
     if (mainContent) mainContent.style.left = '260px';
     document.body.classList.add('sidebar-open');
     document.body.classList.remove('sidebar-collapsed');
-    const canvas = document.querySelector('canvas');
-    if (canvas) {
-      canvas.width = window.innerWidth - 260;
-      canvas.height = window.innerHeight;
-      restartAnimation();
-    }
+    setTimeout(restartAnimation, 150);
   } else {
     localStorage.setItem('sidebarOpen', 'false');
     sidebar.style.width = '52px';
@@ -1879,12 +1875,7 @@ function toggleSidebar() {
     if (mainContent) mainContent.style.left = '52px';
     document.body.classList.add('sidebar-collapsed');
     document.body.classList.remove('sidebar-open');
-    const canvas = document.querySelector('canvas');
-    if (canvas) {
-      canvas.width = window.innerWidth - 52;
-      canvas.height = window.innerHeight;
-      restartAnimation();
-    }
+    setTimeout(restartAnimation, 150);
   }
 }
 
@@ -1940,12 +1931,7 @@ firebase.auth().onAuthStateChanged(user => {
       if (mainContent) mainContent.style.left = '260px';
       document.body.classList.add('sidebar-open');
       document.body.classList.remove('sidebar-collapsed');
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
-        canvas.width = window.innerWidth - 260;
-        canvas.height = window.innerHeight;
-        restartAnimation();
-      }
+      setTimeout(restartAnimation, 150);
     }
     if (navbar) navbar.style.display = 'none';
 
