@@ -1312,8 +1312,10 @@ function drawPlane(p) {
   ctx.fill();
 }
 
+let animationFrameId = null;
+
 function animate() {
-  requestAnimationFrame(animate);
+  animationFrameId = requestAnimationFrame(animate);
   t++;
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = skyGrad();
@@ -1347,6 +1349,18 @@ function animate() {
     }
     drawPlane(p);
   });
+}
+
+function restartAnimation() {
+  if (animationFrameId) cancelAnimationFrame(animationFrameId);
+  const cv = document.querySelector('canvas');
+  if (cv) {
+    cv.width = window.innerWidth - (sidebarOpen ? 260 : 52);
+    cv.height = window.innerHeight;
+    W = cv.width;
+    H = cv.height;
+  }
+  animate();
 }
 
 /* ═══ HUD ═══ */
@@ -1838,6 +1852,7 @@ function toggleSidebar() {
       cv.width = window.innerWidth - 260;
       cv.height = window.innerHeight;
     }
+    setTimeout(restartAnimation, 50);
   } else {
     sidebar.style.width = '52px';
     sidebar.style.overflow = 'visible';
@@ -1857,6 +1872,7 @@ function toggleSidebar() {
       cv.width = window.innerWidth - 52;
       cv.height = window.innerHeight;
     }
+    setTimeout(restartAnimation, 50);
   }
 }
 
