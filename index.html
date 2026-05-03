@@ -1849,8 +1849,9 @@ function toggleSidebar() {
     if (mainContent) mainContent.style.left = '260px';
     document.body.classList.add('sidebar-open');
     document.body.classList.remove('sidebar-collapsed');
-    document.querySelector('.ui').style.marginLeft = '260px';
+    document.querySelector('.ui').style.left = '260px';
     document.querySelector('.ui').style.width = 'calc(100vw - 260px)';
+    document.querySelector('.ui').style.marginLeft = '0';
   } else {
     localStorage.setItem('sidebarOpen', 'false');
     sidebar.style.width = '52px';
@@ -1863,8 +1864,9 @@ function toggleSidebar() {
     if (mainContent) mainContent.style.left = '52px';
     document.body.classList.add('sidebar-collapsed');
     document.body.classList.remove('sidebar-open');
-    document.querySelector('.ui').style.marginLeft = '52px';
+    document.querySelector('.ui').style.left = '52px';
     document.querySelector('.ui').style.width = 'calc(100vw - 52px)';
+    document.querySelector('.ui').style.marginLeft = '0';
   }
 }
 
@@ -1913,8 +1915,9 @@ firebase.auth().onAuthStateChanged(user => {
       if (mainContent) mainContent.style.left = '52px';
       document.body.classList.add('sidebar-collapsed');
       document.body.classList.remove('sidebar-open');
-      document.querySelector('.ui').style.marginLeft = '52px';
+      document.querySelector('.ui').style.left = '52px';
       document.querySelector('.ui').style.width = 'calc(100vw - 52px)';
+      document.querySelector('.ui').style.marginLeft = '0';
     } else {
       sidebar.style.width = '260px';
       sidebar.style.overflow = 'hidden';
@@ -1922,8 +1925,9 @@ firebase.auth().onAuthStateChanged(user => {
       if (mainContent) mainContent.style.left = '260px';
       document.body.classList.add('sidebar-open');
       document.body.classList.remove('sidebar-collapsed');
-      document.querySelector('.ui').style.marginLeft = '260px';
+      document.querySelector('.ui').style.left = '260px';
       document.querySelector('.ui').style.width = 'calc(100vw - 260px)';
+      document.querySelector('.ui').style.marginLeft = '0';
     }
     if (navbar) navbar.style.display = 'none';
 
@@ -1955,8 +1959,9 @@ firebase.auth().onAuthStateChanged(user => {
     if (mainContent) mainContent.style.left = '';
     document.body.classList.remove('sidebar-open');
     document.body.classList.remove('sidebar-collapsed');
-    document.querySelector('.ui').style.marginLeft = '0';
+    document.querySelector('.ui').style.left = '0';
     document.querySelector('.ui').style.width = '100vw';
+    document.querySelector('.ui').style.marginLeft = '0';
 
     scrollSections.forEach(id => {
       const el = document.getElementById(id);
