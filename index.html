@@ -119,6 +119,15 @@ canvas#sky {
   height: 100vh;
 }
 
+@keyframes flyRight {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(350px, -60px) scale(0.5); opacity: 0; }
+}
+@keyframes logoAppear {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
 /* cockpit vignette overlay */
 .cockpit-vignette {
   position: absolute;
@@ -1844,8 +1853,6 @@ function toggleSidebar() {
     sidebar.style.overflow = 'hidden';
     sidebar.classList.remove('collapsed');
     document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = '');
-    document.getElementById('sidebarLogoFull').style.display = 'flex';
-    document.getElementById('sidebarLogoCollapsed').style.display = 'none';
     if (scene) scene.style.left = '260px';
     if (mainContent) mainContent.style.left = '260px';
     document.body.classList.add('sidebar-open');
@@ -1853,6 +1860,20 @@ function toggleSidebar() {
     document.querySelector('.ui').style.left = '260px';
     document.querySelector('.ui').style.width = 'calc(100vw - 260px)';
     document.querySelector('.ui').style.marginLeft = '0';
+    const planeEl = document.getElementById('sidebarLogoCollapsed');
+    planeEl.style.animation = 'flyRight 0.9s ease-in forwards';
+    setTimeout(() => {
+      planeEl.style.animation = '';
+      planeEl.style.display = 'none';
+      const fullLogo = document.getElementById('sidebarLogoFull');
+      fullLogo.style.display = 'flex';
+      fullLogo.style.opacity = '0';
+      fullLogo.style.animation = 'logoAppear 0.4s ease-out forwards';
+      setTimeout(() => {
+        fullLogo.style.animation = '';
+        fullLogo.style.opacity = '1';
+      }, 400);
+    }, 900);
   } else {
     localStorage.setItem('sidebarOpen', 'false');
     sidebar.style.width = '52px';
