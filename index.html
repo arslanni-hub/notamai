@@ -1816,7 +1816,8 @@ function toggleSidebar() {
   const sidebar = document.getElementById('appSidebar');
   const scene = document.getElementById('scene');
   const mainContent = document.getElementById('mainContent');
-  const cv = document.querySelector('canvas#sky');
+  const cv = document.querySelector('canvas');
+  const ui = document.querySelector('.ui') || mainContent;
   sidebarOpen = !sidebarOpen;
   if (sidebarOpen) {
     sidebar.style.width = '260px';
@@ -1827,7 +1828,16 @@ function toggleSidebar() {
     document.getElementById('sidebarLogoCollapsed').style.display = 'none';
     if (scene) scene.style.left = '260px';
     if (mainContent) mainContent.style.left = '260px';
-    if (cv) { cv.style.left = '260px'; cv.style.width = 'calc(100vw - 260px)'; }
+    if (ui) ui.style.marginLeft = '260px';
+    if (cv) {
+      cv.style.position = 'fixed';
+      cv.style.top = '0';
+      cv.style.left = '260px';
+      cv.style.width = 'calc(100vw - 260px)';
+      cv.style.height = '100vh';
+      cv.width = window.innerWidth - 260;
+      cv.height = window.innerHeight;
+    }
   } else {
     sidebar.style.width = '52px';
     sidebar.style.overflow = 'visible';
@@ -1837,7 +1847,16 @@ function toggleSidebar() {
     document.getElementById('sidebarLogoCollapsed').style.display = 'flex';
     if (scene) scene.style.left = '52px';
     if (mainContent) mainContent.style.left = '52px';
-    if (cv) { cv.style.left = '52px'; cv.style.width = 'calc(100vw - 52px)'; }
+    if (ui) ui.style.marginLeft = '52px';
+    if (cv) {
+      cv.style.position = 'fixed';
+      cv.style.top = '0';
+      cv.style.left = '52px';
+      cv.style.width = 'calc(100vw - 52px)';
+      cv.style.height = '100vh';
+      cv.width = window.innerWidth - 52;
+      cv.height = window.innerHeight;
+    }
   }
 }
 
