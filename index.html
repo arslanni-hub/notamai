@@ -1690,6 +1690,13 @@ function openAuthModal() {
   startAuthTyping();
 }
 function openLoginModal() { openAuthModal(); }
+function closeLoginModal() {
+  const modal = document.getElementById('loginModal');
+  if (modal) modal.style.display = 'none';
+  const authModal = document.getElementById('authModal');
+  if (authModal) authModal.style.display = 'none';
+  closeAuthModal();
+}
 function closeAuthModal() {
   document.getElementById('authModalBg').classList.remove('open');
   if (authTypingTimer) { clearTimeout(authTypingTimer); authTypingTimer = null; }
@@ -2220,7 +2227,10 @@ function openSignupModal() {
   document.getElementById('signupModal').style.display = 'flex';
 }
 function closeSignupModal() {
-  document.getElementById('signupModal').style.display = 'none';
+  const modal = document.getElementById('signupModal');
+  if (modal) modal.style.display = 'none';
+  const authModal = document.getElementById('authModal');
+  if (authModal) authModal.style.display = 'none';
 }
 function handleSignupBgClick(e) {
   if (e.target === document.getElementById('signupModal')) closeSignupModal();
