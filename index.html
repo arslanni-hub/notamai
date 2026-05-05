@@ -1729,13 +1729,11 @@ function briefingFeedback(type) {
 }
 
 function retryBriefing() {
-  const currentRoute = document.getElementById('mainInput')?.value ||
-    document.querySelector('.route-id')?.textContent || '';
-  closeResult();
-  if (currentRoute) {
-    document.getElementById('mainInput').value = currentRoute;
-    handleSend();
-  }
+  const content = document.getElementById('resultContent');
+  if (!content) return;
+  content.scrollTo({ top: 0, behavior: 'smooth' });
+  const overlay = document.getElementById('resultOverlay') || content.closest('.result-overlay');
+  if (overlay) overlay.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function closeResult() {
