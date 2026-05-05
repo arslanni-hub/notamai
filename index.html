@@ -1565,10 +1565,11 @@ async function handleSend() {
             const detectedRisk = riskMatch ? riskMatch[1] : 'MEDIUM';
             const route = arr ? `${dep} → ${arr}` : dep;
             saveBriefingToHistory(route, detectedRisk);
-            // Cache the rendered HTML
-            const recents = JSON.parse(localStorage.getItem('notamai_recents') || '[]');
-            const saved = recents.find(r => r.route === route);
-            if (saved) briefingCache[saved.id] = htmlHead + final + htmlFoot;
+            // Cache using id set by saveBriefingToHistory
+            if (currentBriefingId) {
+              briefingCache[currentBriefingId] = htmlHead + final + htmlFoot;
+              currentBriefingId = null;
+            }
           } else if (evt.type === 'error') {
             loading.style.display = 'block';
             content.style.display = 'none';
@@ -1930,6 +1931,7 @@ function generateReferralCode(uid) {
 
 /* ═══ SIDEBAR HISTORY ═══ */
 const briefingCache = {};
+let currentBriefingId = null;
 
 function saveBriefingToHistory(route, riskLevel) {
   const recents = JSON.parse(localStorage.getItem('notamai_recents') || '[]');
@@ -1937,6 +1939,7 @@ function saveBriefingToHistory(route, riskLevel) {
   const filtered = recents.filter(r => r.route !== route);
   filtered.unshift(newItem);
   localStorage.setItem('notamai_recents', JSON.stringify(filtered.slice(0, 10)));
+  currentBriefingId = newItem.id;
   renderSidebarHistory();
 }
 
@@ -1959,7 +1962,9 @@ function renderSidebarItem(item, isStarred) {
   </div>`;
   div.innerHTML = dot + text + actions;
   div.addEventListener('click', function(e) {
+    e.stopPropagation();
     if (e.target.closest('button')) return;
+    console.log('Cache check for', item.id, ':', !!briefingCache[item.id]);
     if (briefingCache[item.id]) {
       const overlay = document.getElementById('resultOverlay');
       const content = document.getElementById('resultContent');
@@ -2880,13 +2885,18 @@ function pricing_toggleBilling() {
     </svg>
   </div>
 
-  <!-- NAV ITEMS (fixed, no scroll) -->
+  <!-- NAV TOP (fixed, no scroll) -->
   <div style="flex-shrink:0;padding:4px 0;">
 
     <div class="sidebar-nav-item" onclick="startNewBriefing()" onmouseenter="showSidebarTooltip('New Briefing',this)" onmouseleave="hideSidebarTooltip()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
       <span class="sidebar-text">New Briefing</span>
     </div>
+
+  </div>
+
+  <!-- HISTORY (scrollable, starts from Search) -->
+  <div class="sidebar-scroll sidebar-text">
 
     <div class="sidebar-nav-item" onmouseenter="showSidebarTooltip('Search',this)" onmouseleave="hideSidebarTooltip()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -2912,11 +2922,6 @@ function pricing_toggleBilling() {
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       <span class="sidebar-text">Settings</span>
     </div>
-
-  </div>
-
-  <!-- HISTORY (scrollable) -->
-  <div class="sidebar-scroll sidebar-text">
 
     <!-- STARRED SECTION -->
     <div style="padding:4px 8px;">
