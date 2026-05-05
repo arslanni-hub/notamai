@@ -1814,11 +1814,13 @@ const briefingCache = {};
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 firebase.auth().getRedirectResult().then(result => {
-  if (result.user) {
+  if (result && result.user) {
     closeLoginModal();
     closeSignupModal();
   }
-}).catch(e => console.error(e));
+}).catch(e => {
+  if (e.code !== 'auth/no-auth-event') console.error(e);
+});
 
 async function signInWithGoogle() {
   try {
@@ -2062,6 +2064,7 @@ function deleteBriefing(e, id) {
 }
 
 firebase.auth().onAuthStateChanged(user => {
+  console.log('onAuthStateChanged fired, user:', user ? user.email : 'null');
   const sidebar = document.getElementById('appSidebar');
   const navbar  = document.getElementById('mainNavbar');
   const mainContent = document.getElementById('mainContent');
