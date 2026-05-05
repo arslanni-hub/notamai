@@ -436,7 +436,6 @@ body.sidebar-collapsed #resultOverlay {
   left: 52px !important;
   width: calc(100vw - 52px) !important;
 }
-#briefingActions { display: none; }
 
 .result-topbar {
   display: flex;
@@ -1034,25 +1033,6 @@ body.sidebar-collapsed #resultOverlay {
   </div>
 </div>
 
-<div id="briefingActions" style="position:fixed;bottom:24px;right:24px;z-index:600;display:none;align-items:center;gap:4px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:4px;">
-  <!-- Copy -->
-  <button onclick="copyBriefing()" title="Copy" style="width:32px;height:32px;background:none;border:none;cursor:pointer;color:#8a9bb0;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='#cdd9e5'" onmouseout="this.style.background='none';this.style.color='#8a9bb0'">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-  </button>
-  <!-- Thumbs Up -->
-  <button onclick="briefingFeedback('positive')" title="Good response" style="width:32px;height:32px;background:none;border:none;cursor:pointer;color:#8a9bb0;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='#cdd9e5'" onmouseout="this.style.background='none';this.style.color='#8a9bb0'">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-  </button>
-  <!-- Thumbs Down -->
-  <button onclick="briefingFeedback('negative')" title="Bad response" style="width:32px;height:32px;background:none;border:none;cursor:pointer;color:#8a9bb0;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='#cdd9e5'" onmouseout="this.style.background='none';this.style.color='#8a9bb0'">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
-  </button>
-  <!-- Retry -->
-  <button onclick="retryBriefing()" title="Regenerate" style="width:32px;height:32px;background:none;border:none;cursor:pointer;color:#8a9bb0;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='#cdd9e5'" onmouseout="this.style.background='none';this.style.color='#8a9bb0'">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.6"/></svg>
-  </button>
-</div>
-
 <!-- VIDEO BRIEFING MODAL -->
 <div class="modal-bg" id="videoModal">
   <div class="modal-box">
@@ -1589,7 +1569,7 @@ async function handleSend() {
             loading.style.display = 'none';
             content.style.display = 'block';
             status.textContent = label + ' — COMPLETE';
-            document.getElementById('briefingActions').style.display = 'flex';
+            appendBriefingActions(content);
             // Save to Firestore and reload history
             const riskMatch = (htmlHead + final).match(/\b(CRITICAL|HIGH|MEDIUM|LOW)\b/);
             const detectedRisk = riskMatch ? riskMatch[1] : 'MEDIUM';
@@ -1702,12 +1682,33 @@ function switchTab(n) {
   document.getElementById('resultScroll').scrollTop = 0;
 }
 
-function copyBriefing() {
+const _btnStyle = 'width:32px;height:32px;background:none;border:none;cursor:pointer;color:#8a9bb0;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background 0.15s,color 0.15s;';
+const _btnHover = "this.style.background='rgba(255,255,255,0.06)';this.style.color='#cdd9e5'";
+const _btnOut   = "this.style.background='none';this.style.color='#8a9bb0'";
+
+function appendBriefingActions(containerEl) {
+  const actionsDiv = document.createElement('div');
+  actionsDiv.style.cssText = 'display:flex;align-items:center;gap:4px;justify-content:flex-end;padding:16px 24px 24px;';
+  actionsDiv.innerHTML = `
+    <button onclick="copyBriefing(this)" title="Copy" style="${_btnStyle}" onmouseover="${_btnHover}" onmouseout="${_btnOut}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </button>
+    <button onclick="briefingFeedback('positive',this)" title="Good response" style="${_btnStyle}" onmouseover="${_btnHover}" onmouseout="${_btnOut}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+    </button>
+    <button onclick="briefingFeedback('negative',this)" title="Bad response" style="${_btnStyle}" onmouseover="${_btnHover}" onmouseout="${_btnOut}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+    </button>
+    <button onclick="retryBriefing()" title="Regenerate" style="${_btnStyle}" onmouseover="${_btnHover}" onmouseout="${_btnOut}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.6"/></svg>
+    </button>`;
+  containerEl.appendChild(actionsDiv);
+}
+
+function copyBriefing(btn) {
   const content = document.getElementById('resultContent');
   if (!content) return;
-  const text = content.innerText;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = event.currentTarget;
+  navigator.clipboard.writeText(content.innerText).then(() => {
     const orig = btn.innerHTML;
     btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2ec4b6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
     btn.style.color = '#2ec4b6';
@@ -1715,8 +1716,7 @@ function copyBriefing() {
   });
 }
 
-function briefingFeedback(type) {
-  const btn = event.currentTarget;
+function briefingFeedback(type, btn) {
   const color = type === 'positive' ? '#2ec4b6' : '#e63946';
   btn.style.color = color;
   setTimeout(() => btn.style.color = '#8a9bb0', 2000);
@@ -1734,7 +1734,6 @@ function retryBriefing() {
 
 function closeResult() {
   document.getElementById('resultOverlay').classList.remove('open');
-  document.getElementById('briefingActions').style.display = 'none';
   if (document.getElementById('appSidebar').style.display === 'none') {
     document.getElementById('mainNavbar').style.display = 'flex';
   }
@@ -2081,7 +2080,7 @@ function renderSidebarItem(item, isStarred) {
       content.style.display = 'block';
       content.innerHTML = cachedHtml;
       status.textContent = 'ROUTE BRIEFING: ' + item.route + ' — COMPLETE';
-      document.getElementById('briefingActions').style.display = 'flex';
+      appendBriefingActions(content);
       const navbar = document.getElementById('mainNavbar');
       if (navbar) navbar.style.display = 'none';
     }
