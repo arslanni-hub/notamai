@@ -419,7 +419,8 @@ canvas#sky {
 /* ═══ RESULT OVERLAY ═══ */
 .result-overlay {
   position: fixed;
-  inset: 0;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
   z-index: 50;
   background: rgba(0,5,16,0.92);
   display: none;
@@ -427,6 +428,14 @@ canvas#sky {
   backdrop-filter: blur(8px);
 }
 .result-overlay.open { display: flex; }
+body.sidebar-open #resultOverlay {
+  left: 260px !important;
+  width: calc(100vw - 260px) !important;
+}
+body.sidebar-collapsed #resultOverlay {
+  left: 52px !important;
+  width: calc(100vw - 52px) !important;
+}
 
 .result-topbar {
   display: flex;
