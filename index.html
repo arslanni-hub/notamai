@@ -1813,14 +1813,19 @@ const db = firebase.firestore();
 const briefingCache = {};
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
-function signInWithGoogle() {
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider).then(() => {
-    closeAuthModal();
-  }).catch(err => {
-    console.error('Google sign-in error:', err);
-    alert(err.message);
-  });
+async function signInWithGoogle() {
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    await firebase.auth().signInWithPopup(provider);
+    closeLoginModal();
+    closeSignupModal();
+  } catch(e) {
+    if (e.code !== 'auth/cancelled-popup-request' && e.code !== 'auth/popup-closed-by-user') {
+      console.error(e);
+      alert('Sign in failed: ' + e.message);
+    }
+  }
 }
 
 function showPasswordField() {
