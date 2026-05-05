@@ -1951,26 +1951,28 @@ async function saveBriefingToFirestore(route, riskLevel, htmlContent) {
 
 async function loadBriefingHistory() {
   const user = firebase.auth().currentUser;
-  if (!user) return;
+  if (!user) { console.log('No user logged in'); return; }
   try {
+    console.log('Loading briefing history for user:', user.uid);
     const snapshot = await db.collection('briefings')
       .where('userId', '==', user.uid)
       .orderBy('createdAt', 'desc')
       .limit(50)
       .get();
+    console.log('Firestore returned', snapshot.size, 'documents');
     const recents = [];
     snapshot.forEach(doc => {
+      const data = doc.data();
+      briefingCache[doc.id] = data.html;
       recents.push({
         id: doc.id,
-        route: doc.data().route,
-        riskLevel: doc.data().riskLevel,
-        timestamp: doc.data().createdAt?.toDate()?.toISOString() || new Date().toISOString(),
-        html: doc.data().html
+        route: data.route,
+        riskLevel: data.riskLevel,
+        timestamp: data.createdAt?.toDate()?.toISOString() || new Date().toISOString()
       });
     });
-    recents.forEach(item => { briefingCache[item.id] = item.html; });
-    const recentsForStorage = recents.map(({html, ...rest}) => rest);
-    localStorage.setItem('notamai_recents', JSON.stringify(recentsForStorage));
+    localStorage.setItem('notamai_recents', JSON.stringify(recents));
+    console.log('Recents saved:', recents.length);
     renderSidebarHistory();
   } catch(e) {
     console.error('Firestore load error:', e);
