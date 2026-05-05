@@ -872,10 +872,6 @@ canvas#sky {
 #appSidebar.collapsed #sidebarLogoCollapsed:hover .sidebar-tooltip { opacity: 1; }
 #appSidebar.collapsed #sidebarUserCard:hover .sidebar-tooltip { opacity: 1; }
 #appSidebar.collapsed #sidebarUserCard { justify-content: center; padding: 8px 0; }
-.sidebar-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; }
-.sidebar-scroll::-webkit-scrollbar { width: 3px; }
-.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
-.sidebar-scroll::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
 .popup-item {
   display: flex;
   align-items: center;
@@ -1565,11 +1561,6 @@ async function handleSend() {
             const detectedRisk = riskMatch ? riskMatch[1] : 'MEDIUM';
             const route = arr ? `${dep} → ${arr}` : dep;
             saveBriefingToHistory(route, detectedRisk);
-            // Cache using id set by saveBriefingToHistory
-            if (currentBriefingId) {
-              briefingCache[currentBriefingId] = htmlHead + final + htmlFoot;
-              currentBriefingId = null;
-            }
           } else if (evt.type === 'error') {
             loading.style.display = 'block';
             content.style.display = 'none';
@@ -1930,16 +1921,12 @@ function generateReferralCode(uid) {
 }
 
 /* ═══ SIDEBAR HISTORY ═══ */
-const briefingCache = {};
-let currentBriefingId = null;
-
 function saveBriefingToHistory(route, riskLevel) {
   const recents = JSON.parse(localStorage.getItem('notamai_recents') || '[]');
   const newItem = { id: Date.now(), route: route, riskLevel: riskLevel || 'MEDIUM', timestamp: new Date().toISOString() };
   const filtered = recents.filter(r => r.route !== route);
   filtered.unshift(newItem);
   localStorage.setItem('notamai_recents', JSON.stringify(filtered.slice(0, 10)));
-  currentBriefingId = newItem.id;
   renderSidebarHistory();
 }
 
@@ -1962,25 +1949,9 @@ function renderSidebarItem(item, isStarred) {
   </div>`;
   div.innerHTML = dot + text + actions;
   div.addEventListener('click', function(e) {
-    e.stopPropagation();
     if (e.target.closest('button')) return;
-    console.log('Cache check for', item.id, ':', !!briefingCache[item.id]);
-    if (briefingCache[item.id]) {
-      const overlay = document.getElementById('resultOverlay');
-      const content = document.getElementById('resultContent');
-      const loading = document.getElementById('loadingState');
-      const status  = document.getElementById('resultStatus');
-      overlay.classList.add('open');
-      loading.style.display = 'none';
-      content.style.display = 'block';
-      content.innerHTML = briefingCache[item.id];
-      status.textContent = 'ROUTE BRIEFING: ' + item.route + ' — COMPLETE';
-      const nav = document.getElementById('mainNavbar');
-      if (nav) nav.style.display = 'none';
-    } else {
-      document.getElementById('mainInput').value = item.route;
-      handleSend();
-    }
+    document.getElementById('mainInput').value = item.route;
+    handleSend();
   });
   return div;
 }
@@ -2885,18 +2856,13 @@ function pricing_toggleBilling() {
     </svg>
   </div>
 
-  <!-- NAV TOP (fixed, no scroll) -->
-  <div style="flex-shrink:0;padding:4px 0;">
+  <!-- NAV ITEMS -->
+  <div style="flex:1;overflow-y:auto;padding:4px 0;">
 
     <div class="sidebar-nav-item" onclick="startNewBriefing()" onmouseenter="showSidebarTooltip('New Briefing',this)" onmouseleave="hideSidebarTooltip()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
       <span class="sidebar-text">New Briefing</span>
     </div>
-
-  </div>
-
-  <!-- HISTORY (scrollable, starts from Search) -->
-  <div class="sidebar-scroll sidebar-text">
 
     <div class="sidebar-nav-item" onmouseenter="showSidebarTooltip('Search',this)" onmouseleave="hideSidebarTooltip()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -2924,13 +2890,13 @@ function pricing_toggleBilling() {
     </div>
 
     <!-- STARRED SECTION -->
-    <div style="padding:4px 8px;">
+    <div class="sidebar-text" style="padding:4px 8px;">
       <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;padding:8px 8px 4px;">STARRED</div>
       <div id="starredList"></div>
     </div>
 
     <!-- RECENTS SECTION -->
-    <div style="padding:4px 8px;">
+    <div class="sidebar-text" style="padding:4px 8px;">
       <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;padding:8px 8px 4px;">RECENTS</div>
       <div id="recentsList"></div>
     </div>
