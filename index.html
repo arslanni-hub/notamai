@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
@@ -1559,11 +1560,12 @@ async function handleSend() {
             loading.style.display = 'none';
             content.style.display = 'block';
             status.textContent = label + ' — COMPLETE';
-            // Save to history
+            // Save to Firestore and reload history
             const riskMatch = (htmlHead + final).match(/\b(CRITICAL|HIGH|MEDIUM|LOW)\b/);
             const detectedRisk = riskMatch ? riskMatch[1] : 'MEDIUM';
             const route = arr ? `${dep} → ${arr}` : dep;
-            saveBriefingToHistory(route, detectedRisk);
+            const fullHtml = htmlHead + final + htmlFoot;
+            saveBriefingToFirestore(route, detectedRisk, fullHtml).then(() => loadBriefingHistory());
           } else if (evt.type === 'error') {
             loading.style.display = 'block';
             content.style.display = 'none';
@@ -1807,6 +1809,7 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+const db = firebase.firestore();
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 function signInWithGoogle() {
@@ -1928,13 +1931,50 @@ function generateReferralCode(uid) {
 }
 
 /* ═══ SIDEBAR HISTORY ═══ */
-function saveBriefingToHistory(route, riskLevel) {
-  const recents = JSON.parse(localStorage.getItem('notamai_recents') || '[]');
-  const newItem = { id: Date.now(), route: route, riskLevel: riskLevel || 'MEDIUM', timestamp: new Date().toISOString() };
-  const filtered = recents.filter(r => r.route !== route);
-  filtered.unshift(newItem);
-  localStorage.setItem('notamai_recents', JSON.stringify(filtered.slice(0, 10)));
-  renderSidebarHistory();
+async function saveBriefingToFirestore(route, riskLevel, htmlContent) {
+  const user = firebase.auth().currentUser;
+  if (!user) return null;
+  try {
+    const docRef = await db.collection('briefings').add({
+      userId: user.uid,
+      route: route,
+      riskLevel: riskLevel || 'MEDIUM',
+      html: htmlContent,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return docRef.id;
+  } catch(e) {
+    console.error('Firestore save error:', e);
+    return null;
+  }
+}
+
+async function loadBriefingHistory() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  try {
+    const snapshot = await db.collection('briefings')
+      .where('userId', '==', user.uid)
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get();
+    const recents = [];
+    snapshot.forEach(doc => {
+      recents.push({
+        id: doc.id,
+        route: doc.data().route,
+        riskLevel: doc.data().riskLevel,
+        timestamp: doc.data().createdAt?.toDate()?.toISOString() || new Date().toISOString(),
+        html: doc.data().html
+      });
+    });
+    recents.forEach(item => { briefingCache[item.id] = item.html; });
+    const recentsForStorage = recents.map(({html, ...rest}) => rest);
+    localStorage.setItem('notamai_recents', JSON.stringify(recentsForStorage));
+    renderSidebarHistory();
+  } catch(e) {
+    console.error('Firestore load error:', e);
+  }
 }
 
 function renderSidebarItem(item, isStarred) {
@@ -1948,9 +1988,21 @@ function renderSidebarItem(item, isStarred) {
   const menuBtn = `<button class="item-menu-btn" onclick="toggleItemMenu(event,${item.id},${isStarred})" style="background:none;border:none;cursor:pointer;color:#4a5f72;padding:2px 4px;opacity:0;transition:opacity 0.15s;font-size:16px;line-height:1;border-radius:4px;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">···</button>`;
   div.innerHTML = dot + text + menuBtn;
   div.addEventListener('click', function(e) {
-    if (e.target.closest('button')) return;
-    document.getElementById('mainInput').value = item.route;
-    handleSend();
+    if (e.target.closest('button') || e.target.closest('.item-menu-btn')) return;
+    const cachedHtml = briefingCache[item.id];
+    if (cachedHtml) {
+      const overlay = document.getElementById('resultOverlay');
+      const content = document.getElementById('resultContent');
+      const loading = document.getElementById('loadingState');
+      const status  = document.getElementById('resultStatus');
+      overlay.classList.add('open');
+      loading.style.display = 'none';
+      content.style.display = 'block';
+      content.innerHTML = cachedHtml;
+      status.textContent = 'ROUTE BRIEFING: ' + item.route + ' — COMPLETE';
+      const navbar = document.getElementById('mainNavbar');
+      if (navbar) navbar.style.display = 'none';
+    }
   });
   return div;
 }
@@ -2056,7 +2108,7 @@ firebase.auth().onAuthStateChanged(user => {
 
     greetingName = 'Cpt. ' + name;
     setGreeting();
-    renderSidebarHistory();
+    loadBriefingHistory();
   } else {
     sidebar.style.display = 'none';
     if (navbar) navbar.style.display = 'flex';
