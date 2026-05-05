@@ -1940,21 +1940,13 @@ function saveBriefingToHistory(route, riskLevel) {
 function renderSidebarItem(item, isStarred) {
   const div = document.createElement('div');
   div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;position:relative;';
-  div.onmouseover = function() { this.style.background = 'rgba(255,255,255,0.06)'; this.querySelector('.item-actions').style.opacity = '1'; };
-  div.onmouseout  = function() { this.style.background = 'none'; this.querySelector('.item-actions').style.opacity = '0'; };
+  div.onmouseover = function() { this.style.background = 'rgba(255,255,255,0.06)'; this.querySelector('.item-menu-btn').style.opacity = '1'; };
+  div.onmouseout  = function() { this.style.background = 'none'; this.querySelector('.item-menu-btn').style.opacity = '0'; };
   const colors = { CRITICAL: '#e63946', HIGH: '#f4841a', MEDIUM: '#f2c641', LOW: '#2ec4b6' };
   const dot = `<div style="width:6px;height:6px;border-radius:50%;background:${colors[item.riskLevel] || '#4a5f72'};flex-shrink:0;"></div>`;
   const text = `<span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.route}</span>`;
-  const starColor = isStarred ? '#f2c641' : '#4a5f72';
-  const actions = `<div class="item-actions" style="display:flex;gap:4px;opacity:0;transition:opacity 0.15s;">
-    <button onclick="toggleStar(event,${item.id})" style="background:none;border:none;cursor:pointer;color:${starColor};padding:2px;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="${isStarred ? '#f2c641' : 'none'}" stroke="${starColor}" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-    </button>
-    <button onclick="deleteBriefing(event,${item.id})" style="background:none;border:none;cursor:pointer;color:#4a5f72;padding:2px;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-  </div>`;
-  div.innerHTML = dot + text + actions;
+  const menuBtn = `<button class="item-menu-btn" onclick="toggleItemMenu(event,${item.id},${isStarred})" style="background:none;border:none;cursor:pointer;color:#4a5f72;padding:2px 4px;opacity:0;transition:opacity 0.15s;font-size:16px;line-height:1;border-radius:4px;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">···</button>`;
+  div.innerHTML = dot + text + menuBtn;
   div.addEventListener('click', function(e) {
     if (e.target.closest('button')) return;
     document.getElementById('mainInput').value = item.route;
@@ -2088,7 +2080,69 @@ firebase.auth().onAuthStateChanged(user => {
   }
 });
 
+let activeMenuItemId = null;
+let activeMenuIsStarred = false;
+
+function toggleItemMenu(e, id, isStarred) {
+  e.stopPropagation();
+  const menu = document.getElementById('itemContextMenu');
+  const rect = e.currentTarget.getBoundingClientRect();
+  activeMenuItemId = id;
+  activeMenuIsStarred = isStarred;
+  document.getElementById('itemMenuUnstar').style.display = isStarred ? 'flex' : 'none';
+  document.getElementById('itemMenuStar').style.display = isStarred ? 'none' : 'flex';
+  if (menu.style.display === 'block') { menu.style.display = 'none'; return; }
+  menu.style.display = 'block';
+  menu.style.left = (rect.right + 4) + 'px';
+  menu.style.top = rect.top + 'px';
+  setTimeout(() => {
+    const menuRect = menu.getBoundingClientRect();
+    if (menuRect.right > window.innerWidth) menu.style.left = (rect.left - menuRect.width - 4) + 'px';
+    if (menuRect.bottom > window.innerHeight) menu.style.top = (rect.bottom - menuRect.height) + 'px';
+  }, 0);
+}
+
+function handleItemMenuAction(action) {
+  const menu = document.getElementById('itemContextMenu');
+  menu.style.display = 'none';
+  const recents = JSON.parse(localStorage.getItem('notamai_recents') || '[]');
+  const starred = JSON.parse(localStorage.getItem('notamai_starred') || '[]');
+  if (action === 'delete') {
+    localStorage.setItem('notamai_recents', JSON.stringify(recents.filter(r => r.id !== activeMenuItemId)));
+    localStorage.setItem('notamai_starred', JSON.stringify(starred.filter(r => r.id !== activeMenuItemId)));
+    renderSidebarHistory();
+  } else if (action === 'star') {
+    const item = recents.find(r => r.id === activeMenuItemId);
+    if (item) {
+      if (starred.length >= 3) { alert('Maximum 3 starred briefings.'); return; }
+      starred.unshift(item);
+      localStorage.setItem('notamai_starred', JSON.stringify(starred));
+      renderSidebarHistory();
+    }
+  } else if (action === 'unstar') {
+    localStorage.setItem('notamai_starred', JSON.stringify(starred.filter(r => r.id !== activeMenuItemId)));
+    renderSidebarHistory();
+  } else if (action === 'rename') {
+    const item = recents.find(r => r.id === activeMenuItemId) || starred.find(r => r.id === activeMenuItemId);
+    if (item) {
+      const newName = prompt('Rename briefing:', item.route);
+      if (newName && newName.trim()) {
+        item.route = newName.trim();
+        const rIdx = recents.findIndex(r => r.id === activeMenuItemId);
+        if (rIdx > -1) recents[rIdx] = item;
+        const sIdx = starred.findIndex(r => r.id === activeMenuItemId);
+        if (sIdx > -1) starred[sIdx] = item;
+        localStorage.setItem('notamai_recents', JSON.stringify(recents));
+        localStorage.setItem('notamai_starred', JSON.stringify(starred));
+        renderSidebarHistory();
+      }
+    }
+  }
+}
+
 document.addEventListener('click', function(e) {
+  const menu = document.getElementById('itemContextMenu');
+  if (menu && !menu.contains(e.target)) menu.style.display = 'none';
   const popup = document.getElementById('userPopup');
   const card  = document.getElementById('sidebarUserCard');
   if (popup && card && !popup.contains(e.target) && !card.contains(e.target)) {
@@ -2946,6 +3000,22 @@ function pricing_toggleBilling() {
       </div>
       <span class="sidebar-text" style="font-size:16px;color:#6b7280;letter-spacing:2px;flex-shrink:0;">···</span>
     </div>
+  </div>
+</div>
+
+<div id="itemContextMenu" style="display:none;position:fixed;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:4px;z-index:9999;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+  <div id="itemMenuUnstar" onclick="handleItemMenuAction('unstar')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Unstar
+  </div>
+  <div id="itemMenuStar" onclick="handleItemMenuAction('star')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Star
+  </div>
+  <div onclick="handleItemMenuAction('rename')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Rename
+  </div>
+  <div style="height:1px;background:#1a2a3a;margin:4px 0;"></div>
+  <div onclick="handleItemMenuAction('delete')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;color:#e63946;" onmouseover="this.style.background='rgba(230,57,70,0.08)'" onmouseout="this.style.background='none'">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>Delete
   </div>
 </div>
 
