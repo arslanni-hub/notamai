@@ -1813,22 +1813,23 @@ const db = firebase.firestore();
 const briefingCache = {};
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
-firebase.auth().getRedirectResult().then(result => {
-  if (result && result.user) {
-    closeLoginModal();
-    closeSignupModal();
-  }
-}).catch(e => {
-  if (e.code !== 'auth/no-auth-event') console.error(e);
-});
-
 async function signInWithGoogle() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    await firebase.auth().signInWithRedirect(provider);
+    const result = await firebase.auth().signInWithPopup(provider);
+    if (result.user) {
+      closeLoginModal();
+      closeSignupModal();
+    }
   } catch(e) {
-    console.error(e);
+    if (e.code === 'auth/popup-blocked') {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      await firebase.auth().signInWithRedirect(provider);
+    } else if (e.code !== 'auth/cancelled-popup-request' && e.code !== 'auth/popup-closed-by-user') {
+      alert('Sign in failed: ' + e.message);
+    }
   }
 }
 
