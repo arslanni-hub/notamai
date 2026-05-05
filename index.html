@@ -1810,6 +1810,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+const briefingCache = {};
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 function signInWithGoogle() {
