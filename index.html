@@ -1556,6 +1556,11 @@ async function handleSend() {
             loading.style.display = 'none';
             content.style.display = 'block';
             status.textContent = label + ' — COMPLETE';
+            // Save to history
+            const riskMatch = (htmlHead + final).match(/\b(CRITICAL|HIGH|MEDIUM|LOW)\b/);
+            const detectedRisk = riskMatch ? riskMatch[1] : 'MEDIUM';
+            const route = arr ? `${dep} → ${arr}` : dep;
+            saveBriefingToHistory(route, detectedRisk);
           } else if (evt.type === 'error') {
             loading.style.display = 'block';
             content.style.display = 'none';
@@ -1915,6 +1920,86 @@ function generateReferralCode(uid) {
   return uid.substring(0, 6).toUpperCase();
 }
 
+/* ═══ SIDEBAR HISTORY ═══ */
+function saveBriefingToHistory(route, riskLevel) {
+  const recents = JSON.parse(localStorage.getItem('notamai_recents') || '[]');
+  const newItem = { id: Date.now(), route: route, riskLevel: riskLevel || 'MEDIUM', timestamp: new Date().toISOString() };
+  const filtered = recents.filter(r => r.route !== route);
+  filtered.unshift(newItem);
+  localStorage.setItem('notamai_recents', JSON.stringify(filtered.slice(0, 10)));
+  renderSidebarHistory();
+}
+
+function renderSidebarItem(item, isStarred) {
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;position:relative;';
+  div.onmouseover = function() { this.style.background = 'rgba(255,255,255,0.06)'; this.querySelector('.item-actions').style.opacity = '1'; };
+  div.onmouseout  = function() { this.style.background = 'none'; this.querySelector('.item-actions').style.opacity = '0'; };
+  const colors = { CRITICAL: '#e63946', HIGH: '#f4841a', MEDIUM: '#f2c641', LOW: '#2ec4b6' };
+  const dot = `<div style="width:6px;height:6px;border-radius:50%;background:${colors[item.riskLevel] || '#4a5f72'};flex-shrink:0;"></div>`;
+  const text = `<span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.route}</span>`;
+  const starColor = isStarred ? '#f2c641' : '#4a5f72';
+  const actions = `<div class="item-actions" style="display:flex;gap:4px;opacity:0;transition:opacity 0.15s;">
+    <button onclick="toggleStar(event,${item.id})" style="background:none;border:none;cursor:pointer;color:${starColor};padding:2px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="${isStarred ? '#f2c641' : 'none'}" stroke="${starColor}" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    </button>
+    <button onclick="deleteBriefing(event,${item.id})" style="background:none;border:none;cursor:pointer;color:#4a5f72;padding:2px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>`;
+  div.innerHTML = dot + text + actions;
+  div.addEventListener('click', function(e) {
+    if (e.target.closest('button')) return;
+    document.getElementById('mainInput').value = item.route;
+    handleSend();
+  });
+  return div;
+}
+
+function renderSidebarHistory() {
+  const recents = JSON.parse(localStorage.getItem('notamai_recents') || '[]');
+  const starred = JSON.parse(localStorage.getItem('notamai_starred') || '[]');
+  const starredList = document.getElementById('starredList');
+  const recentsList = document.getElementById('recentsList');
+  if (!starredList || !recentsList) return;
+  starredList.innerHTML = '';
+  if (starred.length === 0) {
+    starredList.innerHTML = '<div style="padding:6px 8px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">No starred briefings</div>';
+  } else {
+    starred.forEach(item => starredList.appendChild(renderSidebarItem(item, true)));
+  }
+  recentsList.innerHTML = '';
+  if (recents.length === 0) {
+    recentsList.innerHTML = '<div style="padding:6px 8px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">No recent briefings</div>';
+  } else {
+    recents.forEach(item => recentsList.appendChild(renderSidebarItem(item, false)));
+  }
+}
+
+function toggleStar(e, id) {
+  e.stopPropagation();
+  const recents = JSON.parse(localStorage.getItem('notamai_recents') || '[]');
+  const starred = JSON.parse(localStorage.getItem('notamai_starred') || '[]');
+  const item = recents.find(r => r.id === id) || starred.find(r => r.id === id);
+  if (!item) return;
+  const isStarred = starred.some(r => r.id === id);
+  if (isStarred) {
+    localStorage.setItem('notamai_starred', JSON.stringify(starred.filter(r => r.id !== id)));
+  } else {
+    if (starred.length >= 3) { alert('Maximum 3 starred briefings allowed.'); return; }
+    starred.unshift(item);
+    localStorage.setItem('notamai_starred', JSON.stringify(starred));
+  }
+  renderSidebarHistory();
+}
+
+function deleteBriefing(e, id) {
+  e.stopPropagation();
+  const recents = JSON.parse(localStorage.getItem('notamai_recents') || '[]');
+  localStorage.setItem('notamai_recents', JSON.stringify(recents.filter(r => r.id !== id)));
+  renderSidebarHistory();
+}
+
 firebase.auth().onAuthStateChanged(user => {
   const sidebar = document.getElementById('appSidebar');
   const navbar  = document.getElementById('mainNavbar');
@@ -1972,6 +2057,7 @@ firebase.auth().onAuthStateChanged(user => {
 
     greetingName = 'Cpt. ' + name;
     setGreeting();
+    renderSidebarHistory();
   } else {
     sidebar.style.display = 'none';
     if (navbar) navbar.style.display = 'flex';
@@ -2803,10 +2889,16 @@ function pricing_toggleBilling() {
       <span class="sidebar-text">Settings</span>
     </div>
 
-    <!-- RECENT SECTION -->
-    <div class="sidebar-text" style="padding:16px 16px 4px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-top:8px;">RECENT</div>
-    <div id="recentBriefings" style="padding:0 8px;">
-      <div class="sidebar-text" style="padding:8px;font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;text-align:center;">No recent briefings</div>
+    <!-- STARRED SECTION -->
+    <div class="sidebar-text" style="padding:4px 8px;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;padding:8px 8px 4px;">STARRED</div>
+      <div id="starredList"></div>
+    </div>
+
+    <!-- RECENTS SECTION -->
+    <div class="sidebar-text" style="padding:4px 8px;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;padding:8px 8px 4px;">RECENTS</div>
+      <div id="recentsList"></div>
     </div>
 
   </div>
