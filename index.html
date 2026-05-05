@@ -1472,6 +1472,7 @@ async function handleSend() {
   const content = document.getElementById('resultContent');
 
   overlay.classList.add('open');
+  overlay.scrollTop = 0;
   document.getElementById('mainNavbar').style.display = 'none';
   loading.style.display = 'flex';
   content.style.display = 'none';
@@ -1568,6 +1569,7 @@ async function handleSend() {
             content.innerHTML = htmlHead + final + htmlFoot;
             loading.style.display = 'none';
             content.style.display = 'block';
+            overlay.scrollTop = 0;
             status.textContent = label + ' — COMPLETE';
             appendBriefingActions(content);
             // Save to Firestore and reload history
@@ -1729,10 +1731,7 @@ function briefingFeedback(type) {
 }
 
 function retryBriefing() {
-  const content = document.getElementById('resultContent');
-  if (!content) return;
-  content.scrollTo({ top: 0, behavior: 'smooth' });
-  const overlay = document.getElementById('resultOverlay') || content.closest('.result-overlay');
+  const overlay = document.getElementById('resultOverlay');
   if (overlay) overlay.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -2080,6 +2079,7 @@ function renderSidebarItem(item, isStarred) {
       const loading = document.getElementById('loadingState');
       const status  = document.getElementById('resultStatus');
       overlay.classList.add('open');
+      overlay.scrollTop = 0;
       loading.style.display = 'none';
       content.style.display = 'block';
       content.innerHTML = cachedHtml;
