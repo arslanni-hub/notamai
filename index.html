@@ -2005,7 +2005,7 @@ function renderSidebarItem(item, isStarred) {
   const colors = { CRITICAL: '#e63946', HIGH: '#f4841a', MEDIUM: '#f2c641', LOW: '#2ec4b6' };
   const dot = `<div style="width:6px;height:6px;border-radius:50%;background:${colors[item.riskLevel] || '#4a5f72'};flex-shrink:0;"></div>`;
   const text = `<span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.route}</span>`;
-  const menuBtn = `<button class="item-menu-btn" onclick="toggleItemMenu(event,${item.id},${isStarred})" style="background:none;border:none;cursor:pointer;color:#4a5f72;padding:2px 4px;opacity:0;transition:opacity 0.15s;font-size:16px;line-height:1;border-radius:4px;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">···</button>`;
+  const menuBtn = `<button class="item-menu-btn" onclick="event.stopPropagation(); toggleItemMenu(event,'${item.id}',${isStarred})" style="background:none;border:none;cursor:pointer;color:#4a5f72;padding:2px 4px;opacity:0;transition:opacity 0.15s;font-size:16px;line-height:1;border-radius:4px;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">···</button>`;
   div.innerHTML = dot + text + menuBtn;
   div.addEventListener('click', function(e) {
     if (e.target.closest('button') || e.target.closest('.item-menu-btn')) return;
@@ -2181,11 +2181,11 @@ function handleItemMenuAction(action) {
   const recents = JSON.parse(localStorage.getItem('notamai_recents') || '[]');
   const starred = JSON.parse(localStorage.getItem('notamai_starred') || '[]');
   if (action === 'delete') {
-    localStorage.setItem('notamai_recents', JSON.stringify(recents.filter(r => r.id !== activeMenuItemId)));
-    localStorage.setItem('notamai_starred', JSON.stringify(starred.filter(r => r.id !== activeMenuItemId)));
+    localStorage.setItem('notamai_recents', JSON.stringify(recents.filter(r => r.id != activeMenuItemId)));
+    localStorage.setItem('notamai_starred', JSON.stringify(starred.filter(r => r.id != activeMenuItemId)));
     renderSidebarHistory();
   } else if (action === 'star') {
-    const item = recents.find(r => r.id === activeMenuItemId);
+    const item = recents.find(r => r.id == activeMenuItemId);
     if (item) {
       if (starred.length >= 3) { alert('Maximum 3 starred briefings.'); return; }
       starred.unshift(item);
@@ -2193,17 +2193,17 @@ function handleItemMenuAction(action) {
       renderSidebarHistory();
     }
   } else if (action === 'unstar') {
-    localStorage.setItem('notamai_starred', JSON.stringify(starred.filter(r => r.id !== activeMenuItemId)));
+    localStorage.setItem('notamai_starred', JSON.stringify(starred.filter(r => r.id != activeMenuItemId)));
     renderSidebarHistory();
   } else if (action === 'rename') {
-    const item = recents.find(r => r.id === activeMenuItemId) || starred.find(r => r.id === activeMenuItemId);
+    const item = recents.find(r => r.id == activeMenuItemId) || starred.find(r => r.id == activeMenuItemId);
     if (item) {
       const newName = prompt('Rename briefing:', item.route);
       if (newName && newName.trim()) {
         item.route = newName.trim();
-        const rIdx = recents.findIndex(r => r.id === activeMenuItemId);
+        const rIdx = recents.findIndex(r => r.id == activeMenuItemId);
         if (rIdx > -1) recents[rIdx] = item;
-        const sIdx = starred.findIndex(r => r.id === activeMenuItemId);
+        const sIdx = starred.findIndex(r => r.id == activeMenuItemId);
         if (sIdx > -1) starred[sIdx] = item;
         localStorage.setItem('notamai_recents', JSON.stringify(recents));
         localStorage.setItem('notamai_starred', JSON.stringify(starred));
