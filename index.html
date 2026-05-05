@@ -1813,18 +1813,20 @@ const db = firebase.firestore();
 const briefingCache = {};
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
+firebase.auth().getRedirectResult().then(result => {
+  if (result.user) {
+    closeLoginModal();
+    closeSignupModal();
+  }
+}).catch(e => console.error(e));
+
 async function signInWithGoogle() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    await firebase.auth().signInWithPopup(provider);
-    closeLoginModal();
-    closeSignupModal();
+    await firebase.auth().signInWithRedirect(provider);
   } catch(e) {
-    if (e.code !== 'auth/cancelled-popup-request' && e.code !== 'auth/popup-closed-by-user') {
-      console.error(e);
-      alert('Sign in failed: ' + e.message);
-    }
+    console.error(e);
   }
 }
 
