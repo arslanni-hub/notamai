@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upgrade — NOTAM Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #060a0f;
+  --bg2: #0d1520;
+  --border: #1a2a3a;
+  --blue: #4a9eff;
+  --orange: #f4841a;
+  --text: #cdd9e5;
+  --text-dim: #8a9bb0;
+  --text-muted: #4a5f72;
+  --head: 'Orbitron', sans-serif;
+  --body: 'Rajdhani', sans-serif;
+  --mono: 'Share Tech Mono', monospace;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+/* ═══ PAGE ═══ */
+.page {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 40px 32px 100px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ═══ PRICING GRID ═══ */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  max-width: 1100px;
+  margin: 60px auto 0;
+}
+
+.pricing-card {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 32px 24px 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  min-height: 16px;
+}
+
+.card-name {
+  font-family: var(--head);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.card-price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.price-amount {
+  font-family: var(--head);
+  font-size: 42px;
+  font-weight: 900;
+  line-height: 1;
+}
+.price-period {
+  font-family: var(--body);
+  font-size: 16px;
+  color: var(--text-dim);
+}
+
+.card-subtitle {
+  font-family: var(--body);
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 24px;
+}
+
+.features-list {
+  list-style: none;
+  flex: 1;
+  margin-bottom: 28px;
+}
+.features-list li {
+  font-family: var(--body);
+  font-size: 14px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(26,42,58,0.6);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.4;
+}
+.features-list li:last-child { border-bottom: none; }
+.feat-check { flex-shrink: 0; font-size: 13px; margin-top: 1px; }
+.feat-on { color: var(--text); }
+.feat-off { color: var(--text-muted); }
+
+/* FOOTER */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 40px 32px;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .pricing-grid { grid-template-columns: 1fr; }
+}
+
+/* ═══ COCKPIT BACKGROUND ═══ */
+#scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+canvas#sky {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+}
+.cockpit-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(2,8,18,0.95) 0%, transparent 100%),
+    radial-gradient(ellipse 20% 80% at 0% 50%, rgba(2,8,18,0.8) 0%, transparent 60%),
+    radial-gradient(ellipse 20% 80% at 100% 50%, rgba(2,8,18,0.8) 0%, transparent 60%),
+    radial-gradient(ellipse 100% 30% at 50% 0%, rgba(0,5,16,0.6) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+.cockpit-frame {
+  position: absolute;
+  inset: 0;
+  border: 28px solid #040810;
+  border-radius: 12px;
+  box-shadow: inset 0 0 60px rgba(0,0,0,0.9), inset 0 0 0 2px rgba(74,158,255,0.06);
+  pointer-events: none;
+  z-index: 3;
+}
+.cockpit-scanline {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px);
+  pointer-events: none;
+  z-index: 4;
+}
+.cockpit-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.hud-tl, .hud-tr, .hud-bl, .hud-br {
+  position: absolute;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: rgba(74,158,255,0.45);
+  line-height: 1.8;
+}
+.hud-tl { top: 44px; left: 44px; }
+.hud-tr { top: 44px; right: 44px; text-align: right; }
+.hud-bl { bottom: 44px; left: 44px; }
+.hud-br { bottom: 44px; right: 44px; text-align: right; }
+.horizon-line {
+  position: absolute;
+  top: 50%;
+  left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(74,158,255,0.25) 20%, rgba(74,158,255,0.15) 80%, transparent);
+  transform: translateY(-50%);
+}
+.crosshair {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px; height: 40px;
+}
+.crosshair::before, .crosshair::after {
+  content: '';
+  position: absolute;
+  background: rgba(74,158,255,0.3);
+}
+.crosshair::before { width: 1px; height: 100%; top: 0; left: 50%; }
+.crosshair::after  { width: 100%; height: 1px; top: 50%; left: 0; }
+.alt-tape {
+  position: absolute;
+  right: 44px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: rgba(74,158,255,0.35);
+  letter-spacing: 1px;
+}
+</style>
+</head>
+<body>
+
+<!-- COCKPIT BACKGROUND -->
+<div id="scene">
+  <canvas id="sky"></canvas>
+  <div class="cockpit-vignette"></div>
+  <div class="cockpit-frame"></div>
+  <div class="cockpit-scanline"></div>
+  <div class="cockpit-hud">
+    <div class="hud-tl">ALT <span id="altVal">35000</span> FT<br>SPD <span id="spdVal">480</span> KTS<br>HDG <span id="hdgVal">270</span>°</div>
+    <div class="hud-tr"><span id="hudTime">--:-- UTC</span><br><span id="hudDate">-- --- ----</span><br>AIRAC CURRENT</div>
+    <div class="hud-bl">GS <span id="gsVal">491</span> KTS<br>OAT <span id="oatVal">-56</span>°C<br>FL350</div>
+    <div class="hud-br">NOTAM INTEL v1.0<br>ICAO ANNEX 15<br>PANS-AIM DOC 10066</div>
+    <div class="horizon-line"></div>
+    <div class="crosshair"></div>
+    <div class="alt-tape"><span>360</span><span>355</span><span>350</span><span style="color:rgba(74,158,255,0.7);font-weight:bold">▶ 350</span><span>345</span><span>340</span><span>335</span></div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- TRIAL BANNER -->
+  <div style="background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);border-radius:4px;padding:12px 24px;text-align:center;font-family:'Rajdhani',sans-serif;font-size:14px;color:#4a9eff;margin-bottom:40px;">
+    All paid plans include a 7-day free trial. Cancel anytime before day 7 and you won't be charged.
+  </div>
+
+  <!-- BILLING TOGGLE -->
+  <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:32px;">
+    <span id="monthlyLabel" style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:2px;color:#cdd9e5;">MONTHLY</span>
+    <div id="billingToggle" onclick="pricing_toggleBilling()" style="width:52px;height:28px;background:#1a2a3a;border-radius:14px;position:relative;cursor:pointer;border:1px solid #22384f;transition:background 0.3s;">
+      <div id="toggleDot" style="width:22px;height:22px;background:#4a9eff;border-radius:50%;position:absolute;top:2px;left:2px;transition:left 0.3s;"></div>
+    </div>
+    <span id="yearlyLabel" style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:2px;color:#4a5f72;">YEARLY</span>
+    <span id="saveBadge" style="display:none;background:rgba(46,196,182,0.15);color:#2ec4b6;border:1px solid #0e5a54;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:2px;">SAVE 15%</span>
+  </div>
+
+  <!-- PRICING CARDS -->
+  <div class="pricing-grid">
+
+    <!-- FREE -->
+    <div class="pricing-card" style="border: 1px solid #1a2a3a;">
+      <div class="card-badge"></div>
+      <div class="card-name">Free</div>
+      <div class="card-price">
+        <span class="price-amount" style="color:#ffffff;">$0</span>
+        <span class="price-period">/month</span>
+      </div>
+      <div class="card-subtitle">Try before you commit</div>
+      <button style="width:100%;padding:8px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#4a9eff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:default;margin-bottom:24px;">✓ CURRENT PLAN</button>
+      <ul class="features-list">
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Unlimited NOTAM/METAR decode (paste raw text)</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">1 full AI briefing included</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Basic risk assessment</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">Live NOTAM auto-fetch</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">Route analysis DEP → ARR</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">Go/No-Go recommendation</span></li>
+      </ul>
+    </div>
+
+    <!-- PRO -->
+    <div class="pricing-card" style="border: 1px solid #4a9eff;">
+      <div class="card-badge" style="color:#4a9eff;">MOST POPULAR</div>
+      <div class="card-name">Pro</div>
+      <div class="card-price">
+        <span class="price-amount" id="proPrice" data-monthly="49" data-yearly="42" style="color:#4a9eff;">$49</span>
+        <span class="price-period" id="proPeriod">/month</span>
+      </div>
+      <div id="pricing_proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
+      <div class="card-subtitle">For active pilots &amp; dispatchers</div>
+      <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;margin-bottom:24px;">UPGRADE TO PRO →</button>
+      <ul class="features-list">
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Free</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Unlimited full AI briefings</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Live NOTAM auto-fetch</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Route analysis (DEP → ARR)</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Risk scoring CRITICAL/HIGH/MEDIUM/LOW</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Compounding risk matrix</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Go/No-Go recommendation</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Pilot action items &amp; dispatch notes</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">AI Video Briefing</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">Favorite routes &amp; history</span></li>
+      </ul>
+    </div>
+
+    <!-- PREMIUM -->
+    <div class="pricing-card" style="border: 1px solid #f4841a;">
+      <div class="card-badge" style="color:#f4841a;">BEST VALUE</div>
+      <div class="card-name">Premium</div>
+      <div class="card-price">
+        <span class="price-amount" id="premiumPrice" data-monthly="99" data-yearly="84" style="color:#f4841a;">$99</span>
+        <span class="price-period" id="premiumPeriod">/month</span>
+      </div>
+      <div id="pricing_premiumNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
+      <div class="card-subtitle">For aviation professionals</div>
+      <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;margin-bottom:24px;">UPGRADE TO PREMIUM →</button>
+      <ul class="features-list">
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Pro</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">AI Video Briefing</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">PDF export &amp; share link</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Email NOTAM alerts</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Favorite routes &amp; history</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">NOTAM number search</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Priority support</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">API access</span></li>
+        <li><span class="feat-check feat-off">✗</span><span class="feat-off">Multi-user access</span></li>
+      </ul>
+    </div>
+
+    <!-- ENTERPRISE -->
+    <div class="pricing-card" style="border: 1px solid #1a2a3a;">
+      <div class="card-badge"></div>
+      <div class="card-name">Enterprise</div>
+      <div class="card-price">
+        <span class="price-amount" style="color:#ffffff;">$499</span>
+        <span class="price-period">/month</span>
+      </div>
+      <div class="card-subtitle">For airlines &amp; operations centers</div>
+      <button onclick="window.location.href='mailto:hello@notamai.com'" style="width:100%;padding:8px;background:rgba(255,255,255,0.06);border:1px solid #1a2a3a;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;margin-bottom:24px;">CONTACT SALES →</button>
+      <ul class="features-list">
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Premium</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Full API access</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Multi-user &amp; team management</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Custom integrations</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Dedicated account manager</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">SLA guarantee</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Custom onboarding</span></li>
+      </ul>
+    </div>
+
+  </div>
+
+</div>
+
+<footer style="position:relative;z-index:2;margin-top:20px;padding:32px 24px;text-align:center;border-top:1px solid rgba(26,42,58,0.6);">
+  <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;margin-bottom:8px;">© 2026 NOTAM Intelligence. All rights reserved.</div>
+  <div>
+    <a href="/privacy" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;text-decoration:none;letter-spacing:1px;margin:0 16px;">Privacy Policy</a>
+    <a href="/terms" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;text-decoration:none;letter-spacing:1px;margin:0 16px;">Terms of Service</a>
+  </div>
+</footer>
+
+<script>
+let isYearly = false;
+function pricing_toggleBilling() {
+  isYearly = !isYearly;
+  const dot = document.getElementById('toggleDot');
+  const toggle = document.getElementById('billingToggle');
+  const badge = document.getElementById('saveBadge');
+  const monthlyLabel = document.getElementById('monthlyLabel');
+  const yearlyLabel = document.getElementById('yearlyLabel');
+  if (isYearly) {
+    dot.style.left = '28px';
+    toggle.style.background = '#4a9eff';
+    badge.style.display = 'inline-block';
+    monthlyLabel.style.color = '#4a5f72';
+    yearlyLabel.style.color = '#cdd9e5';
+    document.getElementById('proPrice').textContent = '42';
+    document.getElementById('premiumPrice').textContent = '84';
+    document.getElementById('pricing_proNote').innerHTML = '$504/year · <span style="color:#2ec4b6;font-weight:700;">Save $108</span>';
+    document.getElementById('pricing_premiumNote').innerHTML = '$1,008/year · <span style="color:#2ec4b6;font-weight:700;">Save $180</span>';
+  } else {
+    dot.style.left = '2px';
+    toggle.style.background = '#1a2a3a';
+    badge.style.display = 'none';
+    monthlyLabel.style.color = '#cdd9e5';
+    yearlyLabel.style.color = '#4a5f72';
+    document.getElementById('proPrice').textContent = '49';
+    document.getElementById('premiumPrice').textContent = '99';
+    document.getElementById('pricing_proNote').textContent = '7-day free trial · Cancel anytime';
+    document.getElementById('pricing_premiumNote').textContent = '7-day free trial · Cancel anytime';
+  }
+}
+</script>
+
+<script>
+/* ═══ COCKPIT SKY ANIMATION ═══ */
+(function() {
+  const canvas = document.getElementById('sky');
+  const ctx = canvas.getContext('2d');
+  let W, H, stars = [], clouds = [], planes = [], t = 0;
+
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; initScene(); }
+
+  function initScene() {
+    stars = Array.from({length: 220}, () => ({ x: Math.random()*W, y: Math.random()*H*0.65, r: Math.random()*1.4+0.2, a: Math.random()*0.6+0.2, twinkle: Math.random()*Math.PI*2 }));
+    clouds = Array.from({length: 8}, (_, i) => ({ x: (i/8)*W*1.5, y: H*0.3+Math.random()*H*0.25, w: 120+Math.random()*200, h: 18+Math.random()*28, speed: 0.06+Math.random()*0.1, alpha: 0.03+Math.random()*0.07, layers: 2+Math.floor(Math.random()*2) }));
+    planes = [];
+    for (let i = 0; i < 2; i++) spawnPlane(true);
+  }
+
+  function spawnPlane(init) {
+    const dir = Math.random() > 0.5 ? 1 : -1;
+    planes.push({ x: init ? Math.random()*W : (dir===1 ? -120 : W+120), y: H*0.08+Math.random()*H*0.45, spd: 0.3+Math.random()*0.5, dir, size: 0.5+Math.random()*0.6, trail: [], blink: 0 });
+  }
+
+  function skyGrad() {
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#000408'); g.addColorStop(0.4,'#010918'); g.addColorStop(0.7,'#021428'); g.addColorStop(0.88,'#041c38'); g.addColorStop(1,'#030c1c');
+    return g;
+  }
+
+  function drawHorizonGlow() {
+    const hy = H*0.62, g = ctx.createRadialGradient(W/2,hy,0,W/2,hy,W*0.6);
+    g.addColorStop(0,'rgba(20,60,120,0.18)'); g.addColorStop(0.4,'rgba(10,30,70,0.08)'); g.addColorStop(1,'transparent');
+    ctx.fillStyle = g; ctx.fillRect(0, hy-80, W, 160);
+  }
+
+  function drawCloud(c) {
+    ctx.save();
+    for (let l = 0; l < c.layers; l++) {
+      ctx.beginPath(); ctx.ellipse(c.x+l*20-10, c.y+l*-6, c.w*(0.7+l*0.15), c.h*(0.5+l*0.2), 0, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(80,130,200,${c.alpha*(1-l*0.3)})`; ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawPlane(p) {
+    p.trail.push({x:p.x,y:p.y}); if (p.trail.length > 55) p.trail.shift();
+    for (let i = 1; i < p.trail.length; i++) {
+      const pct = i/p.trail.length, w = pct*2.5*p.size;
+      ctx.beginPath(); ctx.moveTo(p.trail[i-1].x,p.trail[i-1].y-1); ctx.lineTo(p.trail[i].x,p.trail[i].y-1);
+      ctx.strokeStyle=`rgba(180,210,255,${pct*0.18})`; ctx.lineWidth=w; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p.trail[i-1].x,p.trail[i-1].y+1); ctx.lineTo(p.trail[i].x,p.trail[i].y+1);
+      ctx.strokeStyle=`rgba(160,200,255,${pct*0.12})`; ctx.lineWidth=w*0.5; ctx.stroke();
+    }
+    ctx.save(); ctx.translate(p.x,p.y); ctx.scale(p.dir,1); const s=p.size*7;
+    ctx.fillStyle='rgba(210,228,255,0.88)';
+    ctx.beginPath(); ctx.ellipse(0,0,s*2.2,s*0.38,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(s*1.8,0,s*0.6,s*0.28,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-s*0.3,0); ctx.lineTo(s*0.5,-s*1.1); ctx.lineTo(s*1.0,-s*0.15); ctx.lineTo(s*0.7,s*0.05); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-s*1.6,0); ctx.lineTo(-s*1.2,-s*0.65); ctx.lineTo(-s*0.8,-s*0.05); ctx.fill();
+    ctx.restore();
+    p.blink=(p.blink+0.05)%(Math.PI*2); const on=Math.sin(p.blink)>0;
+    ctx.beginPath(); ctx.arc(p.x+p.dir*p.size*8,p.y-p.size*7.5,1.2,0,Math.PI*2); ctx.fillStyle=on?'rgba(255,80,80,0.9)':'rgba(255,80,80,0.1)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x-p.dir*p.size*8,p.y-p.size*7.5,1.2,0,Math.PI*2); ctx.fillStyle=on?'rgba(80,80,80,0.1)':'rgba(80,255,80,0.9)'; ctx.fill();
+  }
+
+  function animate() {
+    requestAnimationFrame(animate); t++;
+    ctx.clearRect(0,0,W,H); ctx.fillStyle=skyGrad(); ctx.fillRect(0,0,W,H);
+    drawHorizonGlow();
+    stars.forEach(s => { s.twinkle+=0.02; const a=s.a+Math.sin(s.twinkle)*0.2; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fillStyle=`rgba(180,210,255,${Math.max(0,a)})`; ctx.fill(); });
+    clouds.forEach(c => { c.x+=c.speed; if(c.x>W+300) c.x=-300; drawCloud(c); });
+    planes.forEach((p,i) => { p.x+=p.spd*p.dir; if((p.dir===1&&p.x>W+150)||(p.dir===-1&&p.x<-150)){planes.splice(i,1);setTimeout(()=>spawnPlane(),4000+Math.random()*12000);} drawPlane(p); });
+  }
+
+  function updateHUD() {
+    const now=new Date(), hh=String(now.getUTCHours()).padStart(2,'0'), mm=String(now.getUTCMinutes()).padStart(2,'0'), ss=String(now.getUTCSeconds()).padStart(2,'0');
+    document.getElementById('hudTime').textContent=`${hh}:${mm}:${ss} UTC`;
+    const months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    document.getElementById('hudDate').textContent=`${String(now.getUTCDate()).padStart(2,'0')} ${months[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
+    const drift=Math.round(Math.sin(Date.now()*0.0003)*30);
+    document.getElementById('altVal').textContent=(35000+drift).toLocaleString();
+    document.getElementById('spdVal').textContent=480+Math.round(Math.sin(Date.now()*0.0005)*4);
+    document.getElementById('gsVal').textContent=491+Math.round(Math.sin(Date.now()*0.0004)*5);
+  }
+
+  window.addEventListener('resize', resize);
+  resize(); animate(); updateHUD(); setInterval(updateHUD, 1000);
+})();
+</script>
+
+</body>
+</html>
