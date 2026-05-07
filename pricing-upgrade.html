@@ -59,6 +59,65 @@ canvas#sky {
   min-height: 100vh;
 }
 
+/* ═══ HUD ═══ */
+.hud {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.hud-tl, .hud-tr, .hud-bl, .hud-br {
+  position: absolute;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: rgba(74,158,255,0.45);
+  line-height: 1.8;
+}
+.hud-tl { top: 44px; left: 44px; }
+.hud-tr { top: 44px; right: 44px; text-align: right; }
+.hud-bl { bottom: 44px; left: 44px; }
+.hud-br { bottom: 44px; right: 44px; text-align: right; }
+.horizon-line {
+  position: absolute;
+  top: 50%; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(74,158,255,0.25) 20%, rgba(74,158,255,0.15) 80%, transparent);
+  transform: translateY(-50%);
+}
+.crosshair {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px; height: 40px;
+}
+.crosshair::before, .crosshair::after {
+  content: '';
+  position: absolute;
+  background: rgba(74,158,255,0.3);
+}
+.crosshair::before { width: 1px; height: 100%; top: 0; left: 50%; }
+.crosshair::after  { width: 100%; height: 1px; top: 50%; left: 0; }
+.alt-tape {
+  position: absolute;
+  right: 44px; top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  color: rgba(74,158,255,0.35);
+  letter-spacing: 1px;
+}
+.scanline {
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px);
+  pointer-events: none;
+  z-index: 4;
+}
+
 /* ═══ CARDS ═══ */
 .pricing-grid {
   display: grid;
@@ -85,6 +144,37 @@ canvas#sky {
   <canvas id="sky"></canvas>
   <div class="cockpit-vignette"></div>
   <div class="cockpit-frame"></div>
+  <div class="scanline"></div>
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud-tl">
+      ALT <span id="altVal">35000</span> FT<br>
+      SPD <span id="spdVal">480</span> KTS<br>
+      HDG <span id="hdgVal">270</span>&deg;
+    </div>
+    <div class="hud-tr">
+      <span id="hudTime">--:-- UTC</span><br>
+      <span id="hudDate">-- --- ----</span><br>
+      AIRAC CURRENT
+    </div>
+    <div class="hud-bl">
+      GS <span id="gsVal">491</span> KTS<br>
+      OAT <span id="oatVal">-56</span>&deg;C<br>
+      FL350
+    </div>
+    <div class="hud-br">
+      NOTAM INTEL v1.0<br>
+      ICAO ANNEX 15<br>
+      PANS-AIM DOC 10066
+    </div>
+    <div class="horizon-line"></div>
+    <div class="crosshair"></div>
+    <div class="alt-tape">
+      <span>360</span><span>355</span><span>350</span>
+      <span style="color:rgba(74,158,255,0.7);font-weight:bold">&#9654; 350</span>
+      <span>345</span><span>340</span><span>335</span>
+    </div>
+  </div>
 </div>
 
 <!-- BACK BUTTON -->
@@ -393,6 +483,25 @@ function animate() {
 window.addEventListener('resize', resize);
 resize();
 animate();
+
+/* ═══ HUD ═══ */
+function updateHUD() {
+  const now = new Date();
+  const hh = String(now.getUTCHours()).padStart(2,'0');
+  const mm = String(now.getUTCMinutes()).padStart(2,'0');
+  const ss = String(now.getUTCSeconds()).padStart(2,'0');
+  document.getElementById('hudTime').textContent = `${hh}:${mm}:${ss} UTC`;
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  document.getElementById('hudDate').textContent =
+    `${String(now.getUTCDate()).padStart(2,'0')} ${months[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
+  const base = 35000;
+  const drift = Math.round(Math.sin(Date.now() * 0.0003) * 30);
+  document.getElementById('altVal').textContent = (base + drift).toLocaleString();
+  document.getElementById('spdVal').textContent = 480 + Math.round(Math.sin(Date.now() * 0.0005) * 4);
+  document.getElementById('gsVal').textContent  = 491 + Math.round(Math.sin(Date.now() * 0.0004) * 5);
+}
+updateHUD();
+setInterval(updateHUD, 1000);
 
 /* ═══ BILLING TOGGLE ═══ */
 let isYearly = false;
