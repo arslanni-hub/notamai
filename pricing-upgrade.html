@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Upgrade · NOTAM Intelligence</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
@@ -213,11 +216,12 @@ canvas#sky {
 
       <!-- FREE -->
       <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:28px 20px;min-height:520px;">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">CURRENT PLAN</div>
+        <div id="current_free" style="display:none;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;margin-bottom:6px;">&#9679; CURRENT PLAN</div>
+        <div id="badge_free" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">CURRENT PLAN</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Free</div>
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#fff;">$0</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#8a9bb0;padding-bottom:48px;">Try before you commit</div>
-        <button style="width:100%;padding:8px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:default;">&#10003; CURRENT PLAN</button>
+        <button id="btn_free" style="width:100%;padding:8px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:default;">&#10003; CURRENT PLAN</button>
         <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
         <ul style="list-style:none;padding:0;margin:0;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">&#10003;</span><span style="color:#cdd9e5;">Unlimited NOTAM/METAR decode</span></li>
@@ -231,12 +235,13 @@ canvas#sky {
 
       <!-- PRO -->
       <div style="background:#0d1520;border:1px solid #4a9eff;border-radius:8px;padding:28px 20px;min-height:520px;">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a9eff;letter-spacing:2px;margin-bottom:8px;">MOST POPULAR</div>
+        <div id="current_pro" style="display:none;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;margin-bottom:6px;">&#9679; CURRENT PLAN</div>
+        <div id="badge_pro" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a9eff;letter-spacing:2px;margin-bottom:8px;">MOST POPULAR</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Pro</div>
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="proPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#4a9eff;display:inline-block;min-width:60px;">$49</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div id="proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;min-height:20px;">7-day free trial &middot; Cancel anytime</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For active pilots &amp; dispatchers</div>
-        <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PRO &rarr;</button>
+        <button id="btn_pro" onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PRO &rarr;</button>
         <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
         <ul style="list-style:none;padding:0;margin:0;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">&#10003;</span><span style="color:#cdd9e5;">Everything in Free</span></li>
@@ -254,12 +259,13 @@ canvas#sky {
 
       <!-- PREMIUM -->
       <div style="background:#0d1520;border:1px solid #f4841a;border-radius:8px;padding:28px 20px;min-height:520px;">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:2px;margin-bottom:8px;">BEST VALUE</div>
+        <div id="current_premium" style="display:none;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;margin-bottom:6px;">&#9679; CURRENT PLAN</div>
+        <div id="badge_premium" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:2px;margin-bottom:8px;">BEST VALUE</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Premium</div>
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="premiumPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#f4841a;display:inline-block;min-width:60px;">$99</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div id="premiumNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;min-height:20px;">7-day free trial &middot; Cancel anytime</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For aviation professionals</div>
-        <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PREMIUM &rarr;</button>
+        <button id="btn_premium" onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PREMIUM &rarr;</button>
         <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
         <ul style="list-style:none;padding:0;margin:0;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">&#10003;</span><span style="color:#cdd9e5;">Everything in Pro</span></li>
@@ -276,12 +282,13 @@ canvas#sky {
 
       <!-- ENTERPRISE -->
       <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:28px 20px;min-height:520px;">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">&nbsp;</div>
+        <div id="current_enterprise" style="display:none;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;margin-bottom:6px;">&#9679; CURRENT PLAN</div>
+        <div id="badge_enterprise" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">&nbsp;</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Enterprise</div>
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#fff;">$499</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">&nbsp;</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;padding-bottom:22px;">For airlines &amp; operations centers</div>
-        <button onclick="window.location.href='mailto:hello@notamai.com'" style="width:100%;padding:8px;background:rgba(255,255,255,0.06);border:1px solid #1a2a3a;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">CONTACT SALES &rarr;</button>
+        <button id="btn_enterprise" onclick="window.location.href='mailto:hello@notamai.com'" style="width:100%;padding:8px;background:rgba(255,255,255,0.06);border:1px solid #1a2a3a;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">CONTACT SALES &rarr;</button>
         <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
         <ul style="list-style:none;padding:0;margin:0;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">&#10003;</span><span style="color:#cdd9e5;">Everything in Premium</span></li>
@@ -310,6 +317,50 @@ canvas#sky {
 </div><!-- end pageContent -->
 
 <script>
+/* ═══ FIREBASE ═══ */
+const firebaseConfig = {
+  apiKey: "AIzaSyCH8bj9-775vmXU1HnqRFjf09g1yUXvnpo",
+  authDomain: "notamai-a9d57.firebaseapp.com",
+  projectId: "notamai-a9d57",
+  storageBucket: "notamai-a9d57.firebasestorage.app",
+  messagingSenderId: "793570221190",
+  appId: "1:793570221190:web:aab696c96dbde26d9f4507"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+async function detectAndApplyPlan() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  try {
+    const doc = await db.collection('users').doc(user.uid).get();
+    const plan = doc.exists ? (doc.data().plan || 'free') : 'free';
+    ['free', 'pro', 'premium', 'enterprise'].forEach(p => {
+      const currentLabel = document.getElementById('current_' + p);
+      const btn = document.getElementById('btn_' + p);
+      if (currentLabel) currentLabel.style.display = 'none';
+      if (p === plan) {
+        if (currentLabel) currentLabel.style.display = 'block';
+        if (btn) {
+          btn.textContent = '\u2713 CURRENT PLAN';
+          btn.style.background = 'rgba(255,255,255,0.04)';
+          btn.style.border = '1px solid #1a2a3a';
+          btn.style.color = '#4a5f72';
+          btn.style.cursor = 'default';
+          btn.onclick = null;
+        }
+      }
+    });
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+firebase.auth().onAuthStateChanged(user => {
+  if (user) detectAndApplyPlan();
+});
+
 /* ═══ COCKPIT CANVAS ANIMATION ═══ */
 const canvas = document.getElementById('sky');
 const ctx = canvas.getContext('2d');

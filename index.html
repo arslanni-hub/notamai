@@ -2063,6 +2063,29 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+async function updateUserPlan(plan) {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  await db.collection('users').doc(user.uid).set({
+    plan: plan,
+    email: user.email,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+}
+
+async function loadUserPlan(uid) {
+  try {
+    const doc = await db.collection('users').doc(uid).get();
+    const plan = doc.exists ? (doc.data().plan || 'free') : 'free';
+    const planEl = document.getElementById('sidebarPlan');
+    if (planEl) planEl.textContent = plan.toUpperCase();
+    window.currentUserPlan = plan;
+    return plan;
+  } catch(e) {
+    return 'free';
+  }
+}
 const briefingCache = {};
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
@@ -2379,6 +2402,7 @@ firebase.auth().onAuthStateChanged(user => {
     greetingName = 'Cpt. ' + name;
     setGreeting();
     loadBriefingHistory();
+    loadUserPlan(user.uid);
   } else {
     sidebar.style.display = 'none';
     if (navbar) navbar.style.display = 'flex';
@@ -3317,7 +3341,7 @@ function pricing_toggleBilling() {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
         <span>Referral: <span id="refCode" style="color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:11px;"></span></span>
       </div>
-      <div class="popup-item">
+      <div class="popup-item" onclick="window.location.href='/pricing-upgrade'">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         Manage Subscription
       </div>
