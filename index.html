@@ -1026,7 +1026,7 @@ body.sidebar-collapsed #resultOverlay {
     <div class="live-dot"></div>
     <div class="result-status" id="resultStatus">GENERATING BRIEFING...</div>
     <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-      <button onclick="window.open('/pricing-upgrade', '_blank')" style="display:flex;align-items:center;gap:6px;background:rgba(181,123,255,0.12);border:1px solid rgba(181,123,255,0.3);color:#b57bff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(181,123,255,0.2)'" onmouseout="this.style.background='rgba(181,123,255,0.12)'">
+      <button onclick="openUpgradeModal()" style="display:flex;align-items:center;gap:6px;background:rgba(181,123,255,0.12);border:1px solid rgba(181,123,255,0.3);color:#b57bff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(181,123,255,0.2)'" onmouseout="this.style.background='rgba(181,123,255,0.12)'">
         <span style="font-size:13px;filter:hue-rotate(200deg) saturate(2);">✨</span>
         UPGRADE
       </button>
@@ -1056,6 +1056,119 @@ body.sidebar-collapsed #resultOverlay {
     </div>
     <div id="resultContent" style="display:none"></div>
     <div id="resultContent2" style="display:none"></div>
+  </div>
+</div>
+
+<!-- UPGRADE MODAL -->
+<div id="upgradeModal" style="display:none;position:fixed;inset:0;z-index:2000;backdrop-filter:blur(8px);background:rgba(6,10,15,0.85);overflow-y:auto;">
+  <button onclick="closeUpgradeModal()" style="position:fixed;top:20px;right:24px;background:none;border:none;color:#4a5f72;font-size:24px;cursor:pointer;z-index:2001;">✕</button>
+  <div style="max-width:1000px;margin:40px auto;padding:0 20px 60px;">
+
+    <!-- HERO -->
+    <div style="text-align:center;padding:40px 24px 32px;position:relative;z-index:2;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:3px;margin-bottom:16px;">SUBSCRIPTION PLANS</div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:36px;font-weight:900;color:#ffffff;margin-bottom:12px;">Upgrade Your Clearance</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;max-width:500px;margin:0 auto;">Unlock full AI briefing capabilities, live NOTAM data, and professional aviation intelligence tools.</div>
+    </div>
+
+    <!-- TRIAL BANNER -->
+    <div style="background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);border-radius:4px;padding:12px 24px;text-align:center;font-family:'Rajdhani',sans-serif;font-size:14px;color:#4a9eff;margin-bottom:32px;">
+      All paid plans include a 7-day free trial. Cancel anytime before day 7 and you won't be charged.
+    </div>
+
+    <!-- BILLING TOGGLE -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:32px;">
+      <span id="um_monthlyLabel" style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:2px;color:#cdd9e5;">MONTHLY</span>
+      <div id="um_billingToggle" onclick="um_toggleBilling()" style="width:52px;height:28px;background:#1a2a3a;border-radius:14px;position:relative;cursor:pointer;border:1px solid #22384f;transition:background 0.3s;">
+        <div id="um_toggleDot" style="width:22px;height:22px;background:#4a9eff;border-radius:50%;position:absolute;top:2px;left:2px;transition:left 0.3s;"></div>
+      </div>
+      <span id="um_yearlyLabel" style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:2px;color:#4a5f72;">YEARLY</span>
+      <span id="um_saveBadge" style="display:none;background:rgba(46,196,182,0.15);color:#2ec4b6;border:1px solid #0e5a54;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:2px;">SAVE 15%</span>
+    </div>
+
+    <!-- PRICING CARDS -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;">
+
+      <!-- FREE -->
+      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:28px 20px;display:flex;flex-direction:column;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">CURRENT PLAN</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Free</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#fff;">$0</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">Try before you commit</div>
+        <button style="width:100%;padding:8px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:default;margin-bottom:24px;">✓ CURRENT PLAN</button>
+        <ul style="list-style:none;flex:1;">
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Unlimited NOTAM/METAR decode</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">1 full AI briefing included</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Basic risk assessment</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Live NOTAM auto-fetch</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Route analysis DEP → ARR</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Go/No-Go recommendation</span></li>
+        </ul>
+      </div>
+
+      <!-- PRO -->
+      <div style="background:#0d1520;border:1px solid #4a9eff;border-radius:8px;padding:28px 20px;display:flex;flex-direction:column;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a9eff;letter-spacing:2px;margin-bottom:8px;">MOST POPULAR</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Pro</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="um_proPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#4a9eff;">$49</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
+        <div id="um_proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For active pilots &amp; dispatchers</div>
+        <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;margin-bottom:24px;">UPGRADE TO PRO →</button>
+        <ul style="list-style:none;flex:1;">
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Free</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Unlimited full AI briefings</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Live NOTAM auto-fetch</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Route analysis (DEP → ARR)</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Risk scoring CRITICAL/HIGH/MEDIUM/LOW</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Compounding risk matrix</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Go/No-Go recommendation</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Pilot action items &amp; dispatch notes</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">AI Video Briefing</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Favorite routes &amp; history</span></li>
+        </ul>
+      </div>
+
+      <!-- PREMIUM -->
+      <div style="background:#0d1520;border:1px solid #f4841a;border-radius:8px;padding:28px 20px;display:flex;flex-direction:column;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:2px;margin-bottom:8px;">BEST VALUE</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Premium</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="um_premiumPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#f4841a;">$99</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
+        <div id="um_premiumNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For aviation professionals</div>
+        <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;margin-bottom:24px;">UPGRADE TO PREMIUM →</button>
+        <ul style="list-style:none;flex:1;">
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Pro</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">AI Video Briefing</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">PDF export &amp; share link</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Email NOTAM alerts</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Favorite routes &amp; history</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">NOTAM number search</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Priority support</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">API access</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Multi-user access</span></li>
+        </ul>
+      </div>
+
+      <!-- ENTERPRISE -->
+      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:28px 20px;display:flex;flex-direction:column;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">&nbsp;</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Enterprise</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#fff;">$499</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">&nbsp;</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For airlines &amp; operations centers</div>
+        <button onclick="window.location.href='mailto:hello@notamai.com'" style="width:100%;padding:8px;background:rgba(255,255,255,0.06);border:1px solid #1a2a3a;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;margin-bottom:24px;">CONTACT SALES →</button>
+        <ul style="list-style:none;flex:1;">
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Premium</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Full API access</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Multi-user &amp; team management</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Custom integrations</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Dedicated account manager</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">SLA guarantee</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Custom onboarding</span></li>
+        </ul>
+      </div>
+
+    </div>
   </div>
 </div>
 
@@ -1808,6 +1921,42 @@ function closeResult() {
 
 function openModal()  { document.getElementById('videoModal').classList.add('open'); }
 function closeModal() { document.getElementById('videoModal').classList.remove('open'); }
+
+function openUpgradeModal() {
+  document.getElementById('upgradeModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+function closeUpgradeModal() {
+  document.getElementById('upgradeModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+let um_isYearly = false;
+function um_toggleBilling() {
+  um_isYearly = !um_isYearly;
+  const dot = document.getElementById('um_toggleDot');
+  const toggle = document.getElementById('um_billingToggle');
+  const badge = document.getElementById('um_saveBadge');
+  const ml = document.getElementById('um_monthlyLabel');
+  const yl = document.getElementById('um_yearlyLabel');
+  if (um_isYearly) {
+    dot.style.left = '28px'; toggle.style.background = '#4a9eff';
+    badge.style.display = 'inline-block';
+    ml.style.color = '#4a5f72'; yl.style.color = '#cdd9e5';
+    document.getElementById('um_proPrice').textContent = '$42';
+    document.getElementById('um_premiumPrice').textContent = '$84';
+    document.getElementById('um_proNote').innerHTML = '$504/year · <span style="color:#2ec4b6;font-weight:700;">Save $108</span>';
+    document.getElementById('um_premiumNote').innerHTML = '$1,008/year · <span style="color:#2ec4b6;font-weight:700;">Save $180</span>';
+  } else {
+    dot.style.left = '2px'; toggle.style.background = '#1a2a3a';
+    badge.style.display = 'none';
+    ml.style.color = '#cdd9e5'; yl.style.color = '#4a5f72';
+    document.getElementById('um_proPrice').textContent = '$49';
+    document.getElementById('um_premiumPrice').textContent = '$99';
+    document.getElementById('um_proNote').textContent = '7-day free trial · Cancel anytime';
+    document.getElementById('um_premiumNote').textContent = '7-day free trial · Cancel anytime';
+  }
+}
 
 /* ═══ AUTH MODAL ═══ */
 let authTypingTimer = null;
