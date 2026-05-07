@@ -43,27 +43,27 @@ body { overflow-x: hidden; }
   top: 0; left: 0; right: 0;
   height: 52px;
   z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   pointer-events: none;
-  background: transparent;
-  border-bottom: 1px solid transparent;
-  backdrop-filter: none;
-  transition: all 0.3s ease;
 }
-#mainNavbar.scrolled {
-  background: rgba(6, 10, 15, 0.7) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border-bottom: 1px solid rgba(26, 42, 58, 0.6) !important;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-}
-.nav-center {
-  display: flex;
+#navInner {
+  display: inline-flex;
   align-items: center;
   gap: 32px;
-  pointer-events: auto;
+  padding: 8px 24px;
+  border-radius: 0 0 12px 12px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: all;
+  transition: all 0.3s ease;
+}
+#navInner.scrolled {
+  background: rgba(6, 10, 15, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(26, 42, 58, 0.6);
+  border-top: none;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
 }
 .nav-logo {
   font-family: var(--head);
@@ -915,7 +915,7 @@ body.sidebar-collapsed #resultOverlay {
 
 <!-- NAVBAR -->
 <nav id="mainNavbar">
-  <div class="nav-center">
+  <div id="navInner">
     <a class="nav-logo" href="/"><span style="color:#ffffff;">NOTAM</span> <span style="color:#4a9eff;">INTELLIGENCE</span></a>
     <a class="nav-link" href="#about-section">About</a>
     <a class="nav-link" href="#how-it-works-section">How It Works</a>
@@ -2346,12 +2346,12 @@ document.addEventListener('keydown', e => {
 });
 
 window.addEventListener('scroll', function() {
-  const navbar = document.getElementById('mainNavbar');
-  if (!navbar) return;
+  const navInner = document.getElementById('navInner');
+  if (!navInner) return;
   if (window.scrollY > 20) {
-    navbar.classList.add('scrolled');
+    navInner.classList.add('scrolled');
   } else {
-    navbar.classList.remove('scrolled');
+    navInner.classList.remove('scrolled');
   }
 });
 </script>
