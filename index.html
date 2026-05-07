@@ -47,6 +47,17 @@ body { overflow-x: hidden; }
   align-items: center;
   justify-content: center;
   pointer-events: none;
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  backdrop-filter: none;
+  transition: all 0.3s ease;
+}
+#mainNavbar.scrolled {
+  background: rgba(6, 10, 15, 0.7) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid rgba(26, 42, 58, 0.6) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
 }
 .nav-center {
   display: flex;
@@ -2332,6 +2343,16 @@ async function createAccount() {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeSignupModal();
+});
+
+window.addEventListener('scroll', function() {
+  const navbar = document.getElementById('mainNavbar');
+  if (!navbar) return;
+  if (window.scrollY > 20) {
+    navbar.classList.add('scrolled');
+  } else {
+    navbar.classList.remove('scrolled');
+  }
 });
 </script>
 
