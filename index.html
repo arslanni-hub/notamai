@@ -1026,7 +1026,7 @@ body.sidebar-collapsed #resultOverlay {
     <div class="live-dot"></div>
     <div class="result-status" id="resultStatus">GENERATING BRIEFING...</div>
     <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-      <button onclick="openUpgradeModal()" style="display:flex;align-items:center;gap:6px;background:rgba(181,123,255,0.12);border:1px solid rgba(181,123,255,0.3);color:#b57bff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(181,123,255,0.2)'" onmouseout="this.style.background='rgba(181,123,255,0.12)'">
+      <button onclick="window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:6px;background:rgba(181,123,255,0.12);border:1px solid rgba(181,123,255,0.3);color:#b57bff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(181,123,255,0.2)'" onmouseout="this.style.background='rgba(181,123,255,0.12)'">
         <span style="font-size:13px;filter:hue-rotate(200deg) saturate(2);">✨</span>
         UPGRADE
       </button>
@@ -1060,9 +1060,9 @@ body.sidebar-collapsed #resultOverlay {
 </div>
 
 <!-- UPGRADE MODAL -->
-<div id="upgradeModal" style="display:none;position:fixed;inset:0;z-index:2000;backdrop-filter:blur(8px);background:rgba(6,10,15,0.85);overflow-y:auto;">
-  <button onclick="closeUpgradeModal()" style="position:fixed;top:20px;right:24px;background:none;border:none;color:#4a5f72;font-size:24px;cursor:pointer;z-index:2001;">✕</button>
-  <div style="max-width:1000px;margin:40px auto;padding:0 20px 60px;">
+<!-- upgradeModal removed - now at /pricing-upgrade -->
+<div id="upgradeModal" style="display:none;">
+  <div>
 
     <!-- HERO -->
     <div style="text-align:center;padding:40px 24px 32px;position:relative;z-index:2;">
@@ -1927,41 +1927,6 @@ function closeResult() {
 function openModal()  { document.getElementById('videoModal').classList.add('open'); }
 function closeModal() { document.getElementById('videoModal').classList.remove('open'); }
 
-function openUpgradeModal() {
-  document.getElementById('upgradeModal').style.display = 'block';
-  document.body.style.overflow = 'hidden';
-}
-function closeUpgradeModal() {
-  document.getElementById('upgradeModal').style.display = 'none';
-  document.body.style.overflow = '';
-}
-
-let um_isYearly = false;
-function um_toggleBilling() {
-  um_isYearly = !um_isYearly;
-  const dot = document.getElementById('um_toggleDot');
-  const toggle = document.getElementById('um_billingToggle');
-  const badge = document.getElementById('um_saveBadge');
-  const ml = document.getElementById('um_monthlyLabel');
-  const yl = document.getElementById('um_yearlyLabel');
-  if (um_isYearly) {
-    dot.style.left = '28px'; toggle.style.background = '#4a9eff';
-    badge.style.display = 'inline-block';
-    ml.style.color = '#4a5f72'; yl.style.color = '#cdd9e5';
-    document.getElementById('um_proPrice').textContent = '$42';
-    document.getElementById('um_premiumPrice').textContent = '$84';
-    document.getElementById('um_proNote').innerHTML = '$504/year · <span style="color:#2ec4b6;font-weight:700;">Save $108</span>';
-    document.getElementById('um_premiumNote').innerHTML = '$1,008/year · <span style="color:#2ec4b6;font-weight:700;">Save $180</span>';
-  } else {
-    dot.style.left = '2px'; toggle.style.background = '#1a2a3a';
-    badge.style.display = 'none';
-    ml.style.color = '#cdd9e5'; yl.style.color = '#4a5f72';
-    document.getElementById('um_proPrice').textContent = '$49';
-    document.getElementById('um_premiumPrice').textContent = '$99';
-    document.getElementById('um_proNote').textContent = '7-day free trial · Cancel anytime';
-    document.getElementById('um_premiumNote').textContent = '7-day free trial · Cancel anytime';
-  }
-}
 
 /* ═══ AUTH MODAL ═══ */
 let authTypingTimer = null;
