@@ -49,13 +49,14 @@ body { overflow-x: hidden; }
   display: inline-flex;
   align-items: center;
   gap: 32px;
-  padding: 8px 24px;
-  border-radius: 0 0 12px 12px;
+  padding: 10px 28px;
+  border-radius: 0 0 16px 16px;
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   pointer-events: all;
-  transition: all 0.3s ease;
+  transition: background 0.3s ease, backdrop-filter 0.3s ease, border 0.3s ease;
+  white-space: nowrap;
 }
 #navInner.scrolled {
   background: rgba(6, 10, 15, 0.7);
