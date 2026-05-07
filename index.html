@@ -1090,12 +1090,14 @@ body.sidebar-collapsed #resultOverlay {
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;">
 
       <!-- FREE -->
-      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:28px 20px;display:flex;flex-direction:column;">
+      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:28px 20px;">
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">CURRENT PLAN</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Free</div>
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#fff;">$0</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">Try before you commit</div>
-        <ul style="list-style:none;flex:1;">
+        <button style="width:100%;padding:8px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:default;">✓ CURRENT PLAN</button>
+        <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
+        <ul style="list-style:none;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Unlimited NOTAM/METAR decode</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">1 full AI briefing included</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Basic risk assessment</span></li>
@@ -1103,19 +1105,18 @@ body.sidebar-collapsed #resultOverlay {
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Route analysis DEP → ARR</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Go/No-Go recommendation</span></li>
         </ul>
-        <div style="margin-top:auto;padding-top:16px;">
-          <button style="width:100%;padding:8px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:default;">✓ CURRENT PLAN</button>
-        </div>
       </div>
 
       <!-- PRO -->
-      <div style="background:#0d1520;border:1px solid #4a9eff;border-radius:8px;padding:28px 20px;display:flex;flex-direction:column;">
+      <div style="background:#0d1520;border:1px solid #4a9eff;border-radius:8px;padding:28px 20px;">
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a9eff;letter-spacing:2px;margin-bottom:8px;">MOST POPULAR</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Pro</div>
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="um_proPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#4a9eff;">$49</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div id="um_proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For active pilots &amp; dispatchers</div>
-        <ul style="list-style:none;flex:1;">
+        <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PRO →</button>
+        <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
+        <ul style="list-style:none;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Free</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Unlimited full AI briefings</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Live NOTAM auto-fetch</span></li>
@@ -1127,19 +1128,18 @@ body.sidebar-collapsed #resultOverlay {
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">AI Video Briefing</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Favorite routes &amp; history</span></li>
         </ul>
-        <div style="margin-top:auto;padding-top:16px;">
-          <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PRO →</button>
-        </div>
       </div>
 
       <!-- PREMIUM -->
-      <div style="background:#0d1520;border:1px solid #f4841a;border-radius:8px;padding:28px 20px;display:flex;flex-direction:column;">
+      <div style="background:#0d1520;border:1px solid #f4841a;border-radius:8px;padding:28px 20px;">
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:2px;margin-bottom:8px;">BEST VALUE</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Premium</div>
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="um_premiumPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#f4841a;">$99</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div id="um_premiumNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For aviation professionals</div>
-        <ul style="list-style:none;flex:1;">
+        <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PREMIUM →</button>
+        <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
+        <ul style="list-style:none;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Pro</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">AI Video Briefing</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">PDF export &amp; share link</span></li>
@@ -1150,19 +1150,18 @@ body.sidebar-collapsed #resultOverlay {
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">API access</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Multi-user access</span></li>
         </ul>
-        <div style="margin-top:auto;padding-top:16px;">
-          <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PREMIUM →</button>
-        </div>
       </div>
 
       <!-- ENTERPRISE -->
-      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:28px 20px;display:flex;flex-direction:column;">
+      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:28px 20px;">
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">&nbsp;</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Enterprise</div>
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#fff;">$499</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">&nbsp;</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For airlines &amp; operations centers</div>
-        <ul style="list-style:none;flex:1;">
+        <button onclick="window.location.href='mailto:hello@notamai.com'" style="width:100%;padding:8px;background:rgba(255,255,255,0.06);border:1px solid #1a2a3a;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">CONTACT SALES →</button>
+        <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
+        <ul style="list-style:none;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Premium</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Full API access</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Multi-user &amp; team management</span></li>
@@ -1171,9 +1170,7 @@ body.sidebar-collapsed #resultOverlay {
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">SLA guarantee</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Custom onboarding</span></li>
         </ul>
-        <div style="margin-top:auto;padding-top:16px;">
-          <button onclick="window.location.href='mailto:hello@notamai.com'" style="width:100%;padding:8px;background:rgba(255,255,255,0.06);border:1px solid #1a2a3a;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">CONTACT SALES →</button>
-        </div>
+      </div>
       </div>
 
     </div>
