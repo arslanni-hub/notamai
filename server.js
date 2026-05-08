@@ -509,10 +509,7 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
 #loadingScreen { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 16px; }
 #loadingText { font-family: 'Share Tech Mono', monospace; font-size: 14px; letter-spacing: 3px; color: #4a9eff; }
 #briefingContent { max-width: 900px; margin: 40px auto; padding: 0 24px 80px; }
-#briefingHeader { border-bottom: 1px solid rgba(26,42,58,0.6); padding: 16px 24px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; background: rgba(6,10,15,0.9); backdrop-filter: blur(8px); z-index: 10; }
-#briefingHeader .logo { font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: #ffffff; }
-#briefingHeader .logo em { color: #4a9eff; font-style: normal; }
-#briefingHeader .badge { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 2px; color: #4a5f72; margin-left: auto; }
+@keyframes blinkDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
 </style>
 </head>
 <body>
@@ -520,9 +517,22 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
   <div id="loadingText">LOADING BRIEFING...</div>
 </div>
 <div id="briefingContent" style="display:none;">
-  <div id="briefingHeader">
-    <a href="/" style="text-decoration:none;"><div class="logo">NOTAM <em>INTELLIGENCE</em></div></a>
-    <div class="badge">SHARED BRIEFING</div>
+  <div style="position:sticky;top:0;z-index:100;background:rgba(6,10,15,0.95);border-bottom:1px solid #1a2a3a;padding:0 24px;height:48px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(8px);">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <a href="https://notamai.onrender.com" style="text-decoration:none;display:flex;align-items:center;gap:4px;">
+        <span style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:#ffffff;">NOTAM</span>
+        <span style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:#4a9eff;">INTELLIGENCE</span>
+      </a>
+      <span style="color:#1a2a3a;">|</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#2ec4b6;display:inline-block;animation:blinkDot 1.5s ease-in-out infinite;flex-shrink:0;"></span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:#cdd9e5;letter-spacing:2px;">SHARED BRIEFING</span>
+      </div>
+    </div>
+    <a href="https://notamai.onrender.com" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#ffffff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;text-decoration:none;">
+      <span style="font-size:12px;">✨</span>
+      GET FULL ACCESS
+    </a>
   </div>
   <div id="briefingBody" style="padding-top:32px;"></div>
 </div>
