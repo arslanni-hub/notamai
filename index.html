@@ -2880,6 +2880,18 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
   #pricing-section .pricing-grid { grid-template-columns: 1fr; }
   #pricing-section .hero-title { font-size: 28px; }
 }
+/* ═══ SCROLL REVEAL ═══ */
+.reveal {
+  opacity: 0;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: none !important;
+}
+.reveal-up    { transform: translateY(40px); }
+.reveal-left  { transform: translateX(-40px); }
+.reveal-right { transform: translateX(40px); }
 </style>
 
 <!-- ═══ ABOUT SECTION ═══ -->
@@ -3396,5 +3408,73 @@ function hideSidebarTooltip() {
 }
 </script>
 
+<script>
+/* ═══ SCROLL REVEAL ANIMATIONS ═══ */
+(function() {
+  function addReveal(el, dir, delay) {
+    el.classList.add('reveal', dir);
+    if (delay) el.dataset.delay = delay;
+  }
+
+  // — About section —
+  const about = document.getElementById('about-section');
+  if (about) {
+    const heroEls = about.querySelectorAll('.hero-badge, .hero-title, .hero-subtitle, .hero-cta');
+    heroEls.forEach((el, i) => addReveal(el, 'reveal-up', i * 100));
+    const stats = about.querySelector('.stats');
+    if (stats) addReveal(stats, 'reveal-up', 100);
+    const secLabel = about.querySelector('.section-label');
+    if (secLabel) addReveal(secLabel, 'reveal-up', 0);
+    const missionTitle = about.querySelector('.mission-title');
+    if (missionTitle) addReveal(missionTitle, 'reveal-up', 100);
+    const missionBody = about.querySelector('.mission-body');
+    if (missionBody) addReveal(missionBody, 'reveal-up', 200);
+    about.querySelectorAll('.feature-card').forEach((el, i) => addReveal(el, 'reveal-up', i * 100));
+  }
+
+  // — How It Works section —
+  const hiw = document.getElementById('how-it-works-section');
+  if (hiw) {
+    const heroEls = hiw.querySelectorAll('.hero-badge, .hero-title, .hero-subtitle');
+    heroEls.forEach((el, i) => addReveal(el, 'reveal-up', i * 100));
+    hiw.querySelectorAll('.step').forEach((el, i) => addReveal(el, i % 2 === 0 ? 'reveal-left' : 'reveal-right', 0));
+    const secTitle = hiw.querySelector('.section-title');
+    if (secTitle) addReveal(secTitle, 'reveal-up', 0);
+    const secSub = hiw.querySelector('.section-subtitle');
+    if (secSub) addReveal(secSub, 'reveal-up', 100);
+    hiw.querySelectorAll('.prev-card').forEach((el, i) => addReveal(el, 'reveal-up', i * 100));
+    const ctaTitle = hiw.querySelector('.cta-title');
+    if (ctaTitle) addReveal(ctaTitle, 'reveal-up', 0);
+    const ctaSub = hiw.querySelector('.cta-subtitle');
+    if (ctaSub) addReveal(ctaSub, 'reveal-up', 100);
+    const ctaBtns = hiw.querySelector('.cta-buttons');
+    if (ctaBtns) addReveal(ctaBtns, 'reveal-up', 200);
+  }
+
+  // — Pricing section —
+  const pricing = document.getElementById('pricing-section');
+  if (pricing) {
+    const heroEls = pricing.querySelectorAll('.hero-badge, .hero-title, .hero-subtitle');
+    heroEls.forEach((el, i) => addReveal(el, 'reveal-up', i * 100));
+    const toggle = pricing.querySelector('#pricing_monthlyLabel')?.closest('div[style*="display:flex"]');
+    if (toggle) addReveal(toggle, 'reveal-up', 100);
+    pricing.querySelectorAll('.pricing-card').forEach((el, i) => addReveal(el, 'reveal-up', i * 100));
+  }
+
+  // — Intersection Observer —
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        setTimeout(() => {
+          entry.target.classList.add('visible');
+        }, parseInt(entry.target.dataset.delay) || 0);
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+})();
+</script>
 </body>
 </html>
