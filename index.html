@@ -1030,13 +1030,9 @@ body.sidebar-collapsed #resultOverlay {
         <span style="font-size:13px;filter:hue-rotate(200deg) saturate(2);">✨</span>
         UPGRADE
       </button>
-      <button onclick="shareBriefing()" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#4a9eff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(74,158,255,0.15)'" onmouseout="this.style.background='rgba(74,158,255,0.08)'">
+      <button onclick="openShareModal()" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#4a9eff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(74,158,255,0.15)'" onmouseout="this.style.background='rgba(74,158,255,0.08)'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         SHARE
-      </button>
-      <button onclick="downloadPDF()" style="display:flex;align-items:center;gap:6px;background:rgba(46,196,182,0.08);border:1px solid rgba(46,196,182,0.2);color:#2ec4b6;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(46,196,182,0.15)'" onmouseout="this.style.background='rgba(46,196,182,0.08)'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        PDF
       </button>
     </div>
   </div>
@@ -1719,7 +1715,7 @@ async function handleSend() {
             const detectedRisk = riskMatch ? riskMatch[1] : 'MEDIUM';
             const route = arr ? `${dep} → ${arr}` : dep;
             const fullHtml = htmlHead + final + htmlFoot;
-            saveBriefingToFirestore(route, detectedRisk, fullHtml).then(() => loadBriefingHistory());
+            saveBriefingToFirestore(route, detectedRisk, fullHtml).then(id => { window.currentBriefingId = id; loadBriefingHistory(); });
           } else if (evt.type === 'error') {
             loading.style.display = 'block';
             content.style.display = 'none';
@@ -1882,24 +1878,39 @@ function retryBriefing() {
   }
 }
 
-function shareBriefing() {
-  const route = document.querySelector('.route-id')?.textContent || 'NOTAM Briefing';
-  if (navigator.share) {
-    navigator.share({
-      title: 'NOTAM Intelligence Briefing - ' + route,
-      text: 'Pre-flight operational intelligence briefing for ' + route,
-      url: window.location.href
-    });
-  } else {
-    navigator.clipboard.writeText(window.location.href);
-    alert('Link copied to clipboard!');
-  }
+function openShareModal() {
+  const modal = document.getElementById('shareModal');
+  modal.style.display = 'flex';
+  const briefingId = window.currentBriefingId || '';
+  const shareUrl = briefingId
+    ? window.location.origin + '/briefing/' + briefingId
+    : window.location.href;
+  document.getElementById('shareLinkInput').value = shareUrl;
+}
+
+function closeShareModal() {
+  document.getElementById('shareModal').style.display = 'none';
+}
+
+function copyShareLink() {
+  const input = document.getElementById('shareLinkInput');
+  navigator.clipboard.writeText(input.value);
+  const btn = document.getElementById('copyLinkBtn');
+  btn.textContent = '✓ COPIED';
+  btn.style.color = '#2ec4b6';
+  btn.style.borderColor = 'rgba(46,196,182,0.3)';
+  setTimeout(() => {
+    btn.textContent = 'COPY';
+    btn.style.color = '#4a9eff';
+    btn.style.borderColor = 'rgba(74,158,255,0.3)';
+  }, 2000);
 }
 
 async function downloadPDF() {
   const content = document.getElementById('resultContent');
   if (!content) return;
-  const route = document.querySelector('.route-id')?.textContent?.replace('→', 'to').replace(/\s+/g, '_') || 'briefing';
+  const btn = document.getElementById('pdfBtn');
+  const route = document.querySelector('.route-id')?.textContent?.replace('→','to').replace(/\s+/g,'_') || 'briefing';
   const filename = 'NOTAM_' + route + '_' + new Date().toISOString().slice(0,10) + '.pdf';
   const opt = {
     margin: 10,
@@ -1908,12 +1919,10 @@ async function downloadPDF() {
     html2canvas: { scale: 2, useCORS: true },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
-  const btn = event.currentTarget;
-  const orig = btn.innerHTML;
   btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> GENERATING...';
   btn.disabled = true;
   await html2pdf().set(opt).from(content).save();
-  btn.innerHTML = orig;
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> DOWNLOAD PDF';
   btn.disabled = false;
 }
 
@@ -3408,6 +3417,39 @@ function hideSidebarTooltip() {
 }
 </script>
 
+<!-- SHARE MODAL -->
+<div id="shareModal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(6,10,15,0.7);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+  <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:12px;padding:28px;width:420px;max-width:90vw;position:relative;">
+    <button onclick="closeShareModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;color:#4a5f72;font-size:18px;cursor:pointer;">✕</button>
+    <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#fff;letter-spacing:2px;margin-bottom:20px;">SHARE BRIEFING</div>
+    <!-- SHARE LINK -->
+    <div style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:#cdd9e5;letter-spacing:1px;">SHARE LINK</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <input id="shareLinkInput" readonly style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#8a9bb0;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:11px;outline:none;" value="">
+        <button onclick="copyShareLink()" id="copyLinkBtn" style="background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.3);color:#4a9eff;padding:8px 14px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;white-space:nowrap;">COPY</button>
+      </div>
+      <div style="margin-top:8px;font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;">Anyone with this link can view the briefing</div>
+    </div>
+    <!-- DIVIDER -->
+    <div style="height:1px;background:#1a2a3a;margin-bottom:20px;"></div>
+    <!-- PDF -->
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f4841a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:#cdd9e5;letter-spacing:1px;">EXPORT AS PDF</span>
+      </div>
+      <button onclick="downloadPDF()" id="pdfBtn" style="width:100%;padding:10px;background:rgba(244,132,26,0.1);border:1px solid rgba(244,132,26,0.3);color:#f4841a;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        DOWNLOAD PDF
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ═══ SCROLL REVEAL ANIMATIONS ═══ */
 (function() {
@@ -3526,6 +3568,11 @@ function hideSidebarTooltip() {
   }, { threshold: 0.15 });
 
   document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+  // Close share modal on backdrop click
+  document.getElementById('shareModal').addEventListener('click', function(e) {
+    if (e.target === this) closeShareModal();
+  });
 })();
 </script>
 </body>
