@@ -1883,9 +1883,28 @@ function openShareModal() {
   modal.style.display = 'flex';
   const briefingId = window.currentBriefingId || '';
   const shareUrl = briefingId
-    ? window.location.origin + '/briefing/' + briefingId
-    : window.location.href;
+    ? window.location.origin + '/b/' + briefingId
+    : window.location.origin;
   document.getElementById('shareLinkInput').value = shareUrl;
+  window.currentShareUrl = shareUrl;
+}
+
+function shareViaWhatsApp() {
+  const url = window.currentShareUrl || document.getElementById('shareLinkInput').value;
+  const route = document.querySelector('.route-id')?.textContent || 'NOTAM Briefing';
+  window.open('https://wa.me/?text=' + encodeURIComponent('NOTAM Intelligence Briefing — ' + route + '\n' + url), '_blank');
+}
+
+function shareViaX() {
+  const url = window.currentShareUrl || document.getElementById('shareLinkInput').value;
+  const route = document.querySelector('.route-id')?.textContent || 'NOTAM Briefing';
+  window.open('https://x.com/intent/tweet?text=' + encodeURIComponent('Pre-flight AI briefing for ' + route + ' via @NOTAMIntel') + '&url=' + encodeURIComponent(url), '_blank');
+}
+
+function shareViaEmail() {
+  const url = window.currentShareUrl || document.getElementById('shareLinkInput').value;
+  const route = document.querySelector('.route-id')?.textContent || 'NOTAM Briefing';
+  window.open('mailto:?subject=' + encodeURIComponent('NOTAM Intelligence Briefing — ' + route) + '&body=' + encodeURIComponent('Pre-flight operational intelligence briefing:\n\n' + url), '_blank');
 }
 
 function closeShareModal() {
@@ -3433,6 +3452,11 @@ function hideSidebarTooltip() {
         <button onclick="copyShareLink()" id="copyLinkBtn" style="background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.3);color:#4a9eff;padding:8px 14px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;white-space:nowrap;">COPY</button>
       </div>
       <div style="margin-top:8px;font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;">Anyone with this link can view the briefing</div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="shareViaWhatsApp()" style="flex:1;padding:8px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.3);color:#25d166;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;">WhatsApp</button>
+        <button onclick="shareViaX()" style="flex:1;padding:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;">X / Twitter</button>
+        <button onclick="shareViaEmail()" style="flex:1;padding:8px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#4a9eff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;">Email</button>
+      </div>
     </div>
     <!-- DIVIDER -->
     <div style="height:1px;background:#1a2a3a;margin-bottom:20px;"></div>

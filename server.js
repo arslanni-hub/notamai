@@ -492,6 +492,72 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && req.url.startsWith('/b/')) {
+    const briefingId = req.url.split('/b/')[1].split('?')[0];
+    const shareHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOTAM Intelligence Briefing</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif; min-height: 100vh; }
+#loadingScreen { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 16px; }
+#loadingText { font-family: 'Share Tech Mono', monospace; font-size: 14px; letter-spacing: 3px; color: #4a9eff; }
+#briefingContent { max-width: 900px; margin: 40px auto; padding: 0 24px 80px; }
+#briefingHeader { border-bottom: 1px solid rgba(26,42,58,0.6); padding: 16px 24px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; background: rgba(6,10,15,0.9); backdrop-filter: blur(8px); z-index: 10; }
+#briefingHeader .logo { font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: #ffffff; }
+#briefingHeader .logo em { color: #4a9eff; font-style: normal; }
+#briefingHeader .badge { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 2px; color: #4a5f72; margin-left: auto; }
+</style>
+</head>
+<body>
+<div id="loadingScreen">
+  <div id="loadingText">LOADING BRIEFING...</div>
+</div>
+<div id="briefingContent" style="display:none;">
+  <div id="briefingHeader">
+    <a href="/" style="text-decoration:none;"><div class="logo">NOTAM <em>INTELLIGENCE</em></div></a>
+    <div class="badge">SHARED BRIEFING</div>
+  </div>
+  <div id="briefingBody" style="padding-top:32px;"></div>
+</div>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCH8bj9-775vmXU1HnqRFjf09g1yUXvnpo",
+  authDomain: "notamai-a9d57.firebaseapp.com",
+  projectId: "notamai-a9d57",
+  storageBucket: "notamai-a9d57.firebasestorage.app",
+  messagingSenderId: "793570221190",
+  appId: "1:793570221190:web:aab696c96dbde26d9f4507"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+db.collection('briefings').doc('${briefingId}').get().then(doc => {
+  if (doc.exists) {
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('briefingContent').style.display = 'block';
+    document.getElementById('briefingBody').innerHTML = doc.data().html;
+    const route = doc.data().route || 'NOTAM Briefing';
+    document.title = 'NOTAM Intelligence — ' + route;
+  } else {
+    document.getElementById('loadingText').textContent = 'BRIEFING NOT FOUND';
+  }
+}).catch(() => {
+  document.getElementById('loadingText').textContent = 'ERROR LOADING BRIEFING';
+});
+</script>
+</body>
+</html>`;
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(shareHtml);
+    return;
+  }
+
   if (req.method === 'GET' && (req.url === '/how-it-works' || req.url === '/how-it-works.html')) {
     const html = fs.readFileSync(path.join(__dirname, 'how-it-works.html'), 'utf8');
     res.writeHead(200, { 'Content-Type': 'text/html' });
