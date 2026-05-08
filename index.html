@@ -2311,6 +2311,7 @@ function renderSidebarItem(item, isStarred) {
     if (e.target.closest('button') || e.target.closest('.item-menu-btn')) return;
     const cachedHtml = briefingCache[item.id];
     if (cachedHtml) {
+      window.currentBriefingId = item.id;
       const overlay = document.getElementById('resultOverlay');
       const content = document.getElementById('resultContent');
       const loading = document.getElementById('loadingState');
