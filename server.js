@@ -503,16 +503,15 @@ const server = http.createServer(async (req, res) => {
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif; min-height: 100vh; }
 #loadingScreen { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 16px; }
 #loadingText { font-family: 'Share Tech Mono', monospace; font-size: 14px; letter-spacing: 3px; color: #4a9eff; }
 #briefingContent { max-width: 900px; margin: 40px auto; padding: 0 24px 80px; }
-#briefingHeader { border-bottom: 1px solid rgba(26,42,58,0.6); padding: 16px 24px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; background: rgba(6,10,15,0.9); backdrop-filter: blur(8px); z-index: 10; }
-#briefingHeader .logo { font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: #ffffff; }
-#briefingHeader .logo em { color: #4a9eff; font-style: normal; }
-#briefingHeader .badge { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 2px; color: #4a5f72; margin-left: auto; }
+#briefingHeader { border-bottom: 1px solid rgba(26,42,58,0.6); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(6,10,15,0.95); backdrop-filter: blur(8px); z-index: 10; }
+#briefingHeader .logo { font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 3px; color: #4a9eff; }
 </style>
 </head>
 <body>
@@ -521,8 +520,8 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
 </div>
 <div id="briefingContent" style="display:none;">
   <div id="briefingHeader">
-    <a href="/" style="text-decoration:none;"><div class="logo">NOTAM <em>INTELLIGENCE</em></div></a>
-    <div class="badge">SHARED BRIEFING</div>
+    <a href="/" style="text-decoration:none;"><div class="logo">NOTAM INTELLIGENCE · SHARED BRIEFING</div></a>
+    <button onclick="downloadSharedPDF()" id="sharedPdfBtn" style="display:flex;align-items:center;gap:6px;background:rgba(244,132,26,0.1);border:1px solid rgba(244,132,26,0.3);color:#f4841a;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 12px;border-radius:6px;cursor:pointer;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> PDF</button>
   </div>
   <div id="briefingBody" style="padding-top:32px;"></div>
 </div>
@@ -537,6 +536,26 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+function downloadSharedPDF() {
+  const content = document.getElementById('briefingBody');
+  if (!content) return;
+  const btn = document.getElementById('sharedPdfBtn');
+  const route = document.title || 'briefing';
+  const filename = 'NOTAM_' + route.replace(/\\s+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+  const opt = {
+    margin: 10,
+    filename: filename,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ...';
+  btn.disabled = true;
+  html2pdf().set(opt).from(content).save().then(() => {
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> PDF';
+    btn.disabled = false;
+  });
+}
 db.collection('briefings').doc('${briefingId}').get().then(doc => {
   if (doc.exists) {
     document.getElementById('loadingScreen').style.display = 'none';
