@@ -526,7 +526,7 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
       <span style="color:#1a2a3a;">|</span>
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="width:8px;height:8px;border-radius:50%;background:#2ec4b6;display:inline-block;animation:blinkDot 1.5s ease-in-out infinite;flex-shrink:0;"></span>
-        <span style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:#cdd9e5;letter-spacing:2px;">SHARED BRIEFING</span>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">SHARED BRIEFING</span>
       </div>
     </div>
     <a href="https://notamai.onrender.com" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#ffffff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;text-decoration:none;">
