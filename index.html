@@ -3459,6 +3459,58 @@ function hideSidebarTooltip() {
     const toggle = pricing.querySelector('#pricing_monthlyLabel')?.closest('div[style*="display:flex"]');
     if (toggle) addReveal(toggle, 'reveal-up', 100);
     pricing.querySelectorAll('.pricing-card').forEach((el, i) => addReveal(el, 'reveal-up', i * 100));
+
+    // — Referral section —
+    const referralSection = pricing.querySelector('.referral-section') || (() => {
+      // referral is an inline div after .pricing-grid; find by content
+      const allDivs = pricing.querySelectorAll('div');
+      for (const d of allDivs) {
+        if (d.textContent.includes('Fly together, save together')) return d;
+      }
+      return null;
+    })();
+    if (referralSection) {
+      const children = Array.from(referralSection.children);
+      // title, subtitle, cards-row, note
+      if (children[0]) addReveal(children[0], 'reveal-up', 0);
+      if (children[1]) addReveal(children[1], 'reveal-up', 100);
+      if (children[2]) {
+        const cards = children[2].querySelectorAll(':scope > div');
+        if (cards[0]) addReveal(cards[0], 'reveal-left', 200);
+        if (cards[1]) addReveal(cards[1], 'reveal-right', 200);
+      }
+      if (children[3]) addReveal(children[3], 'reveal-up', 300);
+    }
+
+    // — FAQ section —
+    const faq = pricing.querySelector('.faq-section');
+    if (faq) {
+      const faqTitle = faq.querySelector('.faq-title');
+      if (faqTitle) addReveal(faqTitle, 'reveal-up', 0);
+      faq.querySelectorAll('.faq-item').forEach((el, i) => addReveal(el, 'reveal-up', i * 100));
+    }
+
+    // — Final CTA section —
+    const ctaDiv = pricing.querySelector('div[style*="GET STARTED TODAY"]') || (() => {
+      const allDivs = pricing.querySelectorAll('div');
+      for (const d of allDivs) {
+        if (d.textContent.includes('GET STARTED TODAY') && d.children.length >= 3) return d;
+      }
+      return null;
+    })();
+    if (ctaDiv) {
+      const children = Array.from(ctaDiv.children);
+      if (children[0]) addReveal(children[0], 'reveal-up', 0);
+      if (children[1]) addReveal(children[1], 'reveal-up', 100);
+      if (children[2]) addReveal(children[2], 'reveal-up', 200);
+      if (children[3]) addReveal(children[3], 'reveal-up', 300);
+    }
+  }
+
+  // — Footer —
+  const footer = document.querySelector('footer');
+  if (footer) {
+    Array.from(footer.children).forEach((el, i) => addReveal(el, 'reveal-up', i * 100));
   }
 
   // — Intersection Observer —
