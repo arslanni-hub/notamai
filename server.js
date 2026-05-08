@@ -510,7 +510,7 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
 #loadingText { font-family: 'Share Tech Mono', monospace; font-size: 14px; letter-spacing: 3px; color: #4a9eff; }
 #briefingContent { max-width: 900px; margin: 40px auto; padding: 0 24px 80px; }
 #briefingHeader { border-bottom: 1px solid rgba(26,42,58,0.6); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(6,10,15,0.95); backdrop-filter: blur(8px); z-index: 10; }
-#briefingHeader .logo { font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 3px; color: #4a9eff; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 </style>
 </head>
 <body>
@@ -519,12 +519,15 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
 </div>
 <div id="briefingContent" style="display:none;">
   <div id="briefingHeader">
-    <a href="https://notamai.onrender.com" style="text-decoration:none;"><div class="logo">NOTAM INTELLIGENCE · SHARED BRIEFING</div></a>
-    <a href="https://notamai.onrender.com" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.3);color:#4a9eff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;text-decoration:none;"><span style="font-size:13px;">✨</span> GET FULL ACCESS</a>
+    <a href="https://notamai.onrender.com" style="text-decoration:none;display:flex;align-items:center;gap:12px;">
+      <span><span style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:#ffffff;">NOTAM</span><span style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:#4a9eff;"> INTELLIGENCE</span></span>
+      <span style="display:flex;align-items:center;gap:8px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:#cdd9e5;letter-spacing:2px;"><span style="width:8px;height:8px;border-radius:50%;background:#2ec4b6;display:inline-block;animation:blink 1.5s ease-in-out infinite;"></span>SHARED BRIEFING</span>
+    </a>
+    <a href="https://notamai.onrender.com" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.3);color:#ffffff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;text-decoration:none;"><span style="font-size:13px;">✨</span> GET FULL ACCESS</a>
   </div>
-  <div style="background:rgba(74,158,255,0.06);border-bottom:1px solid rgba(74,158,255,0.1);padding:8px 24px;text-align:center;font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;">
+  <div style="background:rgba(74,158,255,0.06);border-bottom:1px solid rgba(74,158,255,0.1);padding:8px 24px;text-align:center;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;">
     Create a free account to generate your own AI-powered pre-flight briefings →
-    <a href="https://notamai.onrender.com" style="color:#4a9eff;text-decoration:none;font-weight:700;">notamai.com</a>
+    <a href="https://notamai.onrender.com" style="color:#ffffff;text-decoration:none;font-weight:700;">notamai.com</a>
   </div>
   <div id="briefingBody" style="padding-top:32px;"></div>
 </div>
