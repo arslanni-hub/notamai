@@ -1879,12 +1879,15 @@ function retryBriefing() {
 }
 
 function openShareModal() {
+  console.log('currentBriefingId:', window.currentBriefingId);
   const modal = document.getElementById('shareModal');
   modal.style.display = 'flex';
   const briefingId = window.currentBriefingId || '';
+  console.log('briefingId used:', briefingId);
   const shareUrl = briefingId
     ? window.location.origin + '/b/' + briefingId
     : window.location.origin;
+  console.log('shareUrl:', shareUrl);
   document.getElementById('shareLinkInput').value = shareUrl;
   window.currentShareUrl = shareUrl;
 }
