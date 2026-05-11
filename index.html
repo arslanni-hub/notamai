@@ -3936,9 +3936,9 @@ async function fetchRawData() {
   results.innerHTML = '<div style="text-align:center;padding:40px 0;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">FETCHING DATA...</div>';
   try {
     const [notamRes, metarRes, tafRes] = await Promise.all([
-      fetch('https://aviationweather.gov/api/data/notam?ids=' + icao + '&format=raw'),
-      fetch('https://aviationweather.gov/api/data/metar?ids=' + icao + '&format=raw'),
-      fetch('https://aviationweather.gov/api/data/taf?ids=' + icao + '&format=raw')
+      fetch('/api/raw/notam/' + icao),
+      fetch('/api/raw/metar/' + icao),
+      fetch('/api/raw/taf/' + icao)
     ]);
     const notamText = await notamRes.text();
     const metarText = await metarRes.text();
