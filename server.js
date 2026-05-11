@@ -584,6 +584,26 @@ if (getAccessBtn) {
     return;
   }
 
+  if (req.method === 'GET' && req.url.startsWith('/api/notam-ead/')) {
+    const icao = req.url.split('/api/notam-ead/')[1].split('?')[0].toUpperCase();
+    try {
+      const data = await fetchURL('https://www.autorouter.aero/api/v1/notam?icao=' + icao, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'notamai/1.0'
+        }
+      });
+      console.log('[AUTOROUTER]', icao, JSON.stringify(data).slice(0, 200));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch(e) {
+      console.error('[AUTOROUTER ERROR]', e.message);
+      res.writeHead(500);
+      res.end('Error');
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/raw/')) {
     const urlParams = req.url.replace('/api/raw/', '');
     const [type, icao] = urlParams.split('/');
