@@ -3952,7 +3952,15 @@ async function fetchRawData() {
     } else {
       html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;margin-bottom:8px;">' + notamBlocks.length + ' ACTIVE NOTAMs — ' + icao + '</div>';
       notamBlocks.forEach((block) => {
-        html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;margin-bottom:6px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;">' + block.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+        const lines = block.split('\n');
+        const formattedBlock = lines.map(line => {
+          const esc = line.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          if (esc.match(/^[A-Z]\d+\/\d+\s+NOTAM/)) {
+            return '<span style="color:#cdd9e5;font-weight:700;">' + esc + '</span>';
+          }
+          return esc;
+        }).join('\n');
+        html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;margin-bottom:6px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;">' + formattedBlock + '</div>';
       });
     }
     html += '</div>';
