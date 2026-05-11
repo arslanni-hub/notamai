@@ -584,26 +584,6 @@ if (getAccessBtn) {
     return;
   }
 
-  if (req.method === 'GET' && req.url.startsWith('/api/notam-ead/')) {
-    const icao = req.url.split('/api/notam-ead/')[1].split('?')[0].toUpperCase();
-    try {
-      const data = await fetchURL('https://www.autorouter.aero/api/v1/notam?icao=' + icao, {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'notamai/1.0'
-        }
-      });
-      console.log('[AUTOROUTER]', icao, JSON.stringify(data).slice(0, 200));
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(data));
-    } catch(e) {
-      console.error('[AUTOROUTER ERROR]', e.message);
-      res.writeHead(500);
-      res.end('Error');
-    }
-    return;
-  }
-
   if (req.method === 'GET' && req.url.startsWith('/api/raw/')) {
     const urlParams = req.url.replace('/api/raw/', '');
     const [type, icao] = urlParams.split('/');
@@ -623,16 +603,14 @@ if (getAccessBtn) {
             const id = n.notam_id || '';
             const location = n.location || '';
             const effective = n.effective || '';
-            const expiration = n.expiration || '';
-            const raw = (n.raw || n.body || '').trim();
+            const expiration = n.expiration || 'PERM';
+            const body = (n.body || n.raw || '').trim();
             let formatted = id + '\tNOTAMN\n';
-            if (location) formatted += 'A) ' + location + '\n';
-            if (effective) formatted += 'B) ' + effective;
-            if (expiration) formatted += ' C) ' + expiration;
-            if (effective || expiration) formatted += '\n';
-            formatted += 'E) ' + raw;
+            formatted += 'A) ' + location + '\n';
+            formatted += 'B) ' + effective + ' C) ' + expiration + '\n';
+            formatted += 'E) ' + body;
             return formatted;
-          }).filter(t => t.trim().length > 0).join('\n\n');
+          }).join('\n\n');
           res.writeHead(200, { 'Content-Type': 'text/plain' });
           res.end(notamText);
         } else {
