@@ -2579,6 +2579,14 @@ window.addEventListener('scroll', function() {
     navInner.classList.remove('scrolled');
   }
 });
+
+window.addEventListener('load', function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('signup') === 'true') {
+    setTimeout(() => openSignupModal(), 500);
+    window.history.replaceState({}, '', '/');
+  }
+});
 </script>
 
 <!-- COCKPIT SPACER -->
