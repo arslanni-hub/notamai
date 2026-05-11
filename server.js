@@ -464,28 +464,30 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
 
-  if (req.method === 'GET' && req.url === '/') {
+  const urlPath = req.url.split('?')[0];
+
+  if (req.method === 'GET' && urlPath === '/') {
     const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end(html);
     return;
   }
 
-  if (req.method === 'GET' && (req.url === '/about' || req.url === '/about.html')) {
+  if (req.method === 'GET' && (urlPath === '/about' || urlPath === '/about.html')) {
     const html = fs.readFileSync(path.join(__dirname, 'about.html'), 'utf8');
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end(html);
     return;
   }
 
-  if (req.method === 'GET' && (req.url === '/pricing' || req.url === '/pricing.html')) {
+  if (req.method === 'GET' && (urlPath === '/pricing' || urlPath === '/pricing.html')) {
     const html = fs.readFileSync(path.join(__dirname, 'pricing.html'), 'utf8');
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end(html);
     return;
   }
 
-  if (req.method === 'GET' && (req.url === '/pricing-upgrade' || req.url === '/pricing-upgrade.html')) {
+  if (req.method === 'GET' && (urlPath === '/pricing-upgrade' || urlPath === '/pricing-upgrade.html')) {
     const html = fs.readFileSync(path.join(__dirname, 'pricing-upgrade.html'), 'utf8');
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end(html);
@@ -568,7 +570,7 @@ db.collection('briefings').doc('${briefingId}').get().then(doc => {
     return;
   }
 
-  if (req.method === 'GET' && (req.url === '/how-it-works' || req.url === '/how-it-works.html')) {
+  if (req.method === 'GET' && (urlPath === '/how-it-works' || urlPath === '/how-it-works.html')) {
     const html = fs.readFileSync(path.join(__dirname, 'how-it-works.html'), 'utf8');
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end(html);
