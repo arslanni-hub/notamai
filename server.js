@@ -618,7 +618,7 @@ if (getAccessBtn) {
           const location = n.location || icao;
           const effective = n.effective || '';
           const expiration = n.expiration || 'PERM';
-          const body = (n.raw || n.body || '').trim();
+          const body = (n.body || '').trim() || (n.raw || '').trim();
           return id + '\tNOTAMN\nA) ' + location + '\nB) ' + effective + ' C) ' + expiration + '\nE) ' + body;
         }).join('\n\n');
         res.writeHead(200, { 'Content-Type': 'text/plain' });
