@@ -3570,7 +3570,7 @@ function pricing_toggleBilling() {
   </div>
 </div>
 
-<div id="sidebarFloatingTooltip" style="display:none;position:fixed;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;padding:6px 12px;border-radius:6px;letter-spacing:1px;box-shadow:0 4px 12px rgba(0,0,0,0.4);white-space:nowrap;z-index:9999;pointer-events:none;"></div>
+<div id="sidebarFloatingTooltip" style="display:none;position:fixed;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;font-weight:400;padding:6px 12px;border-radius:6px;letter-spacing:0;box-shadow:0 4px 12px rgba(0,0,0,0.4);white-space:nowrap;z-index:9999;pointer-events:none;"></div>
 
 <script>
 function showSidebarTooltip(text, element) {
@@ -3594,7 +3594,7 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
     tooltip.style.display = 'block';
     const rect = this.getBoundingClientRect();
     tooltip.style.left = (rect.left + rect.width / 2 - tooltip.offsetWidth / 2) + 'px';
-    tooltip.style.top = (rect.top - tooltip.offsetHeight - 8) + 'px';
+    tooltip.style.top = (rect.bottom + 8) + 'px';
   });
   el.addEventListener('mouseleave', function() {
     document.getElementById('sidebarFloatingTooltip').style.display = 'none';
