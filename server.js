@@ -599,7 +599,10 @@ if (getAccessBtn) {
           }
         });
         if (data.notams && data.notams.length > 0) {
-          const notamText = data.notams.map(n => (n.raw || n.body || '')).join('\n\n');
+          const notamText = data.notams
+            .map(n => (n.raw || n.body || '').trim())
+            .filter(t => t.length > 0)
+            .join('\n\n');
           res.writeHead(200, { 'Content-Type': 'text/plain' });
           res.end(notamText);
         } else {

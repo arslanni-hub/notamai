@@ -3947,14 +3947,16 @@ async function fetchRawData() {
     // NOTAMs
     html += '<div style="margin-bottom:20px;">';
     html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">ACTIVE NOTAMs — ' + icao + '</div>';
-    const notams = notamText.trim().split('\n').filter(n => n.trim());
-    if (notams.length === 0 || notamText.includes('No data')) {
+    const notams = notamText.trim().split('\n\n').filter(n => n.trim());
+    if (notams.length === 0 || notamText.includes('No active')) {
       html += '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;">No active NOTAMs for ' + icao + '</div>';
     } else {
-      notams.forEach(notam => {
-        html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #1a2a3a;padding:10px 12px;margin-bottom:6px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.6;word-break:break-word;">' + notam.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+      html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;margin-bottom:8px;">' + notams.length + ' ACTIVE NOTAMs</div>';
+      html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;overflow:hidden;">';
+      notams.forEach((notam, i) => {
+        html += '<div style="padding:10px 14px;border-bottom:' + (i < notams.length-1 ? '1px solid #1a2a3a' : 'none') + ';font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.7;white-space:pre-wrap;word-break:break-word;">' + notam.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
       });
-      html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;margin-top:6px;letter-spacing:1px;">' + notams.length + ' NOTAM(S) FOUND</div>';
+      html += '</div>';
     }
     html += '</div>';
     // METAR
