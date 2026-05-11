@@ -598,32 +598,36 @@ if (getAccessBtn) {
             'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
           }
         });
-        console.log('[NOTAM DEBUG]', icao, JSON.stringify(data).slice(0, 300));
-        if (data.notams && data.notams.length > 0) {
-          const notamText = data.notams.map(n => {
-            const id = n.notam_id || '';
-            const location = n.location || '';
-            const effective = n.effective || '';
-            const expiration = n.expiration || 'PERM';
-            const body = (n.body || n.raw || '').trim();
-            let formatted = id + '\tNOTAMN\n';
-            formatted += 'A) ' + location + '\n';
-            formatted += 'B) ' + effective + ' C) ' + expiration + '\n';
-            formatted += 'E) ' + body;
-            return formatted;
-          }).join('\n\n');
-          res.writeHead(200, { 'Content-Type': 'text/plain' });
-          res.end(notamText);
-        } else {
+        if (!data || !data.notams || data.notams.length === 0) {
           res.writeHead(200, { 'Content-Type': 'text/plain' });
           res.end('No active NOTAMs for ' + icao);
+          return;
         }
-        return;
+        const now = new Date();
+        const active = data.notams.filter(n => {
+          if (!n.expiration || n.expiration.length < 12) return true;
+          const e = n.expiration;
+          const expDate = new Date(Date.UTC(
+            parseInt(e.slice(0,4)), parseInt(e.slice(4,6)) - 1, parseInt(e.slice(6,8)),
+            parseInt(e.slice(8,10)), parseInt(e.slice(10,12))
+          ));
+          return expDate > now;
+        });
+        const notamText = active.map(n => {
+          const id = n.notam_id || '';
+          const location = n.location || icao;
+          const effective = n.effective || '';
+          const expiration = n.expiration || 'PERM';
+          const body = (n.raw || n.body || '').trim();
+          return id + '\tNOTAMN\nA) ' + location + '\nB) ' + effective + ' C) ' + expiration + '\nE) ' + body;
+        }).join('\n\n');
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end(notamText || 'No active NOTAMs for ' + icao);
       } catch(e) {
         res.writeHead(500);
-        res.end('Error fetching NOTAMs');
-        return;
+        res.end('Error: ' + e.message);
       }
+      return;
     }
 
     let apiUrl = '';
