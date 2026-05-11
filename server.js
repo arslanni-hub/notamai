@@ -599,10 +599,20 @@ if (getAccessBtn) {
           }
         });
         if (data.notams && data.notams.length > 0) {
-          const notamText = data.notams
-            .map(n => (n.raw || n.body || '').trim())
-            .filter(t => t.length > 0)
-            .join('\n\n');
+          const notamText = data.notams.map(n => {
+            const id = n.notam_id || '';
+            const location = n.location || '';
+            const effective = n.effective || '';
+            const expiration = n.expiration || '';
+            const raw = (n.raw || n.body || '').trim();
+            let formatted = id + '\tNOTAMN\n';
+            if (location) formatted += 'A) ' + location + '\n';
+            if (effective) formatted += 'B) ' + effective;
+            if (expiration) formatted += ' C) ' + expiration;
+            if (effective || expiration) formatted += '\n';
+            formatted += 'E) ' + raw;
+            return formatted;
+          }).filter(t => t.trim().length > 0).join('\n\n');
           res.writeHead(200, { 'Content-Type': 'text/plain' });
           res.end(notamText);
         } else {
