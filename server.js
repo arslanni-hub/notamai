@@ -531,11 +531,12 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
         <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">SHARED BRIEFING</span>
       </div>
     </div>
-    <a href="https://notamai.onrender.com/?signup=true" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#ffffff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;text-decoration:none;">
+    <a id="getAccessBtn" href="https://notamai.onrender.com/?signup=true" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#ffffff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;text-decoration:none;">
       <span style="font-size:12px;">✨</span>
       GET FULL ACCESS
     </a>
   </div>
+  <div id="getAccessTooltip" style="display:none;position:fixed;background:#1a1a1a;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:12px;font-weight:400;padding:6px 10px;border-radius:4px;border:1px solid #333;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:normal;line-height:1.5;pointer-events:none;z-index:9999;max-width:280px;">Create a free account to generate your own AI-powered pre-flight briefings</div>
   <div id="briefingBody" style="padding-top:32px;"></div>
 </div>
 <script>
@@ -562,6 +563,19 @@ db.collection('briefings').doc('${briefingId}').get().then(doc => {
 }).catch(() => {
   document.getElementById('loadingText').textContent = 'ERROR LOADING BRIEFING';
 });
+const getAccessBtn = document.getElementById('getAccessBtn');
+const getAccessTooltip = document.getElementById('getAccessTooltip');
+if (getAccessBtn) {
+  getAccessBtn.addEventListener('mouseenter', function() {
+    getAccessTooltip.style.display = 'block';
+    const rect = this.getBoundingClientRect();
+    getAccessTooltip.style.left = (rect.left + rect.width / 2 - 140) + 'px';
+    getAccessTooltip.style.top = (rect.bottom + 8) + 'px';
+  });
+  getAccessBtn.addEventListener('mouseleave', function() {
+    getAccessTooltip.style.display = 'none';
+  });
+}
 </script>
 </body>
 </html>`;
