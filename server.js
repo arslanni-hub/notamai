@@ -598,6 +598,7 @@ if (getAccessBtn) {
             'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
           }
         });
+        console.log('[NOTAM DEBUG]', icao, JSON.stringify(data).slice(0, 300));
         if (data.notams && data.notams.length > 0) {
           const notamText = data.notams.map(n => {
             const id = n.notam_id || '';
