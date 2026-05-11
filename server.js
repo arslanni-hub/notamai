@@ -587,10 +587,35 @@ if (getAccessBtn) {
   if (req.method === 'GET' && req.url.startsWith('/api/raw/')) {
     const urlParams = req.url.replace('/api/raw/', '');
     const [type, icao] = urlParams.split('/');
-    let apiUrl = '';
+
     if (type === 'notam') {
-      apiUrl = 'https://aviationweather.gov/api/data/notam?ids=' + icao + '&format=raw&type=N';
-    } else if (type === 'metar') {
+      try {
+        const skyUrl = 'https://skylink-api.p.rapidapi.com/notams/' + icao;
+        const data = await fetchURL(skyUrl, {
+          method: 'GET',
+          headers: {
+            'x-rapidapi-key': process.env.SKYLINK_KEY,
+            'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
+          }
+        });
+        if (data.notams && data.notams.length > 0) {
+          const notamText = data.notams.map(n => (n.raw || n.body || '')).join('\n\n');
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
+          res.end(notamText);
+        } else {
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
+          res.end('No active NOTAMs for ' + icao);
+        }
+        return;
+      } catch(e) {
+        res.writeHead(500);
+        res.end('Error fetching NOTAMs');
+        return;
+      }
+    }
+
+    let apiUrl = '';
+    if (type === 'metar') {
       apiUrl = 'https://aviationweather.gov/api/data/metar?ids=' + icao + '&format=raw&hours=2';
     } else if (type === 'taf') {
       apiUrl = 'https://aviationweather.gov/api/data/taf?ids=' + icao + '&format=raw';
@@ -598,7 +623,6 @@ if (getAccessBtn) {
     if (!apiUrl) { res.writeHead(400); res.end('Invalid type'); return; }
     try {
       const response = await fetchURL(apiUrl);
-      console.log('[RAW NOTAM]', icao, typeof response === 'string' ? response.slice(0,200) : JSON.stringify(response).slice(0,200));
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end(typeof response === 'string' ? response : JSON.stringify(response));
     } catch(e) {
