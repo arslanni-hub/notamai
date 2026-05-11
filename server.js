@@ -615,11 +615,16 @@ if (getAccessBtn) {
         });
         const notamText = active.map(n => {
           const id = n.notam_id || '';
+          const ntype = n.type === 'R' ? 'NOTAMR' : n.type === 'C' ? 'NOTAMC' : 'NOTAMN';
           const location = n.location || icao;
-          const effective = n.effective || '';
-          const expiration = n.expiration || 'PERM';
-          const body = (n.body || '').trim() || (n.raw || '').trim();
-          return id + '\tNOTAMN\nA) ' + location + '\nB) ' + effective + ' C) ' + expiration + '\nE) ' + body;
+          const effective = n.effective ? n.effective.slice(2) : '';
+          const expiration = n.expiration ? (n.expiration === 'PERM' ? 'PERM' : n.expiration.slice(2)) : 'PERM';
+          const body = (n.body || '').trim() || (n.raw || '').replace(/^![A-Z]+ [A-Z0-9/]+\s*/, '').trim();
+          let formatted = id + '\t' + ntype + '\n';
+          formatted += 'A) ' + location + '\n';
+          formatted += 'B) ' + effective + ' C) ' + expiration + '\n';
+          formatted += 'E) ' + body;
+          return formatted;
         }).join('\n\n');
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end(notamText || 'No active NOTAMs for ' + icao);
