@@ -910,6 +910,9 @@ body.sidebar-collapsed #resultOverlay {
   transition: background 0.15s;
 }
 .popup-item:hover { background: rgba(255,255,255,0.04); color: #cdd9e5; }
+#rawDataResults::-webkit-scrollbar { width: 3px; }
+#rawDataResults::-webkit-scrollbar-track { background: transparent; }
+#rawDataResults::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -3477,7 +3480,7 @@ function pricing_toggleBilling() {
       <span class="sidebar-text">Search</span>
     </div>
 
-    <div class="sidebar-nav-item" onmouseenter="showSidebarTooltip('NOTAMs & MET',this)" onmouseleave="hideSidebarTooltip()">
+    <div class="sidebar-nav-item" onclick="openRawDataPanel()" onmouseenter="showSidebarTooltip('NOTAMs & MET',this)" onmouseleave="hideSidebarTooltip()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       <span class="sidebar-text">NOTAMs & MET</span>
     </div>
@@ -3890,6 +3893,98 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
     </div>
   </div>
 </div>
+
+<!-- NOTAMs & MET PANEL -->
+<div id="rawDataPanel" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">NOTAMs & MET</div>
+    <button onclick="closeRawDataPanel()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div style="padding:16px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+    <div style="display:flex;gap:8px;">
+      <input id="rawIcaoInput" type="text" placeholder="Enter ICAO code (e.g. LTFM)" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+      <button onclick="fetchRawData()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 16px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;white-space:nowrap;">FETCH</button>
+    </div>
+  </div>
+  <div id="rawDataResults" style="flex:1;overflow-y:auto;padding:16px;">
+    <div style="text-align:center;padding:40px 0;font-family:'Rajdhani',sans-serif;font-size:14px;color:#4a5f72;">
+      Enter an ICAO code to fetch live NOTAMs and weather data
+    </div>
+  </div>
+</div>
+
+<script>
+function openRawDataPanel() {
+  const panel = document.getElementById('rawDataPanel');
+  panel.style.display = 'flex';
+  panel.style.flexDirection = 'column';
+  setTimeout(() => panel.style.transform = 'translateX(0)', 10);
+}
+
+function closeRawDataPanel() {
+  const panel = document.getElementById('rawDataPanel');
+  panel.style.transform = 'translateX(100%)';
+  setTimeout(() => panel.style.display = 'none', 300);
+}
+
+async function fetchRawData() {
+  const icao = document.getElementById('rawIcaoInput').value.trim();
+  if (!icao || icao.length < 3) return;
+  const results = document.getElementById('rawDataResults');
+  results.innerHTML = '<div style="text-align:center;padding:40px 0;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">FETCHING DATA...</div>';
+  try {
+    const [notamRes, metarRes, tafRes] = await Promise.all([
+      fetch('https://aviationweather.gov/api/data/notam?ids=' + icao + '&format=raw'),
+      fetch('https://aviationweather.gov/api/data/metar?ids=' + icao + '&format=raw'),
+      fetch('https://aviationweather.gov/api/data/taf?ids=' + icao + '&format=raw')
+    ]);
+    const notamText = await notamRes.text();
+    const metarText = await metarRes.text();
+    const tafText = await tafRes.text();
+    let html = '';
+    // NOTAMs
+    html += '<div style="margin-bottom:20px;">';
+    html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">ACTIVE NOTAMs — ' + icao + '</div>';
+    const notams = notamText.trim().split('\n').filter(n => n.trim());
+    if (notams.length === 0 || notamText.includes('No data')) {
+      html += '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;">No active NOTAMs for ' + icao + '</div>';
+    } else {
+      notams.forEach(notam => {
+        html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #1a2a3a;padding:10px 12px;margin-bottom:6px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.6;word-break:break-word;">' + notam.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+      });
+      html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;margin-top:6px;letter-spacing:1px;">' + notams.length + ' NOTAM(S) FOUND</div>';
+    }
+    html += '</div>';
+    // METAR
+    html += '<div style="margin-bottom:20px;">';
+    html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">METAR</div>';
+    if (metarText.trim() && !metarText.includes('No data')) {
+      html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.6;word-break:break-word;">' + metarText.trim().replace(/</g,'&lt;') + '</div>';
+    } else {
+      html += '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;">No METAR data available</div>';
+    }
+    html += '</div>';
+    // TAF
+    html += '<div style="margin-bottom:20px;">';
+    html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">TAF</div>';
+    if (tafText.trim() && !tafText.includes('No data')) {
+      html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f2c641;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.6;word-break:break-word;">' + tafText.trim().replace(/</g,'&lt;') + '</div>';
+    } else {
+      html += '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;">No TAF data available</div>';
+    }
+    html += '</div>';
+    results.innerHTML = html;
+  } catch(e) {
+    results.innerHTML = '<div style="text-align:center;padding:40px 0;font-family:\'Rajdhani\',sans-serif;font-size:14px;color:#e63946;">Error fetching data. Please try again.</div>';
+  }
+}
+
+document.getElementById('rawIcaoInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') fetchRawData();
+});
+</script>
 
 </body>
 </html>
