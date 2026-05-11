@@ -589,7 +589,7 @@ if (getAccessBtn) {
     const [type, icao] = urlParams.split('/');
     let apiUrl = '';
     if (type === 'notam') {
-      apiUrl = 'https://aviationweather.gov/api/data/notam?ids=' + icao + '&format=raw';
+      apiUrl = 'https://aviationweather.gov/api/data/notam?ids=' + icao + '&format=raw&type=N';
     } else if (type === 'metar') {
       apiUrl = 'https://aviationweather.gov/api/data/metar?ids=' + icao + '&format=raw&hours=2';
     } else if (type === 'taf') {
@@ -598,6 +598,7 @@ if (getAccessBtn) {
     if (!apiUrl) { res.writeHead(400); res.end('Invalid type'); return; }
     try {
       const response = await fetchURL(apiUrl);
+      console.log('[RAW NOTAM]', icao, typeof response === 'string' ? response.slice(0,200) : JSON.stringify(response).slice(0,200));
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end(typeof response === 'string' ? response : JSON.stringify(response));
     } catch(e) {
