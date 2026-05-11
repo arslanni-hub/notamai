@@ -2617,6 +2617,18 @@ function openProfileModal() {
   document.getElementById('profileName').textContent = user.displayName || user.email.split('@')[0];
   document.getElementById('profileEmail').textContent = user.email;
   document.getElementById('profilePlan').textContent = (window.currentUserPlan || 'free').toUpperCase();
+  const plan = window.currentUserPlan || 'free';
+  const planLabels = {
+    free: { label: 'Free Plan', desc: 'Limited to 1 full AI briefing' },
+    pro: { label: 'Pro Plan', desc: 'Unlimited briefings + live NOTAM data' },
+    premium: { label: 'Premium Plan', desc: 'Pro + Video briefing + PDF export' },
+    enterprise: { label: 'Enterprise Plan', desc: 'Full API access + multi-user' }
+  };
+  const planInfo = planLabels[plan] || planLabels.free;
+  document.getElementById('profilePlanLabel').textContent = planInfo.label;
+  document.getElementById('profilePlanDesc').textContent = planInfo.desc;
+  const upgradeBtn = document.querySelector('#profileModal button[onclick*="pricing-upgrade"]');
+  if (upgradeBtn) upgradeBtn.style.display = plan === 'enterprise' ? 'none' : 'flex';
   const createdAt = user.metadata.creationTime;
   const memberDate = new Date(createdAt);
   document.getElementById('profileMemberSince').textContent = 'Member since ' + memberDate.toLocaleDateString('en-US', {month:'short', year:'numeric'});
@@ -3825,6 +3837,20 @@ function hideSidebarTooltip() {
         <input id="profileOrg" type="text" placeholder="e.g. Turkish Airlines" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:10px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box;">
       </div>
       <button onclick="saveProfile()" style="width:100%;padding:10px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">SAVE CHANGES</button>
+    </div>
+    <!-- Subscription -->
+    <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">SUBSCRIPTION</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;background:#060a0f;border:1px solid #1a2a3a;padding:14px 16px;border-radius:6px;">
+        <div>
+          <div id="profilePlanLabel" style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#cdd9e5;"></div>
+          <div id="profilePlanDesc" style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;margin-top:2px;"></div>
+        </div>
+        <button onclick="closeProfileModal();window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:6px;background:rgba(181,123,255,0.12);border:1px solid rgba(181,123,255,0.3);color:#b57bff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:8px 16px;border-radius:6px;cursor:pointer;">
+          <span style="font-size:12px;">✨</span>
+          Upgrade
+        </button>
+      </div>
     </div>
     <!-- Stats -->
     <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
