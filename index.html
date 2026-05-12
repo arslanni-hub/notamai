@@ -916,6 +916,9 @@ body.sidebar-collapsed #resultOverlay {
 #savedRoutesList::-webkit-scrollbar { width: 3px; }
 #savedRoutesList::-webkit-scrollbar-track { background: transparent; }
 #savedRoutesList::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
+#alertsList::-webkit-scrollbar { width: 3px; }
+#alertsList::-webkit-scrollbar-track { background: transparent; }
+#alertsList::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -3498,7 +3501,7 @@ function pricing_toggleBilling() {
       <span class="sidebar-text">Archive</span>
     </div>
 
-    <div class="sidebar-nav-item" onmouseenter="showSidebarTooltip('NOTAM Alerts',this)" onmouseleave="hideSidebarTooltip()">
+    <div class="sidebar-nav-item" onclick="openAlertsPanel()" onmouseenter="showSidebarTooltip('NOTAM Alerts',this)" onmouseleave="hideSidebarTooltip()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span class="sidebar-text">NOTAM Alerts</span>
     </div>
@@ -3897,6 +3900,33 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
   </div>
 </div>
 
+<!-- NOTAM ALERTS PANEL -->
+<div id="alertsPanel" style="display:none;position:fixed;top:0;right:0;width:320px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">NOTAM ALERTS</div>
+    <button onclick="closeAlertsPanel()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;display:flex;align-items:center;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div style="margin:12px 16px;background:rgba(181,123,255,0.08);border:1px solid rgba(181,123,255,0.2);border-radius:6px;padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;">
+    <span style="font-size:13px;filter:hue-rotate(200deg) saturate(2);">✨</span>
+    <div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;color:#b57bff;letter-spacing:1px;">PRO FEATURE</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;margin-top:1px;">Email notifications coming soon</div>
+    </div>
+  </div>
+  <div style="padding:12px 16px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">WATCH AIRPORTS</div>
+    <div style="display:flex;gap:8px;">
+      <input id="alertIcaoInput" type="text" placeholder="e.g. LTFM" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+      <button onclick="addAlert()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;">ADD</button>
+    </div>
+  </div>
+  <div id="alertsList" style="flex:1;overflow-y:auto;padding:8px;">
+    <div id="alertsEmpty" style="text-align:center;padding:40px 0;font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;">No airports being watched</div>
+  </div>
+</div>
+
 <!-- SAVED ROUTES PANEL -->
 <div id="savedRoutesPanel" style="display:none;position:fixed;top:0;right:0;width:320px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
@@ -4085,6 +4115,93 @@ function renderSavedRoutes() {
 
 document.getElementById('savedRouteInput')?.addEventListener('keydown', function(e) {
   if (e.key === 'Enter') saveRoute();
+});
+
+function openAlertsPanel() {
+  const panel = document.getElementById('alertsPanel');
+  panel.style.display = 'flex';
+  panel.style.flexDirection = 'column';
+  setTimeout(() => panel.style.transform = 'translateX(0)', 10);
+  renderAlerts();
+}
+
+function closeAlertsPanel() {
+  const panel = document.getElementById('alertsPanel');
+  panel.style.transform = 'translateX(100%)';
+  setTimeout(() => panel.style.display = 'none', 300);
+}
+
+async function addAlert() {
+  const input = document.getElementById('alertIcaoInput');
+  const icao = input.value.trim().toUpperCase();
+  if (!icao || icao.length < 3) return;
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  try {
+    await db.collection('alerts').doc(user.uid + '_' + icao).set({
+      userId: user.uid,
+      icao: icao,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      active: true
+    });
+    input.value = '';
+    renderAlerts();
+  } catch(e) { console.error(e); }
+}
+
+async function removeAlert(icao) {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  try {
+    await db.collection('alerts').doc(user.uid + '_' + icao).delete();
+    renderAlerts();
+  } catch(e) { console.error(e); }
+}
+
+async function renderAlerts() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  const list = document.getElementById('alertsList');
+  const empty = document.getElementById('alertsEmpty');
+  try {
+    const snapshot = await db.collection('alerts')
+      .where('userId', '==', user.uid)
+      .where('active', '==', true)
+      .get();
+    list.querySelectorAll('.alert-item').forEach(el => el.remove());
+    if (snapshot.empty) {
+      if (empty) empty.style.display = 'block';
+      return;
+    }
+    if (empty) empty.style.display = 'none';
+    snapshot.forEach(doc => {
+      const icao = doc.data().icao;
+      const div = document.createElement('div');
+      div.className = 'alert-item';
+      div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:6px;transition:background 0.15s;margin-bottom:2px;';
+      div.onmouseover = function() {
+        this.style.background = 'rgba(255,255,255,0.06)';
+        this.querySelector('.alert-delete').style.opacity = '1';
+      };
+      div.onmouseout = function() {
+        this.style.background = 'none';
+        this.querySelector('.alert-delete').style.opacity = '0';
+      };
+      div.innerHTML = `
+        <div style="width:8px;height:8px;border-radius:50%;background:#2ec4b6;flex-shrink:0;"></div>
+        <span style="flex:1;font-family:'Share Tech Mono',monospace;font-size:13px;color:#cdd9e5;letter-spacing:2px;">${icao}</span>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;">watching</div>
+        <button class="alert-delete" onclick="removeAlert('${icao}')" style="background:none;border:none;cursor:pointer;color:#4a5f72;opacity:0;transition:opacity 0.15s;padding:2px;display:flex;align-items:center;" onmouseover="this.style.color='#e63946'" onmouseout="this.style.color='#4a5f72'">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      `;
+      list.appendChild(div);
+    });
+  } catch(e) { console.error(e); }
+}
+
+document.getElementById('alertIcaoInput')?.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') addAlert();
 });
 </script>
 
