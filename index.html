@@ -3959,16 +3959,15 @@ async function fetchRawData() {
     // METAR
     html += '<div style="margin-bottom:20px;">';
     html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">METAR</div>';
-    const metarLines = metarText.trim().split('\n').filter(m => m.trim());
-    if (metarLines.length === 0 || metarText.includes('No data')) {
-      html += '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;">No METAR data available</div>';
+    const metarLines = metarText.trim().split('\n').filter(m => m.trim() && m.trim().startsWith('METAR'));
+    const allMetar = metarText.trim().split('\n').filter(m => m.trim());
+    html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;line-height:2;">';
+    if (allMetar.length === 0 || metarText.includes('No data')) {
+      html += 'No METAR data available';
     } else {
-      html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:2;">';
-      metarLines.forEach(line => {
-        if (line.trim()) html += line.trim().replace(/</g,'&lt;') + '\n';
-      });
-      html += '</div>';
+      html += allMetar.join('\n').replace(/</g,'&lt;');
     }
+    html += '</div>';
     html += '</div>';
     // TAF
     html += '<div style="margin-bottom:20px;">';
