@@ -913,6 +913,9 @@ body.sidebar-collapsed #resultOverlay {
 #rawDataResults::-webkit-scrollbar { width: 3px; }
 #rawDataResults::-webkit-scrollbar-track { background: transparent; }
 #rawDataResults::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
+#savedRoutesList::-webkit-scrollbar { width: 3px; }
+#savedRoutesList::-webkit-scrollbar-track { background: transparent; }
+#savedRoutesList::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -3485,7 +3488,7 @@ function pricing_toggleBilling() {
       <span class="sidebar-text">NOTAMs & MET</span>
     </div>
 
-    <div class="sidebar-nav-item" onmouseenter="showSidebarTooltip('Saved Routes',this)" onmouseleave="hideSidebarTooltip()">
+    <div class="sidebar-nav-item" onclick="openSavedRoutesPanel()" onmouseenter="showSidebarTooltip('Saved Routes',this)" onmouseleave="hideSidebarTooltip()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
       <span class="sidebar-text">Saved Routes</span>
     </div>
@@ -3894,6 +3897,25 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
   </div>
 </div>
 
+<!-- SAVED ROUTES PANEL -->
+<div id="savedRoutesPanel" style="display:none;position:fixed;top:0;right:0;width:320px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">SAVED ROUTES</div>
+    <button onclick="closeSavedRoutesPanel()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;display:flex;align-items:center;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div style="padding:12px 16px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+    <div style="display:flex;gap:8px;">
+      <input id="savedRouteInput" type="text" placeholder="e.g. LTFM EGLL" maxlength="20" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+      <button onclick="saveRoute()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;">SAVE</button>
+    </div>
+  </div>
+  <div id="savedRoutesList" style="flex:1;overflow-y:auto;padding:8px;">
+    <div id="savedRoutesEmpty" style="text-align:center;padding:40px 0;font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;">No saved routes yet</div>
+  </div>
+</div>
+
 <!-- NOTAMs & MET PANEL -->
 <div id="rawDataPanel" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
@@ -3988,6 +4010,81 @@ async function fetchRawData() {
 
 document.getElementById('rawIcaoInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') fetchRawData();
+});
+
+function openSavedRoutesPanel() {
+  const panel = document.getElementById('savedRoutesPanel');
+  panel.style.display = 'flex';
+  panel.style.flexDirection = 'column';
+  setTimeout(() => panel.style.transform = 'translateX(0)', 10);
+  renderSavedRoutes();
+}
+
+function closeSavedRoutesPanel() {
+  const panel = document.getElementById('savedRoutesPanel');
+  panel.style.transform = 'translateX(100%)';
+  setTimeout(() => panel.style.display = 'none', 300);
+}
+
+function saveRoute() {
+  const input = document.getElementById('savedRouteInput');
+  const route = input.value.trim().toUpperCase();
+  if (!route) return;
+  const routes = JSON.parse(localStorage.getItem('notamai_saved_routes') || '[]');
+  if (routes.includes(route)) { input.value = ''; return; }
+  routes.unshift(route);
+  localStorage.setItem('notamai_saved_routes', JSON.stringify(routes.slice(0, 20)));
+  input.value = '';
+  renderSavedRoutes();
+}
+
+function deleteRoute(route) {
+  const routes = JSON.parse(localStorage.getItem('notamai_saved_routes') || '[]');
+  localStorage.setItem('notamai_saved_routes', JSON.stringify(routes.filter(r => r !== route)));
+  renderSavedRoutes();
+}
+
+function renderSavedRoutes() {
+  const routes = JSON.parse(localStorage.getItem('notamai_saved_routes') || '[]');
+  const list = document.getElementById('savedRoutesList');
+  const empty = document.getElementById('savedRoutesEmpty');
+  if (routes.length === 0) {
+    if (empty) empty.style.display = 'block';
+    list.querySelectorAll('.route-item').forEach(el => el.remove());
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  list.querySelectorAll('.route-item').forEach(el => el.remove());
+  routes.forEach(route => {
+    const div = document.createElement('div');
+    div.className = 'route-item';
+    div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:6px;cursor:pointer;transition:background 0.15s;margin-bottom:2px;';
+    div.onmouseover = function() {
+      this.style.background = 'rgba(255,255,255,0.06)';
+      this.querySelector('.delete-btn').style.opacity = '1';
+    };
+    div.onmouseout = function() {
+      this.style.background = 'none';
+      this.querySelector('.delete-btn').style.opacity = '0';
+    };
+    div.innerHTML = `
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a5f72" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+      <span style="flex:1;font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;letter-spacing:1px;">${route}</span>
+      <button class="delete-btn" onclick="event.stopPropagation();deleteRoute('${route}')" style="background:none;border:none;cursor:pointer;color:#4a5f72;opacity:0;transition:opacity 0.15s;padding:2px;display:flex;align-items:center;" onmouseover="this.style.color='#e63946'" onmouseout="this.style.color='#4a5f72'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    `;
+    div.addEventListener('click', function() {
+      document.getElementById('mainInput').value = route;
+      closeSavedRoutesPanel();
+      handleSend();
+    });
+    list.appendChild(div);
+  });
+}
+
+document.getElementById('savedRouteInput')?.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') saveRoute();
 });
 </script>
 
