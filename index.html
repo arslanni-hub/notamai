@@ -919,9 +919,9 @@ body.sidebar-collapsed #resultOverlay {
 #alertsList::-webkit-scrollbar { width: 3px; }
 #alertsList::-webkit-scrollbar-track { background: transparent; }
 #alertsList::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
-#settingsPanel > div:last-child::-webkit-scrollbar { width: 3px; }
-#settingsPanel > div:last-child::-webkit-scrollbar-track { background: transparent; }
-#settingsPanel > div:last-child::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
+#settingsContent::-webkit-scrollbar { width: 3px; }
+#settingsContent::-webkit-scrollbar-track { background: transparent; }
+#settingsContent::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -3904,14 +3904,60 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
 </div>
 
 <!-- SETTINGS PANEL -->
-<div id="settingsPanel" style="display:none;position:fixed;top:0;right:0;width:320px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
+<div id="settingsPanel" style="display:none;position:fixed;top:0;right:0;width:340px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
     <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">SETTINGS</div>
     <button onclick="closeSettingsPanel()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;display:flex;align-items:center;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>
-  <div style="flex:1;overflow-y:auto;padding:16px;">
+  <div id="settingsContent" style="flex:1;overflow-y:auto;padding:16px;">
+    <!-- ACCOUNT & SECURITY -->
+    <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">ACCOUNT & SECURITY</div>
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px 14px;margin-bottom:8px;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;margin-bottom:4px;">SIGNED IN AS</div>
+        <div id="settingsEmail" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;"></div>
+      </div>
+      <button onclick="sendPasswordReset()" style="width:100%;padding:10px 14px;background:none;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;margin-bottom:8px;" onmouseover="this.style.color='#cdd9e5';this.style.borderColor='#2a3a4a'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Change Password
+      </button>
+      <button onclick="showActiveSessions()" style="width:100%;padding:10px 14px;background:none;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;" onmouseover="this.style.color='#cdd9e5';this.style.borderColor='#2a3a4a'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Active Sessions
+        <span style="margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;background:rgba(46,196,182,0.1);border:1px solid rgba(46,196,182,0.2);padding:2px 8px;border-radius:3px;">1 ACTIVE</span>
+      </button>
+    </div>
+    <!-- BILLING & USAGE -->
+    <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">BILLING & USAGE</div>
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px 14px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;margin-bottom:4px;">CURRENT PLAN</div>
+            <div id="settingsPlan" style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#cdd9e5;"></div>
+          </div>
+          <button onclick="closeSettingsPanel();window.location.href='/pricing-upgrade'" style="background:rgba(181,123,255,0.1);border:1px solid rgba(181,123,255,0.3);color:#b57bff;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:6px 12px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+            <span style="filter:hue-rotate(200deg) saturate(2);font-size:11px;">✨</span> Upgrade
+          </button>
+        </div>
+        <div style="border-top:1px solid #1a2a3a;padding-top:10px;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;margin-bottom:6px;">THIS MONTH</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;">Briefings generated</div>
+            <div id="settingsUsage" style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#4a9eff;">0</div>
+          </div>
+          <div style="margin-top:6px;height:4px;background:#1a2a3a;border-radius:2px;overflow:hidden;">
+            <div id="settingsUsageBar" style="height:100%;background:#4a9eff;border-radius:2px;width:0%;transition:width 0.5s;"></div>
+          </div>
+        </div>
+      </div>
+      <button onclick="closeSettingsPanel();window.location.href='/pricing-upgrade'" style="width:100%;padding:10px 14px;background:none;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;" onmouseover="this.style.color='#cdd9e5';this.style.borderColor='#2a3a4a'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Manage Subscription
+      </button>
+    </div>
     <!-- NOTIFICATIONS -->
     <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
       <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">NOTIFICATIONS</div>
@@ -3934,44 +3980,43 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
         </div>
       </div>
     </div>
-    <!-- SUPPORT -->
+    <!-- REFERRAL -->
     <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">SUPPORT & FEEDBACK</div>
-      <button onclick="openSupportModal()" style="width:100%;padding:10px 14px;background:rgba(74,158,255,0.06);border:1px solid rgba(74,158,255,0.2);color:#4a9eff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        Contact Support
-      </button>
-      <button onclick="openSupportModal()" style="width:100%;padding:10px 14px;background:none;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-        Send Feedback
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">REFERRAL PROGRAM</div>
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px 14px;margin-bottom:8px;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;margin-bottom:6px;">YOUR REFERRAL CODE</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div id="settingsRefCode" style="font-family:'Share Tech Mono',monospace;font-size:14px;color:#4a9eff;letter-spacing:3px;"></div>
+          <button onclick="copySettingsRefCode()" id="copySettingsRefBtn" style="background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">Copy</button>
+        </div>
+      </div>
+      <button onclick="openInviteModal();closeSettingsPanel();" style="width:100%;padding:10px 14px;background:rgba(46,196,182,0.06);border:1px solid rgba(46,196,182,0.2);color:#2ec4b6;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;" onmouseover="this.style.background='rgba(46,196,182,0.1)'" onmouseout="this.style.background='rgba(46,196,182,0.06)'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+        Invite a Colleague
       </button>
     </div>
-    <!-- DATA -->
+    <!-- PRIVACY & DATA -->
     <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">DATA</div>
-      <button onclick="clearHistory()" style="width:100%;padding:10px 14px;background:rgba(230,57,70,0.06);border:1px solid rgba(230,57,70,0.2);color:#e63946;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">PRIVACY & DATA</div>
+      <button onclick="exportMyData()" style="width:100%;padding:10px 14px;background:none;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;margin-bottom:8px;" onmouseover="this.style.color='#cdd9e5';this.style.borderColor='#2a3a4a'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download My Data
+      </button>
+      <button onclick="clearHistory()" style="width:100%;padding:10px 14px;background:none;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;" onmouseover="this.style.color='#e63946';this.style.borderColor='rgba(230,57,70,0.3)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         Clear All History
       </button>
     </div>
-    <!-- LEGAL -->
+    <!-- SUPPORT -->
     <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">LEGAL & DOCS</div>
-      <a href="/privacy" target="_blank" style="padding:10px 14px;background:none;border:none;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:10px;margin-bottom:4px;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#8a9bb0'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        Privacy Policy
-      </a>
-      <a href="/terms" target="_blank" style="padding:10px 14px;background:none;border:none;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:10px;margin-bottom:4px;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#8a9bb0'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        Terms of Service
-      </a>
-      <a href="/docs" target="_blank" style="padding:10px 14px;background:none;border:none;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:10px;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#8a9bb0'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        Documentation
-      </a>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">SUPPORT</div>
+      <button onclick="openSupportModal();closeSettingsPanel();" style="width:100%;padding:10px 14px;background:rgba(74,158,255,0.06);border:1px solid rgba(74,158,255,0.2);color:#4a9eff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;border-radius:6px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;" onmouseover="this.style.background='rgba(74,158,255,0.1)'" onmouseout="this.style.background='rgba(74,158,255,0.06)'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Contact Support & Feedback
+      </button>
     </div>
     <!-- VERSION -->
-    <div style="text-align:center;padding-top:8px;">
+    <div style="text-align:center;padding:8px 0 16px;">
       <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;">NOTAM INTELLIGENCE v1.0</div>
       <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;margin-top:4px;">ICAO ANNEX 15 · PANS-AIM DOC 10066</div>
     </div>
@@ -4287,7 +4332,7 @@ function openSettingsPanel() {
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
   setTimeout(() => panel.style.transform = 'translateX(0)', 10);
-  loadSettingsToggles();
+  loadSettingsData();
 }
 
 function closeSettingsPanel() {
@@ -4296,7 +4341,27 @@ function closeSettingsPanel() {
   setTimeout(() => panel.style.display = 'none', 300);
 }
 
-function loadSettingsToggles() {
+async function loadSettingsData() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  document.getElementById('settingsEmail').textContent = user.email;
+  const plan = window.currentUserPlan || 'free';
+  document.getElementById('settingsPlan').textContent = plan.toUpperCase() + ' PLAN';
+  const refCode = 'NI-' + user.uid.substring(0,6).toUpperCase();
+  document.getElementById('settingsRefCode').textContent = refCode;
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  try {
+    const snapshot = await db.collection('briefings').where('userId','==',user.uid).get();
+    const thisMonth = snapshot.docs.filter(d => {
+      const t = d.data().createdAt?.toDate();
+      return t && t >= firstOfMonth;
+    }).length;
+    document.getElementById('settingsUsage').textContent = thisMonth;
+    const limit = plan === 'free' ? 1 : 999;
+    const pct = Math.min((thisMonth / limit) * 100, 100);
+    document.getElementById('settingsUsageBar').style.width = pct + '%';
+  } catch(e) {}
   const settings = JSON.parse(localStorage.getItem('notamai_settings') || '{}');
   updateToggle('emailAlerts', settings.emailAlerts || false);
   updateToggle('weeklySummary', settings.weeklySummary || false);
@@ -4322,6 +4387,62 @@ function toggleSetting(key) {
   settings[key] = !settings[key];
   localStorage.setItem('notamai_settings', JSON.stringify(settings));
   updateToggle(key, settings[key]);
+}
+
+function sendPasswordReset() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  firebase.auth().sendPasswordResetEmail(user.email).then(() => {
+    const btn = event.currentTarget;
+    btn.textContent = '✓ Reset email sent';
+    btn.style.color = '#2ec4b6';
+    setTimeout(() => {
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Change Password';
+      btn.style.color = '#8a9bb0';
+    }, 3000);
+  });
+}
+
+function showActiveSessions() {
+  alert('You have 1 active session on this device.');
+}
+
+function copySettingsRefCode() {
+  const code = document.getElementById('settingsRefCode').textContent;
+  navigator.clipboard.writeText(code);
+  const btn = document.getElementById('copySettingsRefBtn');
+  btn.textContent = '✓ Copied';
+  btn.style.color = '#2ec4b6';
+  setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = '#4a5f72'; }, 2000);
+}
+
+async function exportMyData() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  const btn = event.currentTarget;
+  btn.textContent = 'Preparing...';
+  try {
+    const snapshot = await db.collection('briefings').where('userId','==',user.uid).get();
+    const data = {
+      user: { email: user.email, uid: user.uid, createdAt: user.metadata.creationTime },
+      briefings: snapshot.docs.map(d => ({
+        id: d.id,
+        route: d.data().route,
+        riskLevel: d.data().riskLevel,
+        createdAt: d.data().createdAt?.toDate()?.toISOString()
+      }))
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'notamai_data_' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download My Data';
+  } catch(e) {
+    btn.textContent = 'Error - try again';
+  }
 }
 
 function clearHistory() {
