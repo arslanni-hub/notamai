@@ -4133,7 +4133,23 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
 </div>
 
 <script>
+let openPanel = null;
+
+function closeAllPanels() {
+  ['rawDataPanel','savedRoutesPanel','alertsPanel','settingsPanel','archivePanel'].forEach(id => {
+    const panel = document.getElementById(id);
+    if (panel && panel.style.display !== 'none') {
+      panel.style.transform = 'translateX(100%)';
+      setTimeout(() => panel.style.display = 'none', 300);
+    }
+  });
+  openPanel = null;
+}
+
 function openRawDataPanel() {
+  if (openPanel === 'rawData') { closeRawDataPanel(); return; }
+  closeAllPanels();
+  openPanel = 'rawData';
   const panel = document.getElementById('rawDataPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -4141,6 +4157,7 @@ function openRawDataPanel() {
 }
 
 function closeRawDataPanel() {
+  openPanel = null;
   const panel = document.getElementById('rawDataPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -4208,6 +4225,9 @@ document.getElementById('rawIcaoInput').addEventListener('keydown', function(e) 
 });
 
 function openSavedRoutesPanel() {
+  if (openPanel === 'savedRoutes') { closeSavedRoutesPanel(); return; }
+  closeAllPanels();
+  openPanel = 'savedRoutes';
   const panel = document.getElementById('savedRoutesPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -4216,6 +4236,7 @@ function openSavedRoutesPanel() {
 }
 
 function closeSavedRoutesPanel() {
+  openPanel = null;
   const panel = document.getElementById('savedRoutesPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -4283,6 +4304,9 @@ document.getElementById('savedRouteInput')?.addEventListener('keydown', function
 });
 
 function openAlertsPanel() {
+  if (openPanel === 'alerts') { closeAlertsPanel(); return; }
+  closeAllPanels();
+  openPanel = 'alerts';
   const panel = document.getElementById('alertsPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -4291,6 +4315,7 @@ function openAlertsPanel() {
 }
 
 function closeAlertsPanel() {
+  openPanel = null;
   const panel = document.getElementById('alertsPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -4370,6 +4395,9 @@ document.getElementById('alertIcaoInput')?.addEventListener('keydown', function(
 });
 
 function openSettingsPanel() {
+  if (openPanel === 'settings') { closeSettingsPanel(); return; }
+  closeAllPanels();
+  openPanel = 'settings';
   const panel = document.getElementById('settingsPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -4378,6 +4406,7 @@ function openSettingsPanel() {
 }
 
 function closeSettingsPanel() {
+  openPanel = null;
   const panel = document.getElementById('settingsPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -4499,6 +4528,9 @@ let allArchiveBriefings = [];
 let currentArchiveFilter = 'all';
 
 function openArchivePanel() {
+  if (openPanel === 'archive') { closeArchivePanel(); return; }
+  closeAllPanels();
+  openPanel = 'archive';
   const panel = document.getElementById('archivePanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -4507,6 +4539,7 @@ function openArchivePanel() {
 }
 
 function closeArchivePanel() {
+  openPanel = null;
   const panel = document.getElementById('archivePanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
