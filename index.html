@@ -3946,7 +3946,7 @@ async function fetchRawData() {
     let html = '';
     // NOTAMs
     html += '<div style="margin-bottom:20px;">';
-    const notamBlocks = notamText.trim().split('\n\n').filter(n => n.trim());
+    const notamBlocks = notamText.trim().split('\n===NOTAM===\n').filter(n => n.trim());
     if (notamBlocks.length === 0 || notamText.includes('No active')) {
       html += '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;">No active NOTAMs for ' + icao + '</div>';
     } else {

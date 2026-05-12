@@ -629,7 +629,7 @@ if (getAccessBtn) {
           formatted += 'B) ' + effective + ' C) ' + expiration + '\n';
           formatted += 'E) ' + body;
           return formatted;
-        }).join('\n\n');
+        }).join('\n===NOTAM===\n');
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end(notamText || 'No active NOTAMs for ' + icao);
       } catch(e) {
