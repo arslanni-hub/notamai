@@ -3963,20 +3963,23 @@ async function fetchRawData() {
     if (metarLines.length === 0 || metarText.includes('No data')) {
       html += '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;">No METAR data available</div>';
     } else {
+      html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:2;">';
       metarLines.forEach(line => {
-        if (line.trim()) {
-          html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;margin-bottom:6px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.6;white-space:pre-wrap;">' + line.trim().replace(/</g,'&lt;') + '</div>';
-        }
+        if (line.trim()) html += line.trim().replace(/</g,'&lt;') + '\n';
       });
+      html += '</div>';
     }
     html += '</div>';
     // TAF
     html += '<div style="margin-bottom:20px;">';
     html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">TAF</div>';
-    if (tafText.trim() && !tafText.includes('No data')) {
-      html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f2c641;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.6;word-break:break-word;">' + tafText.trim().replace(/</g,'&lt;') + '</div>';
-    } else {
+    const tafLines = tafText.trim().split('\n').filter(t => t.trim());
+    if (tafLines.length === 0 || tafText.includes('No data')) {
       html += '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;">No TAF data available</div>';
+    } else {
+      html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f2c641;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:2;white-space:pre-wrap;">';
+      html += tafLines.join('\n').replace(/</g,'&lt;');
+      html += '</div>';
     }
     html += '</div>';
     results.innerHTML = html;
