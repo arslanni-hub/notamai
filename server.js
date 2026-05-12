@@ -494,6 +494,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && (req.url === '/privacy' || req.url === '/privacy.html')) {
+    const html = fs.readFileSync(path.join(__dirname, 'privacy.html'), 'utf8');
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(html);
+    return;
+  }
+
+  if (req.method === 'GET' && (req.url === '/terms' || req.url === '/terms.html')) {
+    const html = fs.readFileSync(path.join(__dirname, 'terms.html'), 'utf8');
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(html);
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/b/')) {
     const briefingId = req.url.split('/b/')[1].split('?')[0];
     const shareHtml = `<!DOCTYPE html>
