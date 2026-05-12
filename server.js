@@ -612,6 +612,10 @@ if (getAccessBtn) {
             parseInt(e.slice(8,10)), parseInt(e.slice(10,12))
           ));
           return expDate > now;
+        }).sort((a, b) => {
+          const dateA = a.effective || '0';
+          const dateB = b.effective || '0';
+          return dateB.localeCompare(dateA);
         });
         const notamText = active.map(n => {
           const id = n.notam_id || '';

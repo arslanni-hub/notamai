@@ -3959,10 +3959,15 @@ async function fetchRawData() {
     // METAR
     html += '<div style="margin-bottom:20px;">';
     html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">METAR</div>';
-    if (metarText.trim() && !metarText.includes('No data')) {
-      html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.6;word-break:break-word;">' + metarText.trim().replace(/</g,'&lt;') + '</div>';
-    } else {
+    const metarLines = metarText.trim().split('\n').filter(m => m.trim());
+    if (metarLines.length === 0 || metarText.includes('No data')) {
       html += '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;">No METAR data available</div>';
+    } else {
+      metarLines.forEach(line => {
+        if (line.trim()) {
+          html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;margin-bottom:6px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.6;white-space:pre-wrap;">' + line.trim().replace(/</g,'&lt;') + '</div>';
+        }
+      });
     }
     html += '</div>';
     // TAF
