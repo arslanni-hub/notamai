@@ -691,7 +691,7 @@ if (getAccessBtn) {
           : [];
 
         // Detect if live data is needed
-        const needsLiveNotam   = /notam|active|current.*notam|how many notam|kaç notam|güncel notam/i.test(question);
+        const needsLiveNotam   = /notam|active|current.*notam|how many notam|kaç notam|güncel notam|enroute|en-route|military|TFR|restricted|FIR/i.test(question);
         const needsLiveWeather = /current.*weather|live.*weather|metar|latest.*weather|güncel hava|şu anki hava/i.test(question);
 
         let liveData = '';
@@ -744,6 +744,15 @@ The following is the complete pre-flight operational briefing you have analyzed:
 ${briefingContext}
 
 ${liveData ? 'LIVE REAL-TIME DATA FETCHED:\n' + liveData : ''}
+
+IMPORTANT - NOTAM SCOPE: When analyzing NOTAMs, consider ALL types including:
+- Aerodrome NOTAMs (departure and arrival airports)
+- En-route NOTAMs (airspace along the route)
+- Military exercise areas and restricted airspace
+- TFRs (Temporary Flight Restrictions)
+- FIR/UIR closures or restrictions
+- SIGMET and special activity areas
+If the briefing does not contain en-route or military NOTAMs, explicitly state this and recommend the crew check current en-route NOTAMs via NOTAMs & MET panel or official sources for the specific FIRs along the route.
 
 IMPORTANT INSTRUCTIONS:
 - Answer in the SAME LANGUAGE the user asks the question (Turkish → Turkish, English → English, etc.)

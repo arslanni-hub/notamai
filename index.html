@@ -1045,15 +1045,15 @@ body.sidebar-collapsed #resultOverlay {
     <div class="live-dot"></div>
     <div class="result-status" id="resultStatus">GENERATING BRIEFING...</div>
     <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-      <button onclick="window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:6px;background:rgba(181,123,255,0.12);border:1px solid rgba(181,123,255,0.3);color:#b57bff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(181,123,255,0.2)'" onmouseout="this.style.background='rgba(181,123,255,0.12)'">
-        <span style="font-size:12px;line-height:1;filter:hue-rotate(200deg) saturate(2);">✨</span>
+      <button onclick="window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#b57bff';this.style.borderColor='rgba(181,123,255,0.4)';this.style.background='rgba(181,123,255,0.08)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='rgba(255,255,255,0.04)'">
+        <span style="font-size:12px;line-height:1;">✨</span>
         Upgrade
       </button>
-      <button onclick="openAIChat()" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#4a9eff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='rgba(74,158,255,0.15)'" onmouseout="this.style.background='rgba(74,158,255,0.08)'">
+      <button onclick="openAIChat()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#39ff14';this.style.borderColor='rgba(57,255,20,0.4)';this.style.background='rgba(57,255,20,0.06)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='rgba(255,255,255,0.04)'">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         Ask NOTAM AI
       </button>
-      <button onclick="openShareModal()" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#4a9eff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(74,158,255,0.15)'" onmouseout="this.style.background='rgba(74,158,255,0.08)'">
+      <button onclick="openShareModal()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#4a9eff';this.style.borderColor='rgba(74,158,255,0.4)';this.style.background='rgba(74,158,255,0.08)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='rgba(255,255,255,0.04)'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         Share
       </button>
@@ -1694,8 +1694,10 @@ async function handleSend() {
   document.getElementById('mainNavbar').style.display = 'none';
   loading.style.display = 'flex';
   content.style.display = 'none';
+  closeAIChat();
   aiChatHistory = [];
   aiChatOpen = false;
+  currentChatBriefingId = null;
   const startTime = Date.now();
 
   let label = 'NOTAM ANALYSIS IN PROGRESS';
@@ -2036,6 +2038,8 @@ let aiChatHistory = [];
 let chatAttachedFile = null;
 let isRecording = false;
 let recognition = null;
+let currentChatBriefingId = null;
+const chatHistoryMap = {};
 
 function openAIChat() {
   const panel = document.getElementById('aiChatContainer');
@@ -2043,9 +2047,24 @@ function openAIChat() {
   panel.style.flexDirection = 'column';
   setTimeout(() => panel.style.transform = 'translateX(0)', 10);
   aiChatOpen = true;
-  if (aiChatHistory.length === 0) {
-    addChatMessage('ai', 'Hello! I have fully analyzed this briefing. You can ask me about NOTAMs, weather, risks, or any operational question — in any language. You can also attach a file or use voice input.');
+
+  // Save/restore chat per briefing ID
+  const bid = window.currentBriefingId || null;
+  if (bid !== currentChatBriefingId) {
+    // Different briefing — check for saved history
+    const savedHistory = chatHistoryMap[bid];
+    const messages = document.getElementById('aiChatMessages');
+    messages.innerHTML = '';
+    if (savedHistory && savedHistory.length > 0) {
+      aiChatHistory = [...savedHistory];
+      aiChatHistory.forEach(h => addChatMessage(h.role === 'user' ? 'user' : 'ai', h.content));
+    } else {
+      aiChatHistory = [];
+      addChatMessage('ai', 'Hello! I have fully analyzed this briefing. Ask me about NOTAMs, weather, en-route airspace, military areas, or any operational question — in any language.');
+    }
+    currentChatBriefingId = bid;
   }
+
   document.getElementById('aiChatTextInput').focus();
 }
 
@@ -2216,6 +2235,8 @@ async function sendAIChat() {
     document.getElementById('aiTyping')?.remove();
     addChatMessage('ai', answer);
     aiChatHistory.push({ role: 'assistant', content: answer });
+    // Persist history for this briefing
+    if (window.currentBriefingId) chatHistoryMap[window.currentBriefingId] = [...aiChatHistory];
 
   } catch(e) {
     document.getElementById('aiTyping')?.remove();
@@ -2601,8 +2622,10 @@ function renderSidebarItem(item, isStarred) {
       appendBriefingActions(content);
       const navbar = document.getElementById('mainNavbar');
       if (navbar) navbar.style.display = 'none';
+      closeAIChat();
       aiChatHistory = [];
       aiChatOpen = false;
+      currentChatBriefingId = null;
     }
   });
   return div;
@@ -4919,8 +4942,10 @@ function renderArchive(briefings) {
           if (loading) loading.style.display = 'none';
           if (content) { content.style.display = 'block'; content.innerHTML = briefingCache[briefing.id]; }
           if (status) status.textContent = 'ROUTE BRIEFING: ' + briefing.route + ' — COMPLETE';
+          closeAIChat();
           aiChatHistory = [];
           aiChatOpen = false;
+          currentChatBriefingId = null;
           closeArchivePanel();
         }
       });
