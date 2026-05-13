@@ -975,7 +975,7 @@ if (getAccessBtn) {
 
         // Detect if live data is needed
         const needsLiveNotam   = /notam|active|current.*notam|how many notam|kaç notam|güncel notam|enroute|en-route|military|TFR|restricted|FIR/i.test(question);
-        const needsLiveWeather = /current.*weather|live.*weather|metar|latest.*weather|güncel hava|şu anki hava/i.test(question);
+        const needsLiveWeather = /weather|hava|metar|taf|cloud|wind|rüzgar|bulut|görüş|visibility|ceiling|tafc|sigmet|atis/i.test(question);
 
         let liveData = '';
 
@@ -1008,13 +1008,20 @@ if (getAccessBtn) {
           }
         }
 
-        // Fetch live METAR if needed
+        // Fetch live METAR + TAF if needed
         if (needsLiveWeather && icaoCodes.length > 0) {
-          for (const icao of icaoCodes.slice(0, 2)) {
+          for (const icao of icaoCodes.slice(0, 3)) {
             try {
-              const metarRes  = await fetch('https://aviationweather.gov/api/data/metar?ids=' + icao + '&format=raw&hours=2');
+              const metarRes = await fetch('https://aviationweather.gov/api/data/metar?ids=' + icao + '&format=raw&hours=3');
               const metarText = await metarRes.text();
-              if (metarText.trim()) liveData += `\nLIVE METAR FOR ${icao}:\n${metarText.trim()}\n`;
+              const tafRes = await fetch('https://aviationweather.gov/api/data/taf?ids=' + icao + '&format=raw');
+              const tafText = await tafRes.text();
+              if (metarText.trim() && !metarText.includes('No data')) {
+                liveData += '\nLIVE METAR ' + icao + ':\n' + metarText.trim() + '\n';
+              }
+              if (tafText.trim() && !tafText.includes('No data')) {
+                liveData += '\nLIVE TAF ' + icao + ':\n' + tafText.trim() + '\n';
+              }
             } catch(e) {}
           }
         }
@@ -1166,7 +1173,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
 
         const claudeBody = JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 8000,
+          max_tokens: 12000,
           stream: true,
           system: systemPrompt,
           messages: [{ role: 'user', content: contentBlocks }]
