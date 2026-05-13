@@ -929,6 +929,8 @@ body.sidebar-collapsed #resultOverlay {
 #aiChatMessages::-webkit-scrollbar-track { background: transparent; }
 #aiChatMessages::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
 #aiChatContainer { display: none; }
+body.sidebar-open #askNotamAiBtn { right: 24px; }
+body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -1049,11 +1051,7 @@ body.sidebar-collapsed #resultOverlay {
         <span id="upgradeSparkle" style="font-size:12px;line-height:1;filter:grayscale(1) brightness(0.5);">✨</span>
         Upgrade
       </button>
-      <button onclick="openAIChat()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#39ff14';this.style.borderColor='rgba(57,255,20,0.4)';this.style.background='rgba(57,255,20,0.06)';this.querySelector('svg').style.stroke='#39ff14'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='rgba(255,255,255,0.04)';this.querySelector('svg').style.stroke='#8a9bb0'">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        Ask NOTAM AI
-      </button>
-      <button onclick="openShareModal()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#4a9eff';this.style.borderColor='rgba(74,158,255,0.4)';this.style.background='rgba(74,158,255,0.08)';this.querySelector('svg').style.stroke='#4a9eff'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='rgba(255,255,255,0.04)';this.querySelector('svg').style.stroke='#8a9bb0'">
+      <button onclick="openShareModal()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#39ff14';this.style.borderColor='rgba(57,255,20,0.4)';this.style.background='rgba(57,255,20,0.06)';this.querySelector('svg').style.stroke='#39ff14'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='rgba(255,255,255,0.04)';this.querySelector('svg').style.stroke='#8a9bb0'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         Share
       </button>
@@ -1079,6 +1077,12 @@ body.sidebar-collapsed #resultOverlay {
 </div>
 
 <!-- AI CHAT BOT -->
+<!-- Floating Ask NOTAM AI Button -->
+<button id="askNotamAiBtn" onclick="openAIChat()" style="display:none;position:fixed;bottom:24px;right:24px;z-index:550;background:#060a0f;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:10px 18px;border-radius:8px;cursor:pointer;align-items:center;gap:8px;box-shadow:0 4px 24px rgba(0,0,0,0.4);transition:all 0.2s;" onmouseover="this.style.color='#4a9eff';this.style.borderColor='rgba(74,158,255,0.4)';this.style.background='rgba(74,158,255,0.08)';this.querySelector('svg').style.stroke='#4a9eff'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='#060a0f';this.querySelector('svg').style.stroke='#8a9bb0'">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  Ask NOTAM AI
+</button>
+
 <div id="aiChatContainer" style="display:none;position:fixed;top:0;right:0;width:380px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:600;flex-direction:column;transition:transform 0.3s ease;transform:translateX(100%);">
 
   <!-- Header -->
@@ -1692,6 +1696,7 @@ async function handleSend() {
 
   overlay.classList.add('open');
   document.getElementById('mainNavbar').style.display = 'none';
+  document.getElementById('askNotamAiBtn').style.display = 'flex';
   loading.style.display = 'flex';
   content.style.display = 'none';
   closeAIChat();
@@ -2246,6 +2251,7 @@ async function sendAIChat() {
 
 function closeResult() {
   document.getElementById('resultOverlay').classList.remove('open');
+  document.getElementById('askNotamAiBtn').style.display = 'none';
   closeAIChat();
   aiChatHistory = [];
   if (document.getElementById('appSidebar').style.display === 'none') {
@@ -2622,6 +2628,7 @@ function renderSidebarItem(item, isStarred) {
       appendBriefingActions(content);
       const navbar = document.getElementById('mainNavbar');
       if (navbar) navbar.style.display = 'none';
+      document.getElementById('askNotamAiBtn').style.display = 'flex';
       closeAIChat();
       aiChatHistory = [];
       aiChatOpen = false;
@@ -4942,6 +4949,7 @@ function renderArchive(briefings) {
           if (loading) loading.style.display = 'none';
           if (content) { content.style.display = 'block'; content.innerHTML = briefingCache[briefing.id]; }
           if (status) status.textContent = 'ROUTE BRIEFING: ' + briefing.route + ' — COMPLETE';
+          document.getElementById('askNotamAiBtn').style.display = 'flex';
           closeAIChat();
           aiChatHistory = [];
           aiChatOpen = false;
