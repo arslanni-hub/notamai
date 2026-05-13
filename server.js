@@ -90,27 +90,85 @@ const OCEANIC_FIRS = new Set(['KZNY', 'CZQX', 'EGGX', 'KZAK']);
 // Fetch en-route FIR NOTAMs based on dep/arr ICAO pair
 async function getEnrouteNotams(dep, arr) {
   const firMap = {
-    // Europe
-    'LT': 'LTBB', 'EG': 'EGTT', 'ED': 'EDGG', 'LF': 'LFFF',
-    'LI': 'LIIV', 'LE': 'LECM', 'LP': 'LPPC', 'EB': 'EBUR',
-    'EH': 'EHAA', 'EK': 'EKDK', 'EN': 'ENOR', 'EF': 'EFIN',
-    'LG': 'LGGG', 'LB': 'LBSR', 'LR': 'LRBB', 'LY': 'LYBA',
-    'LD': 'LDZO', 'LO': 'LOVV', 'LK': 'LKAA', 'EP': 'EPWW',
-    // Middle East & Caucasus
-    'OJ': 'OJAC', 'OI': 'OIIX', 'OR': 'ORBB', 'OT': 'OTBD',
-    'OE': 'OEJD', 'OM': 'OMAE', 'OB': 'OBBB', 'OK': 'OKAC',
-    'UD': 'UDDD', 'UG': 'UGGD', 'UK': 'UKBV', 'UR': 'URRV',
-    // North America
-    'KZ': 'KZNY', 'CZ': 'CZQX', 'KA': 'KZAK',
-    'KJ': 'KZNY', 'KF': 'KZNY', 'KL': 'KZNY',
-    // China
-    'ZB': 'ZBPE', 'ZS': 'ZSHA', 'ZG': 'ZGZU', 'ZW': 'ZWWW',
-    // Russia
-    'UL': 'ULLL', 'UU': 'UUWV', 'UM': 'UMMV',
-    'UT': 'UTAA', 'UC': 'UCFM', 'UA': 'UAAA',
-    'UN': 'UNNT', 'UH': 'UHHH',
-    // Mongolia
-    'MG': 'ZMUB',
+    // EUROPE
+    'EG': 'EGTT', 'EI': 'EISN', 'EB': 'EBUR', 'EH': 'EHAA',
+    'ED': 'EDGG', 'ET': 'EDGG', 'EK': 'EKDK', 'EN': 'ENOR',
+    'EF': 'EFIN', 'EV': 'EVRR', 'EY': 'EYVL', 'EE': 'EETT',
+    'LF': 'LFFF', 'LG': 'LGGG', 'LI': 'LIIV', 'LE': 'LECM',
+    'LP': 'LPPC', 'LT': 'LTBB', 'LK': 'LKAA', 'LO': 'LOVV',
+    'LZ': 'LZBB', 'LB': 'LBSR', 'LR': 'LRBB', 'LY': 'LYBA',
+    'LD': 'LDZO', 'LJ': 'LJLA', 'LH': 'LHCC', 'EP': 'EPWW',
+    'EL': 'ELLX', 'ES': 'ESAA', 'BI': 'BIRD',
+    // OCEANIC
+    'CZ': 'CZQX', 'KZ': 'KZNY', 'KA': 'KZAK',
+    'NF': 'NFFF', 'NT': 'NTTT',
+    // NORTH AMERICA
+    'KJ': 'KZNY', 'KF': 'KZNY', 'KL': 'KZNY', 'KP': 'KZAK',
+    'KS': 'KZLC', 'KD': 'KZDV', 'KM': 'KZMA',
+    'CY': 'CZEG', 'CW': 'CZWG', 'CU': 'CZUL', 'CV': 'CZVR',
+    'MX': 'MMEX', 'MT': 'MMFO',
+    // CARIBBEAN & CENTRAL AMERICA
+    'MU': 'MUHA', 'MH': 'MHTE', 'MR': 'MROC', 'MP': 'MPTO',
+    'MS': 'MSSS', 'MD': 'MDCS', 'TJ': 'TJZS',
+    'TN': 'TNCF', 'TB': 'TBPB', 'TV': 'TVSM',
+    // SOUTH AMERICA
+    'SB': 'SBBS', 'SC': 'SCEZ', 'SK': 'SKED', 'SL': 'SLCO',
+    'SE': 'SEFG', 'SP': 'SPIM', 'SU': 'SUEO', 'SA': 'SAEF',
+    'SV': 'SVZM', 'SO': 'SOOO', 'SY': 'SYYY', 'SM': 'SMPM',
+    // NORTH AFRICA
+    'DA': 'DAAA', 'DT': 'DTTC', 'GM': 'GMMM', 'GC': 'GCCC',
+    'GL': 'GLRB', 'GO': 'GOOO', 'GU': 'GUOO', 'GF': 'GFLL',
+    'GQ': 'GQNN', 'GB': 'GBYD',
+    // WEST & CENTRAL AFRICA
+    'DN': 'DNKK', 'DB': 'DBBB', 'DG': 'DGAC', 'DI': 'DIAP',
+    'DF': 'DFFD', 'GG': 'GGVO', 'GS': 'GABS', 'HK': 'HKNA',
+    'FC': 'FCCC', 'FE': 'FEFF', 'FD': 'FDJJ', 'FG': 'FGSL',
+    'FH': 'FHAW', 'FS': 'FSSS', 'FZ': 'FZAA',
+    // EAST AFRICA
+    'HE': 'HECC', 'HA': 'HAAA', 'HD': 'HDDD', 'HH': 'HHAS',
+    'HC': 'HCSM', 'HR': 'HRRR', 'HS': 'HSSN', 'HT': 'HTTC',
+    'HU': 'HUEC',
+    // SOUTH AFRICA
+    'FA': 'FAJA', 'FB': 'FBGR', 'FI': 'FIMP', 'FK': 'FKKD',
+    'FL': 'FLFI', 'FM': 'FMMM', 'FN': 'FNAN', 'FP': 'FPPR',
+    'FQ': 'FQBE', 'FT': 'FTTT', 'FV': 'FVHF', 'FW': 'FWLL',
+    'FX': 'FXMM', 'FY': 'FYWH',
+    // MIDDLE EAST
+    'OB': 'OBBB', 'OE': 'OEJD', 'OI': 'OIIX', 'OJ': 'OJAC',
+    'OK': 'OKAC', 'OL': 'OLLC', 'OM': 'OMAE', 'OO': 'OOKB',
+    'OP': 'OPKR', 'OR': 'ORBB', 'OS': 'OSTT', 'OT': 'OTBD',
+    'OY': 'OYSC',
+    // CENTRAL ASIA
+    'UT': 'UTAA', 'UC': 'UCFM', 'UA': 'UAAA', 'UM': 'UMMV',
+    'UG': 'UGGD', 'UD': 'UDDD', 'UI': 'UIIT',
+    // RUSSIA
+    'UL': 'ULLL', 'UU': 'UUWV', 'UK': 'UKBV', 'UN': 'UNNT',
+    'UH': 'UHHH', 'UE': 'UEEE', 'UB': 'UBBP', 'US': 'USSS',
+    'UO': 'UOOO', 'UF': 'UFFF', 'UP': 'UPCM',
+    // SOUTH ASIA
+    'VA': 'VAAF', 'VC': 'VCCF', 'VE': 'VECF', 'VG': 'VGDT',
+    'VI': 'VIDF', 'VN': 'VNKT', 'VO': 'VOCB', 'VQ': 'VQPR',
+    'VR': 'VRMF', 'VT': 'VTBB',
+    // SOUTHEAST ASIA
+    'VB': 'VBBB', 'VD': 'VDPP', 'VH': 'VHHK', 'VL': 'VLVT',
+    'VV': 'VVHM', 'WA': 'WAAF', 'WB': 'WBFC',
+    'WI': 'WIIF', 'WM': 'WMFC', 'WP': 'WPDL', 'WS': 'WSJC',
+    'RP': 'RPHI',
+    // EAST ASIA
+    'ZB': 'ZBPE', 'ZG': 'ZGZU', 'ZH': 'ZHWH', 'ZJ': 'ZJSA',
+    'ZK': 'ZKPY', 'ZL': 'ZLHW', 'ZP': 'ZPKM', 'ZS': 'ZSHA',
+    'ZU': 'ZUUU', 'ZW': 'ZWWW', 'ZY': 'ZYSH',
+    'RK': 'RKRR', 'RJ': 'RJJJ', 'RC': 'RCTP',
+    // MONGOLIA
+    'ZM': 'ZMUB', 'MG': 'ZMUB',
+    // PACIFIC
+    'AY': 'AYPM', 'AG': 'AGGG', 'AN': 'ANAU', 'NC': 'NCRG',
+    'NG': 'NGTA', 'NK': 'NKSO', 'NL': 'NLWW', 'NS': 'NSFA',
+    'NV': 'NVVV', 'NW': 'NWWW', 'NZ': 'NZZC',
+    'PH': 'PHZH', 'PJ': 'PJON', 'PK': 'PKWA', 'PL': 'PLCH',
+    'PT': 'PTID',
+    // AUSTRALIA
+    'YB': 'YMMM', 'YM': 'YMMM', 'YS': 'YMMM', 'YW': 'YMMM', 'YA': 'YMMM',
   };
 
   const depPrefix = dep ? dep.slice(0, 2) : '';
@@ -152,7 +210,29 @@ async function getEnrouteNotams(dep, arr) {
     'UL-ZB': ['ULLL', 'UNNT', 'UAAA', 'ZWWW'],
     'ZB-LT': ['ZWWW', 'UAAA', 'UNNT', 'UUWV', 'UKBV', 'LGGG'],
     'LT-ZB': ['LGGG', 'UKBV', 'UUWV', 'UNNT', 'UAAA', 'ZWWW'],
-    'ZB-EG': ['ZWWW', 'UAAA', 'UNNT', 'UUWV', 'ULLL', 'EGTT'],
+    'ZB-EG': ['ZWWW', 'UAAA', 'UNNT', 'UUWV', 'ULLL', 'EGGX', 'EGTT'],
+    'ZB-ED': ['ZWWW', 'UAAA', 'UNNT', 'UUWV', 'ULLL', 'EDGG'],
+    'ZS-EG': ['ZBPE', 'ZWWW', 'UAAA', 'UNNT', 'UUWV', 'ULLL', 'EGGX'],
+    'RJ-EG': ['RJJJ', 'RCTP', 'ZBPE', 'UAAA', 'UNNT', 'UUWV', 'EGTT'],
+    'RK-EG': ['RKRR', 'ZBPE', 'UAAA', 'UNNT', 'UUWV', 'EGTT'],
+    // Asia ↔ Middle East
+    'ZB-OE': ['ZWWW', 'UTAA', 'ORBB', 'OEJD'],
+    'ZB-OM': ['ZWWW', 'UTAA', 'ORBB', 'OMAE'],
+    'RJ-OE': ['RJJJ', 'ZBPE', 'ZWWW', 'UTAA', 'ORBB'],
+    'OE-ZB': ['ORBB', 'UTAA', 'ZWWW', 'ZBPE'],
+    'OT-ZB': ['OTBD', 'ORBB', 'UTAA', 'ZWWW'],
+    // Asia ↔ South Asia
+    'ZB-VI': ['ZWWW', 'VIDF'],
+    'RJ-VI': ['RJJJ', 'ZBPE', 'VIDF'],
+    // Australia ↔ Asia / Europe
+    'YB-ZB': ['YMMM', 'RJJJ', 'RCTP', 'ZBPE'],
+    'YB-EG': ['YMMM', 'RJJJ', 'ZBPE', 'UAAA', 'EGTT'],
+    // Africa routes
+    'FA-EG': ['FAJA', 'HTTC', 'HECC', 'LGGG'],
+    'DN-LT': ['DNKK', 'DAAA', 'DTTC', 'LGGG'],
+    // Polar routes
+    'KJ-RJ': ['CZQX', 'EGGX', 'ULLL', 'UNNT', 'UHHH', 'RJJJ'],
+    'KJ-ZB': ['CZQX', 'UHHH', 'UNNT', 'ZBPE'],
   };
   (commonRoutes[routeKey] || []).forEach(fir => firs.add(fir));
 
