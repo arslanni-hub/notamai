@@ -683,16 +683,89 @@ if (getAccessBtn) {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { question, briefingContext, history } = JSON.parse(body);
+        const { question, briefingContext, currentRoute, history, image_base64, image_type, pdf_base64 } = JSON.parse(body);
+
+        // Extract ICAO codes from route for live data fetching
+        const icaoCodes = currentRoute
+          ? currentRoute.replace(/[^A-Z\s]/g, '').trim().split(/\s+/).filter(c => c.length >= 3 && c.length <= 4)
+          : [];
+
+        // Detect if live data is needed
+        const needsLiveNotam   = /notam|active|current.*notam|how many notam|kaç notam|güncel notam/i.test(question);
+        const needsLiveWeather = /current.*weather|live.*weather|metar|latest.*weather|güncel hava|şu anki hava/i.test(question);
+
+        let liveData = '';
+
+        // Fetch live NOTAMs if needed
+        if (needsLiveNotam && icaoCodes.length > 0) {
+          for (const icao of icaoCodes.slice(0, 2)) {
+            try {
+              const skyUrl = 'https://skylink-api.p.rapidapi.com/notams/' + icao;
+              const data = await fetchURL(skyUrl, {
+                method: 'GET',
+                headers: {
+                  'x-rapidapi-key': process.env.SKYLINK_KEY,
+                  'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
+                }
+              });
+              if (data && data.notams) {
+                const now = new Date();
+                const active = data.notams.filter(n => {
+                  if (!n.expiration || n.expiration.length < 12) return true;
+                  const e = n.expiration;
+                  const expDate = new Date(Date.UTC(parseInt(e.slice(0,4)), parseInt(e.slice(4,6))-1, parseInt(e.slice(6,8)), parseInt(e.slice(8,10)), parseInt(e.slice(10,12))));
+                  return expDate > now;
+                });
+                const critical = active.filter(n => /RWY.*CLSD|CLSD.*RWY|U\/S|UNSERVICEABLE|JAMM|EMERG/i.test(n.raw || n.body || ''));
+                const high     = active.filter(n => /TWY.*CLSD|CLSD.*TWY|VOR|ILS|NDB|UAS/i.test(n.raw || n.body || ''));
+                liveData += `\nLIVE NOTAM DATA FOR ${icao}: ${active.length} active NOTAMs. Critical: ${critical.length}, High priority: ${high.length}, Other: ${active.length - critical.length - high.length}.\n`;
+                liveData += `Sample critical NOTAMs: ${critical.slice(0,3).map(n => (n.notam_id || '') + ': ' + (n.body || n.raw || '').slice(0,100)).join('; ')}\n`;
+              }
+            } catch(e) {}
+          }
+        }
+
+        // Fetch live METAR if needed
+        if (needsLiveWeather && icaoCodes.length > 0) {
+          for (const icao of icaoCodes.slice(0, 2)) {
+            try {
+              const metarRes  = await fetch('https://aviationweather.gov/api/data/metar?ids=' + icao + '&format=raw&hours=2');
+              const metarText = await metarRes.text();
+              if (metarText.trim()) liveData += `\nLIVE METAR FOR ${icao}:\n${metarText.trim()}\n`;
+            } catch(e) {}
+          }
+        }
+
+        // System prompt
+        const systemPrompt = `You are an expert AIM (Aeronautical Information Management) specialist and senior flight dispatcher with deep knowledge of ICAO Annex 15, PANS-AIM, and international aviation operations.
+
+The following is the complete pre-flight operational briefing you have analyzed:
+
+${briefingContext}
+
+${liveData ? 'LIVE REAL-TIME DATA FETCHED:\n' + liveData : ''}
+
+IMPORTANT INSTRUCTIONS:
+- Answer in the SAME LANGUAGE the user asks the question (Turkish → Turkish, English → English, etc.)
+- For weather questions: use the weather data from the briefing. If live METAR was fetched, use that for current conditions.
+- For NOTAM questions: use the NOTAM analysis from the briefing. If live NOTAM count was fetched, mention exact numbers.
+- If user wants to see ALL NOTAMs, tell them to open the "NOTAMs & MET" panel in the sidebar for full raw NOTAM data.
+- Be concise (under 200 words), professional, and operationally focused.
+- Always prioritize flight safety in your answers.`;
+
+        // Build user content (supports images and PDFs)
+        const userContent = [];
+        if (image_base64) {
+          userContent.push({ type: 'image', source: { type: 'base64', media_type: image_type || 'image/jpeg', data: image_base64 } });
+        }
+        if (pdf_base64) {
+          userContent.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 } });
+        }
+        userContent.push({ type: 'text', text: question || 'Please analyze the attached document.' });
 
         const messages = [
-          {
-            role: 'user',
-            content: `You are an expert AIM (Aeronautical Information Management) specialist and senior flight dispatcher. You have just analyzed this pre-flight operational briefing:\n\n${briefingContext}\n\nAnswer questions about this briefing concisely and professionally. Focus on operational relevance and flight safety. Keep answers under 150 words.`
-          },
-          { role: 'assistant', content: 'Understood. I have reviewed the briefing. How can I help?' },
-          ...(history || []),
-          { role: 'user', content: question }
+          ...(history || []).slice(-6).map(h => ({ role: h.role, content: h.content })),
+          { role: 'user', content: userContent }
         ];
 
         const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -704,7 +777,8 @@ if (getAccessBtn) {
           },
           body: JSON.stringify({
             model: 'claude-sonnet-4-20250514',
-            max_tokens: 300,
+            max_tokens: 400,
+            system: systemPrompt,
             messages
           })
         });
@@ -714,7 +788,9 @@ if (getAccessBtn) {
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ answer }));
+
       } catch(e) {
+        console.error('[CHAT ERROR]', e.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ answer: 'Error processing request.' }));
       }

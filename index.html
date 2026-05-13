@@ -928,9 +928,7 @@ body.sidebar-collapsed #resultOverlay {
 #aiChatMessages::-webkit-scrollbar { width: 3px; }
 #aiChatMessages::-webkit-scrollbar-track { background: transparent; }
 #aiChatMessages::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
-body.sidebar-open #aiChatContainer { left: 260px; width: calc(100vw - 260px); }
-body.sidebar-collapsed #aiChatContainer { left: 52px; width: calc(100vw - 52px); }
-body:not(.sidebar-open):not(.sidebar-collapsed) #aiChatContainer { left: 0; width: 100vw; }
+#aiChatContainer { display: none; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -1051,6 +1049,10 @@ body:not(.sidebar-open):not(.sidebar-collapsed) #aiChatContainer { left: 0; widt
         <span style="font-size:12px;line-height:1;filter:hue-rotate(200deg) saturate(2);">✨</span>
         Upgrade
       </button>
+      <button onclick="openAIChat()" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#4a9eff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='rgba(74,158,255,0.15)'" onmouseout="this.style.background='rgba(74,158,255,0.08)'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Ask NOTAM AI
+      </button>
       <button onclick="openShareModal()" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#4a9eff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(74,158,255,0.15)'" onmouseout="this.style.background='rgba(74,158,255,0.08)'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         Share
@@ -1077,25 +1079,54 @@ body:not(.sidebar-open):not(.sidebar-collapsed) #aiChatContainer { left: 0; widt
 </div>
 
 <!-- AI CHAT BOT -->
-<div id="aiChatContainer" style="display:none;position:fixed;bottom:0;z-index:500;background:#0a0f18;border-top:1px solid #1a2a3a;padding:12px 16px;transition:left 0.3s,width 0.3s;">
+<div id="aiChatContainer" style="display:none;position:fixed;top:0;right:0;width:380px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:600;flex-direction:column;transition:transform 0.3s ease;transform:translateX(100%);">
 
-  <!-- Chat Toggle Button -->
-  <div id="aiChatToggle" onclick="toggleAIChat()" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;">
-    <div style="display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      ASK AI
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">ASK NOTAM AI</span>
     </div>
-    <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;">Ask anything about this briefing</div>
-    <svg id="aiChatChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5f72" stroke-width="2" stroke-linecap="round" style="margin-left:auto;transition:transform 0.2s;"><polyline points="18 15 12 9 6 15"/></svg>
+    <button onclick="closeAIChat()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;display:flex;align-items:center;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </div>
 
-  <!-- Chat Messages -->
-  <div id="aiChatMessages" style="display:none;max-height:240px;overflow-y:auto;margin:12px 0;padding-right:4px;"></div>
+  <!-- Messages -->
+  <div id="aiChatMessages" style="flex:1;overflow-y:auto;padding:16px;"></div>
 
-  <!-- Chat Input -->
-  <div id="aiChatInput" style="display:none;gap:8px;align-items:center;">
-    <input id="aiChatTextInput" type="text" placeholder="Ask about this briefing..." style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter')sendAIChat()">
-    <button onclick="sendAIChat()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Send</button>
+  <!-- Attached file preview -->
+  <div id="chatFilePreview" style="display:none;padding:8px 16px;border-top:1px solid #1a2a3a;background:#060a0f;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:8px;font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      <span id="chatFileName" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#4a9eff;"></span>
+      <button onclick="removeChatFile()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:2px;" onmouseover="this.style.color='#e63946'" onmouseout="this.style.color='#4a5f72'">✕</button>
+    </div>
+  </div>
+
+  <!-- Input area -->
+  <div style="padding:12px 16px;border-top:1px solid #1a2a3a;flex-shrink:0;">
+    <div style="display:flex;gap:8px;align-items:center;">
+
+      <!-- Attach button -->
+      <label style="cursor:pointer;color:#4a5f72;display:flex;align-items:center;padding:8px;border-radius:6px;transition:color 0.15s;" onmouseover="this.style.color='#4a9eff'" onmouseout="this.style.color='#4a5f72'" title="Attach file">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        <input type="file" id="chatFileInput" accept=".pdf,.png,.jpg,.jpeg,.txt" style="display:none;" onchange="handleChatFile(event)">
+      </label>
+
+      <!-- Voice button -->
+      <button id="voiceBtn" onclick="toggleVoiceInput()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:8px;border-radius:6px;display:flex;align-items:center;transition:color 0.15s;" onmouseover="this.style.color='#4a9eff'" onmouseout="if(!isRecording)this.style.color='#4a5f72'" title="Voice input">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
+
+      <!-- Text input -->
+      <input id="aiChatTextInput" type="text" placeholder="Ask anything..." style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter')sendAIChat()">
+
+      <!-- Send button -->
+      <button onclick="sendAIChat()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
   </div>
 
 </div>
@@ -1663,8 +1694,6 @@ async function handleSend() {
   document.getElementById('mainNavbar').style.display = 'none';
   loading.style.display = 'flex';
   content.style.display = 'none';
-  // Show AI chat bot
-  document.getElementById('aiChatContainer').style.display = 'block';
   aiChatHistory = [];
   aiChatOpen = false;
   const startTime = Date.now();
@@ -2001,46 +2030,49 @@ async function downloadPDF() {
 }
 
 // ── AI Chat Bot ──────────────────────────────────────────────
+// ── Ask NOTAM AI Chat Panel ───────────────────────────────────
 let aiChatOpen = false;
 let aiChatHistory = [];
+let chatAttachedFile = null;
+let isRecording = false;
+let recognition = null;
 
-function toggleAIChat() {
-  aiChatOpen = !aiChatOpen;
-  const messages = document.getElementById('aiChatMessages');
-  const input    = document.getElementById('aiChatInput');
-  const chevron  = document.getElementById('aiChatChevron');
-
-  if (aiChatOpen) {
-    messages.style.display = 'block';
-    input.style.display    = 'flex';
-    chevron.style.transform = 'rotate(180deg)';
-    document.getElementById('aiChatTextInput').focus();
-    if (aiChatHistory.length === 0) {
-      addChatMessage('ai', 'Hi! I\'ve analyzed this briefing. Ask me anything about the NOTAMs, weather, risks, or operational recommendations.');
-    }
-  } else {
-    messages.style.display = 'none';
-    input.style.display    = 'none';
-    chevron.style.transform = 'rotate(0deg)';
+function openAIChat() {
+  const panel = document.getElementById('aiChatContainer');
+  panel.style.display = 'flex';
+  panel.style.flexDirection = 'column';
+  setTimeout(() => panel.style.transform = 'translateX(0)', 10);
+  aiChatOpen = true;
+  if (aiChatHistory.length === 0) {
+    addChatMessage('ai', 'Hello! I have fully analyzed this briefing. You can ask me about NOTAMs, weather, risks, or any operational question — in any language. You can also attach a file or use voice input.');
   }
+  document.getElementById('aiChatTextInput').focus();
+}
+
+function closeAIChat() {
+  const panel = document.getElementById('aiChatContainer');
+  panel.style.transform = 'translateX(100%)';
+  setTimeout(() => panel.style.display = 'none', 300);
+  aiChatOpen = false;
+  if (isRecording) stopRecording();
 }
 
 function addChatMessage(role, text) {
   const messages = document.getElementById('aiChatMessages');
   const div = document.createElement('div');
-  div.style.cssText = 'margin-bottom:10px;display:flex;gap:8px;align-items:flex-start;';
+  div.style.cssText = 'margin-bottom:12px;display:flex;gap:8px;align-items:flex-start;';
 
   if (role === 'ai') {
     div.innerHTML = `
-      <div style="width:24px;height:24px;border-radius:50%;background:rgba(74,158,255,0.15);border:1px solid rgba(74,158,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      <div style="width:26px;height:26px;border-radius:50%;background:rgba(74,158,255,0.15);border:1px solid rgba(74,158,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </div>
-      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:8px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;flex:1;">${text}</div>
+      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;flex:1;white-space:pre-wrap;">${text}</div>
     `;
   } else {
     div.innerHTML = `
       <div style="flex:1;"></div>
-      <div style="background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.2);border-radius:6px;padding:8px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;max-width:80%;">${text}</div>
+      <div style="background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.2);border-radius:8px;padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;max-width:85%;">${text}</div>
     `;
   }
 
@@ -2048,42 +2080,134 @@ function addChatMessage(role, text) {
   messages.scrollTop = messages.scrollHeight;
 }
 
-async function sendAIChat() {
-  const input    = document.getElementById('aiChatTextInput');
-  const question = input.value.trim();
-  if (!question) return;
+// File handling
+function handleChatFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  chatAttachedFile = file;
+  document.getElementById('chatFileName').textContent = file.name;
+  document.getElementById('chatFilePreview').style.display = 'block';
+}
 
+function removeChatFile() {
+  chatAttachedFile = null;
+  document.getElementById('chatFilePreview').style.display = 'none';
+  document.getElementById('chatFileInput').value = '';
+}
+
+// Voice input
+function toggleVoiceInput() {
+  if (isRecording) { stopRecording(); } else { startRecording(); }
+}
+
+function startRecording() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    addChatMessage('ai', 'Voice input is not supported in your browser. Please use Chrome.');
+    return;
+  }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = 'tr-TR,en-US';
+
+  recognition.onstart = function() {
+    isRecording = true;
+    const btn = document.getElementById('voiceBtn');
+    btn.style.color = '#e63946';
+    btn.style.background = 'rgba(230,57,70,0.1)';
+    document.getElementById('aiChatTextInput').placeholder = 'Listening...';
+  };
+  recognition.onresult = function(event) {
+    document.getElementById('aiChatTextInput').value = event.results[0][0].transcript;
+    stopRecording();
+    sendAIChat();
+  };
+  recognition.onerror = function() { stopRecording(); };
+  recognition.onend   = function() { stopRecording(); };
+  recognition.start();
+}
+
+function stopRecording() {
+  isRecording = false;
+  if (recognition) recognition.stop();
+  const btn = document.getElementById('voiceBtn');
+  btn.style.color = '#4a5f72';
+  btn.style.background = 'none';
+  document.getElementById('aiChatTextInput').placeholder = 'Ask anything...';
+}
+
+// File reader helpers
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+// Send message
+async function sendAIChat() {
+  const input = document.getElementById('aiChatTextInput');
+  const question = input.value.trim();
+  if (!question && !chatAttachedFile) return;
+
+  const displayText = question || '📎 ' + chatAttachedFile?.name;
   input.value = '';
-  addChatMessage('user', question);
+  addChatMessage('user', displayText);
 
   // Typing indicator
   const typingDiv = document.createElement('div');
   typingDiv.id = 'aiTyping';
-  typingDiv.style.cssText = 'margin-bottom:10px;display:flex;gap:8px;align-items:center;';
+  typingDiv.style.cssText = 'margin-bottom:12px;display:flex;gap:8px;align-items:center;';
   typingDiv.innerHTML = `
-    <div style="width:24px;height:24px;border-radius:50%;background:rgba(74,158,255,0.15);border:1px solid rgba(74,158,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+    <div style="width:26px;height:26px;border-radius:50%;background:rgba(74,158,255,0.15);border:1px solid rgba(74,158,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     </div>
-    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;">ANALYZING...</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;">ANALYZING...</div>
   `;
   const msgContainer = document.getElementById('aiChatMessages');
   msgContainer.appendChild(typingDiv);
   msgContainer.scrollTop = msgContainer.scrollHeight;
 
+  // Build context
   const resultContent = document.getElementById('resultContent');
-  const briefingText  = resultContent ? resultContent.innerText.slice(0, 3000) : '';
+  const briefingText  = resultContent ? resultContent.innerText.slice(0, 8000) : '';
+  const routeEl       = document.querySelector('.route-id');
+  const currentRoute  = routeEl ? routeEl.textContent.trim() : '';
 
-  aiChatHistory.push({ role: 'user', content: question });
+  const payload = { question, briefingContext: briefingText, currentRoute, history: aiChatHistory.slice(-8) };
+
+  // Handle file attachment
+  if (chatAttachedFile) {
+    if (chatAttachedFile.type.startsWith('image/')) {
+      payload.image_base64 = await readFileAsBase64(chatAttachedFile);
+      payload.image_type   = chatAttachedFile.type;
+    } else if (chatAttachedFile.type === 'application/pdf') {
+      payload.pdf_base64 = await readFileAsBase64(chatAttachedFile);
+    } else {
+      const txt = await readFileAsText(chatAttachedFile);
+      payload.question = question + '\n\nAttached file content:\n' + txt;
+    }
+    removeChatFile();
+  }
+
+  aiChatHistory.push({ role: 'user', content: displayText });
 
   try {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        question,
-        briefingContext: briefingText,
-        history: aiChatHistory.slice(-6)
-      })
+      body: JSON.stringify(payload)
     });
 
     const data   = await response.json();
@@ -2095,15 +2219,14 @@ async function sendAIChat() {
 
   } catch(e) {
     document.getElementById('aiTyping')?.remove();
-    addChatMessage('ai', 'Sorry, there was an error processing your question. Please try again.');
+    addChatMessage('ai', 'Error processing request. Please try again.');
   }
 }
 
 function closeResult() {
   document.getElementById('resultOverlay').classList.remove('open');
-  // Hide chat bot
-  document.getElementById('aiChatContainer').style.display = 'none';
-  aiChatOpen = false;
+  closeAIChat();
+  aiChatHistory = [];
   if (document.getElementById('appSidebar').style.display === 'none') {
     document.getElementById('mainNavbar').style.display = 'flex';
   }
@@ -2478,7 +2601,6 @@ function renderSidebarItem(item, isStarred) {
       appendBriefingActions(content);
       const navbar = document.getElementById('mainNavbar');
       if (navbar) navbar.style.display = 'none';
-      document.getElementById('aiChatContainer').style.display = 'block';
       aiChatHistory = [];
       aiChatOpen = false;
     }
@@ -4797,7 +4919,6 @@ function renderArchive(briefings) {
           if (loading) loading.style.display = 'none';
           if (content) { content.style.display = 'block'; content.innerHTML = briefingCache[briefing.id]; }
           if (status) status.textContent = 'ROUTE BRIEFING: ' + briefing.route + ' — COMPLETE';
-          document.getElementById('aiChatContainer').style.display = 'block';
           aiChatHistory = [];
           aiChatOpen = false;
           closeArchivePanel();
