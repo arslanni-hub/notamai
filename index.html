@@ -925,6 +925,12 @@ body.sidebar-collapsed #resultOverlay {
 #archiveList::-webkit-scrollbar { width: 3px; }
 #archiveList::-webkit-scrollbar-track { background: transparent; }
 #archiveList::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
+#aiChatMessages::-webkit-scrollbar { width: 3px; }
+#aiChatMessages::-webkit-scrollbar-track { background: transparent; }
+#aiChatMessages::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
+body.sidebar-open #aiChatContainer { left: 260px; width: calc(100vw - 260px); }
+body.sidebar-collapsed #aiChatContainer { left: 52px; width: calc(100vw - 52px); }
+body:not(.sidebar-open):not(.sidebar-collapsed) #aiChatContainer { left: 0; width: 100vw; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -1068,6 +1074,30 @@ body.sidebar-collapsed #resultOverlay {
     <div id="resultContent" style="display:none"></div>
     <div id="resultContent2" style="display:none"></div>
   </div>
+</div>
+
+<!-- AI CHAT BOT -->
+<div id="aiChatContainer" style="display:none;position:fixed;bottom:0;z-index:500;background:#0a0f18;border-top:1px solid #1a2a3a;padding:12px 16px;transition:left 0.3s,width 0.3s;">
+
+  <!-- Chat Toggle Button -->
+  <div id="aiChatToggle" onclick="toggleAIChat()" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;">
+    <div style="display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      ASK AI
+    </div>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;">Ask anything about this briefing</div>
+    <svg id="aiChatChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5f72" stroke-width="2" stroke-linecap="round" style="margin-left:auto;transition:transform 0.2s;"><polyline points="18 15 12 9 6 15"/></svg>
+  </div>
+
+  <!-- Chat Messages -->
+  <div id="aiChatMessages" style="display:none;max-height:240px;overflow-y:auto;margin:12px 0;padding-right:4px;"></div>
+
+  <!-- Chat Input -->
+  <div id="aiChatInput" style="display:none;gap:8px;align-items:center;">
+    <input id="aiChatTextInput" type="text" placeholder="Ask about this briefing..." style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter')sendAIChat()">
+    <button onclick="sendAIChat()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Send</button>
+  </div>
+
 </div>
 
 <!-- UPGRADE MODAL -->
@@ -1633,6 +1663,10 @@ async function handleSend() {
   document.getElementById('mainNavbar').style.display = 'none';
   loading.style.display = 'flex';
   content.style.display = 'none';
+  // Show AI chat bot
+  document.getElementById('aiChatContainer').style.display = 'block';
+  aiChatHistory = [];
+  aiChatOpen = false;
   const startTime = Date.now();
 
   let label = 'NOTAM ANALYSIS IN PROGRESS';
@@ -1966,8 +2000,110 @@ async function downloadPDF() {
   btn.disabled = false;
 }
 
+// ── AI Chat Bot ──────────────────────────────────────────────
+let aiChatOpen = false;
+let aiChatHistory = [];
+
+function toggleAIChat() {
+  aiChatOpen = !aiChatOpen;
+  const messages = document.getElementById('aiChatMessages');
+  const input    = document.getElementById('aiChatInput');
+  const chevron  = document.getElementById('aiChatChevron');
+
+  if (aiChatOpen) {
+    messages.style.display = 'block';
+    input.style.display    = 'flex';
+    chevron.style.transform = 'rotate(180deg)';
+    document.getElementById('aiChatTextInput').focus();
+    if (aiChatHistory.length === 0) {
+      addChatMessage('ai', 'Hi! I\'ve analyzed this briefing. Ask me anything about the NOTAMs, weather, risks, or operational recommendations.');
+    }
+  } else {
+    messages.style.display = 'none';
+    input.style.display    = 'none';
+    chevron.style.transform = 'rotate(0deg)';
+  }
+}
+
+function addChatMessage(role, text) {
+  const messages = document.getElementById('aiChatMessages');
+  const div = document.createElement('div');
+  div.style.cssText = 'margin-bottom:10px;display:flex;gap:8px;align-items:flex-start;';
+
+  if (role === 'ai') {
+    div.innerHTML = `
+      <div style="width:24px;height:24px;border-radius:50%;background:rgba(74,158,255,0.15);border:1px solid rgba(74,158,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      </div>
+      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:8px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;flex:1;">${text}</div>
+    `;
+  } else {
+    div.innerHTML = `
+      <div style="flex:1;"></div>
+      <div style="background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.2);border-radius:6px;padding:8px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;max-width:80%;">${text}</div>
+    `;
+  }
+
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function sendAIChat() {
+  const input    = document.getElementById('aiChatTextInput');
+  const question = input.value.trim();
+  if (!question) return;
+
+  input.value = '';
+  addChatMessage('user', question);
+
+  // Typing indicator
+  const typingDiv = document.createElement('div');
+  typingDiv.id = 'aiTyping';
+  typingDiv.style.cssText = 'margin-bottom:10px;display:flex;gap:8px;align-items:center;';
+  typingDiv.innerHTML = `
+    <div style="width:24px;height:24px;border-radius:50%;background:rgba(74,158,255,0.15);border:1px solid rgba(74,158,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+    </div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;">ANALYZING...</div>
+  `;
+  const msgContainer = document.getElementById('aiChatMessages');
+  msgContainer.appendChild(typingDiv);
+  msgContainer.scrollTop = msgContainer.scrollHeight;
+
+  const resultContent = document.getElementById('resultContent');
+  const briefingText  = resultContent ? resultContent.innerText.slice(0, 3000) : '';
+
+  aiChatHistory.push({ role: 'user', content: question });
+
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question,
+        briefingContext: briefingText,
+        history: aiChatHistory.slice(-6)
+      })
+    });
+
+    const data   = await response.json();
+    const answer = data.answer || 'Sorry, I could not process your question.';
+
+    document.getElementById('aiTyping')?.remove();
+    addChatMessage('ai', answer);
+    aiChatHistory.push({ role: 'assistant', content: answer });
+
+  } catch(e) {
+    document.getElementById('aiTyping')?.remove();
+    addChatMessage('ai', 'Sorry, there was an error processing your question. Please try again.');
+  }
+}
+
 function closeResult() {
   document.getElementById('resultOverlay').classList.remove('open');
+  // Hide chat bot
+  document.getElementById('aiChatContainer').style.display = 'none';
+  aiChatOpen = false;
   if (document.getElementById('appSidebar').style.display === 'none') {
     document.getElementById('mainNavbar').style.display = 'flex';
   }
@@ -2342,6 +2478,9 @@ function renderSidebarItem(item, isStarred) {
       appendBriefingActions(content);
       const navbar = document.getElementById('mainNavbar');
       if (navbar) navbar.style.display = 'none';
+      document.getElementById('aiChatContainer').style.display = 'block';
+      aiChatHistory = [];
+      aiChatOpen = false;
     }
   });
   return div;
@@ -4658,6 +4797,9 @@ function renderArchive(briefings) {
           if (loading) loading.style.display = 'none';
           if (content) { content.style.display = 'block'; content.innerHTML = briefingCache[briefing.id]; }
           if (status) status.textContent = 'ROUTE BRIEFING: ' + briefing.route + ' — COMPLETE';
+          document.getElementById('aiChatContainer').style.display = 'block';
+          aiChatHistory = [];
+          aiChatOpen = false;
           closeArchivePanel();
         }
       });

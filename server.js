@@ -678,6 +678,50 @@ if (getAccessBtn) {
     return;
   }
 
+  if (req.method === 'POST' && req.url === '/api/chat') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { question, briefingContext, history } = JSON.parse(body);
+
+        const messages = [
+          {
+            role: 'user',
+            content: `You are an expert AIM (Aeronautical Information Management) specialist and senior flight dispatcher. You have just analyzed this pre-flight operational briefing:\n\n${briefingContext}\n\nAnswer questions about this briefing concisely and professionally. Focus on operational relevance and flight safety. Keep answers under 150 words.`
+          },
+          { role: 'assistant', content: 'Understood. I have reviewed the briefing. How can I help?' },
+          ...(history || []),
+          { role: 'user', content: question }
+        ];
+
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 300,
+            messages
+          })
+        });
+
+        const claudeData = await claudeRes.json();
+        const answer = claudeData.content?.[0]?.text || 'Unable to process question.';
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ answer }));
+      } catch(e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ answer: 'Error processing request.' }));
+      }
+    });
+    return;
+  }
+
   if (req.method === 'POST' && req.url === '/briefing') {
     let body = '';
     req.on('data', chunk => body += chunk);
