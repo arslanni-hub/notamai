@@ -1798,6 +1798,7 @@ async function handleSend() {
             content.style.display = 'block';
             status.textContent = label + ' — COMPLETE';
             appendBriefingActions(content);
+            extractBriefingIcaos();
             // Save to Firestore and reload history
             const riskMatch = (htmlHead + final).match(/\b(CRITICAL|HIGH|MEDIUM|LOW)\b/);
             const detectedRisk = riskMatch ? riskMatch[1] : 'MEDIUM';
@@ -2045,6 +2046,7 @@ let isRecording = false;
 let recognition = null;
 let currentChatBriefingId = null;
 const chatHistoryMap = {};
+let knownBriefingIcaos = new Set();
 
 function openAIChat() {
   const panel = document.getElementById('aiChatContainer');
@@ -2081,7 +2083,29 @@ function closeAIChat() {
   if (isRecording) stopRecording();
 }
 
-function processClickableText(text) {
+function processClickableText(text, knownIcaos) {
+  // Only highlight codes that are in the knownIcaos set for this briefing
+  if (knownIcaos && knownIcaos.size > 0) {
+    text = text.replace(/\b([A-Z]{4})\b/g, (match, code) => {
+      if (knownIcaos.has(code)) {
+        return `<span onclick="openRawDataForIcao('${code}')" style="color:#4a9eff;cursor:pointer;" title="View NOTAMs for ${code}">${code}</span>`;
+      }
+      return match;
+    });
+  }
+
+  // NOTAMs & MET panel references
+  text = text.replace(/NOTAMs\s*&\s*MET\s*panel/gi,
+    '<span onclick="closeAIChat();openRawDataPanel();" style="color:#2ec4b6;cursor:pointer;font-weight:700;">NOTAMs &amp; MET panel</span>');
+
+  return text;
+}
+
+function extractBriefingIcaos() {
+  knownBriefingIcaos = new Set();
+  const content = document.getElementById('resultContent');
+  if (!content) return;
+  const text = content.innerText;
   const validPrefixes = new Set([
     'EG','EI','EB','EH','ED','ET','EK','EN','EF','EV','EY','EE','ES','BI','EL',
     'LF','LG','LI','LE','LP','LT','LK','LO','LZ','LB','LR','LY','LD','LJ','LH',
@@ -2100,21 +2124,10 @@ function processClickableText(text) {
     'AY','AG','AN','NC','NF','NG','NK','NL','NS','NT','NV','NW','NZ',
     'YB','YM','YS','YW','YA','PH','PJ','PK','PL','PT','TB','TV','TJ','TN'
   ]);
-
-  // Only wrap valid ICAO-prefixed 4-letter codes
-  text = text.replace(/\b([A-Z]{4})\b/g, (match, code) => {
-    if (validPrefixes.has(code.slice(0, 2))) {
-      return `<span onclick="openRawDataForIcao('${code}')" style="color:#4a9eff;cursor:pointer;" title="View NOTAMs for ${code}">${code}</span>`;
-    }
-    return match;
+  const matches = text.match(/\b[A-Z]{4}\b/g) || [];
+  matches.forEach(m => {
+    if (validPrefixes.has(m.slice(0, 2))) knownBriefingIcaos.add(m);
   });
-
-  // NOTAMs & MET panel references
-  text = text.replace(/NOTAMs\s*&(?:amp;)?\s*MET\s*panel/gi,
-    '<span onclick="closeAIChat();openRawDataPanel();" style="color:#2ec4b6;cursor:pointer;font-weight:700;">NOTAMs &amp; MET panel</span>'
-  );
-
-  return text;
 }
 
 function openRawDataForIcao(icao) {
@@ -2146,12 +2159,12 @@ function addChatMessage(role, text) {
     let i = 0;
     const interval = setInterval(() => {
       if (i < words.length) {
-        contentEl.innerHTML = processClickableText(words.slice(0, i + 1).join(' '));
+        contentEl.innerHTML = processClickableText(words.slice(0, i + 1).join(' '), knownBriefingIcaos);
         i++;
         messages.scrollTop = messages.scrollHeight;
       } else {
         clearInterval(interval);
-        contentEl.innerHTML = processClickableText(text);
+        contentEl.innerHTML = processClickableText(text, knownBriefingIcaos);
       }
     }, 30);
   } else {
@@ -2686,6 +2699,7 @@ function renderSidebarItem(item, isStarred) {
       content.innerHTML = cachedHtml;
       status.textContent = 'ROUTE BRIEFING: ' + item.route + ' — COMPLETE';
       appendBriefingActions(content);
+      extractBriefingIcaos();
       const navbar = document.getElementById('mainNavbar');
       if (navbar) navbar.style.display = 'none';
       document.getElementById('askNotamAiBtn').style.display = 'flex';
@@ -5009,6 +5023,7 @@ function renderArchive(briefings) {
           if (loading) loading.style.display = 'none';
           if (content) { content.style.display = 'block'; content.innerHTML = briefingCache[briefing.id]; }
           if (status) status.textContent = 'ROUTE BRIEFING: ' + briefing.route + ' — COMPLETE';
+          extractBriefingIcaos();
           document.getElementById('askNotamAiBtn').style.display = 'flex';
           closeAIChat();
           aiChatHistory = [];
