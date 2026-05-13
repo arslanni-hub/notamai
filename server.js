@@ -103,6 +103,14 @@ async function getEnrouteNotams(dep, arr) {
     // North America
     'KZ': 'KZNY', 'CZ': 'CZQX', 'KA': 'KZAK',
     'KJ': 'KZNY', 'KF': 'KZNY', 'KL': 'KZNY',
+    // China
+    'ZB': 'ZBPE', 'ZS': 'ZSHA', 'ZG': 'ZGZU', 'ZW': 'ZWWW',
+    // Russia
+    'UL': 'ULLL', 'UU': 'UUWV', 'UM': 'UMMV',
+    'UT': 'UTAA', 'UC': 'UCFM', 'UA': 'UAAA',
+    'UN': 'UNNT', 'UH': 'UHHH',
+    // Mongolia
+    'MG': 'ZMUB',
   };
 
   const depPrefix = dep ? dep.slice(0, 2) : '';
@@ -139,11 +147,17 @@ async function getEnrouteNotams(dep, arr) {
     'LT-KJ': ['LKAA', 'EDGG', 'EGTT', 'EGGX', 'CZQX', 'KZNY'],
     'OE-KJ': ['ORBB', 'LGGG', 'EDGG', 'EGTT', 'EGGX', 'CZQX', 'KZNY'],
     'OT-KJ': ['ORBB', 'LGGG', 'EDGG', 'EGTT', 'EGGX', 'CZQX', 'KZNY'],
+    // Asia ↔ Russia / Europe (polar/Silk Road)
+    'ZB-UL': ['ZWWW', 'UAAA', 'UNNT', 'ULLL'],
+    'UL-ZB': ['ULLL', 'UNNT', 'UAAA', 'ZWWW'],
+    'ZB-LT': ['ZWWW', 'UAAA', 'UNNT', 'UUWV', 'UKBV', 'LGGG'],
+    'LT-ZB': ['LGGG', 'UKBV', 'UUWV', 'UNNT', 'UAAA', 'ZWWW'],
+    'ZB-EG': ['ZWWW', 'UAAA', 'UNNT', 'UUWV', 'ULLL', 'EGTT'],
   };
   (commonRoutes[routeKey] || []).forEach(fir => firs.add(fir));
 
-  // Fetch NOTAMs for up to 6 FIRs (skip raw airport codes)
-  const firList = [...firs].filter(f => f !== dep && f !== arr).slice(0, 6);
+  // Fetch NOTAMs for up to 8 FIRs (skip raw airport codes)
+  const firList = [...firs].filter(f => f !== dep && f !== arr).slice(0, 8);
   const results = [];
 
   for (const fir of firList) {
