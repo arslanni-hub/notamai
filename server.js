@@ -965,6 +965,14 @@ if (getAccessBtn) {
           ? currentRoute.replace(/[^A-Z\s]/g, '').trim().split(/\s+/).filter(c => c.length >= 3 && c.length <= 4)
           : [];
 
+        // Fallback: extract dep/arr from briefing context if route was empty
+        if (!icaoCodes.length && briefingContext) {
+          const routeMatch = briefingContext.match(/([A-Z]{4})\s*[→\-–]\s*([A-Z]{4})/);
+          if (routeMatch) {
+            icaoCodes.push(routeMatch[1], routeMatch[2]);
+          }
+        }
+
         // Detect if live data is needed
         const needsLiveNotam   = /notam|active|current.*notam|how many notam|kaç notam|güncel notam|enroute|en-route|military|TFR|restricted|FIR/i.test(question);
         const needsLiveWeather = /current.*weather|live.*weather|metar|latest.*weather|güncel hava|şu anki hava/i.test(question);
@@ -1011,6 +1019,21 @@ if (getAccessBtn) {
           }
         }
 
+        // Fetch live en-route FIR NOTAMs if user asks about airspace/FIRs/route
+        const needsEnroute = /en.?route|fir|airspace|hava saha|güzergah|rota boyunca|military|askeri|tfr|restricted|yasak/i.test(question);
+        if (needsEnroute && icaoCodes.length >= 2) {
+          try {
+            const dep = icaoCodes[0];
+            const arr = icaoCodes[icaoCodes.length - 1];
+            const enrouteData = await getEnrouteNotams(dep, arr);
+            if (enrouteData) {
+              liveData += '\n\nLIVE EN-ROUTE FIR NOTAMs FETCHED NOW:\n' + enrouteData;
+            }
+          } catch(e) {
+            console.error('[CHAT ENROUTE]', e.message);
+          }
+        }
+
         // System prompt
         const systemPrompt = `You are an expert AIM (Aeronautical Information Management) specialist and senior flight dispatcher with deep knowledge of ICAO Annex 15, PANS-AIM, and international aviation operations.
 
@@ -1035,7 +1058,9 @@ IMPORTANT INSTRUCTIONS:
 - For NOTAM questions: use the NOTAM analysis from the briefing. If live NOTAM count was fetched, mention exact numbers.
 - If user wants to see ALL NOTAMs, tell them to open the "NOTAMs & MET" panel in the sidebar for full raw NOTAM data.
 - Be concise (under 200 words), professional, and operationally focused.
-- Always prioritize flight safety in your answers.`;
+- Always prioritize flight safety in your answers.
+
+CRITICAL: If live FIR NOTAM data is provided in 'LIVE EN-ROUTE FIR NOTAMs FETCHED NOW', analyze it fully and present findings. NEVER say the briefing is missing data or suggest checking elsewhere unless the live fetch also returned no data. If live data shows 'No active NOTAMs', confirm it explicitly. Never deflect - give the actual data.`;
 
         // Build user content (supports images and PDFs)
         const userContent = [];
