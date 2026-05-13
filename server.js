@@ -171,15 +171,20 @@ async function getEnrouteNotams(dep, arr) {
     'YB': 'YMMM', 'YM': 'YMMM', 'YS': 'YMMM', 'YW': 'YMMM', 'YA': 'YMMM',
   };
 
-  const depPrefix = dep ? dep.slice(0, 2) : '';
-  const arrPrefix = arr ? arr.slice(0, 2) : '';
-
   const firs = new Set();
-  if (firMap[depPrefix]) firs.add(firMap[depPrefix]);
-  if (firMap[arrPrefix]) firs.add(firMap[arrPrefix]);
 
-  // Add intermediate FIRs for common route pairs
-  const routeKey = depPrefix + '-' + arrPrefix;
+  // Add dep FIR
+  const depPrefix = dep ? dep.slice(0, 2) : '';
+  if (dep && firMap[depPrefix]) firs.add(firMap[depPrefix]);
+
+  // Add arr FIR
+  const arrPrefix = arr ? arr.slice(0, 2) : '';
+  if (arr && firMap[arrPrefix]) firs.add(firMap[arrPrefix]);
+
+  // Try both directions for common route pairs
+  const routeKey1 = depPrefix + '-' + arrPrefix;
+  const routeKey2 = arrPrefix + '-' + depPrefix;
+
   const commonRoutes = {
     // Europe ↔ Turkey
     'LT-EG': ['LKAA', 'EDGG', 'EGTT'],
@@ -234,7 +239,31 @@ async function getEnrouteNotams(dep, arr) {
     'KJ-RJ': ['CZQX', 'EGGX', 'ULLL', 'UNNT', 'UHHH', 'RJJJ'],
     'KJ-ZB': ['CZQX', 'UHHH', 'UNNT', 'ZBPE'],
   };
-  (commonRoutes[routeKey] || []).forEach(fir => firs.add(fir));
+  const intermediates = commonRoutes[routeKey1] || commonRoutes[routeKey2] || [];
+  intermediates.forEach(fir => firs.add(fir));
+
+  // If no route pair matched, infer intermediate FIRs from single-char geography
+  if (intermediates.length === 0 && dep && arr) {
+    const geoNeighbors = {
+      'Y': ['YMMM', 'WSJC', 'WAAF'],
+      'W': ['WSJC', 'WAAF', 'WIIF', 'VTBB', 'RPHI'],
+      'V': ['VTBB', 'VVHM', 'WSJC', 'ZBPE', 'VIDF'],
+      'R': ['RJJJ', 'RKRR', 'ZBPE', 'RCTP'],
+      'Z': ['ZBPE', 'ZWWW', 'UAAA', 'UNNT'],
+      'O': ['ORBB', 'OEJD', 'OMAE', 'LGGG'],
+      'H': ['HECC', 'HTTC', 'HRRR', 'DAAA'],
+      'F': ['FAJA', 'FZAA', 'HTTC', 'HECC'],
+      'D': ['DAAA', 'DTTC', 'DGAC', 'DNKK'],
+      'L': ['LGGG', 'LKAA', 'LOVV', 'LBSR'],
+      'E': ['EGTT', 'EDGG', 'EKDK', 'ENOR'],
+      'K': ['KZNY', 'KZAK', 'KZLC', 'CZQX'],
+      'S': ['SBBS', 'SKED', 'SEFG', 'SAEF'],
+    };
+    const depFir = dep && firMap[depPrefix];
+    const arrFir = arr && firMap[arrPrefix];
+    (geoNeighbors[dep[0]] || []).forEach(f => { if (f !== depFir && f !== arrFir) firs.add(f); });
+    (geoNeighbors[arr[0]] || []).forEach(f => { if (f !== depFir && f !== arrFir) firs.add(f); });
+  }
 
   // Fetch NOTAMs for up to 8 FIRs (skip raw airport codes)
   const firList = [...firs].filter(f => f !== dep && f !== arr).slice(0, 8);
@@ -678,6 +707,8 @@ MANDATORY: Analyze and include en-route NOTAMs for ALL FIRs along the route. For
 Include a dedicated AIRSPACE section in the briefing that specifically covers en-route hazards separate from aerodrome NOTAMs. If no en-route NOTAMs exist for a FIR, explicitly state 'No active en-route restrictions for [FIR]'.
 
 EN-ROUTE FIR ANALYSIS: For each intermediate FIR along the route, create a dedicated subsection in the AIRSPACE section. List specific NOTAM numbers, types, and operational impact. If military exercise areas, TFRs, or airspace restrictions exist, classify them as HIGH or CRITICAL risk as appropriate. Never say 'limited information available' - either provide the data or explicitly state 'No active NOTAMs for [FIR]'.
+
+CRITICAL REQUIREMENT: You MUST fetch and analyze NOTAMs for ALL intermediate FIRs between departure and arrival. Never say a FIR's data is 'not available in this briefing' - if en-route FIR NOTAMs are provided in the EN-ROUTE FIR NOTAMs section, analyze them ALL. If a FIR shows 'No active NOTAMs', explicitly state this as confirmation of clear airspace.
 
 For transatlantic routes, always mention NAT (North Atlantic Track) system status and oceanic clearance requirements. For routes over conflict zones (Middle East, Eastern Europe), specifically check for active airspace closures and NOTAM to Airmen.
 

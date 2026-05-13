@@ -2081,6 +2081,31 @@ function closeAIChat() {
   if (isRecording) stopRecording();
 }
 
+function processClickableText(text) {
+  // FIR references first (before bare ICAO codes to avoid double-wrapping)
+  text = text.replace(/\b([A-Z]{4})\s+FIR\b/g, (match, fir) =>
+    `<span onclick="openRawDataForIcao('${fir}')" style="color:#4a9eff;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View NOTAMs for ${fir} FIR">${fir}</span> FIR`
+  );
+  // Bare 4-letter ICAO codes (not already inside an onclick span)
+  text = text.replace(/(?<!onclick="[^"]*)\b([A-Z]{4})\b(?!\s*FIR)(?![^<]*<\/span>)/g, (match, icao) =>
+    `<span onclick="openRawDataForIcao('${icao}')" style="color:#4a9eff;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View NOTAMs for ${icao}">${icao}</span>`
+  );
+  // NOTAMs & MET panel references
+  text = text.replace(/["']?(NOTAMs\s*&(?:amp;)?\s*MET)["']?\s*panel/gi,
+    '<span onclick="closeAIChat();openRawDataPanel();" style="color:#2ec4b6;cursor:pointer;text-decoration:underline;font-weight:700;" title="Open NOTAMs & MET panel">NOTAMs &amp; MET panel</span>'
+  );
+  return text;
+}
+
+function openRawDataForIcao(icao) {
+  closeAIChat();
+  openRawDataPanel();
+  setTimeout(() => {
+    document.getElementById('rawIcaoInput').value = icao;
+    fetchRawData();
+  }, 400);
+}
+
 function addChatMessage(role, text) {
   const messages = document.getElementById('aiChatMessages');
   const div = document.createElement('div');
@@ -2091,8 +2116,9 @@ function addChatMessage(role, text) {
       <div style="width:26px;height:26px;border-radius:50%;background:rgba(74,158,255,0.15);border:1px solid rgba(74,158,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </div>
-      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;flex:1;white-space:pre-wrap;">${text}</div>
+      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;flex:1;white-space:pre-wrap;"></div>
     `;
+    div.querySelector('div:last-child').innerHTML = processClickableText(text);
   } else {
     div.innerHTML = `
       <div style="flex:1;"></div>
