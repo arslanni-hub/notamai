@@ -84,40 +84,79 @@ async function fetchNotams(icao) {
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
 }
 
-// Map airport ICAO prefix → home FIR
-function getFirsFromRoute(dep, arr) {
+// Fetch en-route FIR NOTAMs based on dep/arr ICAO pair
+async function getEnrouteNotams(dep, arr) {
   const firMap = {
-    'LT': 'LTBB', // Turkey
-    'LG': 'LGGG', // Greece
-    'LB': 'LBSR', // Bulgaria
-    'LR': 'LRBB', // Romania
-    'LH': 'LHCC', // Hungary
-    'LK': 'LKAA', // Czech Republic
-    'LO': 'LOVV', // Austria
-    'LS': 'LSAS', // Switzerland
-    'LI': 'LIMM', // Italy
-    'LE': 'LECM', // Spain
-    'LF': 'LFFF', // France
-    'EB': 'EBBU', // Belgium
-    'EH': 'EHAA', // Netherlands
-    'ED': 'EDGG', // Germany
-    'EG': 'EGTT', // UK
-    'EK': 'EKDK', // Denmark
-    'EN': 'ENOR', // Norway
-    'ES': 'ESOS', // Sweden
-    'EF': 'EFIN', // Finland
-    'EP': 'EPWW', // Poland
-    'EV': 'EVRR', // Latvia
-    'EY': 'EYSA', // Lithuania
-    'UK': 'UKBV', // Ukraine
-    'UG': 'UGGG', // Georgia
+    'LT': 'LTBB', 'EG': 'EGTT', 'ED': 'EDGG', 'LF': 'LFFF',
+    'LI': 'LIIV', 'LE': 'LECM', 'LP': 'LPPC', 'EB': 'EBUR',
+    'EH': 'EHAA', 'EK': 'EKDK', 'EN': 'ENOR', 'EF': 'EFIN',
+    'LG': 'LGGG', 'LB': 'LBSR', 'LR': 'LRBB', 'LY': 'LYBA',
+    'LD': 'LDZO', 'LO': 'LOVV', 'LK': 'LKAA', 'EP': 'EPWW',
+    'OJ': 'OJAC', 'OI': 'OIIX', 'OR': 'ORBB', 'OT': 'OTBD',
+    'OE': 'OEJD', 'OM': 'OMAE', 'OB': 'OBBB', 'OK': 'OKAC',
+    'UD': 'UDDD', 'UG': 'UGGD', 'UK': 'UKBV', 'UR': 'URRV'
   };
+
+  const depPrefix = dep ? dep.slice(0, 2) : '';
+  const arrPrefix = arr ? arr.slice(0, 2) : '';
+
   const firs = new Set();
-  const depFir = dep && firMap[dep.slice(0, 2)];
-  const arrFir = arr && firMap[arr.slice(0, 2)];
-  if (depFir) firs.add(depFir);
-  if (arrFir) firs.add(arrFir);
-  return [...firs];
+  if (firMap[depPrefix]) firs.add(firMap[depPrefix]);
+  if (firMap[arrPrefix]) firs.add(firMap[arrPrefix]);
+
+  // Add intermediate FIRs for common route pairs
+  const routeKey = depPrefix + '-' + arrPrefix;
+  const commonRoutes = {
+    'LT-EG': ['LKAA', 'EDGG', 'EGTT'],
+    'LT-ED': ['LKAA', 'LOVV'],
+    'LT-LF': ['LKAA', 'LOVV', 'EDGG'],
+    'LT-LI': ['LGGG', 'LIIV'],
+    'LT-LE': ['LGGG', 'LIIV', 'LECM'],
+    'LT-OE': ['LGGG', 'ORBB', 'OEJD'],
+    'LT-OT': ['LGGG', 'ORBB', 'OTBD'],
+    'LT-OM': ['LGGG', 'ORBB', 'OMAE'],
+    'EG-LT': ['EGTT', 'EDGG', 'LKAA'],
+    'ED-LT': ['LOVV', 'LKAA'],
+  };
+  (commonRoutes[routeKey] || []).forEach(fir => firs.add(fir));
+
+  // Fetch NOTAMs for up to 4 FIRs (skip dep/arr airport codes themselves)
+  const firList = [...firs].filter(f => f !== dep && f !== arr).slice(0, 4);
+  const results = [];
+
+  for (const fir of firList) {
+    await new Promise(r => setTimeout(r, 500));
+    try {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + fir, {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-key': process.env.SKYLINK_KEY,
+          'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
+        }
+      });
+      if (data && data.notams && data.notams.length > 0) {
+        const now = new Date();
+        const active = data.notams.filter(n => {
+          if (!n.expiration || n.expiration.length < 12) return true;
+          const e = n.expiration;
+          const expDate = new Date(Date.UTC(parseInt(e.slice(0,4)), parseInt(e.slice(4,6))-1, parseInt(e.slice(6,8)), parseInt(e.slice(8,10)), parseInt(e.slice(10,12))));
+          return expDate > now;
+        });
+        if (active.length > 0) {
+          const summary = active.slice(0, 5).map(n => (n.raw || n.body || '').slice(0, 300)).join('\n');
+          results.push(`FIR ${fir}: ${active.length} active NOTAMs\n${summary}`);
+        } else {
+          results.push(`FIR ${fir}: No active NOTAMs`);
+        }
+      } else {
+        results.push(`FIR ${fir}: No active NOTAMs`);
+      }
+    } catch(e) {
+      results.push(`FIR ${fir}: Data unavailable`);
+    }
+  }
+
+  return results.join('\n\n');
 }
 
 async function fetchMetar(icao) {
@@ -491,6 +530,8 @@ MANDATORY: Analyze and include en-route NOTAMs for ALL FIRs along the route. For
 - FIR crossing procedures or special requirements
 Include a dedicated AIRSPACE section in the briefing that specifically covers en-route hazards separate from aerodrome NOTAMs. If no en-route NOTAMs exist for a FIR, explicitly state 'No active en-route restrictions for [FIR]'.
 
+EN-ROUTE FIR ANALYSIS: For each intermediate FIR along the route, create a dedicated subsection in the AIRSPACE section. List specific NOTAM numbers, types, and operational impact. If military exercise areas, TFRs, or airspace restrictions exist, classify them as HIGH or CRITICAL risk as appropriate. Never say 'limited information available' - either provide the data or explicitly state 'No active NOTAMs for [FIR]'.
+
 Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover all NOTAM types including SNOWTAM, BIRDTAM, ASHTAM, Military, Navigation, Airspace, Aerodrome NOTAMs.
 
 IMPORTANT: Be concise. Limit each NOTAM card to essential information only. Ensure ALL sections are completed including Go/No-Go and Footer.
@@ -830,7 +871,7 @@ IMPORTANT INSTRUCTIONS:
           },
           body: JSON.stringify({
             model: 'claude-sonnet-4-20250514',
-            max_tokens: 400,
+            max_tokens: 1000,
             system: systemPrompt,
             messages
           })
@@ -863,13 +904,7 @@ IMPORTANT INSTRUCTIONS:
         const notamArr = await fetchNotams(icao_arr);
 
         // Fetch en-route FIR NOTAMs
-        const enrouteFirs = getFirsFromRoute(icao_dep, icao_arr);
-        const firNotamResults = [];
-        for (const fir of enrouteFirs.slice(0, 2)) {
-          await new Promise(r => setTimeout(r, 500));
-          const firNotams = await fetchNotams(fir);
-          firNotamResults.push({ fir, notams: firNotams });
-        }
+        const enrouteNotamData = await getEnrouteNotams(icao_dep, icao_arr);
 
         const [metarDep, metarArr, tafDep, tafArr] = await Promise.all([
           fetchMetar(icao_dep), fetchMetar(icao_arr),
@@ -895,7 +930,7 @@ METAR DEPARTURE: ${metarDep || 'Not available'}
 METAR ARRIVAL: ${metarArr || 'Not available'}
 TAF DEPARTURE: ${tafDep || 'Not available'}
 TAF ARRIVAL: ${tafArr || 'Not available'}
-${firNotamResults.length > 0 ? '\nEN-ROUTE FIR NOTAMs:\n' + firNotamResults.map(r => `FIR ${r.fir}:\n${r.notams}`).join('\n\n') : '\nEN-ROUTE FIR NOTAMs: No FIR data available — advise crew to check current FIR NOTAMs via official sources.'}
+${enrouteNotamData ? '\nEN-ROUTE FIR NOTAMs:\n' + enrouteNotamData : '\nEN-ROUTE FIR NOTAMs: No FIR data available — advise crew to check current FIR NOTAMs via official sources.'}
 ${notam_text ? `\nADDITIONAL USER DATA:\n${notam_text}` : ''}
 
 Generate the complete pre-flight operational intelligence briefing HTML content.`;
