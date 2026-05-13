@@ -84,17 +84,25 @@ async function fetchNotams(icao) {
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
 }
 
+// Oceanic FIRs that use SkyLink fallback messaging
+const OCEANIC_FIRS = new Set(['KZNY', 'CZQX', 'EGGX', 'KZAK']);
+
 // Fetch en-route FIR NOTAMs based on dep/arr ICAO pair
 async function getEnrouteNotams(dep, arr) {
   const firMap = {
+    // Europe
     'LT': 'LTBB', 'EG': 'EGTT', 'ED': 'EDGG', 'LF': 'LFFF',
     'LI': 'LIIV', 'LE': 'LECM', 'LP': 'LPPC', 'EB': 'EBUR',
     'EH': 'EHAA', 'EK': 'EKDK', 'EN': 'ENOR', 'EF': 'EFIN',
     'LG': 'LGGG', 'LB': 'LBSR', 'LR': 'LRBB', 'LY': 'LYBA',
     'LD': 'LDZO', 'LO': 'LOVV', 'LK': 'LKAA', 'EP': 'EPWW',
+    // Middle East & Caucasus
     'OJ': 'OJAC', 'OI': 'OIIX', 'OR': 'ORBB', 'OT': 'OTBD',
     'OE': 'OEJD', 'OM': 'OMAE', 'OB': 'OBBB', 'OK': 'OKAC',
-    'UD': 'UDDD', 'UG': 'UGGD', 'UK': 'UKBV', 'UR': 'URRV'
+    'UD': 'UDDD', 'UG': 'UGGD', 'UK': 'UKBV', 'UR': 'URRV',
+    // North America
+    'KZ': 'KZNY', 'CZ': 'CZQX', 'KA': 'KZAK',
+    'KJ': 'KZNY', 'KF': 'KZNY', 'KL': 'KZNY',
   };
 
   const depPrefix = dep ? dep.slice(0, 2) : '';
@@ -107,25 +115,70 @@ async function getEnrouteNotams(dep, arr) {
   // Add intermediate FIRs for common route pairs
   const routeKey = depPrefix + '-' + arrPrefix;
   const commonRoutes = {
+    // Europe ↔ Turkey
     'LT-EG': ['LKAA', 'EDGG', 'EGTT'],
     'LT-ED': ['LKAA', 'LOVV'],
     'LT-LF': ['LKAA', 'LOVV', 'EDGG'],
     'LT-LI': ['LGGG', 'LIIV'],
     'LT-LE': ['LGGG', 'LIIV', 'LECM'],
+    'EG-LT': ['EGTT', 'EDGG', 'LKAA'],
+    'ED-LT': ['LOVV', 'LKAA'],
+    // Turkey ↔ Middle East
     'LT-OE': ['LGGG', 'ORBB', 'OEJD'],
     'LT-OT': ['LGGG', 'ORBB', 'OTBD'],
     'LT-OM': ['LGGG', 'ORBB', 'OMAE'],
-    'EG-LT': ['EGTT', 'EDGG', 'LKAA'],
-    'ED-LT': ['LOVV', 'LKAA'],
+    // North America ↔ Europe / Middle East (transatlantic)
+    'KJ-EG': ['KZNY', 'CZQX', 'EGGX', 'EGTT'],
+    'KJ-ED': ['KZNY', 'CZQX', 'EGGX', 'EGTT', 'EDGG'],
+    'KJ-LF': ['KZNY', 'CZQX', 'EGGX', 'LFFF'],
+    'KJ-LT': ['KZNY', 'CZQX', 'EGGX', 'EGTT', 'EDGG', 'LKAA'],
+    'KJ-OE': ['KZNY', 'CZQX', 'EGGX', 'EGTT', 'EDGG', 'LGGG', 'ORBB'],
+    'KJ-OT': ['KZNY', 'CZQX', 'EGGX', 'EGTT', 'EDGG', 'LGGG', 'ORBB'],
+    'KJ-OM': ['KZNY', 'CZQX', 'EGGX', 'EGTT', 'EDGG', 'LGGG', 'ORBB'],
+    'EG-KJ': ['EGTT', 'EGGX', 'CZQX', 'KZNY'],
+    'LT-KJ': ['LKAA', 'EDGG', 'EGTT', 'EGGX', 'CZQX', 'KZNY'],
+    'OE-KJ': ['ORBB', 'LGGG', 'EDGG', 'EGTT', 'EGGX', 'CZQX', 'KZNY'],
+    'OT-KJ': ['ORBB', 'LGGG', 'EDGG', 'EGTT', 'EGGX', 'CZQX', 'KZNY'],
   };
   (commonRoutes[routeKey] || []).forEach(fir => firs.add(fir));
 
-  // Fetch NOTAMs for up to 4 FIRs (skip dep/arr airport codes themselves)
-  const firList = [...firs].filter(f => f !== dep && f !== arr).slice(0, 4);
+  // Fetch NOTAMs for up to 6 FIRs (skip raw airport codes)
+  const firList = [...firs].filter(f => f !== dep && f !== arr).slice(0, 6);
   const results = [];
 
   for (const fir of firList) {
     await new Promise(r => setTimeout(r, 500));
+
+    // Oceanic FIRs: SkyLink may not cover them — use informational fallback
+    if (OCEANIC_FIRS.has(fir)) {
+      try {
+        const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + fir, {
+          method: 'GET',
+          headers: {
+            'x-rapidapi-key': process.env.SKYLINK_KEY,
+            'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
+          }
+        });
+        if (!data || !data.notams || data.notams.length === 0) {
+          results.push(`FIR ${fir}: Oceanic FIR — check official NOTAM sources (KZNY/CZQX/EGGX) for current NAT track system and oceanic restrictions`);
+          continue;
+        }
+        const now = new Date();
+        const active = data.notams.filter(n => {
+          if (!n.expiration || n.expiration.length < 12) return true;
+          const e = n.expiration;
+          const expDate = new Date(Date.UTC(parseInt(e.slice(0,4)), parseInt(e.slice(4,6))-1, parseInt(e.slice(6,8)), parseInt(e.slice(8,10)), parseInt(e.slice(10,12))));
+          return expDate > now;
+        });
+        const summary = active.slice(0, 5).map(n => (n.raw || n.body || '').slice(0, 300)).join('\n');
+        results.push(`FIR ${fir}: ${active.length} active NOTAMs\n${summary || 'No active restrictions'}`);
+      } catch(e) {
+        results.push(`FIR ${fir}: Oceanic FIR — verify current NAT tracks and oceanic NOTAM status via official sources`);
+      }
+      continue;
+    }
+
+    // Standard FIR fetch
     try {
       const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + fir, {
         method: 'GET',
@@ -531,6 +584,8 @@ MANDATORY: Analyze and include en-route NOTAMs for ALL FIRs along the route. For
 Include a dedicated AIRSPACE section in the briefing that specifically covers en-route hazards separate from aerodrome NOTAMs. If no en-route NOTAMs exist for a FIR, explicitly state 'No active en-route restrictions for [FIR]'.
 
 EN-ROUTE FIR ANALYSIS: For each intermediate FIR along the route, create a dedicated subsection in the AIRSPACE section. List specific NOTAM numbers, types, and operational impact. If military exercise areas, TFRs, or airspace restrictions exist, classify them as HIGH or CRITICAL risk as appropriate. Never say 'limited information available' - either provide the data or explicitly state 'No active NOTAMs for [FIR]'.
+
+For transatlantic routes, always mention NAT (North Atlantic Track) system status and oceanic clearance requirements. For routes over conflict zones (Middle East, Eastern Europe), specifically check for active airspace closures and NOTAM to Airmen.
 
 Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover all NOTAM types including SNOWTAM, BIRDTAM, ASHTAM, Military, Navigation, Airspace, Aerodrome NOTAMs.
 
