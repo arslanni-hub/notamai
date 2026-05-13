@@ -84,6 +84,42 @@ async function fetchNotams(icao) {
   } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
 }
 
+// Map airport ICAO prefix → home FIR
+function getFirsFromRoute(dep, arr) {
+  const firMap = {
+    'LT': 'LTBB', // Turkey
+    'LG': 'LGGG', // Greece
+    'LB': 'LBSR', // Bulgaria
+    'LR': 'LRBB', // Romania
+    'LH': 'LHCC', // Hungary
+    'LK': 'LKAA', // Czech Republic
+    'LO': 'LOVV', // Austria
+    'LS': 'LSAS', // Switzerland
+    'LI': 'LIMM', // Italy
+    'LE': 'LECM', // Spain
+    'LF': 'LFFF', // France
+    'EB': 'EBBU', // Belgium
+    'EH': 'EHAA', // Netherlands
+    'ED': 'EDGG', // Germany
+    'EG': 'EGTT', // UK
+    'EK': 'EKDK', // Denmark
+    'EN': 'ENOR', // Norway
+    'ES': 'ESOS', // Sweden
+    'EF': 'EFIN', // Finland
+    'EP': 'EPWW', // Poland
+    'EV': 'EVRR', // Latvia
+    'EY': 'EYSA', // Lithuania
+    'UK': 'UKBV', // Ukraine
+    'UG': 'UGGG', // Georgia
+  };
+  const firs = new Set();
+  const depFir = dep && firMap[dep.slice(0, 2)];
+  const arrFir = arr && firMap[arr.slice(0, 2)];
+  if (depFir) firs.add(depFir);
+  if (arrFir) firs.add(arrFir);
+  return [...firs];
+}
+
 async function fetchMetar(icao) {
   if (!icao) return '';
   try {
@@ -446,6 +482,14 @@ REQUIRED SECTIONS IN ORDER:
   <div class="footer-sig">AIM SPECIALIST — SENIOR OPERATIONAL BRIEFING<br>ROUTE: [DEP]–[ARR] | [DATE] | [TIME UTC]</div>
   <div class="footer-disclaimer">FLIGHT SAFETY IS THE OVERRIDING PRIORITY. THIS BRIEFING IS PREPARED IN ACCORDANCE WITH ICAO ANNEX 15, PANS-AIM DOC 10066, PANS-OPS DOC 8168, AND DOC 4444 PANS-ATM. ALWAYS CROSS-CHECK WITH CURRENT OPERATIONAL SOURCES BEFORE FLIGHT.</div>
 </div>
+
+MANDATORY: Analyze and include en-route NOTAMs for ALL FIRs along the route. For each FIR on the route (e.g. LTBB, LKAA, EGTT, EDGG etc.), check for:
+- Airspace closures or restrictions
+- Military exercise areas (MATZ, danger areas, restricted areas)
+- Temporary Flight Restrictions (TFRs)
+- Active SIGMETs along route
+- FIR crossing procedures or special requirements
+Include a dedicated AIRSPACE section in the briefing that specifically covers en-route hazards separate from aerodrome NOTAMs. If no en-route NOTAMs exist for a FIR, explicitly state 'No active en-route restrictions for [FIR]'.
 
 Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover all NOTAM types including SNOWTAM, BIRDTAM, ASHTAM, Military, Navigation, Airspace, Aerodrome NOTAMs.
 
@@ -815,8 +859,18 @@ IMPORTANT INSTRUCTIONS:
         const { icao_dep, icao_arr, notam_text, image_base64, image_type, pdf_base64 } = JSON.parse(body);
 
         const notamDep = await fetchNotams(icao_dep);
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 500));
         const notamArr = await fetchNotams(icao_arr);
+
+        // Fetch en-route FIR NOTAMs
+        const enrouteFirs = getFirsFromRoute(icao_dep, icao_arr);
+        const firNotamResults = [];
+        for (const fir of enrouteFirs.slice(0, 2)) {
+          await new Promise(r => setTimeout(r, 500));
+          const firNotams = await fetchNotams(fir);
+          firNotamResults.push({ fir, notams: firNotams });
+        }
+
         const [metarDep, metarArr, tafDep, tafArr] = await Promise.all([
           fetchMetar(icao_dep), fetchMetar(icao_arr),
           fetchTaf(icao_dep), fetchTaf(icao_arr)
@@ -841,6 +895,7 @@ METAR DEPARTURE: ${metarDep || 'Not available'}
 METAR ARRIVAL: ${metarArr || 'Not available'}
 TAF DEPARTURE: ${tafDep || 'Not available'}
 TAF ARRIVAL: ${tafArr || 'Not available'}
+${firNotamResults.length > 0 ? '\nEN-ROUTE FIR NOTAMs:\n' + firNotamResults.map(r => `FIR ${r.fir}:\n${r.notams}`).join('\n\n') : '\nEN-ROUTE FIR NOTAMs: No FIR data available — advise crew to check current FIR NOTAMs via official sources.'}
 ${notam_text ? `\nADDITIONAL USER DATA:\n${notam_text}` : ''}
 
 Generate the complete pre-flight operational intelligence briefing HTML content.`;
