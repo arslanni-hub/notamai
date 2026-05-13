@@ -2082,18 +2082,38 @@ function closeAIChat() {
 }
 
 function processClickableText(text) {
-  // FIR references first (before bare ICAO codes to avoid double-wrapping)
-  text = text.replace(/\b([A-Z]{4})\s+FIR\b/g, (match, fir) =>
-    `<span onclick="openRawDataForIcao('${fir}')" style="color:#4a9eff;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View NOTAMs for ${fir} FIR">${fir}</span> FIR`
-  );
-  // Bare 4-letter ICAO codes (not already inside an onclick span)
-  text = text.replace(/(?<!onclick="[^"]*)\b([A-Z]{4})\b(?!\s*FIR)(?![^<]*<\/span>)/g, (match, icao) =>
-    `<span onclick="openRawDataForIcao('${icao}')" style="color:#4a9eff;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View NOTAMs for ${icao}">${icao}</span>`
-  );
+  const validPrefixes = new Set([
+    'EG','EI','EB','EH','ED','ET','EK','EN','EF','EV','EY','EE','ES','BI','EL',
+    'LF','LG','LI','LE','LP','LT','LK','LO','LZ','LB','LR','LY','LD','LJ','LH',
+    'EP','ZB','ZG','ZH','ZJ','ZK','ZL','ZP','ZS','ZU','ZW','ZY','ZM',
+    'RJ','RK','RC','RP','VT','VH','VB','VD','VL','VM','VV','WA','WB','WI','WM','WP','WS',
+    'OB','OE','OI','OJ','OK','OL','OM','OO','OP','OR','OS','OT','OY',
+    'UT','UC','UA','UG','UD','UL','UU','UK','UN','UH','UE','UB','US','UO','UF','UP','UR','UM','UI',
+    'VA','VC','VE','VG','VI','VN','VO','VQ','VR',
+    'DA','DT','GM','GC','GL','GO','GU','GF','GQ','GB','GG','GS',
+    'DN','DB','DG','DI','DF','FC','FE','FD','FG','FH','FS','FZ',
+    'HE','HA','HD','HH','HC','HR','HS','HT','HU','HK',
+    'FA','FB','FI','FK','FL','FM','FN','FP','FQ','FT','FV','FW','FX','FY',
+    'KJ','KF','KL','KP','KS','KD','KM','KA','KZ',
+    'CY','CW','CZ','CU','CV','MX','MT','MU','MH','MR','MP','MG','MS','MD',
+    'SB','SC','SK','SL','SE','SP','SU','SA','SV','SO','SY','SM',
+    'AY','AG','AN','NC','NF','NG','NK','NL','NS','NT','NV','NW','NZ',
+    'YB','YM','YS','YW','YA','PH','PJ','PK','PL','PT','TB','TV','TJ','TN'
+  ]);
+
+  // Only wrap valid ICAO-prefixed 4-letter codes
+  text = text.replace(/\b([A-Z]{4})\b/g, (match, code) => {
+    if (validPrefixes.has(code.slice(0, 2))) {
+      return `<span onclick="openRawDataForIcao('${code}')" style="color:#4a9eff;cursor:pointer;" title="View NOTAMs for ${code}">${code}</span>`;
+    }
+    return match;
+  });
+
   // NOTAMs & MET panel references
-  text = text.replace(/["']?(NOTAMs\s*&(?:amp;)?\s*MET)["']?\s*panel/gi,
-    '<span onclick="closeAIChat();openRawDataPanel();" style="color:#2ec4b6;cursor:pointer;text-decoration:underline;font-weight:700;" title="Open NOTAMs & MET panel">NOTAMs &amp; MET panel</span>'
+  text = text.replace(/NOTAMs\s*&(?:amp;)?\s*MET\s*panel/gi,
+    '<span onclick="closeAIChat();openRawDataPanel();" style="color:#2ec4b6;cursor:pointer;font-weight:700;">NOTAMs &amp; MET panel</span>'
   );
+
   return text;
 }
 
@@ -2116,18 +2136,32 @@ function addChatMessage(role, text) {
       <div style="width:26px;height:26px;border-radius:50%;background:rgba(74,158,255,0.15);border:1px solid rgba(74,158,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </div>
-      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;flex:1;white-space:pre-wrap;"></div>
+      <div class="ai-msg-content" style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;flex:1;white-space:pre-wrap;"></div>
     `;
-    div.querySelector('div:last-child').innerHTML = processClickableText(text);
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    // Stream word by word
+    const contentEl = div.querySelector('.ai-msg-content');
+    const words = text.split(' ');
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < words.length) {
+        contentEl.innerHTML = processClickableText(words.slice(0, i + 1).join(' '));
+        i++;
+        messages.scrollTop = messages.scrollHeight;
+      } else {
+        clearInterval(interval);
+        contentEl.innerHTML = processClickableText(text);
+      }
+    }, 30);
   } else {
     div.innerHTML = `
       <div style="flex:1;"></div>
       <div style="background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.2);border-radius:8px;padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;max-width:85%;">${text}</div>
     `;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
   }
-
-  messages.appendChild(div);
-  messages.scrollTop = messages.scrollHeight;
 }
 
 // File handling

@@ -293,7 +293,11 @@ async function getEnrouteNotams(dep, arr) {
           const expDate = new Date(Date.UTC(parseInt(e.slice(0,4)), parseInt(e.slice(4,6))-1, parseInt(e.slice(6,8)), parseInt(e.slice(8,10)), parseInt(e.slice(10,12))));
           return expDate > now;
         });
-        const summary = active.slice(0, 5).map(n => (n.raw || n.body || '').slice(0, 300)).join('\n');
+        const critical = active.filter(n => /RWY.*CLSD|CLSD.*RWY|U\/S|UNSERVICEABLE|JAMM|EMERG|PROHIBITED|TRIGGER/i.test(n.raw || n.body || ''));
+        const high = active.filter(n => /TWY.*CLSD|ILS|VOR|NDB|GNSS|GPS|MILITARY|TFR|RESTRICTED|DANGER/i.test(n.raw || n.body || ''));
+        const other = active.filter(n => !critical.includes(n) && !high.includes(n));
+        const sorted = [...critical, ...high, ...other];
+        const summary = sorted.slice(0, 10).map(n => (n.raw || n.body || '').slice(0, 300)).join('\n');
         results.push(`FIR ${fir}: ${active.length} active NOTAMs\n${summary || 'No active restrictions'}`);
       } catch(e) {
         results.push(`FIR ${fir}: Oceanic FIR — verify current NAT tracks and oceanic NOTAM status via official sources`);
@@ -319,7 +323,11 @@ async function getEnrouteNotams(dep, arr) {
           return expDate > now;
         });
         if (active.length > 0) {
-          const summary = active.slice(0, 5).map(n => (n.raw || n.body || '').slice(0, 300)).join('\n');
+          const critical = active.filter(n => /RWY.*CLSD|CLSD.*RWY|U\/S|UNSERVICEABLE|JAMM|EMERG|PROHIBITED|TRIGGER/i.test(n.raw || n.body || ''));
+          const high = active.filter(n => /TWY.*CLSD|ILS|VOR|NDB|GNSS|GPS|MILITARY|TFR|RESTRICTED|DANGER/i.test(n.raw || n.body || ''));
+          const other = active.filter(n => !critical.includes(n) && !high.includes(n));
+          const sorted = [...critical, ...high, ...other];
+          const summary = sorted.slice(0, 10).map(n => (n.raw || n.body || '').slice(0, 300)).join('\n');
           results.push(`FIR ${fir}: ${active.length} active NOTAMs\n${summary}`);
         } else {
           results.push(`FIR ${fir}: No active NOTAMs`);
@@ -710,6 +718,8 @@ EN-ROUTE FIR ANALYSIS: For each intermediate FIR along the route, create a dedic
 
 CRITICAL REQUIREMENT: You MUST fetch and analyze NOTAMs for ALL intermediate FIRs between departure and arrival. Never say a FIR's data is 'not available in this briefing' - if en-route FIR NOTAMs are provided in the EN-ROUTE FIR NOTAMs section, analyze them ALL. If a FIR shows 'No active NOTAMs', explicitly state this as confirmation of clear airspace.
 
+NEVER say 'sınırlı bilgi', 'limited information', 'bu briefingde yer almıyor' or similar. If FIR NOTAM data is provided, analyze it fully. If truly no data exists for a FIR, say 'No active NOTAMs confirmed for [FIR]' as a positive confirmation.
+
 For transatlantic routes, always mention NAT (North Atlantic Track) system status and oceanic clearance requirements. For routes over conflict zones (Middle East, Eastern Europe), specifically check for active airspace closures and NOTAM to Airmen.
 
 Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover all NOTAM types including SNOWTAM, BIRDTAM, ASHTAM, Military, Navigation, Airspace, Aerodrome NOTAMs.
@@ -1094,7 +1104,7 @@ IMPORTANT INSTRUCTIONS:
         const now = new Date();
         const utcDate = now.toUTCString().slice(5, 16).toUpperCase();
 
-        const userMessage = `CRITICAL: Output maximum 5 NOTAM cards total. Be very concise in each section. Must complete ALL sections including Weather, Pilot Actions, Dispatch Notes, Go/No-Go and Footer.
+        const userMessage = `CRITICAL: Show ALL CRITICAL and HIGH priority NOTAMs for both departure and arrival airports. After critical and high, include medium priority NOTAMs in order of operational importance. Never limit the number of NOTAMs shown. Be concise in each section. Must complete ALL sections including Weather, Pilot Actions, Dispatch Notes, Go/No-Go and Footer.
 
 TODAY'S DATE: ${utcDate}
 DEPARTURE: ${icao_dep || 'NOT PROVIDED'} — ${airportName(icao_dep)}
