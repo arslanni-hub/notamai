@@ -4542,44 +4542,121 @@ async function fetchRawData() {
     const notamText = await notamRes.text();
     const metarText = await metarRes.text();
     const tafText = await tafRes.text();
-    let html = '';
-    // NOTAMs
-    html += '<div style="margin-bottom:20px;">';
+    results.innerHTML = '';
+
+    // NOTAMs — DOM-built so Analyze buttons can close over block text safely
+    const notamSection = document.createElement('div');
+    notamSection.style.marginBottom = '20px';
     const notamBlocks = notamText.trim().split('\n===NOTAM===\n').filter(n => n.trim());
     if (notamBlocks.length === 0 || notamText.includes('No active')) {
-      html += '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;">No active NOTAMs for ' + icao + '</div>';
+      const empty = document.createElement('div');
+      empty.style.cssText = "font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;";
+      empty.textContent = 'No active NOTAMs for ' + icao;
+      notamSection.appendChild(empty);
     } else {
-      html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;margin-bottom:8px;">' + notamBlocks.length + ' ACTIVE NOTAMs — ' + icao + '</div>';
-      notamBlocks.forEach((block) => {
-        html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;margin-bottom:6px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;">' + block.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+      const countDiv = document.createElement('div');
+      countDiv.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;margin-bottom:8px;";
+      countDiv.textContent = notamBlocks.length + ' ACTIVE NOTAMs — ' + icao;
+      notamSection.appendChild(countDiv);
+
+      notamBlocks.forEach(block => {
+        const wrapper = document.createElement('div');
+        wrapper.style.marginBottom = '8px';
+
+        const notamBox = document.createElement('div');
+        notamBox.style.cssText = "background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;";
+        notamBox.textContent = block;
+
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;justify-content:flex-end;margin-top:4px;';
+
+        const analyzeBtn = document.createElement('button');
+        analyzeBtn.textContent = '✦ Analyze';
+        analyzeBtn.style.cssText = "background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;border-radius:4px;cursor:pointer;transition:all 0.2s;";
+        analyzeBtn.onmouseover = function() { this.style.color='#4a9eff'; this.style.borderColor='rgba(74,158,255,0.4)'; };
+        analyzeBtn.onmouseout  = function() { this.style.color='#4a5f72'; this.style.borderColor='#1a2a3a'; };
+
+        const analysisDiv = document.createElement('div');
+        analysisDiv.style.cssText = "display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;";
+
+        analyzeBtn.onclick = async function() {
+          if (analysisDiv.style.display === 'block') {
+            analysisDiv.style.display = 'none';
+            analyzeBtn.textContent = '✦ Analyze';
+            return;
+          }
+          analyzeBtn.textContent = 'Analyzing...';
+          analyzeBtn.disabled = true;
+          try {
+            const response = await fetch('/api/analyze-notam', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ notam: block })
+            });
+            const data = await response.json();
+            analysisDiv.innerHTML = data.analysis || 'Unable to analyze.';
+            analysisDiv.style.display = 'block';
+            analyzeBtn.textContent = '✦ Hide Analysis';
+            analyzeBtn.disabled = false;
+          } catch(e) {
+            analyzeBtn.textContent = '✦ Analyze';
+            analyzeBtn.disabled = false;
+          }
+        };
+
+        btnRow.appendChild(analyzeBtn);
+        wrapper.appendChild(notamBox);
+        wrapper.appendChild(btnRow);
+        wrapper.appendChild(analysisDiv);
+        notamSection.appendChild(wrapper);
       });
     }
-    html += '</div>';
+    results.appendChild(notamSection);
+
     // METAR
-    html += '<div style="margin-bottom:20px;">';
-    html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">METAR</div>';
+    const metarSection = document.createElement('div');
+    metarSection.style.marginBottom = '20px';
+    const metarHeader = document.createElement('div');
+    metarHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;";
+    metarHeader.textContent = 'METAR';
+    metarSection.appendChild(metarHeader);
     const metarLines = metarText.trim().split('\n').filter(m => m.trim());
     if (metarLines.length === 0 || metarText.includes('No data')) {
-      html += '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;">No METAR data available</div>';
+      const empty = document.createElement('div');
+      empty.style.cssText = "font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;";
+      empty.textContent = 'No METAR data available';
+      metarSection.appendChild(empty);
     } else {
       metarLines.forEach(line => {
-        if (line.trim()) {
-          html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;margin-bottom:6px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;line-height:1.6;">' + line.trim().replace(/</g,'&lt;') + '</div>';
-        }
+        if (!line.trim()) return;
+        const el = document.createElement('div');
+        el.style.cssText = "background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;margin-bottom:6px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;line-height:1.6;";
+        el.textContent = line.trim();
+        metarSection.appendChild(el);
       });
     }
-    html += '</div>';
+    results.appendChild(metarSection);
+
     // TAF
-    html += '<div style="margin-bottom:20px;">';
-    html += '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">TAF</div>';
+    const tafSection = document.createElement('div');
+    tafSection.style.marginBottom = '20px';
+    const tafHeader = document.createElement('div');
+    tafHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;";
+    tafHeader.textContent = 'TAF';
+    tafSection.appendChild(tafHeader);
     const tafLines = tafText.trim().split('\n').filter(t => t.trim());
     if (tafLines.length === 0 || tafText.includes('No data')) {
-      html += '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;">No TAF data available</div>';
+      const empty = document.createElement('div');
+      empty.style.cssText = "font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;";
+      empty.textContent = 'No TAF data available';
+      tafSection.appendChild(empty);
     } else {
-      html += '<div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f2c641;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;line-height:2;">' + tafLines.join('\n').replace(/</g,'&lt;') + '</div>';
+      const tafEl = document.createElement('div');
+      tafEl.style.cssText = "background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f2c641;border-radius:4px;padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;line-height:2;";
+      tafEl.textContent = tafLines.join('\n');
+      tafSection.appendChild(tafEl);
     }
-    html += '</div>';
-    results.innerHTML = html;
+    results.appendChild(tafSection);
   } catch(e) {
     results.innerHTML = '<div style="text-align:center;padding:40px 0;font-family:\'Rajdhani\',sans-serif;font-size:14px;color:#e63946;">Error fetching data. Please try again.</div>';
   }

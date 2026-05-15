@@ -953,6 +953,43 @@ if (getAccessBtn) {
     return;
   }
 
+  if (req.method === 'POST' && req.url === '/api/analyze-notam') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { notam } = JSON.parse(body);
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 300,
+            system: 'You are an expert AIM specialist. Analyze the following NOTAM and provide a concise plain-English explanation in 3-5 bullet points: what is affected, when it is active, what the operational impact is, and what crew action is required. Be brief and practical.',
+            messages: [{ role: 'user', content: 'Analyze this NOTAM:\n\n' + notam }]
+          })
+        });
+        const claudeData = await claudeRes.json();
+        const analysis = claudeData.content?.[0]?.text || 'Unable to analyze.';
+        const formatted = analysis
+          .split('\n')
+          .filter(l => l.trim())
+          .map(l => `<div style="margin-bottom:6px;">• ${l.replace(/^[•\-\*]\s*/, '')}</div>`)
+          .join('');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ analysis: formatted }));
+      } catch(e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ analysis: 'Error analyzing NOTAM.' }));
+      }
+    });
+    return;
+  }
+
   if (req.method === 'POST' && req.url === '/api/chat') {
     let body = '';
     req.on('data', chunk => body += chunk);
