@@ -4569,8 +4569,8 @@ async function fetchRawData() {
 
         // Corner icon
         const cornerIcon = document.createElement('div');
-        cornerIcon.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:#1a2a3a;font-size:13px;opacity:0;transition:opacity 0.2s,color 0.2s;cursor:pointer;';
-        cornerIcon.textContent = '✦';
+        cornerIcon.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+        cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(200deg) saturate(2) brightness(1.2);">✨</span>';
         cornerIcon.title = 'Analyze';
 
         const tooltip = document.createElement('div');
@@ -4580,7 +4580,7 @@ async function fetchRawData() {
         notamBox.appendChild(cornerIcon);
 
         const analysisDiv = document.createElement('div');
-        analysisDiv.style.cssText = "display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;";
+        analysisDiv.style.cssText = "display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;color:#cdd9e5;line-height:1.6;";
 
         notamBox.onmouseenter = function() {
           this.style.borderColor = '#4a9eff';
@@ -4607,13 +4607,13 @@ async function fetchRawData() {
           e.stopPropagation();
           if (analysisDiv.style.display === 'block') {
             analysisDiv.style.display = 'none';
-            cornerIcon.textContent = '✦';
+            cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(200deg) saturate(2) brightness(1.2);">✨</span>';
             tooltip.textContent = 'Analyze';
             notamBox.style.borderColor = '#1a2a3a';
             cornerIcon.style.opacity = '0';
             return;
           }
-          cornerIcon.textContent = '…';
+          cornerIcon.innerHTML = '<span style="font-size:13px;opacity:0.5;">✨</span>';
           tooltip.textContent = 'Analyzing...';
           try {
             const response = await fetch('/api/analyze-notam', {
@@ -4624,10 +4624,10 @@ async function fetchRawData() {
             const data = await response.json();
             analysisDiv.innerHTML = data.analysis || 'Unable to analyze.';
             analysisDiv.style.display = 'block';
-            cornerIcon.textContent = '✕';
+            cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(200deg) saturate(2) brightness(1.2);">✨</span>';
             tooltip.textContent = 'Hide';
           } catch(e2) {
-            cornerIcon.textContent = '✦';
+            cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(200deg) saturate(2) brightness(1.2);">✨</span>';
             tooltip.textContent = 'Analyze';
           }
         };
@@ -4664,8 +4664,8 @@ async function fetchRawData() {
         el.textContent = metar;
 
         const mCorner = document.createElement('div');
-        mCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:#1a2a3a;font-size:13px;opacity:0;transition:opacity 0.2s,color 0.2s;cursor:pointer;';
-        mCorner.textContent = '✦';
+        mCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+        mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
         const mTooltip = document.createElement('div');
         mTooltip.textContent = 'Analyze';
         mTooltip.style.cssText = 'position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:Rajdhani,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;';
@@ -4673,7 +4673,7 @@ async function fetchRawData() {
         el.appendChild(mCorner);
 
         const metarAnalysisDiv = document.createElement('div');
-        metarAnalysisDiv.style.cssText = 'display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;';
+        metarAnalysisDiv.style.cssText = "display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;color:#cdd9e5;line-height:1.6;";
 
         el.onmouseenter = function() {
           this.style.borderColor = '#2ec4b6';
@@ -4695,13 +4695,13 @@ async function fetchRawData() {
           e.stopPropagation();
           if (metarAnalysisDiv.style.display === 'block') {
             metarAnalysisDiv.style.display = 'none';
-            mCorner.textContent = '✦';
+            mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
             mTooltip.textContent = 'Analyze';
             el.style.borderColor = '#1a2a3a';
             mCorner.style.opacity = '0';
             return;
           }
-          mCorner.textContent = '…';
+          mCorner.innerHTML = '<span style="font-size:13px;opacity:0.5;">✨</span>';
           mTooltip.textContent = 'Analyzing...';
           try {
             const response = await fetch('/api/analyze-notam', {
@@ -4712,10 +4712,10 @@ async function fetchRawData() {
             const data = await response.json();
             metarAnalysisDiv.innerHTML = data.analysis;
             metarAnalysisDiv.style.display = 'block';
-            mCorner.textContent = '✕';
+            mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
             mTooltip.textContent = 'Hide';
           } catch(e2) {
-            mCorner.textContent = '✦';
+            mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
             mTooltip.textContent = 'Analyze';
           }
         };
@@ -4747,8 +4747,8 @@ async function fetchRawData() {
       tafEl.textContent = tafText2;
 
       const tCorner = document.createElement('div');
-      tCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:#1a2a3a;font-size:13px;opacity:0;transition:opacity 0.2s,color 0.2s;cursor:pointer;';
-      tCorner.textContent = '✦';
+      tCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+      tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
       const tTooltip = document.createElement('div');
       tTooltip.textContent = 'Analyze';
       tTooltip.style.cssText = 'position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:Rajdhani,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;';
@@ -4756,7 +4756,7 @@ async function fetchRawData() {
       tafEl.appendChild(tCorner);
 
       const tafAnalysisDiv = document.createElement('div');
-      tafAnalysisDiv.style.cssText = 'display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #f2c641;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;';
+      tafAnalysisDiv.style.cssText = "display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #f2c641;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;color:#cdd9e5;line-height:1.6;";
 
       tafEl.onmouseenter = function() {
         this.style.borderColor = '#f2c641';
@@ -4778,13 +4778,13 @@ async function fetchRawData() {
         e.stopPropagation();
         if (tafAnalysisDiv.style.display === 'block') {
           tafAnalysisDiv.style.display = 'none';
-          tCorner.textContent = '✦';
+          tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
           tTooltip.textContent = 'Analyze';
           tafEl.style.borderColor = '#1a2a3a';
           tCorner.style.opacity = '0';
           return;
         }
-        tCorner.textContent = '…';
+        tCorner.innerHTML = '<span style="font-size:13px;opacity:0.5;">✨</span>';
         tTooltip.textContent = 'Analyzing...';
         try {
           const response = await fetch('/api/analyze-notam', {
@@ -4795,10 +4795,10 @@ async function fetchRawData() {
           const data = await response.json();
           tafAnalysisDiv.innerHTML = data.analysis;
           tafAnalysisDiv.style.display = 'block';
-          tCorner.textContent = '✕';
+          tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
           tTooltip.textContent = 'Hide';
         } catch(e2) {
-          tCorner.textContent = '✦';
+          tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
           tTooltip.textContent = 'Analyze';
         }
       };
