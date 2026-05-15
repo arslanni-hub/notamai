@@ -958,7 +958,15 @@ if (getAccessBtn) {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { notam } = JSON.parse(body);
+        const { notam, type } = JSON.parse(body);
+        let analyzeSystemPrompt;
+        if (type === 'METAR') {
+          analyzeSystemPrompt = 'You are an expert aviation meteorologist. Decode this METAR and provide: current conditions summary, visibility and ceiling, wind assessment, any hazards, and operational recommendation. Be concise, 3-5 bullet points.';
+        } else if (type === 'TAF') {
+          analyzeSystemPrompt = 'You are an expert aviation meteorologist. Decode this TAF and provide: forecast period summary, significant weather changes, worst conditions expected, and operational planning advice. Be concise, 3-5 bullet points.';
+        } else {
+          analyzeSystemPrompt = 'You are an expert AIM specialist. Analyze this NOTAM and provide: what is affected, when active, operational impact, and required crew action. Be concise, 3-5 bullet points.';
+        }
         const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -969,8 +977,8 @@ if (getAccessBtn) {
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 300,
-            system: 'You are an expert AIM specialist. Analyze the following NOTAM and provide a concise plain-English explanation in 3-5 bullet points: what is affected, when it is active, what the operational impact is, and what crew action is required. Be brief and practical.',
-            messages: [{ role: 'user', content: 'Analyze this NOTAM:\n\n' + notam }]
+            system: analyzeSystemPrompt,
+            messages: [{ role: 'user', content: 'Analyze this ' + (type || 'NOTAM') + ':\n\n' + notam }]
           })
         });
         const claudeData = await claudeRes.json();
@@ -1104,7 +1112,14 @@ IMPORTANT INSTRUCTIONS:
 - Be concise (under 200 words), professional, and operationally focused.
 - Always prioritize flight safety in your answers.
 
-CRITICAL: If live FIR NOTAM data is provided in 'LIVE EN-ROUTE FIR NOTAMs FETCHED NOW', analyze it fully and present findings. NEVER say the briefing is missing data or suggest checking elsewhere unless the live fetch also returned no data. If live data shows 'No active NOTAMs', confirm it explicitly. Never deflect - give the actual data.`;
+CRITICAL: If live FIR NOTAM data is provided in 'LIVE EN-ROUTE FIR NOTAMs FETCHED NOW', analyze it fully and present findings. NEVER say the briefing is missing data or suggest checking elsewhere unless the live fetch also returned no data. If live data shows 'No active NOTAMs', confirm it explicitly. Never deflect - give the actual data.
+
+IMPORTANT FEATURE INFO: The sidebar has a 'NOTAMs & MET' panel where users can:
+- Enter any ICAO code to see ALL active raw NOTAMs (not just the ones in this briefing)
+- View live METAR and TAF data
+- Click '✦ Analyze' button on any individual NOTAM, METAR, or TAF to get instant AI analysis
+- This is useful when they want to see NOTAMs not included in the main briefing or get detailed analysis of specific items
+When relevant, mention this feature and suggest they open the NOTAMs & MET panel.`;
 
         // Build user content (supports images and PDFs)
         const userContent = [];

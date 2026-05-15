@@ -4572,7 +4572,7 @@ async function fetchRawData() {
 
         const analyzeBtn = document.createElement('button');
         analyzeBtn.textContent = '✦ Analyze';
-        analyzeBtn.style.cssText = "background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;border-radius:4px;cursor:pointer;transition:all 0.2s;";
+        analyzeBtn.style.cssText = "background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:400;letter-spacing:1px;padding:4px 10px;border-radius:4px;cursor:pointer;transition:all 0.2s;";
         analyzeBtn.onmouseover = function() { this.style.color='#4a9eff'; this.style.borderColor='rgba(74,158,255,0.4)'; };
         analyzeBtn.onmouseout  = function() { this.style.color='#4a5f72'; this.style.borderColor='#1a2a3a'; };
 
@@ -4629,10 +4629,52 @@ async function fetchRawData() {
     } else {
       metarLines.forEach(line => {
         if (!line.trim()) return;
+        const metar = line.trim();
+        const metarWrapper = document.createElement('div');
+        metarWrapper.style.marginBottom = '6px';
+
         const el = document.createElement('div');
-        el.style.cssText = "background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;margin-bottom:6px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;line-height:1.6;";
-        el.textContent = line.trim();
-        metarSection.appendChild(el);
+        el.style.cssText = "background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;line-height:1.6;";
+        el.textContent = metar;
+
+        const metarAnalyzeBtn = document.createElement('button');
+        metarAnalyzeBtn.textContent = '✦ Analyze';
+        metarAnalyzeBtn.style.cssText = 'background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:400;letter-spacing:1px;padding:4px 10px;border-radius:4px;cursor:pointer;transition:all 0.2s;margin-top:4px;';
+        metarAnalyzeBtn.onmouseover = function() { this.style.color='#2ec4b6'; this.style.borderColor='rgba(46,196,182,0.4)'; };
+        metarAnalyzeBtn.onmouseout  = function() { this.style.color='#4a5f72'; this.style.borderColor='#1a2a3a'; };
+
+        const metarAnalysisDiv = document.createElement('div');
+        metarAnalysisDiv.style.cssText = 'display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;';
+
+        metarAnalyzeBtn.onclick = async function() {
+          if (metarAnalysisDiv.style.display === 'block') {
+            metarAnalysisDiv.style.display = 'none';
+            metarAnalyzeBtn.textContent = '✦ Analyze';
+            return;
+          }
+          metarAnalyzeBtn.textContent = 'Analyzing...';
+          metarAnalyzeBtn.disabled = true;
+          try {
+            const response = await fetch('/api/analyze-notam', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ notam: metar, type: 'METAR' })
+            });
+            const data = await response.json();
+            metarAnalysisDiv.innerHTML = data.analysis;
+            metarAnalysisDiv.style.display = 'block';
+            metarAnalyzeBtn.textContent = '✦ Hide Analysis';
+            metarAnalyzeBtn.disabled = false;
+          } catch(e) {
+            metarAnalyzeBtn.textContent = '✦ Analyze';
+            metarAnalyzeBtn.disabled = false;
+          }
+        };
+
+        metarWrapper.appendChild(el);
+        metarWrapper.appendChild(metarAnalyzeBtn);
+        metarWrapper.appendChild(metarAnalysisDiv);
+        metarSection.appendChild(metarWrapper);
       });
     }
     results.appendChild(metarSection);
@@ -4651,10 +4693,48 @@ async function fetchRawData() {
       empty.textContent = 'No TAF data available';
       tafSection.appendChild(empty);
     } else {
+      const tafText2 = tafLines.join('\n');
       const tafEl = document.createElement('div');
       tafEl.style.cssText = "background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f2c641;border-radius:4px;padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;line-height:2;";
-      tafEl.textContent = tafLines.join('\n');
+      tafEl.textContent = tafText2;
+
+      const tafAnalyzeBtn = document.createElement('button');
+      tafAnalyzeBtn.textContent = '✦ Analyze';
+      tafAnalyzeBtn.style.cssText = 'background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:400;letter-spacing:1px;padding:4px 10px;border-radius:4px;cursor:pointer;transition:all 0.2s;margin-top:4px;';
+      tafAnalyzeBtn.onmouseover = function() { this.style.color='#f2c641'; this.style.borderColor='rgba(242,198,65,0.4)'; };
+      tafAnalyzeBtn.onmouseout  = function() { this.style.color='#4a5f72'; this.style.borderColor='#1a2a3a'; };
+
+      const tafAnalysisDiv = document.createElement('div');
+      tafAnalysisDiv.style.cssText = 'display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #f2c641;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;';
+
+      tafAnalyzeBtn.onclick = async function() {
+        if (tafAnalysisDiv.style.display === 'block') {
+          tafAnalysisDiv.style.display = 'none';
+          tafAnalyzeBtn.textContent = '✦ Analyze';
+          return;
+        }
+        tafAnalyzeBtn.textContent = 'Analyzing...';
+        tafAnalyzeBtn.disabled = true;
+        try {
+          const response = await fetch('/api/analyze-notam', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notam: tafText2, type: 'TAF' })
+          });
+          const data = await response.json();
+          tafAnalysisDiv.innerHTML = data.analysis;
+          tafAnalysisDiv.style.display = 'block';
+          tafAnalyzeBtn.textContent = '✦ Hide Analysis';
+          tafAnalyzeBtn.disabled = false;
+        } catch(e) {
+          tafAnalyzeBtn.textContent = '✦ Analyze';
+          tafAnalyzeBtn.disabled = false;
+        }
+      };
+
       tafSection.appendChild(tafEl);
+      tafSection.appendChild(tafAnalyzeBtn);
+      tafSection.appendChild(tafAnalysisDiv);
     }
     results.appendChild(tafSection);
   } catch(e) {
