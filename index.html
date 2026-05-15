@@ -4528,6 +4528,48 @@ function closeRawDataPanel() {
   setTimeout(() => panel.style.display = 'none', 300);
 }
 
+function streamAnalysisText(container, htmlText, color, closeBtnFn) {
+  container.innerHTML = '';
+  container.style.display = 'block';
+
+  // Close button goes in first so it's always on top
+  const closeBtn = document.createElement('div');
+  closeBtn.className = 'analysis-close';
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:6px;right:8px;cursor:pointer;font-size:13px;opacity:0.7;line-height:1;color:' + color + ';';
+  closeBtn.onclick = closeBtnFn;
+  container.appendChild(closeBtn);
+
+  // Parse bullet lines from the HTML
+  const temp = document.createElement('div');
+  temp.innerHTML = htmlText;
+  const lines = Array.from(temp.querySelectorAll('div')).map(d => d.textContent).filter(t => t.trim());
+
+  const textDiv = document.createElement('div');
+  container.appendChild(textDiv);
+
+  let lineIndex = 0;
+  function addNextLine() {
+    if (lineIndex >= lines.length) return;
+    const lineDiv = document.createElement('div');
+    lineDiv.style.marginBottom = '6px';
+    textDiv.appendChild(lineDiv);
+    const words = lines[lineIndex].split(' ');
+    let wordIndex = 0;
+    const wordInterval = setInterval(() => {
+      if (wordIndex < words.length) {
+        lineDiv.textContent = words.slice(0, wordIndex + 1).join(' ');
+        wordIndex++;
+      } else {
+        clearInterval(wordInterval);
+        lineIndex++;
+        setTimeout(addNextLine, 50);
+      }
+    }, 25);
+  }
+  addNextLine();
+}
+
 async function fetchRawData() {
   const icao = document.getElementById('rawIcaoInput').value.trim();
   if (!icao || icao.length < 3) return;
@@ -4622,19 +4664,13 @@ async function fetchRawData() {
               body: JSON.stringify({ notam: block })
             });
             const data = await response.json();
-            analysisDiv.innerHTML = data.analysis || 'Unable to analyze.';
-            const closeBtn = document.createElement('div');
-            closeBtn.textContent = '✕';
-            closeBtn.style.cssText = 'position:absolute;top:6px;right:8px;cursor:pointer;font-size:13px;color:#4a9eff;opacity:0.7;line-height:1;';
-            closeBtn.onclick = function() {
+            streamAnalysisText(analysisDiv, data.analysis || 'Unable to analyze.', '#4a9eff', function() {
               analysisDiv.style.display = 'none';
               notamBox.style.borderColor = '#1a2a3a';
               cornerIcon.style.opacity = '0';
               cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(180deg) saturate(3) brightness(1.5);">✨</span>';
               tooltip.textContent = 'Analyze';
-            };
-            analysisDiv.appendChild(closeBtn);
-            analysisDiv.style.display = 'block';
+            });
             cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(180deg) saturate(3) brightness(1.5);">✨</span>';
             tooltip.textContent = 'Hide';
           } catch(e2) {
@@ -4721,19 +4757,13 @@ async function fetchRawData() {
               body: JSON.stringify({ notam: metar, type: 'METAR' })
             });
             const data = await response.json();
-            metarAnalysisDiv.innerHTML = data.analysis;
-            const mCloseBtn = document.createElement('div');
-            mCloseBtn.textContent = '✕';
-            mCloseBtn.style.cssText = 'position:absolute;top:6px;right:8px;cursor:pointer;font-size:13px;color:#2ec4b6;opacity:0.7;line-height:1;';
-            mCloseBtn.onclick = function() {
+            streamAnalysisText(metarAnalysisDiv, data.analysis, '#2ec4b6', function() {
               metarAnalysisDiv.style.display = 'none';
               el.style.borderColor = '#1a2a3a';
               mCorner.style.opacity = '0';
               mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
               mTooltip.textContent = 'Analyze';
-            };
-            metarAnalysisDiv.appendChild(mCloseBtn);
-            metarAnalysisDiv.style.display = 'block';
+            });
             mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
             mTooltip.textContent = 'Hide';
           } catch(e2) {
@@ -4815,19 +4845,13 @@ async function fetchRawData() {
             body: JSON.stringify({ notam: tafText2, type: 'TAF' })
           });
           const data = await response.json();
-          tafAnalysisDiv.innerHTML = data.analysis;
-          const tCloseBtn = document.createElement('div');
-          tCloseBtn.textContent = '✕';
-          tCloseBtn.style.cssText = 'position:absolute;top:6px;right:8px;cursor:pointer;font-size:13px;color:#f2c641;opacity:0.7;line-height:1;';
-          tCloseBtn.onclick = function() {
+          streamAnalysisText(tafAnalysisDiv, data.analysis, '#f2c641', function() {
             tafAnalysisDiv.style.display = 'none';
             tafEl.style.borderColor = '#1a2a3a';
             tCorner.style.opacity = '0';
             tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
             tTooltip.textContent = 'Analyze';
-          };
-          tafAnalysisDiv.appendChild(tCloseBtn);
-          tafAnalysisDiv.style.display = 'block';
+          });
           tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
           tTooltip.textContent = 'Hide';
         } catch(e2) {
