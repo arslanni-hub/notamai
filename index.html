@@ -4564,29 +4564,57 @@ async function fetchRawData() {
         wrapper.style.marginBottom = '8px';
 
         const notamBox = document.createElement('div');
-        notamBox.style.cssText = "background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;";
+        notamBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;position:relative;transition:border-color 0.2s;cursor:default;';
         notamBox.textContent = block;
 
-        const btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex;justify-content:flex-end;margin-top:4px;';
+        // Corner icon
+        const cornerIcon = document.createElement('div');
+        cornerIcon.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:#1a2a3a;font-size:13px;opacity:0;transition:opacity 0.2s,color 0.2s;cursor:pointer;';
+        cornerIcon.textContent = '✦';
+        cornerIcon.title = 'Analyze';
 
-        const analyzeBtn = document.createElement('button');
-        analyzeBtn.textContent = '✦ Analyze';
-        analyzeBtn.style.cssText = "background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:400;letter-spacing:1px;padding:4px 10px;border-radius:4px;cursor:pointer;transition:all 0.2s;";
-        analyzeBtn.onmouseover = function() { this.style.color='#4a9eff'; this.style.borderColor='rgba(74,158,255,0.4)'; };
-        analyzeBtn.onmouseout  = function() { this.style.color='#4a5f72'; this.style.borderColor='#1a2a3a'; };
+        const tooltip = document.createElement('div');
+        tooltip.textContent = 'Analyze';
+        tooltip.style.cssText = 'position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:Rajdhani,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;';
+        cornerIcon.appendChild(tooltip);
+        notamBox.appendChild(cornerIcon);
 
         const analysisDiv = document.createElement('div');
         analysisDiv.style.cssText = "display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;";
 
-        analyzeBtn.onclick = async function() {
+        notamBox.onmouseenter = function() {
+          this.style.borderColor = '#4a9eff';
+          cornerIcon.style.opacity = '1';
+          cornerIcon.style.color = '#4a9eff';
+        };
+        notamBox.onmouseleave = function() {
+          if (analysisDiv.style.display !== 'block') {
+            this.style.borderColor = '#1a2a3a';
+            cornerIcon.style.opacity = '0';
+            cornerIcon.style.color = '#1a2a3a';
+          }
+        };
+        cornerIcon.onmouseenter = function(e) {
+          e.stopPropagation();
+          tooltip.style.opacity = '1';
+        };
+        cornerIcon.onmouseleave = function(e) {
+          e.stopPropagation();
+          tooltip.style.opacity = '0';
+        };
+
+        cornerIcon.onclick = async function(e) {
+          e.stopPropagation();
           if (analysisDiv.style.display === 'block') {
             analysisDiv.style.display = 'none';
-            analyzeBtn.textContent = '✦ Analyze';
+            cornerIcon.textContent = '✦';
+            tooltip.textContent = 'Analyze';
+            notamBox.style.borderColor = '#1a2a3a';
+            cornerIcon.style.opacity = '0';
             return;
           }
-          analyzeBtn.textContent = 'Analyzing...';
-          analyzeBtn.disabled = true;
+          cornerIcon.textContent = '…';
+          tooltip.textContent = 'Analyzing...';
           try {
             const response = await fetch('/api/analyze-notam', {
               method: 'POST',
@@ -4596,17 +4624,15 @@ async function fetchRawData() {
             const data = await response.json();
             analysisDiv.innerHTML = data.analysis || 'Unable to analyze.';
             analysisDiv.style.display = 'block';
-            analyzeBtn.textContent = '✦ Hide Analysis';
-            analyzeBtn.disabled = false;
-          } catch(e) {
-            analyzeBtn.textContent = '✦ Analyze';
-            analyzeBtn.disabled = false;
+            cornerIcon.textContent = '✕';
+            tooltip.textContent = 'Hide';
+          } catch(e2) {
+            cornerIcon.textContent = '✦';
+            tooltip.textContent = 'Analyze';
           }
         };
 
-        btnRow.appendChild(analyzeBtn);
         wrapper.appendChild(notamBox);
-        wrapper.appendChild(btnRow);
         wrapper.appendChild(analysisDiv);
         notamSection.appendChild(wrapper);
       });
@@ -4634,26 +4660,49 @@ async function fetchRawData() {
         metarWrapper.style.marginBottom = '6px';
 
         const el = document.createElement('div');
-        el.style.cssText = "background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;line-height:1.6;";
+        el.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;line-height:1.6;position:relative;transition:border-color 0.2s;cursor:default;';
         el.textContent = metar;
 
-        const metarAnalyzeBtn = document.createElement('button');
-        metarAnalyzeBtn.textContent = '✦ Analyze';
-        metarAnalyzeBtn.style.cssText = 'background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:400;letter-spacing:1px;padding:4px 10px;border-radius:4px;cursor:pointer;transition:all 0.2s;margin-top:4px;';
-        metarAnalyzeBtn.onmouseover = function() { this.style.color='#2ec4b6'; this.style.borderColor='rgba(46,196,182,0.4)'; };
-        metarAnalyzeBtn.onmouseout  = function() { this.style.color='#4a5f72'; this.style.borderColor='#1a2a3a'; };
+        const mCorner = document.createElement('div');
+        mCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:#1a2a3a;font-size:13px;opacity:0;transition:opacity 0.2s,color 0.2s;cursor:pointer;';
+        mCorner.textContent = '✦';
+        const mTooltip = document.createElement('div');
+        mTooltip.textContent = 'Analyze';
+        mTooltip.style.cssText = 'position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:Rajdhani,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;';
+        mCorner.appendChild(mTooltip);
+        el.appendChild(mCorner);
 
         const metarAnalysisDiv = document.createElement('div');
         metarAnalysisDiv.style.cssText = 'display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;';
 
-        metarAnalyzeBtn.onclick = async function() {
+        el.onmouseenter = function() {
+          this.style.borderColor = '#2ec4b6';
+          mCorner.style.opacity = '1';
+          mCorner.style.color = '#2ec4b6';
+        };
+        el.onmouseleave = function() {
+          if (metarAnalysisDiv.style.display !== 'block') {
+            this.style.borderColor = '#1a2a3a';
+            mCorner.style.opacity = '0';
+            mCorner.style.color = '#1a2a3a';
+          }
+          mTooltip.style.opacity = '0';
+        };
+        mCorner.onmouseenter = function(e) { e.stopPropagation(); mTooltip.style.opacity = '1'; };
+        mCorner.onmouseleave = function(e) { e.stopPropagation(); mTooltip.style.opacity = '0'; };
+
+        mCorner.onclick = async function(e) {
+          e.stopPropagation();
           if (metarAnalysisDiv.style.display === 'block') {
             metarAnalysisDiv.style.display = 'none';
-            metarAnalyzeBtn.textContent = '✦ Analyze';
+            mCorner.textContent = '✦';
+            mTooltip.textContent = 'Analyze';
+            el.style.borderColor = '#1a2a3a';
+            mCorner.style.opacity = '0';
             return;
           }
-          metarAnalyzeBtn.textContent = 'Analyzing...';
-          metarAnalyzeBtn.disabled = true;
+          mCorner.textContent = '…';
+          mTooltip.textContent = 'Analyzing...';
           try {
             const response = await fetch('/api/analyze-notam', {
               method: 'POST',
@@ -4663,16 +4712,15 @@ async function fetchRawData() {
             const data = await response.json();
             metarAnalysisDiv.innerHTML = data.analysis;
             metarAnalysisDiv.style.display = 'block';
-            metarAnalyzeBtn.textContent = '✦ Hide Analysis';
-            metarAnalyzeBtn.disabled = false;
-          } catch(e) {
-            metarAnalyzeBtn.textContent = '✦ Analyze';
-            metarAnalyzeBtn.disabled = false;
+            mCorner.textContent = '✕';
+            mTooltip.textContent = 'Hide';
+          } catch(e2) {
+            mCorner.textContent = '✦';
+            mTooltip.textContent = 'Analyze';
           }
         };
 
         metarWrapper.appendChild(el);
-        metarWrapper.appendChild(metarAnalyzeBtn);
         metarWrapper.appendChild(metarAnalysisDiv);
         metarSection.appendChild(metarWrapper);
       });
@@ -4695,26 +4743,49 @@ async function fetchRawData() {
     } else {
       const tafText2 = tafLines.join('\n');
       const tafEl = document.createElement('div');
-      tafEl.style.cssText = "background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f2c641;border-radius:4px;padding:10px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;line-height:2;";
+      tafEl.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f2c641;border-radius:4px;padding:10px 12px;font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;line-height:2;position:relative;transition:border-color 0.2s;cursor:default;';
       tafEl.textContent = tafText2;
 
-      const tafAnalyzeBtn = document.createElement('button');
-      tafAnalyzeBtn.textContent = '✦ Analyze';
-      tafAnalyzeBtn.style.cssText = 'background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:400;letter-spacing:1px;padding:4px 10px;border-radius:4px;cursor:pointer;transition:all 0.2s;margin-top:4px;';
-      tafAnalyzeBtn.onmouseover = function() { this.style.color='#f2c641'; this.style.borderColor='rgba(242,198,65,0.4)'; };
-      tafAnalyzeBtn.onmouseout  = function() { this.style.color='#4a5f72'; this.style.borderColor='#1a2a3a'; };
+      const tCorner = document.createElement('div');
+      tCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:#1a2a3a;font-size:13px;opacity:0;transition:opacity 0.2s,color 0.2s;cursor:pointer;';
+      tCorner.textContent = '✦';
+      const tTooltip = document.createElement('div');
+      tTooltip.textContent = 'Analyze';
+      tTooltip.style.cssText = 'position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:Rajdhani,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;';
+      tCorner.appendChild(tTooltip);
+      tafEl.appendChild(tCorner);
 
       const tafAnalysisDiv = document.createElement('div');
       tafAnalysisDiv.style.cssText = 'display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #f2c641;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;';
 
-      tafAnalyzeBtn.onclick = async function() {
+      tafEl.onmouseenter = function() {
+        this.style.borderColor = '#f2c641';
+        tCorner.style.opacity = '1';
+        tCorner.style.color = '#f2c641';
+      };
+      tafEl.onmouseleave = function() {
+        if (tafAnalysisDiv.style.display !== 'block') {
+          this.style.borderColor = '#1a2a3a';
+          tCorner.style.opacity = '0';
+          tCorner.style.color = '#1a2a3a';
+        }
+        tTooltip.style.opacity = '0';
+      };
+      tCorner.onmouseenter = function(e) { e.stopPropagation(); tTooltip.style.opacity = '1'; };
+      tCorner.onmouseleave = function(e) { e.stopPropagation(); tTooltip.style.opacity = '0'; };
+
+      tCorner.onclick = async function(e) {
+        e.stopPropagation();
         if (tafAnalysisDiv.style.display === 'block') {
           tafAnalysisDiv.style.display = 'none';
-          tafAnalyzeBtn.textContent = '✦ Analyze';
+          tCorner.textContent = '✦';
+          tTooltip.textContent = 'Analyze';
+          tafEl.style.borderColor = '#1a2a3a';
+          tCorner.style.opacity = '0';
           return;
         }
-        tafAnalyzeBtn.textContent = 'Analyzing...';
-        tafAnalyzeBtn.disabled = true;
+        tCorner.textContent = '…';
+        tTooltip.textContent = 'Analyzing...';
         try {
           const response = await fetch('/api/analyze-notam', {
             method: 'POST',
@@ -4724,16 +4795,15 @@ async function fetchRawData() {
           const data = await response.json();
           tafAnalysisDiv.innerHTML = data.analysis;
           tafAnalysisDiv.style.display = 'block';
-          tafAnalyzeBtn.textContent = '✦ Hide Analysis';
-          tafAnalyzeBtn.disabled = false;
-        } catch(e) {
-          tafAnalyzeBtn.textContent = '✦ Analyze';
-          tafAnalyzeBtn.disabled = false;
+          tCorner.textContent = '✕';
+          tTooltip.textContent = 'Hide';
+        } catch(e2) {
+          tCorner.textContent = '✦';
+          tTooltip.textContent = 'Analyze';
         }
       };
 
       tafSection.appendChild(tafEl);
-      tafSection.appendChild(tafAnalyzeBtn);
       tafSection.appendChild(tafAnalysisDiv);
     }
     results.appendChild(tafSection);
