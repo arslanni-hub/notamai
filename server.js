@@ -385,7 +385,15 @@ function streamClaude(requestBody, onChunk, onDone, onError) {
         if (!raw || raw === '[DONE]') continue;
         try {
           const evt = JSON.parse(raw);
-          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+          if (evt.type === 'message_start' && evt.message?.usage) {
+            const u = evt.message.usage;
+            console.log('[CACHE /briefing]', {
+              input: u.input_tokens,
+              output: u.output_tokens,
+              cache_created: u.cache_creation_input_tokens || 0,
+              cache_read: u.cache_read_input_tokens || 0
+            });
+          } else if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
             onChunk(evt.delta.text);
           } else if (evt.type === 'message_stop') {
             onDone();
@@ -984,6 +992,14 @@ if (getAccessBtn) {
           })
         });
         const claudeData = await claudeRes.json();
+        if (claudeData.usage) {
+          console.log('[CACHE /analyze-notam]', {
+            input: claudeData.usage.input_tokens,
+            output: claudeData.usage.output_tokens,
+            cache_created: claudeData.usage.cache_creation_input_tokens || 0,
+            cache_read: claudeData.usage.cache_read_input_tokens || 0
+          });
+        }
         const analysis = claudeData.content?.[0]?.text || 'Unable to analyze.';
         const formatted = analysis
           .split('\n')
@@ -1155,6 +1171,14 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         });
 
         const claudeData = await claudeRes.json();
+        if (claudeData.usage) {
+          console.log('[CACHE /chat]', {
+            input: claudeData.usage.input_tokens,
+            output: claudeData.usage.output_tokens,
+            cache_created: claudeData.usage.cache_creation_input_tokens || 0,
+            cache_read: claudeData.usage.cache_read_input_tokens || 0
+          });
+        }
         const answer = claudeData.content?.[0]?.text || 'Unable to process question.';
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
