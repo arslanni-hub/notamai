@@ -370,6 +370,7 @@ function streamClaude(requestBody, onChunk, onDone, onError) {
       'Content-Type': 'application/json',
       'x-api-key': ANTHROPIC_KEY,
       'anthropic-version': '2023-06-01',
+      'anthropic-beta': 'prompt-caching-2024-07-31',
       'Content-Length': Buffer.byteLength(requestBody)
     }
   }, (claudeRes) => {
@@ -972,12 +973,13 @@ if (getAccessBtn) {
           headers: {
             'Content-Type': 'application/json',
             'x-api-key': ANTHROPIC_KEY,
-            'anthropic-version': '2023-06-01'
+            'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'prompt-caching-2024-07-31'
           },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 300,
-            system: analyzeSystemPrompt,
+            system: [{ type: 'text', text: analyzeSystemPrompt, cache_control: { type: 'ephemeral' } }],
             messages: [{ role: 'user', content: 'Analyze this ' + (type || 'NOTAM') + ':\n\n' + notam }]
           })
         });
@@ -1141,12 +1143,13 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
           headers: {
             'Content-Type': 'application/json',
             'x-api-key': ANTHROPIC_KEY,
-            'anthropic-version': '2023-06-01'
+            'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'prompt-caching-2024-07-31'
           },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1500,
-            system: systemPrompt,
+            system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
             messages
           })
         });
@@ -1227,7 +1230,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
           model: 'claude-sonnet-4-20250514',
           max_tokens: 16000,
           stream: true,
-          system: systemPrompt,
+          system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: contentBlocks }]
         });
 
