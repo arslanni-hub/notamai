@@ -962,6 +962,43 @@ if (getAccessBtn) {
     return;
   }
 
+  if (req.method === 'POST' && req.url === '/api/extract-route') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { text } = JSON.parse(body);
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 50,
+            system: 'You are an aviation route extractor. Extract departure and arrival ICAO codes from natural language input. Return ONLY the route in format "XXXX XXXX" (departure ICAO space arrival ICAO). If you can identify city/airport names, convert them to ICAO codes. Examples: "Istanbul to London" -> "LTFM EGLL", "Frankfurt to Dubai" -> "EDDF OMDB", "Paris CDG to New York JFK" -> "LFPG KJFK". If you cannot extract a valid route, return "UNKNOWN". Return nothing else.',
+            messages: [{ role: 'user', content: text }]
+          })
+        });
+        const claudeData = await claudeRes.json();
+        const result = claudeData.content?.[0]?.text?.trim() || 'UNKNOWN';
+        if (result === 'UNKNOWN' || !result.match(/^[A-Z]{4}\s[A-Z]{4}$/)) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ route: null }));
+        } else {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ route: result }));
+        }
+      } catch(e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ route: null }));
+      }
+    });
+    return;
+  }
+
   if (req.method === 'POST' && req.url === '/api/analyze-notam') {
     let body = '';
     req.on('data', chunk => body += chunk);

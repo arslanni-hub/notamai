@@ -1032,6 +1032,11 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         🎬 VIDEO
       </button>
 
+      <!-- voice -->
+      <button id="mainVoiceBtn" onclick="toggleMainVoice()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:8px;border-radius:6px;display:flex;align-items:center;transition:color 0.15s;" onmouseover="this.style.color='#4a9eff'" onmouseout="if(!isMainRecording)this.style.color='#4a5f72'" title="Voice input">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
+
       <!-- send -->
       <button class="send-btn" onclick="handleSend()" data-tooltip="Generate AI Briefing">
         🪄
@@ -2408,9 +2413,85 @@ document.getElementById('mainInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
 });
 
+/* ═══ MAIN INPUT VOICE ═══ */
+let isMainRecording = false;
+let mainRecognition = null;
+
+function toggleMainVoice() {
+  if (isMainRecording) {
+    stopMainVoice();
+  } else {
+    startMainVoice();
+  }
+}
+
+function startMainVoice() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    alert('Voice input not supported in this browser. Please use Chrome.');
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  mainRecognition = new SpeechRecognition();
+  mainRecognition.continuous = false;
+  mainRecognition.interimResults = false;
+  mainRecognition.lang = 'tr-TR,en-US';
+
+  mainRecognition.onstart = function() {
+    isMainRecording = true;
+    const btn = document.getElementById('mainVoiceBtn');
+    btn.style.color = '#e63946';
+    btn.style.background = 'rgba(230,57,70,0.1)';
+    document.getElementById('mainInput').placeholder = 'Listening...';
+  };
+
+  mainRecognition.onresult = async function(event) {
+    const transcript = event.results[0][0].transcript;
+    stopMainVoice();
+
+    document.getElementById('mainInput').value = transcript;
+    document.getElementById('mainInput').placeholder = 'Extracting route...';
+
+    try {
+      const response = await fetch('/api/extract-route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: transcript })
+      });
+      const data = await response.json();
+
+      if (data.route) {
+        document.getElementById('mainInput').value = data.route;
+        document.getElementById('mainInput').placeholder = 'Enter ICAO codes or speak naturally...';
+        setTimeout(() => handleSend(), 500);
+      } else {
+        document.getElementById('mainInput').placeholder = 'Could not extract route. Try again.';
+        setTimeout(() => {
+          document.getElementById('mainInput').placeholder = 'Enter ICAO codes or speak naturally...';
+        }, 3000);
+      }
+    } catch(e) {
+      document.getElementById('mainInput').placeholder = 'Enter ICAO codes or speak naturally...';
+    }
+  };
+
+  mainRecognition.onerror = function() { stopMainVoice(); };
+  mainRecognition.onend = function() { stopMainVoice(); };
+  mainRecognition.start();
+}
+
+function stopMainVoice() {
+  isMainRecording = false;
+  if (mainRecognition) mainRecognition.stop();
+  const btn = document.getElementById('mainVoiceBtn');
+  btn.style.color = '#4a5f72';
+  btn.style.background = 'none';
+  document.getElementById('mainInput').placeholder = 'Enter ICAO codes or speak naturally...';
+}
+
 /* ═══ PLACEHOLDER ANIMATION ═══ */
 const placeholders = [
-  "KJFK · KJFK EGLL · or paste a NOTAM / METAR / TAF / SIGMET...",
+  "Enter ICAO codes or speak naturally...",
   "KJFK",
   "KJFK EGLL",
   "LFPG EHAM",
