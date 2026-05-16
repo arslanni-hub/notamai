@@ -171,6 +171,57 @@ async function getEnrouteNotams(dep, arr) {
     'YB': 'YMMM', 'YM': 'YMMM', 'YS': 'YMMM', 'YW': 'YMMM', 'YA': 'YMMM',
   };
 
+  const firCoordinates = {
+    'LTBB': [39.0, 35.0], 'EGTT': [51.5, -0.5], 'EDGG': [50.0, 9.0],
+    'LFFF': [47.0, 2.0], 'LIIV': [44.0, 12.0], 'LGGG': [38.0, 24.0],
+    'LKAA': [50.0, 16.0], 'LOVV': [47.5, 13.5], 'LBSR': [43.0, 25.0],
+    'LYBA': [44.0, 21.0], 'LDZO': [45.5, 16.0], 'LHCC': [47.0, 19.0],
+    'EPWW': [52.0, 21.0], 'UUWV': [55.5, 37.5], 'ULLL': [60.0, 30.0],
+    'UNNT': [55.0, 73.0], 'UAAA': [43.0, 77.0], 'ZBPE': [40.0, 116.0],
+    'RJJJ': [35.5, 139.5], 'RKRR': [37.0, 127.0], 'RCTP': [25.0, 121.0],
+    'VTBB': [13.5, 100.5], 'WSSS': [1.3, 104.0], 'VHHK': [22.3, 114.0],
+    'OMAE': [24.5, 54.5], 'OEJD': [24.0, 38.5], 'ORBB': [33.0, 44.0],
+    'OTBD': [25.3, 51.5], 'OBBB': [26.0, 50.5], 'HECC': [30.0, 31.0],
+    'DAAA': [36.5, 3.0], 'DTTC': [33.5, 9.0], 'DNKK': [9.0, 8.0],
+    'FAJA': [-26.0, 28.0], 'YMMM': [-25.0, 133.0], 'KZNY': [40.0, -40.0],
+    'CZQX': [49.0, -54.0], 'EGGX': [53.0, -15.0], 'KZAK': [30.0, -150.0],
+    'UHHH': [48.5, 135.0], 'UEEE': [62.0, 129.0], 'GMMM': [33.5, -7.5],
+    'HRRR': [-2.0, 30.0], 'OPKR': [31.5, 74.0], 'VIDF': [28.5, 77.0],
+    'LECM': [40.0, -4.0], 'LPPC': [38.5, -9.0], 'EKDK': [56.0, 10.0],
+    'ENOR': [60.0, 11.0], 'ESAA': [59.0, 18.0], 'EISN': [53.0, -8.0],
+    'BIRD': [65.0, -19.0], 'EFIN': [61.0, 25.0], 'EETT': [59.0, 25.0],
+    'EVRR': [57.0, 25.0], 'EYVL': [55.5, 24.0], 'ELLX': [49.5, 6.0],
+    'EBUR': [50.5, 4.5], 'EHAA': [52.5, 5.5], 'LZBB': [48.5, 19.0],
+    'LRBB': [46.0, 25.0], 'LJLA': [46.0, 14.5], 'UTAA': [37.5, 58.5],
+  };
+
+  function isFirBetweenRoute(firCode, depFirCode, arrFirCode) {
+    const firCoord = firCoordinates[firCode];
+    const depCoord = firCoordinates[depFirCode];
+    const arrCoord = firCoordinates[arrFirCode];
+    if (!firCoord || !depCoord || !arrCoord) return true; // unknown — include it
+    const minLat = Math.min(depCoord[0], arrCoord[0]) - 8;
+    const maxLat = Math.max(depCoord[0], arrCoord[0]) + 8;
+    const minLon = Math.min(depCoord[1], arrCoord[1]) - 8;
+    const maxLon = Math.max(depCoord[1], arrCoord[1]) + 8;
+    return firCoord[0] >= minLat && firCoord[0] <= maxLat &&
+           firCoord[1] >= minLon && firCoord[1] <= maxLon;
+  }
+
+  function isShortDomesticRoute(depCode, arrCode) {
+    const dFir = firMap[depCode.slice(0, 2)];
+    const aFir = firMap[arrCode.slice(0, 2)];
+    if (!dFir || !aFir) return depCode.slice(0, 2) === arrCode.slice(0, 2);
+    const dCoord = firCoordinates[dFir];
+    const aCoord = firCoordinates[aFir];
+    if (!dCoord || !aCoord) return depCode.slice(0, 2) === arrCode.slice(0, 2);
+    const dist = Math.sqrt(
+      Math.pow(dCoord[0] - aCoord[0], 2) +
+      Math.pow(dCoord[1] - aCoord[1], 2)
+    );
+    return dFir === aFir || dist < 5;
+  }
+
   const firs = new Set();
 
   // Add dep FIR
@@ -181,9 +232,9 @@ async function getEnrouteNotams(dep, arr) {
   const arrPrefix = arr ? arr.slice(0, 2) : '';
   if (arr && firMap[arrPrefix]) firs.add(firMap[arrPrefix]);
 
-  // Same country - no en-route FIRs needed
-  if (depPrefix && arrPrefix && depPrefix === arrPrefix) {
-    console.log('[ENROUTE] Same country route, skipping FIR fetch');
+  // Short/domestic route - no en-route FIRs needed
+  if (dep && arr && isShortDomesticRoute(dep, arr)) {
+    console.log('[ENROUTE] Short/domestic route, skipping FIR fetch');
     return '';
   }
 
@@ -253,8 +304,13 @@ async function getEnrouteNotams(dep, arr) {
     console.log('[ENROUTE] No route match found, using dep/arr FIRs only');
   }
 
-  // Fetch NOTAMs for up to 8 FIRs (skip raw airport codes)
-  const firList = [...firs].filter(f => f !== dep && f !== arr).slice(0, 8);
+  // Fetch NOTAMs for up to 8 FIRs (skip raw airport codes, filter to route corridor)
+  const depFir = firMap[depPrefix] || dep;
+  const arrFir = firMap[arrPrefix] || arr;
+  const firList = [...firs]
+    .filter(f => f !== dep && f !== arr)
+    .filter(f => isFirBetweenRoute(f, depFir, arrFir))
+    .slice(0, 8);
   const results = [];
 
   for (const fir of firList) {
