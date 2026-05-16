@@ -1288,7 +1288,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         }
 
         const claudeBody = JSON.stringify({
-          model: 'claude-sonnet-4-5-20251001',
+          model: 'claude-sonnet-4-20250514',
           max_tokens: 16000,
           stream: true,
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
