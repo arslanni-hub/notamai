@@ -978,7 +978,7 @@ if (getAccessBtn) {
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 50,
-            system: 'You are an aviation route extractor. Extract departure and arrival ICAO codes from natural language input. Return ONLY the route in format "XXXX XXXX" (departure ICAO space arrival ICAO). If you can identify city/airport names, convert them to ICAO codes. Examples: "Istanbul to London" -> "LTFM EGLL", "Frankfurt to Dubai" -> "EDDF OMDB", "Paris CDG to New York JFK" -> "LFPG KJFK". If you cannot extract a valid route, return "UNKNOWN". Return nothing else.',
+            system: 'You are an aviation ICAO code expert. Extract departure and arrival airports from natural language and return their ICAO codes.\n\nIMPORTANT CITY TO ICAO MAPPINGS (use these exactly):\nBarcelona = LEBL\nMilan = LIMC (Malpensa, main international)\nMadrid = LEMD\nRome = LIRF (Fiumicino, main international)\nLondon = EGLL (Heathrow, unless specified otherwise)\nParis = LFPG (CDG, unless specified otherwise)\nIstanbul = LTFM (new airport, unless specified otherwise)\nFrankfurt = EDDF\nAmsterdam = EHAM\nDubai = OMDB\nNew York = KJFK (unless specified as Newark=KEWR or LaGuardia=KLGA)\nLos Angeles = KLAX\nTokyo = RJTT (Haneda) or RJAA (Narita)\nSingapore = WSSS\nBangkok = VTBS\nHong Kong = VHHH\n\nReturn ONLY in format "XXXX XXXX" (departure space arrival). Nothing else.\nIf uncertain, use the main international airport of that city.\nIf completely unknown, return UNKNOWN.',
             messages: [{ role: 'user', content: text }]
           })
         });
