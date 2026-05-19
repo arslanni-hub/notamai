@@ -1045,8 +1045,8 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     <div class="live-dot"></div>
     <div class="result-status" id="resultStatus">GENERATING BRIEFING...</div>
     <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-      <button onclick="window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:400;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#b57bff';this.style.borderColor='rgba(181,123,255,0.4)';this.style.background='rgba(181,123,255,0.08)';document.getElementById('upgradeSparkle').style.filter='hue-rotate(200deg) saturate(2)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='rgba(255,255,255,0.04)';document.getElementById('upgradeSparkle').style.filter='grayscale(1) brightness(0.5)'">
-        <span id="upgradeSparkle" style="font-size:12px;line-height:1;filter:grayscale(1) brightness(0.5);">⚡</span>
+      <button onclick="window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:400;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#b57bff';this.style.borderColor='rgba(181,123,255,0.4)';this.style.background='rgba(181,123,255,0.08)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='rgba(255,255,255,0.04)'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg>
         Upgrade
       </button>
       <button onclick="openShareModal()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:400;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#39ff14';this.style.borderColor='rgba(57,255,20,0.4)';this.style.background='rgba(57,255,20,0.06)';this.querySelector('svg').style.stroke='#39ff14'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='rgba(255,255,255,0.04)';this.querySelector('svg').style.stroke='#8a9bb0'">
@@ -4420,7 +4420,7 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
             <div id="settingsPlan" style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#cdd9e5;"></div>
           </div>
           <button onclick="closeSettingsPanel();window.location.href='/pricing-upgrade'" style="background:rgba(181,123,255,0.1);border:1px solid rgba(181,123,255,0.3);color:#b57bff;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:400;letter-spacing:1px;padding:6px 12px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px;">
-            <span style="filter:hue-rotate(200deg) saturate(2);font-size:11px;">⚡</span> Upgrade
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg> Upgrade
           </button>
         </div>
         <div style="border-top:1px solid #1a2a3a;padding-top:10px;">
