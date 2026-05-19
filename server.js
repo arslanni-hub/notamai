@@ -999,12 +999,20 @@ if (getAccessBtn) {
             return;
           }
           const relevant = arr.filter(s => {
-            const raw = (s.rawAirSigmet || s.airSigmetRaw || s.sigmet || '').toUpperCase();
             const fir = (s.icaoId || s.firId || '').toUpperCase();
-            return fir.startsWith(prefix) || raw.includes(prefix);
+            return fir.startsWith(prefix) || fir === 'K' + icao.slice(1, 3);
           }).slice(0, 10);
           const text = relevant
-            .map(s => s.rawAirSigmet || s.airSigmetRaw || s.sigmet || JSON.stringify(s).slice(0, 200))
+            .map(s => {
+              if (s.rawAirSigmet) return s.rawAirSigmet;
+              return [
+                s.airSigmetType + ' ' + (s.seriesId || ''),
+                'HAZARD: ' + (s.hazard || ''),
+                'VALID: ' + new Date(s.validTimeFrom * 1000).toUTCString() + ' - ' + new Date(s.validTimeTo * 1000).toUTCString(),
+                'ALT: ' + (s.altitudeLow1 || 'SFC') + ' - ' + (s.altitudeHi1 || ''),
+                s.rawAirSigmet || ''
+              ].filter(Boolean).join('\n');
+            })
             .filter(t => t.trim())
             .join('\n\n');
           res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -1020,15 +1028,38 @@ if (getAccessBtn) {
             res.end('NO_SIGMET');
             return;
           }
+          // Map ICAO prefix to likely FIR regions
+          const regionFirs = {
+            'LT': ['LTBB'], 'LG': ['LGGG'], 'LE': ['LECM'], 'LF': ['LFFF'],
+            'ED': ['EDGG'], 'EG': ['EGTT'], 'LI': ['LIIV'], 'EB': ['EBUR'],
+            'EH': ['EHAA'], 'EK': ['EKDK'], 'EN': ['ENOR'], 'EP': ['EPWW'],
+            'LK': ['LKAA'], 'LO': ['LOVV'], 'LB': ['LBSR'], 'LR': ['LRBB'],
+            'LD': ['LDZO'], 'LY': ['LYBA'], 'LH': ['LHCC'], 'LZ': ['LZBB'],
+            'OB': ['OBBB'], 'OE': ['OEJD'], 'OI': ['OIIX'], 'OJ': ['OJAC'],
+            'OK': ['OKAC'], 'OM': ['OMAE'], 'OR': ['ORBB'], 'OT': ['OTBD'],
+            'OY': ['OYSC'], 'HE': ['HECC'], 'HA': ['HAAA'], 'HD': ['HDDD'],
+            'HH': ['HHAS'], 'HR': ['HRRR'], 'HS': ['HSSN'], 'HT': ['HTTC'],
+            'ZB': ['ZBPE'], 'ZS': ['ZSHA'], 'RJ': ['RJJJ'], 'RK': ['RKRR'],
+            'VT': ['VTBB'], 'WS': ['WSSS'], 'VH': ['VHHH'], 'OP': ['OPKR'],
+            'VI': ['VIDF'], 'VA': ['VAAF'], 'FA': ['FAJA'], 'DA': ['DAAA'],
+            'DN': ['DNKK'], 'YB': ['YMMM'], 'NZ': ['NZZC'],
+          };
+          const myFirs = regionFirs[prefix] || [];
           const relevant = arr.filter(s => {
-            const raw = (s.rawAirSigmet || s.isigmet || s.raw || '').toUpperCase();
-            const fir = (s.firId || s.icaoId || s.id || '').toUpperCase();
-            return fir.startsWith(prefix) || raw.includes(prefix) || raw.includes(icao.toUpperCase());
+            const firId = (s.firId || '').toUpperCase();
+            const icaoId = (s.icaoId || '').toUpperCase();
+            return myFirs.includes(firId) ||
+                   firId.startsWith(prefix) ||
+                   icaoId.startsWith(prefix);
           }).slice(0, 10);
-          const text = relevant
-            .map(s => s.rawAirSigmet || s.isigmet || s.raw || '')
-            .filter(t => t.trim())
-            .join('\n\n');
+          const text = relevant.map(s => {
+            if (s.rawAirSigmet) return s.rawAirSigmet;
+            return [
+              (s.icaoId || '') + ' ' + (s.firName || s.firId || ''),
+              'HAZARD: ' + (s.hazard || ''),
+              'VALID: ' + new Date(s.validTimeFrom * 1000).toUTCString() + ' TO ' + new Date(s.validTimeTo * 1000).toUTCString(),
+            ].filter(Boolean).join('\n');
+          }).filter(t => t.trim()).join('\n\n');
           res.writeHead(200, { 'Content-Type': 'text/plain' });
           res.end(text || 'NO_SIGMET');
         }
