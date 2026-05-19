@@ -1,0 +1,29 @@
+# NOTAM Intelligence Project Rules
+
+You are working on NOTAM Intelligence, a global AI-powered pre-flight briefing platform.
+
+## Always
+- Read CLAUDE.md first for full project context
+- Push to GitHub after every change
+- Use inline CSS only (no frameworks)
+- Keep dark aviation theme (#060a0f background, #4a9eff primary)
+- Test sidebar-open and sidebar-collapsed states
+- Use Claude Haiku for cheap operations, Sonnet for main briefing only
+
+## Never
+- Use position:fixed inside slide-in panels
+- Add external CSS frameworks or libraries (except already loaded ones)
+- Break the sidebar layout
+- Remove existing console.log for CACHE/FILTER monitoring
+- Use React, Vue, or any JS framework
+
+## File Structure
+- index.html — entire frontend SPA (large file, be careful with edits)
+- server.js — Node.js backend
+- All other .html files — static pages
+
+## When Making Changes
+1. grep first to find exact location before editing
+2. Make minimal targeted changes
+3. Always push to GitHub
+4. Render auto-deploys from main branch
