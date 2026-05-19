@@ -3936,6 +3936,11 @@ function pricing_toggleBilling() {
       <span class="sidebar-text">NOTAMs & MET</span>
     </div>
 
+    <div class="sidebar-nav-item" onclick="openToolsPanel()" onmouseenter="showSidebarTooltip('Tools', this)" onmouseleave="hideSidebarTooltip()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      <span class="sidebar-text">Tools</span>
+    </div>
+
     <div class="sidebar-nav-item" onclick="openSavedRoutesPanel()" onmouseenter="showSidebarTooltip('Saved Routes',this)" onmouseleave="hideSidebarTooltip()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
       <span class="sidebar-text">Saved Routes</span>
@@ -4575,7 +4580,7 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
 let openPanel = null;
 
 function closeAllPanels() {
-  ['rawDataPanel','savedRoutesPanel','alertsPanel','settingsPanel','archivePanel'].forEach(id => {
+  ['rawDataPanel','savedRoutesPanel','alertsPanel','settingsPanel','archivePanel','toolsPanel'].forEach(id => {
     const panel = document.getElementById(id);
     if (panel && panel.style.display !== 'none') {
       panel.style.transform = 'translateX(100%)';
@@ -5519,6 +5524,292 @@ document.addEventListener('click', function(e) {
   const menu = document.getElementById('archiveContextMenu');
   if (menu && !menu.contains(e.target)) menu.style.display = 'none';
 });
+</script>
+
+<!-- TOOLS PANEL -->
+<div id="toolsPanel" style="display:none;position:fixed;top:0;right:0;width:360px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">TOOLS</div>
+    <button onclick="closeToolsPanel()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;display:flex;align-items:center;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- Tab buttons -->
+  <div style="display:flex;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+    <button id="tab-airport" onclick="switchToolTab('airport')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid #4a9eff;color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">AIRPORT</button>
+    <button id="tab-sunmoon" onclick="switchToolTab('sunmoon')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">SUN/MOON</button>
+    <button id="tab-winds" onclick="switchToolTab('winds')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">WINDS ALOFT</button>
+  </div>
+
+  <!-- Tab contents -->
+  <div id="toolsContent" style="flex:1;overflow-y:auto;padding:16px;">
+
+    <!-- AIRPORT INFO TAB -->
+    <div id="toolTab-airport">
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <input id="airportIcaoInput" type="text" placeholder="ICAO code (e.g. LTFM)" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fetchAirportInfo()">
+        <button onclick="fetchAirportInfo()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
+      </div>
+      <div id="airportInfoResult" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;text-align:center;padding:20px 0;">Enter an ICAO code to get airport information</div>
+    </div>
+
+    <!-- SUN/MOON TAB -->
+    <div id="toolTab-sunmoon" style="display:none;">
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input id="sunIcaoInput" type="text" placeholder="ICAO code" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+        <input id="sunDateInput" type="date" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:12px;outline:none;">
+        <button onclick="fetchSunMoon()" style="background:#f2c641;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">GO</button>
+      </div>
+      <div id="sunMoonResult" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;text-align:center;padding:20px 0;">Enter ICAO code and date</div>
+    </div>
+
+    <!-- WINDS ALOFT TAB -->
+    <div id="toolTab-winds" style="display:none;">
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <input id="windsIcaoInput" type="text" placeholder="ICAO code" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fetchWindsAloft()">
+        <button onclick="fetchWindsAloft()" style="background:#2ec4b6;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
+      </div>
+      <div id="windsAloftResult" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;text-align:center;padding:20px 0;">Enter an ICAO code to get winds aloft data</div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+#toolsContent::-webkit-scrollbar { width: 3px; }
+#toolsContent::-webkit-scrollbar-track { background: transparent; }
+#toolsContent::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
+</style>
+
+<script>
+function openToolsPanel() {
+  const panel = document.getElementById('toolsPanel');
+  closeAllPanels();
+  panel.style.display = 'flex';
+  panel.style.flexDirection = 'column';
+  setTimeout(() => panel.style.transform = 'translateX(0)', 10);
+  openPanel = 'tools';
+  document.getElementById('sunDateInput').value = new Date().toISOString().split('T')[0];
+}
+
+function closeToolsPanel() {
+  const panel = document.getElementById('toolsPanel');
+  panel.style.transform = 'translateX(100%)';
+  setTimeout(() => panel.style.display = 'none', 300);
+  openPanel = null;
+}
+
+function switchToolTab(tab) {
+  ['airport','sunmoon','winds'].forEach(t => {
+    document.getElementById('toolTab-' + t).style.display = t === tab ? 'block' : 'none';
+    const btn = document.getElementById('tab-' + t);
+    btn.style.borderBottomColor = t === tab ? '#4a9eff' : 'transparent';
+    btn.style.color = t === tab ? '#4a9eff' : '#4a5f72';
+  });
+}
+
+// AIRPORT INFO
+async function fetchAirportInfo() {
+  const icao = document.getElementById('airportIcaoInput').value.trim().toUpperCase();
+  if (!icao || icao.length < 3) return;
+
+  const result = document.getElementById('airportInfoResult');
+  result.innerHTML = '<div style="color:#4a9eff;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;">FETCHING...</div>';
+
+  try {
+    const res = await fetch('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
+    const data = await res.json();
+
+    if (!data || data.length === 0) {
+      result.innerHTML = '<div style="color:#4a5f72;font-family:\'Rajdhani\',sans-serif;">No data found for ' + icao + '</div>';
+      return;
+    }
+
+    const apt = data[0];
+    result.innerHTML = `
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:14px;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#ffffff;margin-bottom:4px;">${apt.id || icao}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;margin-bottom:12px;">${apt.name || ''}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">ELEVATION</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;">${apt.elev || '—'} ft</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">COUNTRY</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;">${apt.country || '—'}</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">LAT/LON</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#cdd9e5;">${apt.lat ? apt.lat.toFixed(3) : '—'} / ${apt.lon ? apt.lon.toFixed(3) : '—'}</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">TYPE</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;">${apt.type || '—'}</div>
+          </div>
+        </div>
+        ${apt.runways ? `
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">RUNWAYS</div>
+        ${apt.runways.map(r => `
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;margin-bottom:4px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">
+            RWY ${r.id || ''} — ${r.length ? r.length + 'ft' : ''} ${r.width ? '× ' + r.width + 'ft' : ''}
+          </div>
+        `).join('')}
+        ` : ''}
+      </div>
+    `;
+  } catch(e) {
+    result.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;">Error fetching airport data</div>';
+  }
+}
+
+// SUN/MOON CALCULATOR
+async function fetchSunMoon() {
+  const icao = document.getElementById('sunIcaoInput').value.trim().toUpperCase();
+  const date = document.getElementById('sunDateInput').value;
+  if (!icao || !date) return;
+
+  const result = document.getElementById('sunMoonResult');
+  result.innerHTML = '<div style="color:#f2c641;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;">CALCULATING...</div>';
+
+  try {
+    const aptRes = await fetch('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
+    const aptData = await aptRes.json();
+
+    if (!aptData || aptData.length === 0) {
+      result.innerHTML = '<div style="color:#4a5f72;">Airport not found: ' + icao + '</div>';
+      return;
+    }
+
+    const lat = aptData[0].lat;
+    const lon = aptData[0].lon;
+    const name = aptData[0].name || icao;
+
+    const sunRes = await fetch(`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${date}&formatted=0`);
+    const sunData = await sunRes.json();
+
+    if (sunData.status !== 'OK') {
+      result.innerHTML = '<div style="color:#4a5f72;">Could not calculate sun times</div>';
+      return;
+    }
+
+    const s = sunData.results;
+    const fmt = (iso) => {
+      const d = new Date(iso);
+      return d.toUTCString().slice(17, 22) + 'Z';
+    };
+
+    result.innerHTML = `
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:14px;">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;margin-bottom:12px;">${name} — ${date}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;letter-spacing:2px;margin-bottom:8px;">☀️ SUN</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;margin-bottom:3px;">CIVIL DAWN</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:13px;color:#f2c641;">${fmt(s.civil_twilight_begin)}</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;margin-bottom:3px;">SUNRISE</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:13px;color:#f2c641;">${fmt(s.sunrise)}</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;margin-bottom:3px;">SUNSET</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:13px;color:#f2c641;">${fmt(s.sunset)}</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;margin-bottom:3px;">CIVIL DUSK</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:13px;color:#f2c641;">${fmt(s.civil_twilight_end)}</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;grid-column:1/-1;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;margin-bottom:3px;">DAY LENGTH</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:13px;color:#f2c641;">${s.day_length ? Math.floor(s.day_length/3600) + 'h ' + Math.floor((s.day_length%3600)/60) + 'm' : '—'}</div>
+          </div>
+        </div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#8a9bb0;letter-spacing:2px;margin-bottom:6px;">🌙 NIGHT OPS</div>
+        <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;">
+          Night operations: ${fmt(s.civil_twilight_end)} — ${fmt(s.civil_twilight_begin)} UTC (next day)
+        </div>
+        <div style="margin-top:6px;font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;text-align:center;">All times UTC</div>
+      </div>
+    `;
+  } catch(e) {
+    result.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;">Error calculating sun times</div>';
+  }
+}
+
+// WINDS ALOFT
+async function fetchWindsAloft() {
+  const icao = document.getElementById('windsIcaoInput').value.trim().toUpperCase();
+  if (!icao || icao.length < 3) return;
+
+  const result = document.getElementById('windsAloftResult');
+  result.innerHTML = '<div style="color:#2ec4b6;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;">FETCHING...</div>';
+
+  try {
+    const res = await fetch('https://aviationweather.gov/api/data/windtemp?region=all&level=high&fcst=06&format=json');
+    const data = await res.json();
+
+    if (!data || data.length === 0) {
+      result.innerHTML = '<div style="color:#4a5f72;">No winds aloft data available</div>';
+      return;
+    }
+
+    const aptRes = await fetch('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
+    const aptData = await aptRes.json();
+
+    if (!aptData || aptData.length === 0) {
+      result.innerHTML = '<div style="color:#4a5f72;">Airport not found</div>';
+      return;
+    }
+
+    const lat = aptData[0].lat;
+    const lon = aptData[0].lon;
+
+    let nearest = null;
+    let minDist = Infinity;
+    data.forEach(station => {
+      if (station.lat && station.lon) {
+        const dist = Math.sqrt(Math.pow(station.lat - lat, 2) + Math.pow(station.lon - lon, 2));
+        if (dist < minDist) { minDist = dist; nearest = station; }
+      }
+    });
+
+    if (!nearest) {
+      result.innerHTML = '<div style="color:#4a5f72;">No nearby wind station found</div>';
+      return;
+    }
+
+    const levels = ['3000','6000','9000','12000','18000','24000','30000','34000','39000'];
+    const levelKeys = ['w3000','w6000','w9000','w12000','w18000','w24000','w30000','w34000','w39000'];
+
+    result.innerHTML = `
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:14px;">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;margin-bottom:4px;">Station: ${nearest.stationId || nearest.id || 'Nearest'}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;margin-bottom:12px;">~${Math.round(minDist * 111)}km from ${icao}</div>
+        <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:4px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:80px 1fr 80px;padding:6px 10px;background:#060a0f;font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;">
+            <span>ALT (ft)</span><span>WIND</span><span>TEMP</span>
+          </div>
+          ${levels.map((lvl, i) => {
+            const w = nearest[levelKeys[i]];
+            if (!w) return '';
+            return `<div style="display:grid;grid-template-columns:80px 1fr 80px;padding:7px 10px;border-top:1px solid #1a2a3a;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">
+              <span style="color:#2ec4b6;">FL${(parseInt(lvl)/100).toString().padStart(3,'0')}</span>
+              <span>${w.wdir || '—'}° / ${w.wspd || '—'}kt</span>
+              <span style="color:#f2c641;">${w.temp !== undefined ? w.temp + '°C' : '—'}</span>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="margin-top:8px;font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;text-align:center;">6-hour forecast winds aloft</div>
+      </div>
+    `;
+  } catch(e) {
+    result.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;">Error fetching winds aloft data</div>';
+  }
+}
 </script>
 
 </body>
