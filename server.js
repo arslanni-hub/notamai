@@ -991,7 +991,8 @@ if (getAccessBtn) {
           // US airports: use domestic SIGMET endpoint
           const response = await fetch('https://aviationweather.gov/api/data/sigmet?format=json');
           const data = await response.json();
-          console.log('[SIGMET US] total:', Array.isArray(data) ? data.length : 'not array', typeof data);
+          console.log('[SIGMET US] keys:', data && typeof data === 'object' ? Object.keys(data).slice(0, 5) : 'n/a');
+          console.log('[SIGMET US] sample:', JSON.stringify(data).slice(0, 300));
           if (!data || !Array.isArray(data) || data.length === 0) {
             res.writeHead(200, { 'Content-Type': 'text/plain' });
             res.end('NO_SIGMET');
@@ -1008,10 +1009,8 @@ if (getAccessBtn) {
           // International airports: use ISIGMET endpoint
           const response = await fetch('https://aviationweather.gov/api/data/isigmet?format=json&hazard=CONVECTIVE,TURB,ICE,IFR,MTN,VA,SS');
           const data = await response.json();
-          console.log('[SIGMET INTL] total:', Array.isArray(data) ? data.length : 'not array', typeof data);
-          if (Array.isArray(data) && data.length > 0) {
-            console.log('[SIGMET INTL] sample:', JSON.stringify(data[0]).slice(0, 200));
-          }
+          console.log('[SIGMET INTL] keys:', data && typeof data === 'object' ? Object.keys(data).slice(0, 5) : 'n/a');
+          console.log('[SIGMET INTL] sample:', JSON.stringify(data).slice(0, 300));
           if (!data || !Array.isArray(data) || data.length === 0) {
             res.writeHead(200, { 'Content-Type': 'text/plain' });
             res.end('NO_SIGMET');
