@@ -1003,13 +1003,18 @@ if (getAccessBtn) {
           const text = relevant
             .map(s => {
               if (s.rawAirSigmet) return s.rawAirSigmet;
-              return [
-                s.airSigmetType + ' ' + (s.seriesId || ''),
-                'HAZARD: ' + (s.hazard || ''),
-                'VALID: ' + new Date(s.validTimeFrom * 1000).toUTCString() + ' - ' + new Date(s.validTimeTo * 1000).toUTCString(),
-                'ALT: ' + (s.altitudeLow1 || 'SFC') + ' - ' + (s.altitudeHi1 || ''),
-                s.rawAirSigmet || ''
-              ].filter(Boolean).join('\n');
+              const lines = [];
+              lines.push((s.icaoId || '') + ' ' + (s.seriesId || '') + ' SIGMET');
+              if (s.firName || s.firId) lines.push('FIR: ' + (s.firName || s.firId));
+              lines.push('HAZARD: ' + (s.hazard || '') + (s.qualifier ? ' ' + s.qualifier : ''));
+              const from = s.validTimeFrom ? new Date(s.validTimeFrom * 1000).toUTCString() : '';
+              const to = s.validTimeTo ? new Date(s.validTimeTo * 1000).toUTCString() : '';
+              if (from && to) lines.push('VALID: ' + from + ' TO ' + to);
+              if (s.altitudeLow1 !== null && s.altitudeLow1 !== undefined) lines.push('BASE: ' + (s.altitudeLow1 === 0 ? 'SFC' : 'FL' + s.altitudeLow1 / 100));
+              if (s.altitudeHi1) lines.push('TOP: FL' + Math.round(s.altitudeHi1 / 100));
+              if (s.coords) lines.push('AREA: ' + s.coords);
+              if (s.geom) lines.push('AREA: ' + JSON.stringify(s.geom).slice(0, 100));
+              return lines.join('\n');
             })
             .filter(t => t.trim())
             .join('\n\n');
@@ -1051,11 +1056,18 @@ if (getAccessBtn) {
           }).slice(0, 10);
           const text = relevant.map(s => {
             if (s.rawAirSigmet) return s.rawAirSigmet;
-            return [
-              (s.icaoId || '') + ' ' + (s.firName || s.firId || ''),
-              'HAZARD: ' + (s.hazard || ''),
-              'VALID: ' + new Date(s.validTimeFrom * 1000).toUTCString() + ' TO ' + new Date(s.validTimeTo * 1000).toUTCString(),
-            ].filter(Boolean).join('\n');
+            const lines = [];
+            lines.push((s.icaoId || '') + ' ' + (s.seriesId || '') + ' SIGMET');
+            if (s.firName || s.firId) lines.push('FIR: ' + (s.firName || s.firId));
+            lines.push('HAZARD: ' + (s.hazard || '') + (s.qualifier ? ' ' + s.qualifier : ''));
+            const from = s.validTimeFrom ? new Date(s.validTimeFrom * 1000).toUTCString() : '';
+            const to = s.validTimeTo ? new Date(s.validTimeTo * 1000).toUTCString() : '';
+            if (from && to) lines.push('VALID: ' + from + ' TO ' + to);
+            if (s.altitudeLow1 !== null && s.altitudeLow1 !== undefined) lines.push('BASE: ' + (s.altitudeLow1 === 0 ? 'SFC' : 'FL' + s.altitudeLow1 / 100));
+            if (s.altitudeHi1) lines.push('TOP: FL' + Math.round(s.altitudeHi1 / 100));
+            if (s.coords) lines.push('AREA: ' + s.coords);
+            if (s.geom) lines.push('AREA: ' + JSON.stringify(s.geom).slice(0, 100));
+            return lines.join('\n');
           }).filter(t => t.trim()).join('\n\n');
           res.writeHead(200, { 'Content-Type': 'text/plain' });
           res.end(text || 'NO_SIGMET');
