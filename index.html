@@ -5620,7 +5620,7 @@ async function fetchAirportInfo() {
   result.innerHTML = '<div style="color:#4a9eff;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;">FETCHING...</div>';
 
   try {
-    const res = await fetch('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
+    const res = await fetch('/api/airport/' + icao);
     const data = await res.json();
 
     if (!data || data.length === 0) {
@@ -5676,7 +5676,7 @@ async function fetchSunMoon() {
   result.innerHTML = '<div style="color:#f2c641;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;">CALCULATING...</div>';
 
   try {
-    const aptRes = await fetch('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
+    const aptRes = await fetch('/api/airport/' + icao);
     const aptData = await aptRes.json();
 
     if (!aptData || aptData.length === 0) {
@@ -5749,7 +5749,7 @@ async function fetchWindsAloft() {
   result.innerHTML = '<div style="color:#2ec4b6;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;">FETCHING...</div>';
 
   try {
-    const res = await fetch('https://aviationweather.gov/api/data/windtemp?region=all&level=high&fcst=06&format=json');
+    const res = await fetch('/api/winds/' + icao);
     const data = await res.json();
 
     if (!data || data.length === 0) {
@@ -5757,7 +5757,7 @@ async function fetchWindsAloft() {
       return;
     }
 
-    const aptRes = await fetch('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
+    const aptRes = await fetch('/api/airport/' + icao);
     const aptData = await aptRes.json();
 
     if (!aptData || aptData.length === 0) {

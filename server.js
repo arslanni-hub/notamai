@@ -926,6 +926,32 @@ if (getAccessBtn) {
     return;
   }
 
+  if (req.method === 'GET' && req.url.startsWith('/api/airport/')) {
+    const icao = req.url.split('/api/airport/')[1].split('?')[0];
+    try {
+      const data = await fetchURL('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch(e) {
+      res.writeHead(500);
+      res.end('[]');
+    }
+    return;
+  }
+
+  if (req.method === 'GET' && req.url.startsWith('/api/winds/')) {
+    const icao = req.url.split('/api/winds/')[1].split('?')[0];
+    try {
+      const data = await fetchURL('https://aviationweather.gov/api/data/windtemp?region=all&level=high&fcst=06&format=json');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch(e) {
+      res.writeHead(500);
+      res.end('[]');
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/raw/')) {
     const urlParams = req.url.replace('/api/raw/', '');
     const [type, icao] = urlParams.split('/');
