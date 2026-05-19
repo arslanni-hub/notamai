@@ -983,27 +983,43 @@ if (getAccessBtn) {
 
     if (type === 'sigmet') {
       try {
-        const sigmetUrl = 'https://aviationweather.gov/api/data/sigmet?format=json&hazard=CONVECTIVE,TURB,ICE,IFR,MTN,PCPN,DS,SS,VA&level=0';
+        const sigmetUrl = 'https://aviationweather.gov/api/data/sigmet?format=json';
         const response = await fetch(sigmetUrl);
         const data = await response.json();
-        const countryPrefix = icao ? icao.slice(0, 2) : '';
-        const relevant = data.filter(s =>
-          s.rawAirSigmet && (
-            s.rawAirSigmet.includes(countryPrefix) ||
-            s.firId === icao
-          )
-        ).slice(0, 10);
-        if (relevant.length === 0) {
+
+        if (!data || !Array.isArray(data) || data.length === 0) {
           res.writeHead(200, { 'Content-Type': 'text/plain' });
-          res.end('No active SIGMETs for ' + icao + ' region');
+          res.end('NO_SIGMET');
           return;
         }
-        const text = relevant.map(s => s.rawAirSigmet || '').filter(Boolean).join('\n\n');
+
+        const prefix = icao.slice(0, 2).toUpperCase();
+        const firId = icao.toUpperCase();
+
+        let relevant = data.filter(s => {
+          const raw = (s.rawAirSigmet || '').toUpperCase();
+          return raw.includes(prefix) ||
+                 raw.includes(firId) ||
+                 (s.firId && s.firId.startsWith(prefix)) ||
+                 (s.isigmetId && s.isigmetId.includes(prefix));
+        });
+
+        // Fall back to first 5 global SIGMETs if no regional match
+        if (relevant.length === 0) {
+          relevant = data.slice(0, 5);
+        }
+
+        const text = relevant
+          .map(s => s.rawAirSigmet || '')
+          .filter(t => t.trim())
+          .slice(0, 10)
+          .join('\n\n');
+
         res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end(text || 'No active SIGMETs for ' + icao + ' region');
+        res.end(text || 'NO_SIGMET');
       } catch(e) {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end('No SIGMET data available');
+        res.end('NO_SIGMET');
       }
       return;
     }

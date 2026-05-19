@@ -4949,12 +4949,12 @@ async function fetchRawData() {
     sigmetHeader.textContent = 'SIGMET / AIRMET';
     sigmetSection.appendChild(sigmetHeader);
 
-    const sigmetLines = sigmetText.trim().split('\n\n').filter(s => s.trim() && !s.includes('No active') && !s.includes('No SIGMET'));
+    const sigmetLines = sigmetText.trim() === 'NO_SIGMET' ? [] : sigmetText.trim().split('\n\n').filter(s => s.trim());
 
     if (sigmetLines.length === 0) {
       const noSigmet = document.createElement('div');
-      noSigmet.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#2ec4b6;line-height:1.6;';
-      noSigmet.textContent = '✓ No active SIGMETs for ' + icao + ' region';
+      noSigmet.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;padding:8px 0;";
+      noSigmet.textContent = '— No active SIGMETs for ' + icao + ' region';
       sigmetSection.appendChild(noSigmet);
     } else {
       sigmetLines.forEach(sigmet => {
