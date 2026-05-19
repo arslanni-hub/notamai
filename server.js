@@ -1012,8 +1012,22 @@ if (getAccessBtn) {
               if (from && to) lines.push('VALID: ' + from + ' TO ' + to);
               if (s.altitudeLow1 !== null && s.altitudeLow1 !== undefined) lines.push('BASE: ' + (s.altitudeLow1 === 0 ? 'SFC' : 'FL' + s.altitudeLow1 / 100));
               if (s.altitudeHi1) lines.push('TOP: FL' + Math.round(s.altitudeHi1 / 100));
-              if (s.coords) lines.push('AREA: ' + s.coords);
-              if (s.geom) lines.push('AREA: ' + JSON.stringify(s.geom).slice(0, 100));
+              if (s.coords && Array.isArray(s.coords)) {
+                const coordStr = s.coords.map(c => {
+                  if (typeof c === 'object' && c.lat && c.lon) return c.lat + '/' + c.lon;
+                  if (typeof c === 'object' && c.latitude && c.longitude) return c.latitude + '/' + c.longitude;
+                  return JSON.stringify(c);
+                }).join(' - ');
+                if (coordStr && !coordStr.includes('[object')) lines.push('AREA: ' + coordStr);
+              } else if (s.geom && s.geom.coordinates) {
+                const coords = s.geom.coordinates[0];
+                if (Array.isArray(coords) && coords.length > 0) {
+                  const coordStr = coords.slice(0, 4).map(c => c[1].toFixed(1) + 'N/' + c[0].toFixed(1) + 'E').join(' - ');
+                  lines.push('AREA: ' + coordStr);
+                }
+              } else if (s.area) {
+                lines.push('AREA: ' + s.area);
+              }
               return lines.join('\n');
             })
             .filter(t => t.trim())
@@ -1065,8 +1079,22 @@ if (getAccessBtn) {
             if (from && to) lines.push('VALID: ' + from + ' TO ' + to);
             if (s.altitudeLow1 !== null && s.altitudeLow1 !== undefined) lines.push('BASE: ' + (s.altitudeLow1 === 0 ? 'SFC' : 'FL' + s.altitudeLow1 / 100));
             if (s.altitudeHi1) lines.push('TOP: FL' + Math.round(s.altitudeHi1 / 100));
-            if (s.coords) lines.push('AREA: ' + s.coords);
-            if (s.geom) lines.push('AREA: ' + JSON.stringify(s.geom).slice(0, 100));
+            if (s.coords && Array.isArray(s.coords)) {
+              const coordStr = s.coords.map(c => {
+                if (typeof c === 'object' && c.lat && c.lon) return c.lat + '/' + c.lon;
+                if (typeof c === 'object' && c.latitude && c.longitude) return c.latitude + '/' + c.longitude;
+                return JSON.stringify(c);
+              }).join(' - ');
+              if (coordStr && !coordStr.includes('[object')) lines.push('AREA: ' + coordStr);
+            } else if (s.geom && s.geom.coordinates) {
+              const coords = s.geom.coordinates[0];
+              if (Array.isArray(coords) && coords.length > 0) {
+                const coordStr = coords.slice(0, 4).map(c => c[1].toFixed(1) + 'N/' + c[0].toFixed(1) + 'E').join(' - ');
+                lines.push('AREA: ' + coordStr);
+              }
+            } else if (s.area) {
+              lines.push('AREA: ' + s.area);
+            }
             return lines.join('\n');
           }).filter(t => t.trim()).join('\n\n');
           res.writeHead(200, { 'Content-Type': 'text/plain' });
