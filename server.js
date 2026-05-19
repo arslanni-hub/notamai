@@ -991,38 +991,42 @@ if (getAccessBtn) {
           // US airports: use domestic SIGMET endpoint
           const response = await fetch('https://aviationweather.gov/api/data/sigmet?format=json');
           const data = await response.json();
-          console.log('[SIGMET US] keys:', data && typeof data === 'object' ? Object.keys(data).slice(0, 5) : 'n/a');
-          console.log('[SIGMET US] sample:', JSON.stringify(data).slice(0, 300));
-          if (!data || !Array.isArray(data) || data.length === 0) {
+          const arr = Array.isArray(data) ? data : Object.values(data);
+          console.log('[SIGMET US] count:', arr.length, 'fields:', arr[0] ? Object.keys(arr[0]).slice(0, 8) : 'none');
+          if (!arr || !arr.length) {
             res.writeHead(200, { 'Content-Type': 'text/plain' });
             res.end('NO_SIGMET');
             return;
           }
-          const relevant = data.filter(s => {
-            const raw = (s.rawAirSigmet || '').toUpperCase();
-            return raw.includes(prefix) || (s.firId && s.firId.startsWith(prefix));
+          const relevant = arr.filter(s => {
+            const raw = (s.rawAirSigmet || s.airSigmetRaw || s.sigmet || '').toUpperCase();
+            const fir = (s.icaoId || s.firId || '').toUpperCase();
+            return fir.startsWith(prefix) || raw.includes(prefix);
           }).slice(0, 10);
-          const text = relevant.map(s => s.rawAirSigmet || '').filter(t => t.trim()).join('\n\n');
+          const text = relevant
+            .map(s => s.rawAirSigmet || s.airSigmetRaw || s.sigmet || JSON.stringify(s).slice(0, 200))
+            .filter(t => t.trim())
+            .join('\n\n');
           res.writeHead(200, { 'Content-Type': 'text/plain' });
           res.end(text || 'NO_SIGMET');
         } else {
           // International airports: use ISIGMET endpoint
-          const response = await fetch('https://aviationweather.gov/api/data/isigmet?format=json&hazard=CONVECTIVE,TURB,ICE,IFR,MTN,VA,SS');
+          const response = await fetch('https://aviationweather.gov/api/data/isigmet?format=json');
           const data = await response.json();
-          console.log('[SIGMET INTL] keys:', data && typeof data === 'object' ? Object.keys(data).slice(0, 5) : 'n/a');
-          console.log('[SIGMET INTL] sample:', JSON.stringify(data).slice(0, 300));
-          if (!data || !Array.isArray(data) || data.length === 0) {
+          console.log('[SIGMET INTL] type:', typeof data, Array.isArray(data), JSON.stringify(data).slice(0, 200));
+          const arr = Array.isArray(data) ? data : (data.data || data.results || Object.values(data));
+          if (!arr || !arr.length) {
             res.writeHead(200, { 'Content-Type': 'text/plain' });
             res.end('NO_SIGMET');
             return;
           }
-          const relevant = data.filter(s => {
-            const raw = (s.rawAirSigmet || s.isigmet || '').toUpperCase();
-            const fir = (s.firId || s.icaoId || '').toUpperCase();
-            return raw.includes(prefix) || fir.startsWith(prefix) || fir === icao.toUpperCase();
+          const relevant = arr.filter(s => {
+            const raw = (s.rawAirSigmet || s.isigmet || s.raw || '').toUpperCase();
+            const fir = (s.firId || s.icaoId || s.id || '').toUpperCase();
+            return fir.startsWith(prefix) || raw.includes(prefix) || raw.includes(icao.toUpperCase());
           }).slice(0, 10);
           const text = relevant
-            .map(s => s.rawAirSigmet || s.isigmet || '')
+            .map(s => s.rawAirSigmet || s.isigmet || s.raw || '')
             .filter(t => t.trim())
             .join('\n\n');
           res.writeHead(200, { 'Content-Type': 'text/plain' });
