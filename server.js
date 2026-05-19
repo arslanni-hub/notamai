@@ -984,7 +984,6 @@ if (getAccessBtn) {
     if (type === 'sigmet') {
       try {
         const isUS = icao.startsWith('K') || icao.startsWith('P');
-        console.log('[SIGMET]', icao, 'isUS:', isUS);
         const prefix = icao.slice(0, 2).toUpperCase();
 
         if (isUS) {
@@ -992,7 +991,6 @@ if (getAccessBtn) {
           const response = await fetch('https://aviationweather.gov/api/data/sigmet?format=json');
           const data = await response.json();
           const arr = Array.isArray(data) ? data : Object.values(data);
-          console.log('[SIGMET US] count:', arr.length, 'fields:', arr[0] ? Object.keys(arr[0]).slice(0, 8) : 'none');
           if (!arr || !arr.length) {
             res.writeHead(200, { 'Content-Type': 'text/plain' });
             res.end('NO_SIGMET');
@@ -1021,7 +1019,6 @@ if (getAccessBtn) {
           // International airports: use ISIGMET endpoint
           const response = await fetch('https://aviationweather.gov/api/data/isigmet?format=json');
           const data = await response.json();
-          console.log('[SIGMET INTL] type:', typeof data, Array.isArray(data), JSON.stringify(data).slice(0, 200));
           const arr = Array.isArray(data) ? data : (data.data || data.results || Object.values(data));
           if (!arr || !arr.length) {
             res.writeHead(200, { 'Content-Type': 'text/plain' });
