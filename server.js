@@ -981,6 +981,33 @@ if (getAccessBtn) {
       return;
     }
 
+    if (type === 'sigmet') {
+      try {
+        const sigmetUrl = 'https://aviationweather.gov/api/data/sigmet?format=json&hazard=CONVECTIVE,TURB,ICE,IFR,MTN,PCPN,DS,SS,VA&level=0';
+        const response = await fetch(sigmetUrl);
+        const data = await response.json();
+        const countryPrefix = icao ? icao.slice(0, 2) : '';
+        const relevant = data.filter(s =>
+          s.rawAirSigmet && (
+            s.rawAirSigmet.includes(countryPrefix) ||
+            s.firId === icao
+          )
+        ).slice(0, 10);
+        if (relevant.length === 0) {
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
+          res.end('No active SIGMETs for ' + icao + ' region');
+          return;
+        }
+        const text = relevant.map(s => s.rawAirSigmet || '').filter(Boolean).join('\n\n');
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end(text || 'No active SIGMETs for ' + icao + ' region');
+      } catch(e) {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('No SIGMET data available');
+      }
+      return;
+    }
+
     let apiUrl = '';
     if (type === 'metar') {
       apiUrl = 'https://aviationweather.gov/api/data/metar?ids=' + icao + '&format=raw&hours=2';
@@ -1050,7 +1077,9 @@ if (getAccessBtn) {
       try {
         const { notam, type } = JSON.parse(body);
         let analyzeSystemPrompt;
-        if (type === 'METAR') {
+        if (type === 'SIGMET') {
+          analyzeSystemPrompt = 'You are an expert aviation meteorologist. Analyze this SIGMET and provide: affected area and FIR, hazard type (turbulence/icing/volcanic ash/etc), altitude range, time period, and operational impact for crews. Be concise, 3-5 bullet points, practical for flight planning.';
+        } else if (type === 'METAR') {
           analyzeSystemPrompt = 'You are an expert aviation meteorologist with complete knowledge of all world airports and their ICAO codes. CRITICAL RULE: Always use the correct official airport name for each ICAO code — never confuse airports. Use your complete aviation knowledge to identify any ICAO code correctly worldwide.\n\nDecode this METAR and provide:\n1. Airport name and ICAO code (verified correct)\n2. Current conditions summary (wind, visibility, weather)\n3. Ceiling and cloud layers\n4. Temperature, dewpoint, pressure\n5. Any hazards or significant phenomena\n6. Operational recommendation (VFR/IFR/MVFR status)\n\nBe concise, 4-6 bullet points, practical for flight crews.';
         } else if (type === 'TAF') {
           analyzeSystemPrompt = 'You are an expert aviation meteorologist with complete knowledge of all world airports and their ICAO codes. CRITICAL RULE: Always use the correct official airport name for each ICAO code — never confuse airports. Use your complete aviation knowledge to identify any ICAO code correctly worldwide.\n\nDecode this TAF and provide:\n1. Airport name and ICAO code (verified correct)\n2. Forecast period and overall summary\n3. Significant weather changes and timing\n4. Worst conditions expected and when\n5. Any TEMPO, BECMG, or PROB groups of concern\n6. Operational planning recommendation\n\nBe concise, 4-6 bullet points, practical for flight planning.';

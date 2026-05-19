@@ -4650,14 +4650,16 @@ async function fetchRawData() {
   const results = document.getElementById('rawDataResults');
   results.innerHTML = '<div style="text-align:center;padding:40px 0;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">FETCHING DATA...</div>';
   try {
-    const [notamRes, metarRes, tafRes] = await Promise.all([
+    const [notamRes, metarRes, tafRes, sigmetRes] = await Promise.all([
       fetch('/api/raw/notam/' + icao),
       fetch('/api/raw/metar/' + icao),
-      fetch('/api/raw/taf/' + icao)
+      fetch('/api/raw/taf/' + icao),
+      fetch('/api/raw/sigmet/' + icao)
     ]);
     const notamText = await notamRes.text();
     const metarText = await metarRes.text();
     const tafText = await tafRes.text();
+    const sigmetText = await sigmetRes.text();
     results.innerHTML = '';
 
     // NOTAMs — DOM-built so Analyze buttons can close over block text safely
@@ -4938,6 +4940,92 @@ async function fetchRawData() {
       tafSection.appendChild(tafAnalysisDiv);
     }
     results.appendChild(tafSection);
+
+    // ── SIGMET / AIRMET ──────────────────────────────────────────
+    const sigmetSection = document.createElement('div');
+    sigmetSection.style.marginBottom = '20px';
+    const sigmetHeader = document.createElement('div');
+    sigmetHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin:16px 0 8px;";
+    sigmetHeader.textContent = 'SIGMET / AIRMET';
+    sigmetSection.appendChild(sigmetHeader);
+
+    const sigmetLines = sigmetText.trim().split('\n\n').filter(s => s.trim() && !s.includes('No active') && !s.includes('No SIGMET'));
+
+    if (sigmetLines.length === 0) {
+      const noSigmet = document.createElement('div');
+      noSigmet.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#2ec4b6;line-height:1.6;';
+      noSigmet.textContent = '✓ No active SIGMETs for ' + icao + ' region';
+      sigmetSection.appendChild(noSigmet);
+    } else {
+      sigmetLines.forEach(sigmet => {
+        const wrapper = document.createElement('div');
+        wrapper.style.marginBottom = '8px';
+
+        const sigmetBox = document.createElement('div');
+        sigmetBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f4841a;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;position:relative;transition:border-color 0.2s;';
+        sigmetBox.textContent = sigmet;
+
+        const sCorner = document.createElement('div');
+        sCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+        sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(2);">✨</span>';
+
+        const sTooltip = document.createElement('div');
+        sTooltip.textContent = 'Analyze';
+        sTooltip.style.cssText = 'position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;';
+        sCorner.appendChild(sTooltip);
+
+        const sAnalysisDiv = document.createElement('div');
+        sAnalysisDiv.style.cssText = 'display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #f4841a;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;position:relative;';
+
+        sigmetBox.onmouseenter = function() { this.style.borderColor = '#f4841a'; sCorner.style.opacity = '1'; };
+        sigmetBox.onmouseleave = function() {
+          if (sAnalysisDiv.style.display !== 'block') { this.style.borderColor = '#1a2a3a'; sCorner.style.opacity = '0'; }
+        };
+        sCorner.onmouseenter = function(e) { e.stopPropagation(); sTooltip.style.opacity = '1'; };
+        sCorner.onmouseleave = function(e) { e.stopPropagation(); sTooltip.style.opacity = '0'; };
+
+        sCorner.onclick = async function(e) {
+          e.stopPropagation();
+          if (sAnalysisDiv.style.display === 'block') {
+            sAnalysisDiv.style.display = 'none';
+            sigmetBox.style.borderColor = '#1a2a3a';
+            sCorner.style.opacity = '0';
+            return;
+          }
+          sCorner.innerHTML = '<span style="font-size:13px;opacity:0.5;">✨</span>';
+          try {
+            const resp = await fetch('/api/analyze-notam', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ notam: sigmet, type: 'SIGMET' })
+            });
+            const data = await resp.json();
+            sAnalysisDiv.style.display = 'block';
+            streamAnalysisText(sAnalysisDiv, data.analysis, '#f4841a', function() {
+              sAnalysisDiv.style.display = 'none';
+              sigmetBox.style.borderColor = '#1a2a3a';
+              sCorner.style.opacity = '0';
+              sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(2);">✨</span>';
+              sCorner.appendChild(sTooltip);
+            });
+            sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(2);">✨</span>';
+            sCorner.appendChild(sTooltip);
+            sigmetBox.style.borderColor = '#f4841a';
+            sCorner.style.opacity = '1';
+          } catch(err) {
+            sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(2);">✨</span>';
+            sCorner.appendChild(sTooltip);
+          }
+        };
+
+        sigmetBox.appendChild(sCorner);
+        wrapper.appendChild(sigmetBox);
+        wrapper.appendChild(sAnalysisDiv);
+        sigmetSection.appendChild(wrapper);
+      });
+    }
+    results.appendChild(sigmetSection);
+
   } catch(e) {
     results.innerHTML = '<div style="text-align:center;padding:40px 0;font-family:\'Rajdhani\',sans-serif;font-size:14px;color:#e63946;">Error fetching data. Please try again.</div>';
   }
