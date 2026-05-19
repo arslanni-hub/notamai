@@ -5752,62 +5752,51 @@ async function fetchWindsAloft() {
     const res = await fetch('/api/winds/' + icao);
     const data = await res.json();
 
-    if (!data || data.length === 0) {
-      result.innerHTML = '<div style="color:#4a5f72;">No winds aloft data available</div>';
+    if (data.error) {
+      result.innerHTML = '<div style="color:#4a5f72;font-family:\'Rajdhani\',sans-serif;">' + data.error + '</div>';
       return;
     }
 
-    const aptRes = await fetch('/api/airport/' + icao);
-    const aptData = await aptRes.json();
+    const apt = data.apt;
+    const winds = data.winds;
+    const hourly = winds.hourly;
+    const idx = 0;
 
-    if (!aptData || aptData.length === 0) {
-      result.innerHTML = '<div style="color:#4a5f72;">Airport not found</div>';
-      return;
-    }
-
-    const lat = aptData[0].lat;
-    const lon = aptData[0].lon;
-
-    let nearest = null;
-    let minDist = Infinity;
-    data.forEach(station => {
-      if (station.lat && station.lon) {
-        const dist = Math.sqrt(Math.pow(station.lat - lat, 2) + Math.pow(station.lon - lon, 2));
-        if (dist < minDist) { minDist = dist; nearest = station; }
-      }
-    });
-
-    if (!nearest) {
-      result.innerHTML = '<div style="color:#4a5f72;">No nearby wind station found</div>';
-      return;
-    }
-
-    const levels = ['3000','6000','9000','12000','18000','24000','30000','34000','39000'];
-    const levelKeys = ['w3000','w6000','w9000','w12000','w18000','w24000','w30000','w34000','w39000'];
+    const levels = [
+      { hPa: '850', fl: 'FL050' },
+      { hPa: '700', fl: 'FL100' },
+      { hPa: '500', fl: 'FL180' },
+      { hPa: '300', fl: 'FL300' },
+      { hPa: '250', fl: 'FL340' },
+      { hPa: '200', fl: 'FL390' },
+    ];
 
     result.innerHTML = `
       <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:14px;">
-        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;margin-bottom:4px;">Station: ${nearest.stationId || nearest.id || 'Nearest'}</div>
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;margin-bottom:12px;">~${Math.round(minDist * 111)}km from ${icao}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;margin-bottom:4px;">${apt.name || icao}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;margin-bottom:12px;">${apt.lat?.toFixed(3)}°N / ${apt.lon?.toFixed(3)}°E · ${winds.hourly.time?.[idx]?.slice(11,16)}Z</div>
         <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:4px;overflow:hidden;">
-          <div style="display:grid;grid-template-columns:80px 1fr 80px;padding:6px 10px;background:#060a0f;font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;">
-            <span>ALT (ft)</span><span>WIND</span><span>TEMP</span>
+          <div style="display:grid;grid-template-columns:70px 70px 70px 1fr;padding:6px 10px;background:#060a0f;font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;">
+            <span>LEVEL</span><span>DIR</span><span>KT</span><span>TEMP</span>
           </div>
-          ${levels.map((lvl, i) => {
-            const w = nearest[levelKeys[i]];
-            if (!w) return '';
-            return `<div style="display:grid;grid-template-columns:80px 1fr 80px;padding:7px 10px;border-top:1px solid #1a2a3a;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">
-              <span style="color:#2ec4b6;">FL${(parseInt(lvl)/100).toString().padStart(3,'0')}</span>
-              <span>${w.wdir || '—'}° / ${w.wspd || '—'}kt</span>
-              <span style="color:#f2c641;">${w.temp !== undefined ? w.temp + '°C' : '—'}</span>
+          ${levels.map(lvl => {
+            const dir = hourly['winddirection_' + lvl.hPa + 'hPa']?.[idx];
+            const spd = hourly['windspeed_' + lvl.hPa + 'hPa']?.[idx];
+            const tmp = hourly['temperature_' + lvl.hPa + 'hPa']?.[idx];
+            if (dir === undefined && spd === undefined) return '';
+            return `<div style="display:grid;grid-template-columns:70px 70px 70px 1fr;padding:7px 10px;border-top:1px solid #1a2a3a;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">
+              <span style="color:#2ec4b6;">${lvl.fl}</span>
+              <span>${dir !== undefined ? Math.round(dir) + '°' : '—'}</span>
+              <span style="color:#cdd9e5;">${spd !== undefined ? Math.round(spd) + 'kt' : '—'}</span>
+              <span style="color:#f2c641;">${tmp !== undefined ? Math.round(tmp) + '°C' : '—'}</span>
             </div>`;
           }).join('')}
         </div>
-        <div style="margin-top:8px;font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;text-align:center;">6-hour forecast winds aloft</div>
+        <div style="margin-top:8px;font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;text-align:center;">Source: Open-Meteo · Current hour forecast</div>
       </div>
     `;
   } catch(e) {
-    result.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;">Error fetching winds aloft data</div>';
+    result.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;">Error fetching winds aloft</div>';
   }
 }
 </script>

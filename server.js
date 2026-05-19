@@ -942,7 +942,7 @@ if (getAccessBtn) {
   if (req.method === 'GET' && req.url.startsWith('/api/winds/')) {
     const icao = req.url.split('/api/winds/')[1].split('?')[0];
     try {
-      // Get airport coordinates first
+      // Get airport coordinates
       const aptData = await fetchURL('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
 
       if (!aptData || !Array.isArray(aptData) || aptData.length === 0) {
@@ -953,16 +953,15 @@ if (getAccessBtn) {
 
       const lat = aptData[0].lat;
       const lon = aptData[0].lon;
+      const name = aptData[0].name || icao;
 
-      // Use winds aloft point forecast API
-      const windsData = await fetchURL(
-        `https://aviationweather.gov/api/data/windtemp?region=all&level=high&fcst=06&format=json&site=${icao}`
-      );
+      // Fetch winds at multiple pressure levels from Open-Meteo
+      const windsUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=windspeed_850hPa,winddirection_850hPa,temperature_850hPa,windspeed_700hPa,winddirection_700hPa,temperature_700hPa,windspeed_500hPa,winddirection_500hPa,temperature_500hPa,windspeed_300hPa,winddirection_300hPa,temperature_300hPa,windspeed_250hPa,winddirection_250hPa,windspeed_200hPa,winddirection_200hPa&wind_speed_unit=kn&forecast_days=1&timezone=UTC`;
 
-      console.log('[WINDS2]', icao, typeof windsData, JSON.stringify(windsData).slice(0, 200));
+      const windsData = await fetchURL(windsUrl);
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ apt: aptData[0], winds: windsData }));
+      res.end(JSON.stringify({ apt: aptData[0], winds: windsData, name: name }));
     } catch(e) {
       console.log('[WINDS ERROR]', e.message);
       res.writeHead(200, { 'Content-Type': 'application/json' });
