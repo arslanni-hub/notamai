@@ -1004,9 +1004,10 @@ if (getAccessBtn) {
                  (s.isigmetId && s.isigmetId.includes(prefix));
         });
 
-        // Fall back to first 5 global SIGMETs if no regional match
         if (relevant.length === 0) {
-          relevant = data.slice(0, 5);
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
+          res.end('NO_SIGMET');
+          return;
         }
 
         const text = relevant
