@@ -942,14 +942,31 @@ if (getAccessBtn) {
   if (req.method === 'GET' && req.url.startsWith('/api/winds/')) {
     const icao = req.url.split('/api/winds/')[1].split('?')[0];
     try {
-      const data = await fetchURL('https://aviationweather.gov/api/data/windtemp?region=all&level=high&fcst=06&format=json');
-      console.log('[WINDS]', icao, 'type:', typeof data, 'isArray:', Array.isArray(data), 'length:', Array.isArray(data) ? data.length : 'N/A', 'sample:', JSON.stringify(data).slice(0, 200));
+      // Get airport coordinates first
+      const aptData = await fetchURL('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
+
+      if (!aptData || !Array.isArray(aptData) || aptData.length === 0) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Airport not found' }));
+        return;
+      }
+
+      const lat = aptData[0].lat;
+      const lon = aptData[0].lon;
+
+      // Use winds aloft point forecast API
+      const windsData = await fetchURL(
+        `https://aviationweather.gov/api/data/windtemp?region=all&level=high&fcst=06&format=json&site=${icao}`
+      );
+
+      console.log('[WINDS2]', icao, typeof windsData, JSON.stringify(windsData).slice(0, 200));
+
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(data));
+      res.end(JSON.stringify({ apt: aptData[0], winds: windsData }));
     } catch(e) {
       console.log('[WINDS ERROR]', e.message);
-      res.writeHead(500);
-      res.end('[]');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
     }
     return;
   }
