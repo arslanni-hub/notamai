@@ -943,9 +943,11 @@ if (getAccessBtn) {
     const icao = req.url.split('/api/winds/')[1].split('?')[0];
     try {
       const data = await fetchURL('https://aviationweather.gov/api/data/windtemp?region=all&level=high&fcst=06&format=json');
+      console.log('[WINDS]', icao, 'type:', typeof data, 'isArray:', Array.isArray(data), 'length:', Array.isArray(data) ? data.length : 'N/A', 'sample:', JSON.stringify(data).slice(0, 200));
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
     } catch(e) {
+      console.log('[WINDS ERROR]', e.message);
       res.writeHead(500);
       res.end('[]');
     }
