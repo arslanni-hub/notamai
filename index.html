@@ -4967,7 +4967,7 @@ async function fetchRawData() {
 
         const sCorner = document.createElement('div');
         sCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;cursor:pointer;';
-        sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(2);">✨</span>';
+        sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
 
         const sTooltip = document.createElement('div');
         sTooltip.textContent = 'Analyze';
@@ -4992,7 +4992,7 @@ async function fetchRawData() {
             sCorner.style.opacity = '0';
             return;
           }
-          sCorner.innerHTML = '<span style="font-size:13px;opacity:0.5;">✨</span>';
+          sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);opacity:0.5;">✨</span>';
           try {
             const resp = await fetch('/api/analyze-notam', {
               method: 'POST',
@@ -5005,15 +5005,15 @@ async function fetchRawData() {
               sAnalysisDiv.style.display = 'none';
               sigmetBox.style.borderColor = '#1a2a3a';
               sCorner.style.opacity = '0';
-              sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(2);">✨</span>';
+              sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
               sCorner.appendChild(sTooltip);
             });
-            sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(2);">✨</span>';
+            sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
             sCorner.appendChild(sTooltip);
             sigmetBox.style.borderColor = '#f4841a';
             sCorner.style.opacity = '1';
           } catch(err) {
-            sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(2);">✨</span>';
+            sCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
             sCorner.appendChild(sTooltip);
           }
         };
