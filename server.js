@@ -983,41 +983,46 @@ if (getAccessBtn) {
 
     if (type === 'sigmet') {
       try {
-        const sigmetUrl = 'https://aviationweather.gov/api/data/sigmet?format=json';
-        const response = await fetch(sigmetUrl);
-        const data = await response.json();
-
-        if (!data || !Array.isArray(data) || data.length === 0) {
-          res.writeHead(200, { 'Content-Type': 'text/plain' });
-          res.end('NO_SIGMET');
-          return;
-        }
-
+        const isUS = icao.startsWith('K') || icao.startsWith('P');
         const prefix = icao.slice(0, 2).toUpperCase();
-        const firId = icao.toUpperCase();
 
-        let relevant = data.filter(s => {
-          const raw = (s.rawAirSigmet || '').toUpperCase();
-          return raw.includes(prefix) ||
-                 raw.includes(firId) ||
-                 (s.firId && s.firId.startsWith(prefix)) ||
-                 (s.isigmetId && s.isigmetId.includes(prefix));
-        });
-
-        if (relevant.length === 0) {
+        if (isUS) {
+          // US airports: use domestic SIGMET endpoint
+          const response = await fetch('https://aviationweather.gov/api/data/sigmet?format=json');
+          const data = await response.json();
+          if (!data || !Array.isArray(data) || data.length === 0) {
+            res.writeHead(200, { 'Content-Type': 'text/plain' });
+            res.end('NO_SIGMET');
+            return;
+          }
+          const relevant = data.filter(s => {
+            const raw = (s.rawAirSigmet || '').toUpperCase();
+            return raw.includes(prefix) || (s.firId && s.firId.startsWith(prefix));
+          }).slice(0, 10);
+          const text = relevant.map(s => s.rawAirSigmet || '').filter(t => t.trim()).join('\n\n');
           res.writeHead(200, { 'Content-Type': 'text/plain' });
-          res.end('NO_SIGMET');
-          return;
+          res.end(text || 'NO_SIGMET');
+        } else {
+          // International airports: use ISIGMET endpoint
+          const response = await fetch('https://aviationweather.gov/api/data/isigmet?format=json&hazard=CONVECTIVE,TURB,ICE,IFR,MTN,VA,SS');
+          const data = await response.json();
+          if (!data || !Array.isArray(data) || data.length === 0) {
+            res.writeHead(200, { 'Content-Type': 'text/plain' });
+            res.end('NO_SIGMET');
+            return;
+          }
+          const relevant = data.filter(s => {
+            const raw = (s.rawAirSigmet || s.isigmet || '').toUpperCase();
+            const fir = (s.firId || s.icaoId || '').toUpperCase();
+            return raw.includes(prefix) || fir.startsWith(prefix) || fir === icao.toUpperCase();
+          }).slice(0, 10);
+          const text = relevant
+            .map(s => s.rawAirSigmet || s.isigmet || '')
+            .filter(t => t.trim())
+            .join('\n\n');
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
+          res.end(text || 'NO_SIGMET');
         }
-
-        const text = relevant
-          .map(s => s.rawAirSigmet || '')
-          .filter(t => t.trim())
-          .slice(0, 10)
-          .join('\n\n');
-
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end(text || 'NO_SIGMET');
       } catch(e) {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end('NO_SIGMET');

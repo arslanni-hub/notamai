@@ -4967,7 +4967,7 @@ async function fetchRawData() {
 
         const sCorner = document.createElement('div');
         sCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;cursor:pointer;';
-        sCorner.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#f4841a" stroke="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/><circle cx="19" cy="3" r="2" fill="#f4841a"/><circle cx="5" cy="6" r="1.5" fill="#f4841a" opacity="0.7"/></svg>';
+        sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;text-shadow:0 0 6px #f4841a;">✨</span>';
 
         const sTooltip = document.createElement('div');
         sTooltip.textContent = 'Analyze';
@@ -4992,7 +4992,7 @@ async function fetchRawData() {
             sCorner.style.opacity = '0';
             return;
           }
-          sCorner.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#f4841a" stroke="none" style="opacity:0.4"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>';
+          sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;opacity:0.4;">✨</span>';
           try {
             const resp = await fetch('/api/analyze-notam', {
               method: 'POST',
@@ -5005,15 +5005,15 @@ async function fetchRawData() {
               sAnalysisDiv.style.display = 'none';
               sigmetBox.style.borderColor = '#1a2a3a';
               sCorner.style.opacity = '0';
-              sCorner.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#f4841a" stroke="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/><circle cx="19" cy="3" r="2" fill="#f4841a"/><circle cx="5" cy="6" r="1.5" fill="#f4841a" opacity="0.7"/></svg>';
+              sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;text-shadow:0 0 6px #f4841a;">✨</span>';
               sCorner.appendChild(sTooltip);
             });
-            sCorner.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#f4841a" stroke="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/><circle cx="19" cy="3" r="2" fill="#f4841a"/><circle cx="5" cy="6" r="1.5" fill="#f4841a" opacity="0.7"/></svg>';
+            sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;text-shadow:0 0 6px #f4841a;">✨</span>';
             sCorner.appendChild(sTooltip);
             sigmetBox.style.borderColor = '#f4841a';
             sCorner.style.opacity = '1';
           } catch(err) {
-            sCorner.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#f4841a" stroke="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/><circle cx="19" cy="3" r="2" fill="#f4841a"/><circle cx="5" cy="6" r="1.5" fill="#f4841a" opacity="0.7"/></svg>';
+            sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;text-shadow:0 0 6px #f4841a;">✨</span>';
             sCorner.appendChild(sTooltip);
           }
         };
