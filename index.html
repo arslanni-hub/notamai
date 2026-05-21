@@ -4790,7 +4790,11 @@ async function fetchRawData() {
             cornerIcon.style.opacity = '0';
             return;
           }
-          cornerIcon.innerHTML = '<span style="font-size:13px;opacity:0.5;">✨</span>';
+          analysisDiv.style.display = 'block';
+          analysisDiv.innerHTML = '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;display:flex;align-items:center;gap:6px;"><span id="loadingDots">Analyzing</span></div>';
+          let dots = 0;
+          const dotsInterval = setInterval(() => { dots = (dots+1)%4; const el = analysisDiv.querySelector('#loadingDots'); if (el) el.textContent = 'Analyzing' + '.'.repeat(dots); }, 400);
+          cornerIcon.innerHTML = '<span style="font-size:13px;opacity:0.4;">✨</span>';
           tooltip.textContent = 'Analyzing...';
           try {
             const response = await fetch('/api/analyze-notam', {
@@ -4799,6 +4803,8 @@ async function fetchRawData() {
               body: JSON.stringify({ notam: block })
             });
             const data = await response.json();
+            clearInterval(dotsInterval);
+            analysisDiv.innerHTML = '';
             streamAnalysisText(analysisDiv, data.analysis || 'Unable to analyze.', '#4a9eff', function() {
               analysisDiv.style.display = 'none';
               notamBox.style.borderColor = '#1a2a3a';
@@ -4809,6 +4815,8 @@ async function fetchRawData() {
             cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(180deg) saturate(3) brightness(1.5);">✨</span>';
             tooltip.textContent = 'Hide';
           } catch(e2) {
+            clearInterval(dotsInterval);
+            analysisDiv.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;">Error analyzing. Please try again.</div>';
             cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(180deg) saturate(3) brightness(1.5);">✨</span>';
             tooltip.textContent = 'Analyze';
           }
@@ -4883,7 +4891,11 @@ async function fetchRawData() {
             mCorner.style.opacity = '0';
             return;
           }
-          mCorner.innerHTML = '<span style="font-size:13px;opacity:0.5;">✨</span>';
+          metarAnalysisDiv.style.display = 'block';
+          metarAnalysisDiv.innerHTML = '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;display:flex;align-items:center;gap:6px;"><span id="loadingDots">Analyzing</span></div>';
+          let dots = 0;
+          const dotsInterval = setInterval(() => { dots = (dots+1)%4; const el2 = metarAnalysisDiv.querySelector('#loadingDots'); if (el2) el2.textContent = 'Analyzing' + '.'.repeat(dots); }, 400);
+          mCorner.innerHTML = '<span style="font-size:13px;opacity:0.4;">✨</span>';
           mTooltip.textContent = 'Analyzing...';
           try {
             const response = await fetch('/api/analyze-notam', {
@@ -4892,6 +4904,8 @@ async function fetchRawData() {
               body: JSON.stringify({ notam: metar, type: 'METAR' })
             });
             const data = await response.json();
+            clearInterval(dotsInterval);
+            metarAnalysisDiv.innerHTML = '';
             streamAnalysisText(metarAnalysisDiv, data.analysis, '#2ec4b6', function() {
               metarAnalysisDiv.style.display = 'none';
               el.style.borderColor = '#1a2a3a';
@@ -4902,6 +4916,8 @@ async function fetchRawData() {
             mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
             mTooltip.textContent = 'Hide';
           } catch(e2) {
+            clearInterval(dotsInterval);
+            metarAnalysisDiv.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;">Error analyzing. Please try again.</div>';
             mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
             mTooltip.textContent = 'Analyze';
           }
@@ -4971,7 +4987,11 @@ async function fetchRawData() {
           tCorner.style.opacity = '0';
           return;
         }
-        tCorner.innerHTML = '<span style="font-size:13px;opacity:0.5;">✨</span>';
+        tafAnalysisDiv.style.display = 'block';
+        tafAnalysisDiv.innerHTML = '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;display:flex;align-items:center;gap:6px;"><span id="loadingDots">Analyzing</span></div>';
+        let dots = 0;
+        const dotsInterval = setInterval(() => { dots = (dots+1)%4; const el = tafAnalysisDiv.querySelector('#loadingDots'); if (el) el.textContent = 'Analyzing' + '.'.repeat(dots); }, 400);
+        tCorner.innerHTML = '<span style="font-size:13px;opacity:0.4;">✨</span>';
         tTooltip.textContent = 'Analyzing...';
         try {
           const response = await fetch('/api/analyze-notam', {
@@ -4980,6 +5000,8 @@ async function fetchRawData() {
             body: JSON.stringify({ notam: tafText2, type: 'TAF' })
           });
           const data = await response.json();
+          clearInterval(dotsInterval);
+          tafAnalysisDiv.innerHTML = '';
           streamAnalysisText(tafAnalysisDiv, data.analysis, '#f2c641', function() {
             tafAnalysisDiv.style.display = 'none';
             tafEl.style.borderColor = '#1a2a3a';
@@ -4990,6 +5012,8 @@ async function fetchRawData() {
           tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
           tTooltip.textContent = 'Hide';
         } catch(e2) {
+          clearInterval(dotsInterval);
+          tafAnalysisDiv.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;">Error analyzing. Please try again.</div>';
           tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
           tTooltip.textContent = 'Analyze';
         }
@@ -5051,7 +5075,13 @@ async function fetchRawData() {
             sCorner.style.opacity = '0';
             return;
           }
+          sAnalysisDiv.style.display = 'block';
+          sAnalysisDiv.innerHTML = '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;display:flex;align-items:center;gap:6px;"><span id="loadingDots">Analyzing</span></div>';
+          let dots = 0;
+          const dotsInterval = setInterval(() => { dots = (dots+1)%4; const el = sAnalysisDiv.querySelector('#loadingDots'); if (el) el.textContent = 'Analyzing' + '.'.repeat(dots); }, 400);
           sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;opacity:0.4;">✨</span>';
+          sigmetBox.style.borderColor = '#f4841a';
+          sCorner.style.opacity = '1';
           try {
             const resp = await fetch('/api/analyze-notam', {
               method: 'POST',
@@ -5059,7 +5089,8 @@ async function fetchRawData() {
               body: JSON.stringify({ notam: sigmet, type: 'SIGMET' })
             });
             const data = await resp.json();
-            sAnalysisDiv.style.display = 'block';
+            clearInterval(dotsInterval);
+            sAnalysisDiv.innerHTML = '';
             streamAnalysisText(sAnalysisDiv, data.analysis, '#f4841a', function() {
               sAnalysisDiv.style.display = 'none';
               sigmetBox.style.borderColor = '#1a2a3a';
@@ -5069,9 +5100,9 @@ async function fetchRawData() {
             });
             sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;text-shadow:0 0 6px #f4841a;">✨</span>';
             sCorner.appendChild(sTooltip);
-            sigmetBox.style.borderColor = '#f4841a';
-            sCorner.style.opacity = '1';
           } catch(err) {
+            clearInterval(dotsInterval);
+            sAnalysisDiv.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;">Error analyzing. Please try again.</div>';
             sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;text-shadow:0 0 6px #f4841a;">✨</span>';
             sCorner.appendChild(sTooltip);
           }
