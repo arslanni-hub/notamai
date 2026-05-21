@@ -5586,20 +5586,21 @@ document.addEventListener('click', function(e) {
 
 <script>
 function openToolsPanel() {
-  const panel = document.getElementById('toolsPanel');
+  if (openPanel === 'tools') { closeToolsPanel(); return; }
   closeAllPanels();
+  openPanel = 'tools';
+  const panel = document.getElementById('toolsPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
   setTimeout(() => panel.style.transform = 'translateX(0)', 10);
-  openPanel = 'tools';
   document.getElementById('sunDateInput').value = new Date().toISOString().split('T')[0];
 }
 
 function closeToolsPanel() {
+  openPanel = null;
   const panel = document.getElementById('toolsPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
-  openPanel = null;
 }
 
 function switchToolTab(tab) {
