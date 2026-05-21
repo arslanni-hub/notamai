@@ -2,6 +2,54 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const admin = require('firebase-admin');
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: 'notamai-a9d57',
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+    })
+  });
+}
+
+const adminDb = admin.firestore();
+
+const PLAN_LIMITS = {
+  free:    { briefings: 3,   chat: 0,   analysis: 0   },
+  pro:     { briefings: 100, chat: 200, analysis: 300  },
+  premium: { briefings: 150, chat: 999, analysis: 999  }
+};
+
+async function getUserPlan(userId) {
+  try {
+    const doc = await adminDb.collection('users').doc(userId).get();
+    return doc.exists ? (doc.data().plan || 'free') : 'free';
+  } catch(e) {
+    return 'free';
+  }
+}
+
+async function getUserUsage(userId, field) {
+  try {
+    const now = new Date();
+    const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    const doc = await adminDb.collection('usage').doc(userId + '_' + monthKey).get();
+    return doc.exists ? (doc.data()[field] || 0) : 0;
+  } catch(e) {
+    return 0;
+  }
+}
+
+async function incrementUsage(userId, field) {
+  try {
+    const now = new Date();
+    const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    const ref = adminDb.collection('usage').doc(userId + '_' + monthKey);
+    await ref.set({ [field]: admin.firestore.FieldValue.increment(1), userId, month: monthKey }, { merge: true });
+  } catch(e) {}
+}
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 const NOTAMIFY_KEY = process.env.NOTAMIFY_KEY;
@@ -1243,6 +1291,24 @@ if (getAccessBtn) {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
+        const userId = req.headers['x-user-id'];
+        if (userId) {
+          const plan = await getUserPlan(userId);
+          if (plan === 'free') {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'upgrade_required', feature: 'analysis' }));
+            return;
+          }
+          const usage = await getUserUsage(userId, 'analysis');
+          const limit = PLAN_LIMITS[plan]?.analysis || 0;
+          if (usage >= limit) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'limit_reached', plan, feature: 'analysis' }));
+            return;
+          }
+          await incrementUsage(userId, 'analysis');
+        }
+
         const { notam, type } = JSON.parse(body);
 
         // Extract ICAO codes from the text and look up live names
@@ -1321,6 +1387,24 @@ if (getAccessBtn) {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
+        const userId = req.headers['x-user-id'];
+        if (userId) {
+          const plan = await getUserPlan(userId);
+          if (plan === 'free') {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'upgrade_required', feature: 'chat' }));
+            return;
+          }
+          const usage = await getUserUsage(userId, 'chat');
+          const limit = PLAN_LIMITS[plan]?.chat || 0;
+          if (usage >= limit) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'limit_reached', plan, feature: 'chat' }));
+            return;
+          }
+          await incrementUsage(userId, 'chat');
+        }
+
         const { question, briefingContext, currentRoute, history, image_base64, image_type, pdf_base64 } = JSON.parse(body);
 
         // Extract ICAO codes from route for live data fetching
@@ -1498,6 +1582,25 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
+        // Plan check before any heavy fetching
+        const userId = req.headers['x-user-id'];
+        if (userId) {
+          const plan = await getUserPlan(userId);
+          const usage = await getUserUsage(userId, 'briefings');
+          const limit = PLAN_LIMITS[plan]?.briefings || 3;
+          if (usage >= limit) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'limit_reached', plan, usage, limit }));
+            return;
+          }
+          await incrementUsage(userId, 'briefings');
+          const newUsage = usage + 1;
+          const remaining = limit - newUsage;
+          if (remaining <= Math.floor(limit * 0.2) && remaining > 0) {
+            res.setHeader('x-usage-warning', JSON.stringify({ remaining, limit, feature: 'briefings' }));
+          }
+        }
+
         const { icao_dep, icao_arr, notam_text, image_base64, image_type, pdf_base64 } = JSON.parse(body);
 
         const notamDep = await fetchNotams(icao_dep);

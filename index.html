@@ -1740,13 +1740,32 @@ async function handleSend() {
 
     const response = await fetch('/briefing', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': firebase.auth().currentUser?.uid || ''
+      },
       body: JSON.stringify(payload)
     });
 
     clearInterval(stepInt);
 
+    if (response.status === 403) {
+      const data = await response.json();
+      loading.style.display = 'none';
+      overlay.classList.remove('open');
+      document.getElementById('mainNavbar').style.display = 'flex';
+      if (data.error === 'limit_reached') {
+        showLimitModal(data.plan, 'briefing', data.usage, data.limit);
+      }
+      return;
+    }
+
     if (!response.ok) throw new Error('Server error ' + response.status);
+
+    const warning = response.headers.get('x-usage-warning');
+    if (warning) {
+      try { const w = JSON.parse(warning); showToast(`⚠️ ${w.remaining} briefing${w.remaining === 1 ? '' : 's'} remaining this month`); } catch(_) {}
+    }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -2356,9 +2375,23 @@ async function sendAIChat() {
   try {
     const response = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': firebase.auth().currentUser?.uid || ''
+      },
       body: JSON.stringify(payload)
     });
+
+    if (response.status === 403) {
+      document.getElementById('aiTyping')?.remove();
+      const data = await response.json();
+      if (data.error === 'upgrade_required') {
+        addChatMessage('ai', '⚡ This feature requires a Pro or Premium plan. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade to unlock unlimited AI chat.</a>');
+      } else if (data.error === 'limit_reached') {
+        addChatMessage('ai', '⚡ You have reached your monthly chat limit. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade to Premium for unlimited access.</a>');
+      }
+      return;
+    }
 
     const data   = await response.json();
     const answer = data.answer || 'Sorry, I could not process your question.';
@@ -2372,6 +2405,39 @@ async function sendAIChat() {
     document.getElementById('aiTyping')?.remove();
     addChatMessage('ai', 'Error processing request. Please try again.');
   }
+}
+
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#0d1520;border:1px solid #f4841a;color:#f4841a;font-family:Rajdhani,sans-serif;font-size:13px;font-weight:700;padding:10px 20px;border-radius:6px;z-index:9999;letter-spacing:1px;white-space:nowrap;';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+function showLimitModal(plan, feature, usage, limit) {
+  const messages = {
+    free_briefing:    `You've used all ${limit} free briefings this month. Upgrade to Pro for up to 100 AI briefings.`,
+    pro_briefing:     `You've reached your monthly briefing limit (${usage}/${limit}). Upgrade to Premium for higher limits.`,
+    pro_chat:         `You've reached your monthly chat limit (${usage}/${limit}). Upgrade to Premium for unlimited Ask NOTAM AI.`,
+    premium_briefing: `You've reached your monthly briefing limit (${usage}/${limit}).`,
+    premium_chat:     `You've reached your monthly chat limit.`,
+  };
+  const key = plan + '_' + feature;
+  const message = messages[key] || `You've reached your ${feature} limit for this month.`;
+
+  const warningDiv = document.createElement('div');
+  warningDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#0d1520;border:1px solid #1a2a3a;border-top:3px solid #f4841a;border-radius:12px;padding:28px;z-index:5000;max-width:400px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.8);';
+  warningDiv.innerHTML = `
+    <div style="font-size:24px;margin-bottom:12px;">⚡</div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:14px;color:#f4841a;letter-spacing:2px;margin-bottom:12px;">LIMIT REACHED</div>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;margin-bottom:20px;line-height:1.6;">${message}</div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button onclick="this.closest('[style]').remove()" style="padding:8px 16px;background:none;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;border-radius:6px;cursor:pointer;">Maybe Later</button>
+      <button onclick="window.location.href='/pricing-upgrade'" style="padding:8px 20px;background:#b57bff;border:none;color:#fff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;border-radius:6px;cursor:pointer;">Upgrade Now ⚡</button>
+    </div>
+  `;
+  document.body.appendChild(warningDiv);
 }
 
 function closeResult() {
@@ -4826,9 +4892,20 @@ async function fetchRawData() {
           try {
             const response = await fetch('/api/analyze-notam', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                'x-user-id': firebase.auth().currentUser?.uid || ''
+              },
               body: JSON.stringify({ notam: block })
             });
+            if (response.status === 403) {
+              clearInterval(dotsInterval);
+              const fd = await response.json();
+              analysisDiv.innerHTML = '<div style="color:#b57bff;font-family:\'Rajdhani\',sans-serif;font-size:13px;">⚡ ' + (fd.error === 'upgrade_required' ? 'Pro/Premium plan required. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>' : 'Monthly analysis limit reached. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>') + '</div>';
+              cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(180deg) saturate(3) brightness(1.5);">✨</span>';
+              tooltip.textContent = 'Analyze';
+              return;
+            }
             const data = await response.json();
             clearInterval(dotsInterval);
             analysisDiv.innerHTML = '';
@@ -4927,9 +5004,20 @@ async function fetchRawData() {
           try {
             const response = await fetch('/api/analyze-notam', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                'x-user-id': firebase.auth().currentUser?.uid || ''
+              },
               body: JSON.stringify({ notam: metar, type: 'METAR' })
             });
+            if (response.status === 403) {
+              clearInterval(dotsInterval);
+              const fd = await response.json();
+              metarAnalysisDiv.innerHTML = '<div style="color:#b57bff;font-family:\'Rajdhani\',sans-serif;font-size:13px;">⚡ ' + (fd.error === 'upgrade_required' ? 'Pro/Premium plan required. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>' : 'Monthly analysis limit reached. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>') + '</div>';
+              mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
+              mTooltip.textContent = 'Analyze';
+              return;
+            }
             const data = await response.json();
             clearInterval(dotsInterval);
             metarAnalysisDiv.innerHTML = '';
@@ -5023,9 +5111,20 @@ async function fetchRawData() {
         try {
           const response = await fetch('/api/analyze-notam', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'x-user-id': firebase.auth().currentUser?.uid || ''
+            },
             body: JSON.stringify({ notam: tafText2, type: 'TAF' })
           });
+          if (response.status === 403) {
+            clearInterval(dotsInterval);
+            const fd = await response.json();
+            tafAnalysisDiv.innerHTML = '<div style="color:#b57bff;font-family:\'Rajdhani\',sans-serif;font-size:13px;">⚡ ' + (fd.error === 'upgrade_required' ? 'Pro/Premium plan required. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>' : 'Monthly analysis limit reached. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>') + '</div>';
+            tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
+            tTooltip.textContent = 'Analyze';
+            return;
+          }
           const data = await response.json();
           clearInterval(dotsInterval);
           tafAnalysisDiv.innerHTML = '';
@@ -5108,9 +5207,20 @@ async function fetchRawData() {
           try {
             const resp = await fetch('/api/analyze-notam', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                'x-user-id': firebase.auth().currentUser?.uid || ''
+              },
               body: JSON.stringify({ notam: sigmet, type: 'SIGMET' })
             });
+            if (resp.status === 403) {
+              clearInterval(dotsInterval);
+              const fd = await resp.json();
+              sAnalysisDiv.innerHTML = '<div style="color:#b57bff;font-family:\'Rajdhani\',sans-serif;font-size:13px;">⚡ ' + (fd.error === 'upgrade_required' ? 'Pro/Premium plan required. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>' : 'Monthly analysis limit reached. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>') + '</div>';
+              sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;text-shadow:0 0 6px #f4841a;">✨</span>';
+              sTooltip.textContent = 'Analyze';
+              return;
+            }
             const data = await resp.json();
             clearInterval(dotsInterval);
             sAnalysisDiv.innerHTML = '';
