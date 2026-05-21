@@ -2043,31 +2043,71 @@ let chatAttachedFile = null;
 let isRecording = false;
 let recognition = null;
 let currentChatBriefingId = null;
-const chatHistoryMap = {};
 let knownBriefingIcaos = new Set();
 
-function openAIChat() {
+async function openAIChat() {
   const panel = document.getElementById('aiChatContainer');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
   setTimeout(() => panel.style.transform = 'translateX(0)', 10);
   aiChatOpen = true;
 
-  // Save/restore chat per briefing ID
-  const bid = window.currentBriefingId || null;
-  if (bid !== currentChatBriefingId) {
-    // Different briefing — check for saved history
-    const savedHistory = chatHistoryMap[bid];
-    const messages = document.getElementById('aiChatMessages');
-    messages.innerHTML = '';
-    if (savedHistory && savedHistory.length > 0) {
-      aiChatHistory = [...savedHistory];
-      aiChatHistory.forEach(h => addChatMessage(h.role === 'user' ? 'user' : 'ai', h.content));
+  const briefingId = window.currentBriefingId;
+
+  // Same briefing and already loaded — just focus
+  if (currentChatBriefingId === briefingId && aiChatHistory.length > 0) {
+    document.getElementById('aiChatTextInput').focus();
+    return;
+  }
+
+  // No briefing ID
+  if (!briefingId) {
+    aiChatHistory = [];
+    document.getElementById('aiChatMessages').innerHTML = '';
+    addChatMessage('ai', 'Hello! I have fully analyzed this briefing. Ask me anything about the NOTAMs, weather, en-route airspace, or any operational question — in any language.');
+    currentChatBriefingId = null;
+    document.getElementById('aiChatTextInput').focus();
+    return;
+  }
+
+  // Different briefing — load from Firestore
+  aiChatHistory = [];
+  document.getElementById('aiChatMessages').innerHTML = '';
+  currentChatBriefingId = briefingId;
+
+  const loadingDiv = document.createElement('div');
+  loadingDiv.id = 'chatLoadingIndicator';
+  loadingDiv.style.cssText = 'text-align:center;padding:20px;font-family:Share Tech Mono,monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;';
+  loadingDiv.textContent = 'LOADING CHAT HISTORY...';
+  document.getElementById('aiChatMessages').appendChild(loadingDiv);
+
+  try {
+    const user = firebase.auth().currentUser;
+    if (user) {
+      const snapshot = await db.collection('briefings')
+        .doc(briefingId)
+        .collection('chats')
+        .orderBy('createdAt', 'asc')
+        .get();
+
+      document.getElementById('chatLoadingIndicator')?.remove();
+
+      if (snapshot.empty) {
+        addChatMessage('ai', 'Hello! I have fully analyzed this briefing. Ask me anything about the NOTAMs, weather, en-route airspace, or any operational question — in any language.');
+      } else {
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          aiChatHistory.push({ role: data.role, content: data.content });
+          addChatMessage(data.role === 'user' ? 'user' : 'ai', data.content);
+        });
+      }
     } else {
-      aiChatHistory = [];
-      addChatMessage('ai', 'Hello! I have fully analyzed this briefing. Ask me about NOTAMs, weather, en-route airspace, military areas, or any operational question — in any language.');
+      document.getElementById('chatLoadingIndicator')?.remove();
+      addChatMessage('ai', 'Hello! I have fully analyzed this briefing. Ask me anything about the NOTAMs, weather, en-route airspace, or any operational question — in any language.');
     }
-    currentChatBriefingId = bid;
+  } catch(e) {
+    document.getElementById('chatLoadingIndicator')?.remove();
+    addChatMessage('ai', 'Hello! Ask me anything about this briefing.');
   }
 
   document.getElementById('aiChatTextInput').focus();
@@ -2251,6 +2291,20 @@ function readFileAsText(file) {
 }
 
 // Send message
+async function saveChatMessage(briefingId, role, content) {
+  const user = firebase.auth().currentUser;
+  if (!user || !briefingId) return;
+  try {
+    await db.collection('briefings').doc(briefingId).collection('chats').add({
+      role: role,
+      content: content,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) {
+    console.error('Chat save error:', e);
+  }
+}
+
 async function sendAIChat() {
   const input = document.getElementById('aiChatTextInput');
   const question = input.value.trim();
@@ -2297,6 +2351,7 @@ async function sendAIChat() {
   }
 
   aiChatHistory.push({ role: 'user', content: displayText });
+  saveChatMessage(window.currentBriefingId, 'user', displayText);
 
   try {
     const response = await fetch('/api/chat', {
@@ -2311,8 +2366,7 @@ async function sendAIChat() {
     document.getElementById('aiTyping')?.remove();
     addChatMessage('ai', answer);
     aiChatHistory.push({ role: 'assistant', content: answer });
-    // Persist history for this briefing
-    if (window.currentBriefingId) chatHistoryMap[window.currentBriefingId] = [...aiChatHistory];
+    saveChatMessage(window.currentBriefingId, 'assistant', answer);
 
   } catch(e) {
     document.getElementById('aiTyping')?.remove();
