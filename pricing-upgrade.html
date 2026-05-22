@@ -80,6 +80,7 @@ html, body {
   gap: 20px;
   max-width: 1100px;
   margin: 60px auto 0;
+  padding-top: 14px;
 }
 
 .pricing-card {
@@ -407,22 +408,24 @@ canvas#sky {
         <span class="price-amount" style="color:#ffffff;">$0</span>
         <span class="price-period">/month</span>
       </div>
-      <div class="card-subtitle">Try before you commit</div>
+      <div class="card-subtitle">No credit card required</div>
       <ul class="features-list">
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Unlimited NOTAM/METAR decode (paste raw text)</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">1 full AI briefing included</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Basic risk assessment</span></li>
-        <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">Live NOTAM auto-fetch</span></li>
-        <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">Route analysis DEP &rarr; ARR</span></li>
-        <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">Go/No-Go recommendation</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">3 AI Briefings / month</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">NOTAMs &amp; MET live raw data</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">SIGMET / AIRMET</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Airport Info, Sun/Moon, Winds Aloft</span></li>
+        <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">Ask NOTAM AI Chatbot</span></li>
+        <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">&#10022; AI NOTAM/METAR/TAF Analysis</span></li>
+        <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">Archive &amp; Saved Routes</span></li>
       </ul>
       <button id="btn_free" style="width:100%;padding:12px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:default;">&#10003; CURRENT PLAN</button>
     </div>
 
     <!-- PRO -->
-    <div class="pricing-card" style="border: 1px solid #4a9eff;">
+    <div class="pricing-card" style="border: 1px solid #4a9eff; position:relative;">
+      <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#4a9eff;color:#060a0f;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;white-space:nowrap;">MOST POPULAR</div>
       <div style="min-height:16px;margin-bottom:6px;"><div id="current_pro" style="display:none;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;">&#9679; CURRENT PLAN</div></div>
-      <div class="card-badge" style="color:#4a9eff;">MOST POPULAR</div>
+      <div class="card-badge"></div>
       <div class="card-name">Pro</div>
       <div class="card-price">
         <span class="price-amount" id="proPrice" data-monthly="49" data-yearly="42" style="color:#4a9eff;">$49</span>
@@ -431,25 +434,26 @@ canvas#sky {
       <div id="pricing_proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial &middot; Cancel anytime</div>
       <div class="card-subtitle">For active pilots &amp; dispatchers</div>
       <ul class="features-list">
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Everything in Free</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Unlimited full AI briefings</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Live NOTAM auto-fetch</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Route analysis (DEP &rarr; ARR)</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Risk scoring CRITICAL/HIGH/MEDIUM/LOW</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Compounding risk matrix</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Go/No-Go recommendation</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Pilot action items &amp; dispatch notes</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Unlimited AI Briefings*</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">En-route FIR Analysis</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Ask NOTAM AI Chatbot</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">&#10022; AI NOTAM/METAR/TAF Analysis</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">All Free features</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Archive (90 days)</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Saved Routes (5)</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">NOTAM Alerts (5 airports)</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Share &amp; PDF Export</span></li>
         <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">AI Video Briefing</span></li>
-        <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">Favorite routes &amp; history</span></li>
       </ul>
       <button id="btn_pro" onclick="alert('Stripe coming soon!')" style="width:100%;padding:12px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">UPGRADE TO PRO &rarr;</button>
-      <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Unlimited plans subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
+      <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
     </div>
 
     <!-- PREMIUM -->
-    <div class="pricing-card" style="border: 1px solid #f4841a;">
+    <div class="pricing-card" style="border: 1px solid #f4841a; position:relative;">
+      <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#f4841a;color:#060a0f;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;white-space:nowrap;">BEST VALUE</div>
       <div style="min-height:16px;margin-bottom:6px;"><div id="current_premium" style="display:none;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;">&#9679; CURRENT PLAN</div></div>
-      <div class="card-badge" style="color:#f4841a;">BEST VALUE</div>
+      <div class="card-badge"></div>
       <div class="card-name">Premium</div>
       <div class="card-price">
         <span class="price-amount" id="premiumPrice" data-monthly="99" data-yearly="84" style="color:#f4841a;">$99</span>
@@ -458,40 +462,36 @@ canvas#sky {
       <div id="pricing_premiumNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial &middot; Cancel anytime</div>
       <div class="card-subtitle">For aviation professionals</div>
       <ul class="features-list">
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Everything in Pro</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">AI Video Briefing &#127916;</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">PDF export &amp; share link</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Email NOTAM alerts</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Favorite routes &amp; history</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">NOTAM number search</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Priority support</span></li>
-        <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">API access</span></li>
-        <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">Multi-user access</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Everything in Pro +</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">AI Video Briefing (5/month) &#127916;</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Unlimited Archive</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Unlimited Saved Routes</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Unlimited NOTAM Alerts</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Priority Support</span></li>
+        <li><span class="feat-check feat-on" style="color:#f4841a;">+</span><span class="feat-on" style="color:#8a9bb0;font-size:13px;">Extra video pack: $10 = 3 videos</span></li>
       </ul>
       <button id="btn_premium" onclick="alert('Stripe coming soon!')" style="width:100%;padding:12px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">UPGRADE TO PREMIUM &rarr;</button>
-      <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Unlimited plans subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
+      <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
     </div>
 
     <!-- ENTERPRISE -->
-    <div class="pricing-card" style="border: 1px solid #1a2a3a;">
+    <div class="pricing-card" style="border: 1px solid #2a1a4a;">
       <div style="min-height:16px;margin-bottom:6px;"><div id="current_enterprise" style="display:none;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;">&#9679; CURRENT PLAN</div></div>
-      <div class="card-badge"></div>
+      <div class="card-badge" style="color:#b57bff;">ENTERPRISE</div>
       <div class="card-name">Enterprise</div>
-      <div class="card-price">
-        <span class="price-amount" style="color:#ffffff;">$499</span>
-        <span class="price-period">/month</span>
+      <div class="card-price" style="margin-bottom:6px;">
+        <span style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:700;color:#b57bff;letter-spacing:1px;">Contact Sales</span>
       </div>
       <div class="card-subtitle">For airlines &amp; operations centers</div>
       <ul class="features-list">
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Everything in Premium</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Full API access</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Multi-user &amp; team management</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Everything in Premium +</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Multi-user access</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">API Access</span></li>
         <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Custom integrations</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Dedicated account manager</span></li>
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">SLA guarantee</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Dedicated support &amp; SLA</span></li>
         <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Custom onboarding</span></li>
       </ul>
-      <button id="btn_enterprise" onclick="window.location.href='mailto:hello@notamai.com'" style="width:100%;padding:12px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">CONTACT SALES &rarr;</button>
+      <button id="btn_enterprise" onclick="window.location.href='mailto:hello@notamai.com'" style="width:100%;padding:12px;background:#b57bff;border:1px solid #b57bff;color:#fff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">CONTACT SALES &rarr;</button>
     </div>
 
   </div>
