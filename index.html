@@ -2459,7 +2459,7 @@ function showUpgradeBanner(contentAreaId, message) {
   banner.className = 'upgrade-banner';
   banner.style.cssText = 'background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:10px 12px;margin:8px 0;font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;';
   const formattedMessage = message.replace('Pro or Premium plan', '<span style="color:#b57bff;font-weight:700;">Pro or Premium plan</span>');
-  banner.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none" style="flex-shrink:0;"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span>${formattedMessage}</span></div>`;
+  banner.innerHTML = `<div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="window.location.href='/pricing-upgrade'"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none" style="flex-shrink:0;"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span>${formattedMessage}</span></div>`;
   area.insertBefore(banner, area.firstChild);
   setTimeout(() => banner.remove(), 6000);
 }
