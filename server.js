@@ -1249,6 +1249,24 @@ if (getAccessBtn) {
     return;
   }
 
+  // ── TEMP TEST ENDPOINT ──────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/set-plan') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { userId, plan } = JSON.parse(body);
+        await adminDb.collection('users').doc(userId).set({ plan }, { merge: true });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, plan }));
+      } catch(e) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
   if (req.method === 'POST' && req.url === '/api/extract-route') {
     let body = '';
     req.on('data', chunk => body += chunk);
