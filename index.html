@@ -2451,6 +2451,29 @@ function showLimitModal(plan, feature, usage, limit) {
   document.body.appendChild(warningDiv);
 }
 
+function showPanelUpgradeMessage(panelId, message, requiredPlan) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  const existing = panel.querySelector('.panel-upgrade-msg');
+  if (existing) existing.remove();
+  const msg = document.createElement('div');
+  msg.className = 'panel-upgrade-msg';
+  msg.style.cssText = 'position:absolute;bottom:70px;left:12px;right:12px;background:#0d1520;border:1px solid rgba(181,123,255,0.3);border-left:3px solid #b57bff;border-radius:8px;padding:12px 14px;z-index:100;display:flex;align-items:center;justify-content:space-between;gap:10px;';
+  msg.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg>
+      <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;line-height:1.4;">${message}</span>
+    </div>
+    <div style="display:flex;gap:6px;flex-shrink:0;">
+      <button onclick="this.closest('.panel-upgrade-msg').remove()" style="background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:11px;padding:4px 8px;border-radius:4px;cursor:pointer;">✕</button>
+      <button onclick="window.location.href='/pricing-upgrade'" style="background:#b57bff;border:none;color:#fff;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;">Upgrade</button>
+    </div>
+  `;
+  panel.style.position = 'relative';
+  panel.appendChild(msg);
+  setTimeout(() => { if (msg.parentNode) msg.remove(); }, 5000);
+}
+
 function closeResult() {
   document.getElementById('resultOverlay').classList.remove('open');
   document.getElementById('askNotamAiBtn').style.display = 'none';
@@ -4907,7 +4930,8 @@ async function fetchRawData() {
             if (response.status === 403) {
               clearInterval(dotsInterval);
               const fd = await response.json();
-              analysisDiv.innerHTML = '<div style="color:#b57bff;font-family:\'Rajdhani\',sans-serif;font-size:13px;">⚡ ' + (fd.error === 'upgrade_required' ? 'Pro/Premium plan required. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>' : 'Monthly analysis limit reached. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>') + '</div>';
+              analysisDiv.innerHTML = '';
+              showPanelUpgradeMessage('rawDataPanel', fd.error === 'upgrade_required' ? '✦ AI Analysis requires a Pro or Premium plan.' : '✦ Monthly analysis limit reached. Upgrade for more.', 'pro');
               cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(180deg) saturate(3) brightness(1.5);">✨</span>';
               tooltip.textContent = 'Analyze';
               return;
@@ -5019,7 +5043,8 @@ async function fetchRawData() {
             if (response.status === 403) {
               clearInterval(dotsInterval);
               const fd = await response.json();
-              metarAnalysisDiv.innerHTML = '<div style="color:#b57bff;font-family:\'Rajdhani\',sans-serif;font-size:13px;">⚡ ' + (fd.error === 'upgrade_required' ? 'Pro/Premium plan required. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>' : 'Monthly analysis limit reached. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>') + '</div>';
+              metarAnalysisDiv.innerHTML = '';
+              showPanelUpgradeMessage('rawDataPanel', fd.error === 'upgrade_required' ? '✦ AI Analysis requires a Pro or Premium plan.' : '✦ Monthly analysis limit reached. Upgrade for more.', 'pro');
               mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
               mTooltip.textContent = 'Analyze';
               return;
@@ -5126,7 +5151,8 @@ async function fetchRawData() {
           if (response.status === 403) {
             clearInterval(dotsInterval);
             const fd = await response.json();
-            tafAnalysisDiv.innerHTML = '<div style="color:#b57bff;font-family:\'Rajdhani\',sans-serif;font-size:13px;">⚡ ' + (fd.error === 'upgrade_required' ? 'Pro/Premium plan required. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>' : 'Monthly analysis limit reached. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>') + '</div>';
+            tafAnalysisDiv.innerHTML = '';
+            showPanelUpgradeMessage('rawDataPanel', fd.error === 'upgrade_required' ? '✦ AI Analysis requires a Pro or Premium plan.' : '✦ Monthly analysis limit reached. Upgrade for more.', 'pro');
             tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
             tTooltip.textContent = 'Analyze';
             return;
@@ -5222,7 +5248,8 @@ async function fetchRawData() {
             if (resp.status === 403) {
               clearInterval(dotsInterval);
               const fd = await resp.json();
-              sAnalysisDiv.innerHTML = '<div style="color:#b57bff;font-family:\'Rajdhani\',sans-serif;font-size:13px;">⚡ ' + (fd.error === 'upgrade_required' ? 'Pro/Premium plan required. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>' : 'Monthly analysis limit reached. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade</a>') + '</div>';
+              sAnalysisDiv.innerHTML = '';
+              showPanelUpgradeMessage('rawDataPanel', fd.error === 'upgrade_required' ? '✦ AI Analysis requires a Pro or Premium plan.' : '✦ Monthly analysis limit reached. Upgrade for more.', 'pro');
               sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;text-shadow:0 0 6px #f4841a;">✨</span>';
               sTooltip.textContent = 'Analyze';
               return;
@@ -5364,14 +5391,27 @@ function closeAlertsPanel() {
 }
 
 async function addAlert() {
-  const input = document.getElementById('alertIcaoInput');
-  const icao = input.value.trim().toUpperCase();
-  if (!icao || icao.length < 3) return;
   const user = firebase.auth().currentUser;
   if (!user) return;
-  const alertCount = document.querySelectorAll('.alert-item').length;
-  if (alertCount >= 5) {
-    showToast('⚡ You have reached your NOTAM Alerts limit. Upgrade to Premium for unlimited alerts.');
+  const icao = document.getElementById('alertIcaoInput').value.trim().toUpperCase();
+  if (!icao || icao.length < 3) return;
+  // Get user plan from Firestore
+  const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+  const plan = userDoc.exists ? (userDoc.data().plan || 'free') : 'free';
+  // Get current alert count
+  const snapshot = await firebase.firestore().collection('alerts')
+    .where('userId', '==', user.uid)
+    .where('active', '==', true)
+    .get();
+  const count = snapshot.size;
+  // Free plan - no alerts allowed
+  if (plan === 'free') {
+    showPanelUpgradeMessage('alertsPanel', 'NOTAM Alerts requires a Pro or Premium plan.', 'pro');
+    return;
+  }
+  // Pro plan - max 5
+  if (plan === 'pro' && count >= 5) {
+    showPanelUpgradeMessage('alertsPanel', 'You have reached your 5 alert limit. Upgrade to Premium for unlimited NOTAM Alerts.', 'premium');
     return;
   }
   try {
@@ -5381,7 +5421,7 @@ async function addAlert() {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       active: true
     });
-    input.value = '';
+    document.getElementById('alertIcaoInput').value = '';
     renderAlerts();
   } catch(e) { console.error(e); }
 }
