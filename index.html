@@ -2457,12 +2457,12 @@ function showUpgradeBanner(contentAreaId, message) {
   if (existing) existing.remove();
   const banner = document.createElement('div');
   banner.className = 'upgrade-banner';
-  banner.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0;margin:8px 0;';
+  banner.style.cssText = 'background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:10px 12px;margin:8px 0;display:flex;align-items:center;gap:8px;font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;';
   banner.innerHTML = `
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="#4a9eff" stroke="none">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none" style="flex-shrink:0;">
       <path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/>
     </svg>
-    <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${message} <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Upgrade now</a>.</span>
+    <span>${message} <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Upgrade now</a>.</span>
   `;
   area.insertBefore(banner, area.firstChild);
   setTimeout(() => banner.remove(), 6000);
