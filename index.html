@@ -2396,11 +2396,10 @@ async function sendAIChat() {
     if (response.status === 403) {
       document.getElementById('aiTyping')?.remove();
       const data = await response.json();
-      if (data.error === 'upgrade_required') {
-        addChatMessage('ai', '⚡ This feature requires a Pro or Premium plan. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade to unlock unlimited AI chat.</a>');
-      } else if (data.error === 'limit_reached') {
-        addChatMessage('ai', '⚡ You have reached your monthly chat limit. <a href="/pricing-upgrade" style="color:#b57bff;">Upgrade to Premium for unlimited access.</a>');
-      }
+      const msg = data.error === 'upgrade_required'
+        ? 'Ask NOTAM AI requires a Pro or Premium plan.'
+        : 'You have reached your monthly chat limit. Upgrade to Premium for unlimited access.';
+      showUpgradeBanner('aiChatMessages', msg);
       return;
     }
 
@@ -2451,27 +2450,26 @@ function showLimitModal(plan, feature, usage, limit) {
   document.body.appendChild(warningDiv);
 }
 
-function showPanelUpgradeMessage(panelId, message, requiredPlan) {
-  const panel = document.getElementById(panelId);
-  if (!panel) return;
-  const existing = panel.querySelector('.panel-upgrade-msg');
+function showUpgradeBanner(contentAreaId, message) {
+  const area = document.getElementById(contentAreaId);
+  if (!area) return;
+  const existing = area.querySelector('.upgrade-banner');
   if (existing) existing.remove();
-  const msg = document.createElement('div');
-  msg.className = 'panel-upgrade-msg';
-  msg.style.cssText = 'position:absolute;bottom:70px;left:12px;right:12px;background:#0d1520;border:1px solid rgba(181,123,255,0.3);border-left:3px solid #b57bff;border-radius:8px;padding:12px 14px;z-index:100;display:flex;align-items:center;justify-content:space-between;gap:10px;';
-  msg.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg>
+  const banner = document.createElement('div');
+  banner.className = 'upgrade-banner';
+  banner.style.cssText = 'margin:12px 0;background:#0d1520;border:1px solid rgba(181,123,255,0.3);border-left:3px solid #b57bff;border-radius:6px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;';
+  banner.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;flex:1;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg>
       <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;line-height:1.4;">${message}</span>
     </div>
     <div style="display:flex;gap:6px;flex-shrink:0;">
-      <button onclick="this.closest('.panel-upgrade-msg').remove()" style="background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:11px;padding:4px 8px;border-radius:4px;cursor:pointer;">✕</button>
-      <button onclick="window.location.href='/pricing-upgrade'" style="background:#b57bff;border:none;color:#fff;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;cursor:pointer;">Upgrade</button>
+      <button onclick="this.closest('.upgrade-banner').remove()" style="background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:11px;padding:3px 7px;border-radius:4px;cursor:pointer;">✕</button>
+      <button onclick="window.location.href='/pricing-upgrade'" style="background:#b57bff;border:none;color:#fff;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;cursor:pointer;">Upgrade ⚡</button>
     </div>
   `;
-  panel.style.position = 'relative';
-  panel.appendChild(msg);
-  setTimeout(() => { if (msg.parentNode) msg.remove(); }, 5000);
+  area.insertBefore(banner, area.firstChild);
+  setTimeout(() => { if (banner.parentNode) banner.remove(); }, 6000);
 }
 
 function closeResult() {
@@ -4929,11 +4927,9 @@ async function fetchRawData() {
             });
             if (response.status === 403) {
               clearInterval(dotsInterval);
-              const fd = await response.json();
-              analysisDiv.innerHTML = '';
-              showPanelUpgradeMessage('rawDataPanel', fd.error === 'upgrade_required' ? '✦ AI Analysis requires a Pro or Premium plan.' : '✦ Monthly analysis limit reached. Upgrade for more.', 'pro');
+              analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
               cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(180deg) saturate(3) brightness(1.5);">✨</span>';
-              tooltip.textContent = 'Analyze';
+              cornerIcon.appendChild(tooltip);
               return;
             }
             const data = await response.json();
@@ -5042,11 +5038,9 @@ async function fetchRawData() {
             });
             if (response.status === 403) {
               clearInterval(dotsInterval);
-              const fd = await response.json();
-              metarAnalysisDiv.innerHTML = '';
-              showPanelUpgradeMessage('rawDataPanel', fd.error === 'upgrade_required' ? '✦ AI Analysis requires a Pro or Premium plan.' : '✦ Monthly analysis limit reached. Upgrade for more.', 'pro');
+              metarAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
               mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
-              mTooltip.textContent = 'Analyze';
+              mCorner.appendChild(mTooltip);
               return;
             }
             const data = await response.json();
@@ -5150,11 +5144,9 @@ async function fetchRawData() {
           });
           if (response.status === 403) {
             clearInterval(dotsInterval);
-            const fd = await response.json();
-            tafAnalysisDiv.innerHTML = '';
-            showPanelUpgradeMessage('rawDataPanel', fd.error === 'upgrade_required' ? '✦ AI Analysis requires a Pro or Premium plan.' : '✦ Monthly analysis limit reached. Upgrade for more.', 'pro');
+            tafAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
             tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
-            tTooltip.textContent = 'Analyze';
+            tCorner.appendChild(tTooltip);
             return;
           }
           const data = await response.json();
@@ -5247,11 +5239,9 @@ async function fetchRawData() {
             });
             if (resp.status === 403) {
               clearInterval(dotsInterval);
-              const fd = await resp.json();
-              sAnalysisDiv.innerHTML = '';
-              showPanelUpgradeMessage('rawDataPanel', fd.error === 'upgrade_required' ? '✦ AI Analysis requires a Pro or Premium plan.' : '✦ Monthly analysis limit reached. Upgrade for more.', 'pro');
+              sAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
               sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;text-shadow:0 0 6px #f4841a;">✨</span>';
-              sTooltip.textContent = 'Analyze';
+              sCorner.appendChild(sTooltip);
               return;
             }
             const data = await resp.json();
@@ -5311,10 +5301,24 @@ function closeSavedRoutesPanel() {
   setTimeout(() => panel.style.display = 'none', 300);
 }
 
-function saveRoute() {
+async function saveRoute() {
   const input = document.getElementById('savedRouteInput');
   const route = input.value.trim().toUpperCase();
   if (!route) return;
+  const user = firebase.auth().currentUser;
+  if (user) {
+    const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+    const plan = userDoc.exists ? (userDoc.data().plan || 'free') : 'free';
+    const routes = JSON.parse(localStorage.getItem('notamai_saved_routes') || '[]');
+    if (plan === 'free') {
+      showUpgradeBanner('savedRoutesList', 'Saved Routes requires a Pro or Premium plan.');
+      return;
+    }
+    if (plan === 'pro' && routes.length >= 5) {
+      showUpgradeBanner('savedRoutesList', 'You have reached your 5 route limit. Upgrade to Premium for unlimited routes.');
+      return;
+    }
+  }
   const routes = JSON.parse(localStorage.getItem('notamai_saved_routes') || '[]');
   if (routes.includes(route)) { input.value = ''; return; }
   routes.unshift(route);
@@ -5406,12 +5410,12 @@ async function addAlert() {
   const count = snapshot.size;
   // Free plan - no alerts allowed
   if (plan === 'free') {
-    showPanelUpgradeMessage('alertsPanel', 'NOTAM Alerts requires a Pro or Premium plan.', 'pro');
+    showUpgradeBanner('alertsList', 'NOTAM Alerts requires a Pro or Premium plan.');
     return;
   }
   // Pro plan - max 5
   if (plan === 'pro' && count >= 5) {
-    showPanelUpgradeMessage('alertsPanel', 'You have reached your 5 alert limit. Upgrade to Premium for unlimited NOTAM Alerts.', 'premium');
+    showUpgradeBanner('alertsList', 'You have reached your 5 alert limit. Upgrade to Premium for unlimited alerts.');
     return;
   }
   try {
@@ -5635,6 +5639,14 @@ function closeArchivePanel() {
 async function loadArchive() {
   const user = firebase.auth().currentUser;
   if (!user) return;
+  // Check plan - archive requires Pro or Premium
+  const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+  const plan = userDoc.exists ? (userDoc.data().plan || 'free') : 'free';
+  if (plan === 'free') {
+    document.getElementById('archiveList').innerHTML = '';
+    showUpgradeBanner('archiveList', 'Archive requires a Pro or Premium plan.');
+    return;
+  }
   document.getElementById('archiveList').innerHTML = '<div style="text-align:center;padding:40px 0;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">LOADING...</div>';
   try {
     const snapshot = await db.collection('briefings')
