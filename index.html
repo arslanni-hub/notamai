@@ -1074,7 +1074,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
   </div>
 </div>
 
-<!-- AI CHAT BOT -->
+<!-- AI Assistant — Ask NOTAM AI -->
 <!-- Floating Ask NOTAM AI Button -->
 <button id="askNotamAiBtn" onclick="openAIChat()" style="display:none;position:fixed;bottom:24px;right:24px;z-index:550;background:#060a0f;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:400;letter-spacing:2px;padding:10px 18px;border-radius:8px;cursor:pointer;align-items:center;gap:8px;box-shadow:0 4px 24px rgba(0,0,0,0.4);transition:all 0.2s;" onmouseover="this.style.color='#4a9eff';this.style.borderColor='rgba(74,158,255,0.4)';this.style.background='rgba(74,158,255,0.08)';this.querySelector('svg').style.stroke='#4a9eff'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='#060a0f';this.querySelector('svg').style.stroke='#8a9bb0'">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -1161,88 +1161,88 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     </div>
 
     <!-- PRICING CARDS -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding-top:14px;">
 
       <!-- FREE -->
       <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:28px 20px;">
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">CURRENT PLAN</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Free</div>
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#fff;">$0</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#8a9bb0;padding-bottom:48px;">Try before you commit</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">No credit card required</div>
         <button style="width:100%;padding:8px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:default;">✓ CURRENT PLAN</button>
         <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
         <ul style="list-style:none;">
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Unlimited NOTAM/METAR decode</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">1 full AI briefing included</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Basic risk assessment</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Live NOTAM auto-fetch</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Route analysis DEP → ARR</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Go/No-Go recommendation</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">3 AI Briefings / month</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">NOTAMs &amp; MET live raw data</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">SIGMET / AIRMET</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Airport Info, Sun/Moon, Winds Aloft</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">AI Assistant — Ask NOTAM AI</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">✦ AI NOTAM/METAR/TAF Analysis</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Archive &amp; Saved Routes</span></li>
         </ul>
       </div>
 
       <!-- PRO -->
-      <div style="background:#0d1520;border:1px solid #4a9eff;border-radius:8px;padding:28px 20px;">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a9eff;letter-spacing:2px;margin-bottom:8px;">MOST POPULAR</div>
+      <div style="background:#0d1520;border:1px solid #4a9eff;border-radius:8px;padding:28px 20px;position:relative;">
+        <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#4a9eff;color:#060a0f;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;white-space:nowrap;">MOST POPULAR</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a9eff;letter-spacing:2px;margin-bottom:8px;">&nbsp;</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Pro</div>
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="um_proPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#4a9eff;">$49</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div id="um_proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For active pilots &amp; dispatchers</div>
         <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PRO →</button>
-        <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
+        <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:6px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
+        <div style="border-top:1px solid #1a2a3a;margin:16px 0 12px;"></div>
         <ul style="list-style:none;">
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Free</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Unlimited full AI briefings</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Live NOTAM auto-fetch</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Route analysis (DEP → ARR)</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Risk scoring CRITICAL/HIGH/MEDIUM/LOW</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Compounding risk matrix</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Go/No-Go recommendation</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Pilot action items &amp; dispatch notes</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">AI Video Briefing</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Favorite routes &amp; history</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Unlimited AI Briefings*</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">En-route FIR Analysis</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">AI Assistant — Ask NOTAM AI</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">✦ AI NOTAM/METAR/TAF Analysis</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">All Free features</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Archive (90 days)</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Saved Routes (5)</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">NOTAM Alerts (5 airports)</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Share &amp; PDF Export</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">AI Video Briefing</span></li>
         </ul>
       </div>
 
       <!-- PREMIUM -->
-      <div style="background:#0d1520;border:1px solid #f4841a;border-radius:8px;padding:28px 20px;">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:2px;margin-bottom:8px;">BEST VALUE</div>
+      <div style="background:#0d1520;border:1px solid #f4841a;border-radius:8px;padding:28px 20px;position:relative;">
+        <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#f4841a;color:#060a0f;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;white-space:nowrap;">BEST VALUE</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:2px;margin-bottom:8px;">&nbsp;</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Premium</div>
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="um_premiumPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#f4841a;">$99</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div id="um_premiumNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For aviation professionals</div>
         <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PREMIUM →</button>
-        <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
+        <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:6px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
+        <div style="border-top:1px solid #1a2a3a;margin:16px 0 12px;"></div>
         <ul style="list-style:none;">
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Pro</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">AI Video Briefing</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">PDF export &amp; share link</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Email NOTAM alerts</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Favorite routes &amp; history</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">NOTAM number search</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Priority support</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">API access</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#4a5f72;flex-shrink:0;">✗</span><span style="color:#4a5f72;">Multi-user access</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Pro +</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">AI Video Briefing (5/month) 🎬</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Unlimited Archive</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Unlimited Saved Routes</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Unlimited NOTAM Alerts</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Priority Support</span></li>
         </ul>
       </div>
 
       <!-- ENTERPRISE -->
-      <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:28px 20px;">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">&nbsp;</div>
+      <div style="background:#0d1520;border:1px solid #2a1a4a;border-radius:8px;padding:28px 20px;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#b57bff;letter-spacing:2px;margin-bottom:8px;">ENTERPRISE</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Enterprise</div>
-        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#fff;">$499</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
+        <div style="margin-bottom:6px;"><span style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:700;color:#b57bff;letter-spacing:1px;">Contact Sales</span></div>
         <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">&nbsp;</div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;padding-bottom:22px;">For airlines &amp; operations centers</div>
-        <button onclick="window.location.href='mailto:hello@notamai.com'" style="width:100%;padding:8px;background:rgba(255,255,255,0.06);border:1px solid #1a2a3a;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">CONTACT SALES →</button>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For airlines &amp; operations centers</div>
+        <button onclick="window.location.href='mailto:hello@notamai.com'" style="width:100%;padding:8px;background:#b57bff;border:1px solid #b57bff;color:#fff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">CONTACT SALES →</button>
         <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
         <ul style="list-style:none;">
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Premium</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Full API access</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Multi-user &amp; team management</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Premium +</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Multi-user access</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">API Access</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Custom integrations</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Dedicated account manager</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">SLA guarantee</span></li>
-          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Custom onboarding</span></li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Dedicated support &amp; SLA</span></li>
         </ul>
       </div>
       </div>
@@ -2054,7 +2054,7 @@ async function downloadPDF() {
   btn.disabled = false;
 }
 
-// ── AI Chat Bot ──────────────────────────────────────────────
+// ── AI Assistant — Ask NOTAM AI ──────────────────────────────
 // ── Ask NOTAM AI Chat Panel ───────────────────────────────────
 let aiChatOpen = false;
 let aiChatHistory = [];
