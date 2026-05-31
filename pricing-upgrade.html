@@ -418,7 +418,7 @@ canvas#sky {
         <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">&#10022; AI NOTAM/METAR/TAF Analysis</span></li>
         <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">Archive &amp; Saved Routes</span></li>
       </ul>
-      <button id="btn_free" style="width:100%;padding:12px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:default;">&#10003; CURRENT PLAN</button>
+      <button id="btn-free" style="width:100%;padding:12px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:default;">&#10003; CURRENT PLAN</button>
     </div>
 
     <!-- PRO -->
@@ -445,7 +445,7 @@ canvas#sky {
         <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Share &amp; PDF Export</span></li>
         <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">AI Video Briefing</span></li>
       </ul>
-      <button id="btn_pro" onclick="initiateCheckout('pro')" style="width:100%;padding:12px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">UPGRADE TO PRO &rarr;</button>
+      <button id="btn-pro" onclick="initiateCheckout('pro')" style="width:100%;padding:12px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">UPGRADE TO PRO &rarr;</button>
       <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
     </div>
 
@@ -470,7 +470,7 @@ canvas#sky {
         <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Priority Support</span></li>
         <li><span class="feat-check feat-on" style="color:#f4841a;">+</span><span class="feat-on" style="color:#8a9bb0;font-size:13px;">Extra video pack: $10 = 3 videos</span></li>
       </ul>
-      <button id="btn_premium" onclick="initiateCheckout('premium')" style="width:100%;padding:12px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">UPGRADE TO PREMIUM &rarr;</button>
+      <button id="btn-premium" onclick="initiateCheckout('premium')" style="width:100%;padding:12px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">UPGRADE TO PREMIUM &rarr;</button>
       <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
     </div>
 
@@ -584,35 +584,35 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-async function detectAndApplyPlan() {
-  const user = firebase.auth().currentUser;
+firebase.auth().onAuthStateChanged(async (user) => {
   if (!user) return;
   try {
     const doc = await db.collection('users').doc(user.uid).get();
     const plan = doc.exists ? (doc.data().plan || 'free') : 'free';
+
+    // Update current_* labels
     ['free', 'pro', 'premium', 'enterprise'].forEach(p => {
-      const currentLabel = document.getElementById('current_' + p);
-      const btn = document.getElementById('btn_' + p);
-      if (currentLabel) currentLabel.style.display = 'none';
-      if (p === plan) {
-        if (currentLabel) currentLabel.style.display = 'block';
-        if (btn) {
-          btn.textContent = '\u2713 CURRENT PLAN';
-          btn.style.background = 'rgba(255,255,255,0.04)';
-          btn.style.border = '1px solid #1a2a3a';
-          btn.style.color = '#4a5f72';
-          btn.style.cursor = 'default';
-          btn.onclick = null;
-        }
-      }
+      const label = document.getElementById('current_' + p);
+      if (label) label.style.display = p === plan ? 'block' : 'none';
     });
+
+    const freeBtn    = document.getElementById('btn-free');
+    const proBtn     = document.getElementById('btn-pro');
+    const premiumBtn = document.getElementById('btn-premium');
+
+    if (plan === 'pro') {
+      if (proBtn)     { proBtn.textContent = '\u2713 CURRENT PLAN'; proBtn.style.opacity = '0.6'; proBtn.onclick = null; }
+      if (freeBtn)    { freeBtn.textContent = 'Downgrade'; freeBtn.style.opacity = '0.5'; }
+    } else if (plan === 'premium') {
+      if (premiumBtn) { premiumBtn.textContent = '\u2713 CURRENT PLAN'; premiumBtn.style.opacity = '0.6'; premiumBtn.onclick = null; }
+      if (proBtn)     { proBtn.textContent = 'Downgrade'; proBtn.style.opacity = '0.5'; }
+      if (freeBtn)    { freeBtn.textContent = 'Downgrade'; freeBtn.style.opacity = '0.5'; }
+    } else {
+      if (freeBtn) { freeBtn.textContent = '\u2713 CURRENT PLAN'; }
+    }
   } catch(e) {
     console.error(e);
   }
-}
-
-firebase.auth().onAuthStateChanged(user => {
-  if (user) detectAndApplyPlan();
 });
 </script>
 
