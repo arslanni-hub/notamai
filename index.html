@@ -4596,11 +4596,6 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         Change Password
       </button>
-      <button onclick="showActiveSessions()" style="width:100%;padding:10px 14px;background:none;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:400;letter-spacing:1px;border-radius:6px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;" onmouseover="this.style.color='#cdd9e5';this.style.borderColor='#2a3a4a'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        Active Sessions
-        <span style="margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;background:rgba(46,196,182,0.1);border:1px solid rgba(46,196,182,0.2);padding:2px 8px;border-radius:3px;">1 ACTIVE</span>
-      </button>
     </div>
     <!-- BILLING & USAGE -->
     <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
@@ -5598,31 +5593,6 @@ async function changePassword() {
   } catch(e) {
     showToast('Hata: ' + e.message);
   }
-}
-
-function showActiveSessions() {
-  const user = firebase.auth().currentUser;
-  if (!user) return;
-  const modal = document.createElement('div');
-  modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#0d1520;border:1px solid #1a2a3a;border-radius:12px;padding:24px;z-index:5000;width:320px;';
-  modal.innerHTML = `
-    <div style="font-family:'Orbitron',sans-serif;font-size:12px;color:#4a9eff;letter-spacing:2px;margin-bottom:16px;">ACTIVE SESSIONS</div>
-    <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:6px;padding:12px;margin-bottom:12px;">
-      <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;font-weight:700;margin-bottom:4px;">Current Session ✓</div>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;">${user.email}</div>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-top:2px;">Last sign-in: ${new Date(user.metadata.lastSignInTime).toLocaleString()}</div>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-top:2px;">Account created: ${new Date(user.metadata.creationTime).toLocaleString()}</div>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button onclick="firebase.auth().signOut();window.location.reload();" style="background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);color:#e63946;font-family:'Rajdhani',sans-serif;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Sign Out All</button>
-      <button onclick="this.closest('div[style]').remove()" style="background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Close</button>
-    </div>
-  `;
-  const backdrop = document.createElement('div');
-  backdrop.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:4999;';
-  backdrop.onclick = () => { backdrop.remove(); modal.remove(); };
-  document.body.appendChild(backdrop);
-  document.body.appendChild(modal);
 }
 
 function copySettingsRefCode() {
