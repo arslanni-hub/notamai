@@ -2434,9 +2434,11 @@ async function initiateCheckout(plan) {
       body: JSON.stringify({ plan, userId: user.uid, email: user.email })
     });
     const data = await response.json();
+    console.log('[CHECKOUT RESPONSE]', data);
     if (data.url) {
-      window.location.href = data.url;
+      window.open(data.url, '_blank');
     } else {
+      console.log('[CHECKOUT] No URL in response:', data);
       alert('Could not create checkout. Please try again.');
       btn.innerHTML = originalText;
       btn.disabled = false;
