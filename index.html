@@ -2436,7 +2436,7 @@ async function initiateCheckout(plan) {
     const data = await response.json();
     console.log('[CHECKOUT RESPONSE]', data);
     if (data.url) {
-      window.open(data.url, '_blank');
+      window.location.href = data.url;
     } else {
       console.log('[CHECKOUT] No URL in response:', data);
       alert('Could not create checkout. Please try again.');

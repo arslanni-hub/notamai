@@ -1304,8 +1304,9 @@ if (getAccessBtn) {
             }
           })
         });
-        console.log('[CHECKOUT]', JSON.stringify(response).slice(0, 200));
         const checkoutUrl = response?.data?.attributes?.url;
+        console.log('[CHECKOUT URL]', checkoutUrl);
+        console.log('[CHECKOUT FULL]', JSON.stringify(response?.data?.attributes).slice(0, 500));
         if (!checkoutUrl) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Could not create checkout', details: response }));
