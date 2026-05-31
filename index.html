@@ -5879,11 +5879,12 @@ function closeToolsPanel() {
 }
 
 function switchToolTab(tab) {
+  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6' };
   ['airport','sunmoon','winds'].forEach(t => {
     document.getElementById('toolTab-' + t).style.display = t === tab ? 'block' : 'none';
     const btn = document.getElementById('tab-' + t);
-    btn.style.borderBottomColor = t === tab ? '#4a9eff' : 'transparent';
-    btn.style.color = t === tab ? '#4a9eff' : '#4a5f72';
+    btn.style.borderBottomColor = t === tab ? colors[t] : 'transparent';
+    btn.style.color = t === tab ? colors[t] : '#4a5f72';
   });
 }
 
