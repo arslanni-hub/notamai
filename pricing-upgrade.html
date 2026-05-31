@@ -445,7 +445,7 @@ canvas#sky {
         <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Share &amp; PDF Export</span></li>
         <li><span class="feat-check feat-off">&#10007;</span><span class="feat-off">AI Video Briefing</span></li>
       </ul>
-      <button id="btn_pro" onclick="alert('Stripe coming soon!')" style="width:100%;padding:12px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">UPGRADE TO PRO &rarr;</button>
+      <button id="btn_pro" onclick="initiateCheckout('pro')" style="width:100%;padding:12px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">UPGRADE TO PRO &rarr;</button>
       <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
     </div>
 
@@ -470,7 +470,7 @@ canvas#sky {
         <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Priority Support</span></li>
         <li><span class="feat-check feat-on" style="color:#f4841a;">+</span><span class="feat-on" style="color:#8a9bb0;font-size:13px;">Extra video pack: $10 = 3 videos</span></li>
       </ul>
-      <button id="btn_premium" onclick="alert('Stripe coming soon!')" style="width:100%;padding:12px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">UPGRADE TO PREMIUM &rarr;</button>
+      <button id="btn_premium" onclick="initiateCheckout('premium')" style="width:100%;padding:12px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">UPGRADE TO PREMIUM &rarr;</button>
       <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
     </div>
 
@@ -508,6 +508,35 @@ canvas#sky {
 </footer>
 
 <script>
+/* ═══ CHECKOUT ═══ */
+async function initiateCheckout(plan) {
+  const user = firebase.auth().currentUser;
+  if (!user) { window.location.href = '/'; return; }
+  const btn = event.target.closest('button') || event.target;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = 'Loading...';
+  btn.disabled = true;
+  try {
+    const response = await fetch('/api/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan, userId: user.uid, email: user.email })
+    });
+    const data = await response.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert('Could not create checkout. Please try again.');
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }
+  } catch(e) {
+    alert('Error: ' + e.message);
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
 /* ═══ BILLING TOGGLE ═══ */
 let isYearly = false;
 function pricing_toggleBilling() {

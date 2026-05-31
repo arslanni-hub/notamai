@@ -1267,6 +1267,115 @@ if (getAccessBtn) {
     return;
   }
 
+  // ── LEMONSQUEEZY CHECKOUT ────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/create-checkout') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { plan, userId, email } = JSON.parse(body);
+        const variantId = plan === 'premium'
+          ? process.env.LEMONSQUEEZY_PREMIUM_VARIANT_ID
+          : process.env.LEMONSQUEEZY_PRO_VARIANT_ID;
+        const response = await fetchURL('https://api.lemonsqueezy.com/v1/checkouts', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + process.env.LEMONSQUEEZY_API_KEY,
+            'Content-Type': 'application/vnd.api+json',
+            'Accept': 'application/vnd.api+json'
+          },
+          body: JSON.stringify({
+            data: {
+              type: 'checkouts',
+              attributes: {
+                checkout_data: {
+                  email: email,
+                  custom: { user_id: userId }
+                },
+                product_options: {
+                  redirect_url: 'https://notamai.onrender.com/?upgrade=success',
+                  receipt_link_url: 'https://notamai.onrender.com/?upgrade=success'
+                }
+              },
+              relationships: {
+                store: { data: { type: 'stores', id: process.env.LEMONSQUEEZY_STORE_ID } },
+                variant: { data: { type: 'variants', id: variantId } }
+              }
+            }
+          })
+        });
+        console.log('[CHECKOUT]', JSON.stringify(response).slice(0, 200));
+        const checkoutUrl = response?.data?.attributes?.url;
+        if (!checkoutUrl) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Could not create checkout', details: response }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ url: checkoutUrl }));
+      } catch(e) {
+        console.log('[CHECKOUT ERROR]', e.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // ── LEMONSQUEEZY WEBHOOK ─────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/lemonsqueezy-webhook') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const crypto = require('crypto');
+        const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+        const signature = req.headers['x-signature'];
+        const hmac = crypto.createHmac('sha256', secret).update(body).digest('hex');
+        if (signature !== hmac) {
+          console.log('[WEBHOOK] Invalid signature');
+          res.writeHead(401);
+          res.end('Unauthorized');
+          return;
+        }
+        const event = JSON.parse(body);
+        const eventName = event.meta?.event_name;
+        const userId = event.meta?.custom_data?.user_id;
+        const variantId = String(event.data?.attributes?.variant_id || event.data?.attributes?.first_order_item?.variant_id || '');
+        console.log('[WEBHOOK]', eventName, 'userId:', userId, 'variantId:', variantId);
+        if (!userId) { res.writeHead(200); res.end('OK'); return; }
+        const proPlanId = String(process.env.LEMONSQUEEZY_PRO_VARIANT_ID);
+        const premiumPlanId = String(process.env.LEMONSQUEEZY_PREMIUM_VARIANT_ID);
+        let plan = null;
+        if (variantId === proPlanId) plan = 'pro';
+        if (variantId === premiumPlanId) plan = 'premium';
+        if (eventName === 'subscription_created' || eventName === 'order_created') {
+          if (plan) {
+            await adminDb.collection('users').doc(userId).set({
+              plan,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            console.log('[WEBHOOK] Plan updated:', userId, '→', plan);
+          }
+        }
+        if (eventName === 'subscription_cancelled' || eventName === 'subscription_expired') {
+          await adminDb.collection('users').doc(userId).set({
+            plan: 'free',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+          console.log('[WEBHOOK] Plan downgraded to free:', userId);
+        }
+        res.writeHead(200);
+        res.end('OK');
+      } catch(e) {
+        console.log('[WEBHOOK ERROR]', e.message);
+        res.writeHead(500);
+        res.end('Error');
+      }
+    });
+    return;
+  }
+
   if (req.method === 'POST' && req.url === '/api/extract-route') {
     let body = '';
     req.on('data', chunk => body += chunk);

@@ -1201,7 +1201,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="um_proPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#4a9eff;">$49</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div id="um_proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For active pilots &amp; dispatchers</div>
-        <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PRO →</button>
+        <button onclick="initiateCheckout('pro')" style="width:100%;padding:8px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PRO →</button>
         <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:6px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
         <div style="border-top:1px solid #1a2a3a;margin:16px 0 12px;"></div>
         <ul style="list-style:none;">
@@ -1226,7 +1226,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="um_premiumPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#f4841a;">$99</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div id="um_premiumNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For aviation professionals</div>
-        <button onclick="alert('Stripe coming soon!')" style="width:100%;padding:8px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PREMIUM →</button>
+        <button onclick="initiateCheckout('premium')" style="width:100%;padding:8px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PREMIUM →</button>
         <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:6px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
         <div style="border-top:1px solid #1a2a3a;margin:16px 0 12px;"></div>
         <ul style="list-style:none;">
@@ -2417,6 +2417,37 @@ async function sendAIChat() {
   }
 }
 
+async function initiateCheckout(plan) {
+  const user = firebase.auth().currentUser;
+  if (!user) {
+    document.getElementById('loginModal').style.display = 'flex';
+    return;
+  }
+  const btn = event.target.closest('button') || event.target;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = 'Loading...';
+  btn.disabled = true;
+  try {
+    const response = await fetch('/api/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan, userId: user.uid, email: user.email })
+    });
+    const data = await response.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert('Could not create checkout. Please try again.');
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }
+  } catch(e) {
+    alert('Error: ' + e.message);
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
 function showToast(message) {
   const toast = document.createElement('div');
   toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#0d1520;border:1px solid #f4841a;color:#f4841a;font-family:Rajdhani,sans-serif;font-size:13px;font-weight:700;padding:10px 20px;border-radius:6px;z-index:9999;letter-spacing:1px;white-space:nowrap;';
@@ -3036,6 +3067,14 @@ firebase.auth().onAuthStateChanged(user => {
     setGreeting();
     loadBriefingHistory();
     loadUserPlan(user.uid);
+    // Handle return from checkout
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('upgrade') === 'success') {
+      setTimeout(() => {
+        showToast('🎉 Welcome to your new plan! Your account has been upgraded.');
+        window.history.replaceState({}, '', '/');
+      }, 1000);
+    }
   } else {
     sidebar.style.display = 'none';
     if (navbar) navbar.style.display = 'flex';
