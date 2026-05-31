@@ -5584,14 +5584,14 @@ async function changePassword() {
   if (!user) return;
   const isGoogle = user.providerData.some(p => p.providerId === 'google.com');
   if (isGoogle) {
-    showToast('Google ile giriş yapıyorsunuz. Şifre Google hesabınızdan değiştirilebilir.');
+    showToast('You signed in with Google. Please change your password from your Google account settings.');
     return;
   }
   try {
     await firebase.auth().sendPasswordResetEmail(user.email);
-    showToast('Şifre sıfırlama maili gönderildi: ' + user.email);
+    showToast('Password reset email sent to: ' + user.email);
   } catch(e) {
-    showToast('Hata: ' + e.message);
+    showToast('Error: ' + e.message);
   }
 }
 
