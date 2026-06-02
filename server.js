@@ -1124,17 +1124,15 @@ if (getAccessBtn) {
   // ── HEYGEN TEST 2 (use existing avatar ID) ────────────────────
   if (req.method === 'GET' && req.url === '/api/test-heygen2') {
     try {
-      const AVATAR_ID = '8e0149d152e14333a81853524dc7706a';
       const videoPayload = JSON.stringify({
         video_inputs: [{
           character: {
             type: 'talking_photo',
-            talking_photo_id: AVATAR_ID
+            talking_photo_id: '8e0149d152e14333a81853524dc7706a'
           },
           voice: {
-            type: 'text',
-            input_text: 'Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Have a safe flight.',
-            voice_id: '2d5b0e6cf36f460aa7fc47e3eee4ba54'
+            type: 'audio',
+            audio_asset_id: 'a9213dac95834047bd46e741bd40de27'
           }
         }],
         dimension: { width: 1280, height: 720 }
