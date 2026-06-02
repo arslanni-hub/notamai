@@ -5869,16 +5869,7 @@ document.addEventListener('click', function(e) {
     <div id="toolTab-sunmoon" style="display:none;">
       <div style="display:flex;gap:8px;margin-bottom:12px;">
         <input id="sunIcaoInput" type="text" placeholder="ICAO code" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
-        <div style="display:flex;gap:4px;flex:1;">
-          <select id="sunDay" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 4px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:11px;outline:none;"></select>
-          <select id="sunMonth" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 4px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:11px;outline:none;">
-            <option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option>
-            <option value="04">Apr</option><option value="05">May</option><option value="06">Jun</option>
-            <option value="07">Jul</option><option value="08">Aug</option><option value="09">Sep</option>
-            <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
-          </select>
-          <select id="sunYear" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 4px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:11px;outline:none;"></select>
-        </div>
+        <input id="sunDateInput" type="date" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:12px;outline:none;">
         <button onclick="fetchSunMoon()" style="background:#f2c641;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">GO</button>
       </div>
       <div id="sunMoonResult" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;text-align:center;padding:20px 0;">Enter ICAO code and date</div>
@@ -5911,7 +5902,7 @@ function openToolsPanel() {
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
   setTimeout(() => panel.style.transform = 'translateX(0)', 10);
-  initSunMoonDropdowns();
+  document.getElementById('sunDateInput').value = new Date().toISOString().split('T')[0];
 }
 
 function closeToolsPanel() {
@@ -5987,36 +5978,10 @@ async function fetchAirportInfo() {
 }
 
 // SUN/MOON CALCULATOR
-function initSunMoonDropdowns() {
-  const now = new Date();
-  const daySelect = document.getElementById('sunDay');
-  daySelect.innerHTML = '';
-  for (let d = 1; d <= 31; d++) {
-    const opt = document.createElement('option');
-    opt.value = String(d).padStart(2,'0');
-    opt.textContent = String(d).padStart(2,'0');
-    if (d === now.getDate()) opt.selected = true;
-    daySelect.appendChild(opt);
-  }
-  const yearSelect = document.getElementById('sunYear');
-  yearSelect.innerHTML = '';
-  for (let y = now.getFullYear(); y <= now.getFullYear() + 1; y++) {
-    const opt = document.createElement('option');
-    opt.value = String(y);
-    opt.textContent = String(y);
-    if (y === now.getFullYear()) opt.selected = true;
-    yearSelect.appendChild(opt);
-  }
-  document.getElementById('sunMonth').value = String(now.getMonth() + 1).padStart(2,'0');
-}
-
 async function fetchSunMoon() {
-  const day = document.getElementById('sunDay').value;
-  const month = document.getElementById('sunMonth').value;
-  const year = document.getElementById('sunYear').value;
-  const date = year + '-' + month + '-' + day;
   const icao = document.getElementById('sunIcaoInput').value.trim().toUpperCase();
-  if (!icao || !day || !month || !year) return;
+  const date = document.getElementById('sunDateInput').value;
+  if (!icao || !date) return;
 
   const result = document.getElementById('sunMoonResult');
   result.innerHTML = '<div style="color:#f2c641;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;">CALCULATING...</div>';
