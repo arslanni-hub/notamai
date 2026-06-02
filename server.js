@@ -1130,7 +1130,7 @@ if (getAccessBtn) {
           voice: {
             type: 'text',
             input_text: 'Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Have a safe flight.',
-            voice_id: 'en-US-ChristopherNeural'
+            voice_id: '2d5b0e6cf36f460aa7fc47e3eee4ba54'
           }
         }],
         dimension: { width: 1280, height: 720 }
