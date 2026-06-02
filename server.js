@@ -976,43 +976,76 @@ if (getAccessBtn) {
 
   // ── HEYGEN TEST ──────────────────────────────────────────────
   if (req.method === 'GET' && req.url === '/api/test-heygen') {
-    const payload = JSON.stringify({
-      video_inputs: [{
-        character: {
-          type: 'talking_photo',
-          talking_photo_url: 'https://i.imgur.com/Aap70Bx.jpeg'
-        },
-        voice: {
-          type: 'text',
-          input_text: 'Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Have a safe flight.',
-          voice_id: 'en-US-ChristopherNeural'
-        }
-      }],
-      dimension: { width: 1280, height: 720 }
-    });
-    const heygenReq = https.request({
-      hostname: 'api.heygen.com',
-      path: '/v2/video/generate',
-      method: 'POST',
-      headers: {
-        'X-Api-Key': process.env.HEYGEN_API_KEY,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      }
-    }, heygenRes => {
-      let data = '';
-      heygenRes.on('data', chunk => data += chunk);
-      heygenRes.on('end', () => {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(data);
+    try {
+      // Step 1: Upload talking photo to get talking_photo_id
+      const uploadPayload = JSON.stringify({ image_url: 'https://i.imgur.com/Aap70Bx.jpeg' });
+      const uploadResult = await new Promise((resolve, reject) => {
+        const uploadReq = https.request({
+          hostname: 'api.heygen.com',
+          path: '/v1/talking_photo',
+          method: 'POST',
+          headers: {
+            'X-Api-Key': process.env.HEYGEN_API_KEY,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(uploadPayload)
+          }
+        }, uploadRes => {
+          let data = '';
+          uploadRes.on('data', chunk => data += chunk);
+          uploadRes.on('end', () => resolve(JSON.parse(data)));
+        });
+        uploadReq.on('error', reject);
+        uploadReq.write(uploadPayload);
+        uploadReq.end();
       });
-    });
-    heygenReq.on('error', e => {
+      console.log('[HEYGEN UPLOAD]', JSON.stringify(uploadResult));
+      const talkingPhotoId = uploadResult.data?.talking_photo_id;
+      if (!talkingPhotoId) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Could not upload photo', details: uploadResult }));
+        return;
+      }
+      // Step 2: Generate video using talking_photo_id
+      const videoPayload = JSON.stringify({
+        video_inputs: [{
+          character: {
+            type: 'talking_photo',
+            talking_photo_id: talkingPhotoId
+          },
+          voice: {
+            type: 'text',
+            input_text: 'Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Have a safe flight.',
+            voice_id: 'en-US-ChristopherNeural'
+          }
+        }],
+        dimension: { width: 1280, height: 720 }
+      });
+      const videoResult = await new Promise((resolve, reject) => {
+        const videoReq = https.request({
+          hostname: 'api.heygen.com',
+          path: '/v2/video/generate',
+          method: 'POST',
+          headers: {
+            'X-Api-Key': process.env.HEYGEN_API_KEY,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(videoPayload)
+          }
+        }, videoRes => {
+          let data = '';
+          videoRes.on('data', chunk => data += chunk);
+          videoRes.on('end', () => resolve(JSON.parse(data)));
+        });
+        videoReq.on('error', reject);
+        videoReq.write(videoPayload);
+        videoReq.end();
+      });
+      console.log('[HEYGEN VIDEO]', JSON.stringify(videoResult));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ talking_photo_id: talkingPhotoId, video: videoResult }));
+    } catch(e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
-    });
-    heygenReq.write(payload);
-    heygenReq.end();
+    }
     return;
   }
 
