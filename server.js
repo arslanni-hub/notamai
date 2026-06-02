@@ -974,6 +974,48 @@ if (getAccessBtn) {
     return;
   }
 
+  // ── HEYGEN TEST ──────────────────────────────────────────────
+  if (req.method === 'GET' && req.url === '/api/test-heygen') {
+    const payload = JSON.stringify({
+      video_inputs: [{
+        character: {
+          type: 'talking_photo',
+          talking_photo_url: 'https://i.imgur.com/Aap70Bx.jpeg'
+        },
+        voice: {
+          type: 'text',
+          input_text: 'Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Have a safe flight.',
+          voice_id: 'en-US-ChristopherNeural'
+        }
+      }],
+      dimension: { width: 1280, height: 720 }
+    });
+    const heygenReq = https.request({
+      hostname: 'api.heygen.com',
+      path: '/v2/video/generate',
+      method: 'POST',
+      headers: {
+        'X-Api-Key': process.env.HEYGEN_API_KEY,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
+      }
+    }, heygenRes => {
+      let data = '';
+      heygenRes.on('data', chunk => data += chunk);
+      heygenRes.on('end', () => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(data);
+      });
+    });
+    heygenReq.on('error', e => {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    });
+    heygenReq.write(payload);
+    heygenReq.end();
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/airport/')) {
     const icao = req.url.split('/api/airport/')[1].split('?')[0];
     try {
