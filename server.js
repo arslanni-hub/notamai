@@ -16,6 +16,17 @@ if (!admin.apps.length) {
 
 const adminDb = admin.firestore();
 
+const PILOT_IMAGE_PATH = './pilot_image.jpg';
+
+// Download pilot image on startup if not already present
+if (!fs.existsSync(PILOT_IMAGE_PATH)) {
+  https.get('https://i.imgur.com/Aap70Bx.jpeg', res => {
+    const file = fs.createWriteStream(PILOT_IMAGE_PATH);
+    res.pipe(file);
+    file.on('finish', () => console.log('[PILOT IMAGE] Downloaded'));
+  });
+}
+
 const PLAN_LIMITS = {
   free:    { briefings: 3,   chat: 0,   analysis: 0   },
   pro:     { briefings: 100, chat: 200, analysis: 300  },
@@ -978,14 +989,7 @@ if (getAccessBtn) {
   if (req.method === 'GET' && req.url === '/api/test-heygen') {
     try {
       // Step 1: Upload image as asset using v3 API
-      const imageData = await new Promise((resolve, reject) => {
-        https.get('https://i.imgur.com/Aap70Bx.jpeg', res => {
-          const chunks = [];
-          res.on('data', chunk => chunks.push(chunk));
-          res.on('end', () => resolve(Buffer.concat(chunks)));
-          res.on('error', reject);
-        });
-      });
+      const imageData = fs.readFileSync(PILOT_IMAGE_PATH);
       console.log('[IMAGE SIZE]', imageData.length, 'bytes');
       const boundary = '----FormBoundary' + Date.now();
       const formData = Buffer.concat([
@@ -1215,6 +1219,55 @@ if (getAccessBtn) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
+    return;
+  }
+
+  // ── UPLOAD AUDIO ─────────────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/upload-audio') {
+    let audioBuffer = [];
+    req.on('data', chunk => audioBuffer.push(chunk));
+    req.on('end', async () => {
+      const audioData = Buffer.concat(audioBuffer);
+      console.log('[AUDIO SIZE]', audioData.length);
+      const boundary = '----FormBoundary' + Date.now();
+      const formData = Buffer.concat([
+        Buffer.from('--' + boundary + '\r\n'),
+        Buffer.from('Content-Disposition: form-data; name="file"; filename="pilot_audio.mp3"\r\n'),
+        Buffer.from('Content-Type: audio/mpeg\r\n\r\n'),
+        audioData,
+        Buffer.from('\r\n--' + boundary + '--\r\n')
+      ]);
+      try {
+        const uploadResult = await new Promise((resolve, reject) => {
+          const uploadReq = https.request({
+            hostname: 'api.heygen.com',
+            path: '/v3/assets',
+            method: 'POST',
+            headers: {
+              'x-api-key': process.env.HEYGEN_API_KEY,
+              'Content-Type': 'multipart/form-data; boundary=' + boundary,
+              'Content-Length': formData.length
+            }
+          }, uploadRes => {
+            let data = '';
+            uploadRes.on('data', chunk => data += chunk);
+            uploadRes.on('end', () => {
+              console.log('[AUDIO UPLOAD]', data.slice(0, 200));
+              try { resolve(JSON.parse(data)); }
+              catch(e) { resolve({ error: 'Parse error' }); }
+            });
+          });
+          uploadReq.on('error', reject);
+          uploadReq.write(formData);
+          uploadReq.end();
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(uploadResult));
+      } catch(e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
     return;
   }
 
