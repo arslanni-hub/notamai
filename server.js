@@ -976,10 +976,13 @@ if (getAccessBtn) {
 
   // ── HEYGEN TEST ──────────────────────────────────────────────
   if (req.method === 'GET' && req.url === '/api/test-heygen') {
+    let uploadResult = null;
+    let videoResult = null;
+    let talkingPhotoId = null;
     try {
       // Step 1: Upload talking photo to get talking_photo_id
       const uploadPayload = JSON.stringify({ image_url: 'https://i.imgur.com/Aap70Bx.jpeg' });
-      const uploadResult = await new Promise((resolve, reject) => {
+      uploadResult = await new Promise((resolve, reject) => {
         const uploadReq = https.request({
           hostname: 'api.heygen.com',
           path: '/v1/talking_photo',
@@ -992,60 +995,74 @@ if (getAccessBtn) {
         }, uploadRes => {
           let data = '';
           uploadRes.on('data', chunk => data += chunk);
-          uploadRes.on('end', () => resolve(JSON.parse(data)));
+          uploadRes.on('end', () => {
+            console.log('[HEYGEN UPLOAD RAW]', data.slice(0, 300));
+            try {
+              resolve(JSON.parse(data));
+            } catch(e) {
+              resolve({ error: 'Parse error', raw: data.slice(0, 200) });
+            }
+          });
         });
         uploadReq.on('error', reject);
         uploadReq.write(uploadPayload);
         uploadReq.end();
       });
       console.log('[HEYGEN UPLOAD]', JSON.stringify(uploadResult));
-      const talkingPhotoId = uploadResult.data?.talking_photo_id;
-      if (!talkingPhotoId) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Could not upload photo', details: uploadResult }));
-        return;
-      }
-      // Step 2: Generate video using talking_photo_id
-      const videoPayload = JSON.stringify({
-        video_inputs: [{
-          character: {
-            type: 'talking_photo',
-            talking_photo_id: talkingPhotoId
-          },
-          voice: {
-            type: 'text',
-            input_text: 'Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Have a safe flight.',
-            voice_id: 'en-US-ChristopherNeural'
-          }
-        }],
-        dimension: { width: 1280, height: 720 }
-      });
-      const videoResult = await new Promise((resolve, reject) => {
-        const videoReq = https.request({
-          hostname: 'api.heygen.com',
-          path: '/v2/video/generate',
-          method: 'POST',
-          headers: {
-            'X-Api-Key': process.env.HEYGEN_API_KEY,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(videoPayload)
-          }
-        }, videoRes => {
-          let data = '';
-          videoRes.on('data', chunk => data += chunk);
-          videoRes.on('end', () => resolve(JSON.parse(data)));
+      talkingPhotoId = uploadResult.data?.talking_photo_id;
+      if (talkingPhotoId) {
+        // Step 2: Generate video using talking_photo_id
+        const videoPayload = JSON.stringify({
+          video_inputs: [{
+            character: {
+              type: 'talking_photo',
+              talking_photo_id: talkingPhotoId
+            },
+            voice: {
+              type: 'text',
+              input_text: 'Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Have a safe flight.',
+              voice_id: 'en-US-ChristopherNeural'
+            }
+          }],
+          dimension: { width: 1280, height: 720 }
         });
-        videoReq.on('error', reject);
-        videoReq.write(videoPayload);
-        videoReq.end();
-      });
-      console.log('[HEYGEN VIDEO]', JSON.stringify(videoResult));
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ talking_photo_id: talkingPhotoId, video: videoResult }));
+        videoResult = await new Promise((resolve, reject) => {
+          const videoReq = https.request({
+            hostname: 'api.heygen.com',
+            path: '/v2/video/generate',
+            method: 'POST',
+            headers: {
+              'X-Api-Key': process.env.HEYGEN_API_KEY,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(videoPayload)
+            }
+          }, videoRes => {
+            let data = '';
+            videoRes.on('data', chunk => data += chunk);
+            videoRes.on('end', () => {
+              console.log('[HEYGEN VIDEO RAW]', data.slice(0, 300));
+              try {
+                resolve(JSON.parse(data));
+              } catch(e) {
+                resolve({ error: 'Parse error', raw: data.slice(0, 200) });
+              }
+            });
+          });
+          videoReq.on('error', reject);
+          videoReq.write(videoPayload);
+          videoReq.end();
+        });
+        console.log('[HEYGEN VIDEO]', JSON.stringify(videoResult));
+      }
     } catch(e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
+      console.log('[HEYGEN ERROR]', e.message);
     }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      talking_photo_id: talkingPhotoId || null,
+      upload: uploadResult,
+      video: videoResult || null
+    }));
     return;
   }
 
