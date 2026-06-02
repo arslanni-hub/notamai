@@ -5869,7 +5869,7 @@ document.addEventListener('click', function(e) {
     <div id="toolTab-sunmoon" style="display:none;">
       <div style="display:flex;gap:8px;margin-bottom:12px;">
         <input id="sunIcaoInput" type="text" placeholder="ICAO code" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
-        <input id="sunDateInput" type="date" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:12px;outline:none;">
+        <input id="sunDateInput" type="date" lang="en" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:12px;outline:none;">
         <button onclick="fetchSunMoon()" style="background:#f2c641;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">GO</button>
       </div>
       <div id="sunMoonResult" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;text-align:center;padding:20px 0;">Enter ICAO code and date</div>
@@ -5902,7 +5902,9 @@ function openToolsPanel() {
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
   setTimeout(() => panel.style.transform = 'translateX(0)', 10);
-  document.getElementById('sunDateInput').value = new Date().toISOString().split('T')[0];
+  const sunDateInput = document.getElementById('sunDateInput');
+  sunDateInput.value = new Date().toISOString().split('T')[0];
+  sunDateInput.lang = 'en';
 }
 
 function closeToolsPanel() {
@@ -6010,12 +6012,13 @@ async function fetchSunMoon() {
     const s = sunData.results;
     const fmt = (iso) => {
       const d = new Date(iso);
-      return d.toUTCString().slice(17, 22) + 'Z';
+      return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + 'Z';
     };
+    const displayDate = new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
     result.innerHTML = `
       <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:14px;">
-        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;margin-bottom:12px;">${name} — ${date}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;margin-bottom:12px;">${name} — ${displayDate}</div>
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;letter-spacing:2px;margin-bottom:8px;">☀️ SUN</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">
           <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;">
