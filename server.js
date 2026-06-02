@@ -980,8 +980,24 @@ if (getAccessBtn) {
     let videoResult = null;
     let talkingPhotoId = null;
     try {
-      // Step 1: Upload talking photo to get talking_photo_id
-      const uploadPayload = JSON.stringify({ image_url: 'https://i.imgur.com/Aap70Bx.jpeg' });
+      // Step 1: Download image then upload as multipart/form-data
+      const imageData = await new Promise((resolve, reject) => {
+        https.get('https://i.imgur.com/Aap70Bx.jpeg', res => {
+          const chunks = [];
+          res.on('data', chunk => chunks.push(chunk));
+          res.on('end', () => resolve(Buffer.concat(chunks)));
+          res.on('error', reject);
+        });
+      });
+      console.log('[IMAGE SIZE]', imageData.length, 'bytes');
+      const boundary = '----FormBoundary' + Date.now();
+      const formData = Buffer.concat([
+        Buffer.from('--' + boundary + '\r\n'),
+        Buffer.from('Content-Disposition: form-data; name="file"; filename="pilot.jpeg"\r\n'),
+        Buffer.from('Content-Type: image/jpeg\r\n\r\n'),
+        imageData,
+        Buffer.from('\r\n--' + boundary + '--\r\n')
+      ]);
       uploadResult = await new Promise((resolve, reject) => {
         const uploadReq = https.request({
           hostname: 'upload.heygen.com',
@@ -989,23 +1005,20 @@ if (getAccessBtn) {
           method: 'POST',
           headers: {
             'X-Api-Key': process.env.HEYGEN_API_KEY,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(uploadPayload)
+            'Content-Type': 'multipart/form-data; boundary=' + boundary,
+            'Content-Length': formData.length
           }
         }, uploadRes => {
           let data = '';
           uploadRes.on('data', chunk => data += chunk);
           uploadRes.on('end', () => {
             console.log('[HEYGEN UPLOAD RAW]', data.slice(0, 300));
-            try {
-              resolve(JSON.parse(data));
-            } catch(e) {
-              resolve({ error: 'Parse error', raw: data.slice(0, 200) });
-            }
+            try { resolve(JSON.parse(data)); }
+            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
           });
         });
         uploadReq.on('error', reject);
-        uploadReq.write(uploadPayload);
+        uploadReq.write(formData);
         uploadReq.end();
       });
       console.log('[HEYGEN UPLOAD]', JSON.stringify(uploadResult));
