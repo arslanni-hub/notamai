@@ -984,7 +984,7 @@ if (getAccessBtn) {
       const uploadPayload = JSON.stringify({ image_url: 'https://i.imgur.com/Aap70Bx.jpeg' });
       uploadResult = await new Promise((resolve, reject) => {
         const uploadReq = https.request({
-          hostname: 'api.heygen.com',
+          hostname: 'upload.heygen.com',
           path: '/v1/talking_photo',
           method: 'POST',
           headers: {
