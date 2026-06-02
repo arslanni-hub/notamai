@@ -1191,6 +1191,33 @@ if (getAccessBtn) {
     return;
   }
 
+  // ── CHECK VIDEO STATUS ───────────────────────────────────────
+  if (req.method === 'GET' && req.url.startsWith('/api/check-video/')) {
+    const videoId = req.url.split('/api/check-video/')[1];
+    try {
+      const result = await new Promise((resolve, reject) => {
+        https.get({
+          hostname: 'api.heygen.com',
+          path: '/v1/video_status.get?video_id=' + videoId,
+          headers: { 'x-api-key': process.env.HEYGEN_API_KEY }
+        }, statusRes => {
+          let data = '';
+          statusRes.on('data', chunk => data += chunk);
+          statusRes.on('end', () => {
+            try { resolve(JSON.parse(data)); }
+            catch(e) { resolve({ error: 'Parse error' }); }
+          });
+        }).on('error', reject);
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+    } catch(e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/airport/')) {
     const icao = req.url.split('/api/airport/')[1].split('?')[0];
     try {
