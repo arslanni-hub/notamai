@@ -1117,6 +1117,80 @@ if (getAccessBtn) {
     return;
   }
 
+  // ── HEYGEN TEST 2 (use existing avatar ID) ────────────────────
+  if (req.method === 'GET' && req.url === '/api/test-heygen2') {
+    try {
+      const AVATAR_ID = '8e0149d152e14333a81853524dc7706a';
+      const videoPayload = JSON.stringify({
+        video_inputs: [{
+          character: {
+            type: 'talking_photo',
+            talking_photo_id: AVATAR_ID
+          },
+          voice: {
+            type: 'text',
+            input_text: 'Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Have a safe flight.',
+            voice_id: 'en-US-ChristopherNeural'
+          }
+        }],
+        dimension: { width: 1280, height: 720 }
+      });
+      const videoResult = await new Promise((resolve, reject) => {
+        const videoReq = https.request({
+          hostname: 'api.heygen.com',
+          path: '/v2/video/generate',
+          method: 'POST',
+          headers: {
+            'x-api-key': process.env.HEYGEN_API_KEY,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(videoPayload)
+          }
+        }, videoRes => {
+          let data = '';
+          videoRes.on('data', chunk => data += chunk);
+          videoRes.on('end', () => {
+            console.log('[VIDEO RAW]', data.slice(0, 300));
+            try { resolve(JSON.parse(data)); }
+            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
+          });
+        });
+        videoReq.on('error', reject);
+        videoReq.write(videoPayload);
+        videoReq.end();
+      });
+      const videoId = videoResult.data?.video_id;
+      console.log('[VIDEO ID]', videoId);
+      if (videoId) {
+        // Check status after 20 seconds
+        await new Promise(r => setTimeout(r, 20000));
+        const statusResult = await new Promise((resolve, reject) => {
+          https.get({
+            hostname: 'api.heygen.com',
+            path: '/v1/video_status.get?video_id=' + videoId,
+            headers: { 'x-api-key': process.env.HEYGEN_API_KEY }
+          }, statusRes => {
+            let data = '';
+            statusRes.on('data', chunk => data += chunk);
+            statusRes.on('end', () => {
+              console.log('[STATUS RAW]', data.slice(0, 300));
+              try { resolve(JSON.parse(data)); }
+              catch(e) { resolve({ error: 'Parse error' }); }
+            });
+          }).on('error', reject);
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ video_id: videoId, status: statusResult }));
+      } else {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'No video ID', result: videoResult }));
+      }
+    } catch(e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/airport/')) {
     const icao = req.url.split('/api/airport/')[1].split('?')[0];
     try {
