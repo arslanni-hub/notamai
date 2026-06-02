@@ -993,7 +993,7 @@ if (getAccessBtn) {
       const boundary = '----FormBoundary' + Date.now();
       const formData = Buffer.concat([
         Buffer.from('--' + boundary + '\r\n'),
-        Buffer.from('Content-Disposition: form-data; name="file"; filename="pilot.jpeg"\r\n'),
+        Buffer.from('Content-Disposition: form-data; name="talking_photo"; filename="pilot.jpeg"\r\n'),
         Buffer.from('Content-Type: image/jpeg\r\n\r\n'),
         imageData,
         Buffer.from('\r\n--' + boundary + '--\r\n')
