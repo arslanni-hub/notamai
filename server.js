@@ -1019,54 +1019,92 @@ if (getAccessBtn) {
         uploadReq.end();
       });
       const assetId = uploadResult.data?.asset_id;
+      const assetUrl = uploadResult.data?.url;
       console.log('[ASSET ID]', assetId);
       if (assetId) {
-        const assetUrl = uploadResult.data?.url;
-        // Step 2: Generate video directly with talking_photo_url
-        const videoPayload = JSON.stringify({
-          video_inputs: [{
-            character: {
-              type: 'talking_photo',
-              talking_photo_url: assetUrl
-            },
-            voice: {
-              type: 'text',
-              input_text: 'Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Have a safe flight.',
-              voice_id: 'en-US-ChristopherNeural'
-            }
-          }],
-          dimension: { width: 1280, height: 720 }
+        // Step 2: Create photo avatar using v3
+        const avatarPayload = JSON.stringify({
+          type: 'photo',
+          name: 'Pilot Avatar',
+          file: {
+            type: 'asset',
+            asset_id: assetId
+          }
         });
-        const videoResult = await new Promise((resolve, reject) => {
-          const videoReq = https.request({
+        const avatarResult = await new Promise((resolve, reject) => {
+          const avatarReq = https.request({
             hostname: 'api.heygen.com',
-            path: '/v2/video/generate',
+            path: '/v3/avatars',
             method: 'POST',
             headers: {
               'x-api-key': process.env.HEYGEN_API_KEY,
               'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(videoPayload)
+              'Content-Length': Buffer.byteLength(avatarPayload)
             }
-          }, videoRes => {
+          }, avatarRes => {
             let data = '';
-            videoRes.on('data', chunk => data += chunk);
-            videoRes.on('end', () => {
-              console.log('[HEYGEN VIDEO RAW]', data.slice(0, 300));
+            avatarRes.on('data', chunk => data += chunk);
+            avatarRes.on('end', () => {
+              console.log('[AVATAR RAW]', data.slice(0, 300));
               try { resolve(JSON.parse(data)); }
               catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
             });
           });
-          videoReq.on('error', reject);
-          videoReq.write(videoPayload);
-          videoReq.end();
+          avatarReq.on('error', reject);
+          avatarReq.write(avatarPayload);
+          avatarReq.end();
         });
-        console.log('[VIDEO RESULT]', JSON.stringify(videoResult));
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          asset_id: assetId,
-          asset_url: assetUrl,
-          video: videoResult
-        }));
+        console.log('[AVATAR RESULT]', JSON.stringify(avatarResult));
+        const avatarId = avatarResult.data?.avatar_id || avatarResult.data?.id;
+        if (avatarId) {
+          // Step 3: Generate video with avatar_id
+          const videoPayload = JSON.stringify({
+            video_inputs: [{
+              character: {
+                type: 'talking_photo',
+                talking_photo_id: avatarId
+              },
+              voice: {
+                type: 'text',
+                input_text: 'Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Have a safe flight.',
+                voice_id: 'en-US-ChristopherNeural'
+              }
+            }],
+            dimension: { width: 1280, height: 720 }
+          });
+          const videoResult = await new Promise((resolve, reject) => {
+            const videoReq = https.request({
+              hostname: 'api.heygen.com',
+              path: '/v2/video/generate',
+              method: 'POST',
+              headers: {
+                'x-api-key': process.env.HEYGEN_API_KEY,
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(videoPayload)
+              }
+            }, videoRes => {
+              let data = '';
+              videoRes.on('data', chunk => data += chunk);
+              videoRes.on('end', () => {
+                console.log('[VIDEO RAW]', data.slice(0, 300));
+                try { resolve(JSON.parse(data)); }
+                catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
+              });
+            });
+            videoReq.on('error', reject);
+            videoReq.write(videoPayload);
+            videoReq.end();
+          });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            asset_id: assetId,
+            avatar_id: avatarId,
+            video: videoResult
+          }));
+        } else {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ asset_id: assetId, avatar: avatarResult }));
+        }
       } else {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ upload: uploadResult }));
