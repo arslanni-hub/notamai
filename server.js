@@ -1027,7 +1027,7 @@ if (getAccessBtn) {
           type: 'photo',
           name: 'Pilot Avatar',
           file: {
-            type: 'asset',
+            type: 'asset_id',
             asset_id: assetId
           }
         });
