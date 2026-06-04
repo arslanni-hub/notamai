@@ -1285,6 +1285,62 @@ if (getAccessBtn) {
     return;
   }
 
+  // ── VEED FABRIC TEST (WaveSpeed) ─────────────────────────────
+  if (req.method === 'GET' && req.url === '/api/test-veed') {
+    try {
+      // Read local pilot image
+      const imageBase64 = fs.readFileSync('./pilot_image.jpg').toString('base64');
+      // Download audio from HeyGen asset URL
+      const audioData = await new Promise((resolve, reject) => {
+        https.get('https://resource2.heygen.ai/audio/a9213dac95834047bd46e741bd40de27/original.mp3', res => {
+          const chunks = [];
+          res.on('data', chunk => chunks.push(chunk));
+          res.on('end', () => resolve(Buffer.concat(chunks)));
+          res.on('error', reject);
+        });
+      });
+      const audioBase64 = audioData.toString('base64');
+      console.log('[VEED] Image size:', imageBase64.length, 'Audio size:', audioBase64.length);
+      // Call WaveSpeed VEED Fabric 1.0
+      const payload = JSON.stringify({
+        image: 'data:image/jpeg;base64,' + imageBase64,
+        audio: 'data:audio/mpeg;base64,' + audioBase64,
+        resolution: '480p'
+      });
+      const result = await new Promise((resolve, reject) => {
+        const wavereq = https.request({
+          hostname: 'api.wavespeed.ai',
+          path: '/api/v3/veed/fabric-1.0',
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          }
+        }, waveres => {
+          let data = '';
+          waveres.on('data', chunk => data += chunk);
+          waveres.on('end', () => {
+            console.log('[VEED RAW]', data.slice(0, 300));
+            try { resolve(JSON.parse(data)); }
+            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
+          });
+        });
+        wavereq.on('error', reject);
+        wavereq.write(payload);
+        wavereq.end();
+      });
+      console.log('[VEED RESULT]', JSON.stringify(result).slice(0, 300));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+    } catch(e) {
+      console.log('[VEED ERROR]', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/airport/')) {
     const icao = req.url.split('/api/airport/')[1].split('?')[0];
     try {
