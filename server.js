@@ -17,6 +17,7 @@ if (!admin.apps.length) {
 const adminDb = admin.firestore();
 
 const PILOT_IMAGE_PATH = './pilot_image.jpg';
+let heygenTestLock = false;
 
 // Download pilot image on startup if not already present
 if (!fs.existsSync(PILOT_IMAGE_PATH)) {
@@ -1122,7 +1123,15 @@ if (getAccessBtn) {
   }
 
   // ── HEYGEN TEST 2 (use existing avatar ID) ────────────────────
+  // Note: Avatar IV requires HeyGen Creator plan ($24/mo) or higher
+  // Current account is on free tier - Avatar III only
   if (req.method === 'GET' && req.url === '/api/test-heygen2') {
+    if (heygenTestLock) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Already processing, please wait' }));
+      return;
+    }
+    heygenTestLock = true;
     try {
       const videoPayload = JSON.stringify({
         video_inputs: [{
@@ -1194,6 +1203,8 @@ if (getAccessBtn) {
     } catch(e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
+    } finally {
+      heygenTestLock = false;
     }
     return;
   }
