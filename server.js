@@ -1341,6 +1341,33 @@ if (getAccessBtn) {
     return;
   }
 
+  // ── CHECK VEED STATUS ────────────────────────────────────────
+  if (req.method === 'GET' && req.url.startsWith('/api/check-veed/')) {
+    const predId = req.url.split('/api/check-veed/')[1];
+    try {
+      const result = await new Promise((resolve, reject) => {
+        https.get({
+          hostname: 'api.wavespeed.ai',
+          path: '/api/v3/predictions/' + predId + '/result',
+          headers: { 'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY }
+        }, statusRes => {
+          let data = '';
+          statusRes.on('data', chunk => data += chunk);
+          statusRes.on('end', () => {
+            try { resolve(JSON.parse(data)); }
+            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
+          });
+        }).on('error', reject);
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+    } catch(e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/airport/')) {
     const icao = req.url.split('/api/airport/')[1].split('?')[0];
     try {
