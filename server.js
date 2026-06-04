@@ -1470,6 +1470,56 @@ if (getAccessBtn) {
     return;
   }
 
+  // ── KLING V3 PRO IMAGE-TO-VIDEO TEST ─────────────────────────
+  if (req.method === 'GET' && req.url.startsWith('/api/test-kling-i2v')) {
+    try {
+      const urlObj = new URL('https://notamai.onrender.com' + req.url);
+      const clipNum = urlObj.searchParams.get('clip') || '1';
+      const prompts = {
+        '1': 'Experienced 60-year-old male airline captain with gray hair, navy blue uniform with gold epaulettes, walks through cockpit door and approaches captain seat. Cinematic camera follows from behind. Cockpit instruments glowing, morning light through windshield. ARRI camera look, shallow depth of field, 24fps film grain.',
+        '2': 'Experienced 60-year-old male airline captain with gray hair, navy blue uniform with gold epaulettes sits in left cockpit seat, picks up flight documents and NOTAMs from clipboard. Studies papers carefully, serious professional expression. Cockpit instruments visible in background. Warm golden cockpit lighting, cinematic shallow focus.',
+        '3': 'Close-up of experienced 60-year-old airline captain hands writing notes on flight papers with pen. Captain looks focused, occasionally glances up at cockpit instruments. Professional aviation atmosphere, cinematic lighting, film look, shallow depth of field.',
+        '4': 'Experienced 60-year-old male airline captain with gray hair looks up from papers directly at camera with confident professional expression, ready to deliver briefing. Cockpit background with glowing instruments. Cinematic portrait shot, shallow depth of field, warm professional lighting.'
+      };
+      const payload = JSON.stringify({
+        image: 'https://i.imgur.com/Aap70Bx.jpeg',
+        prompt: prompts[clipNum],
+        duration: 15,
+        aspect_ratio: '16:9',
+        mode: 'pro'
+      });
+      const result = await new Promise((resolve, reject) => {
+        const wavereq = https.request({
+          hostname: 'api.wavespeed.ai',
+          path: '/api/v3/kwaivgi/kling-v3.0-pro/image-to-video',
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          }
+        }, waveres => {
+          let data = '';
+          waveres.on('data', chunk => data += chunk);
+          waveres.on('end', () => {
+            console.log('[KLING I2V clip' + clipNum + ']', data.slice(0, 200));
+            try { resolve(JSON.parse(data)); }
+            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
+          });
+        });
+        wavereq.on('error', reject);
+        wavereq.write(payload);
+        wavereq.end();
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+    } catch(e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/airport/')) {
     const icao = req.url.split('/api/airport/')[1].split('?')[0];
     try {
