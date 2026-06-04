@@ -2711,6 +2711,7 @@ animate();
 <!-- FIREBASE AUTH -->
 <script>
 const WAITING_VIDEO_URL = 'https://firebasestorage.googleapis.com/v0/b/notamai-a9d57.firebasestorage.app/o/WAITING2.mp4?alt=media&token=8d93efdf-874e-460c-bbbe-dd7c6585758e';
+const BRIEFING_SCRIPT = "Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Today's route analysis shows critical infrastructure impacts at your departure airport. Runway 18R is closed due to construction works until end of month. ILS system on runway 36L is unserviceable. Weather at destination is VFR with visibility above minimums. No active SIGMETs on your route. Have a safe and smooth flight.";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCH8bj9-775vmXU1HnqRFjf09g1yUXvnpo",
@@ -6161,7 +6162,7 @@ async function fetchWindsAloft() {
   </video>
 
   <!-- Subtitle bar -->
-  <div id="vbSubtitle" style="display:none;position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#ffffff;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:500;padding:6px 16px;border-radius:4px;text-align:center;max-width:90%;z-index:3;"></div>
+  <div id="vbSubtitle" style="display:none;position:absolute;bottom:40px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#ffffff;font-family:'Arial',sans-serif;font-size:17px;font-weight:400;padding:6px 20px;border-radius:4px;text-align:center;max-width:85%;z-index:3;line-height:1.5;letter-spacing:0.3px;"></div>
 
 </div>
 
@@ -6311,9 +6312,10 @@ function showResultVideo(videoUrl) {
   resultVideo.style.display = 'block';
   resultVideo.play();
 
-  // Show subtitle
-  document.getElementById('vbSubtitle').style.display = 'block';
-  document.getElementById('vbSubtitle').textContent = 'Pre-flight intelligence briefing in progress...';
+  // Start subtitles once metadata loaded (duration known)
+  resultVideo.addEventListener('loadedmetadata', () => {
+    startSubtitles(resultVideo);
+  });
 
   // Fade out ambient audio
   const ambient = document.getElementById('vbAmbientAudio');
@@ -6321,6 +6323,36 @@ function showResultVideo(videoUrl) {
     if (ambient.volume > 0.02) ambient.volume -= 0.02;
     else { clearInterval(fadeOut); ambient.pause(); }
   }, 100);
+}
+
+function startSubtitles(video) {
+  const subtitle = document.getElementById('vbSubtitle');
+  subtitle.style.display = 'block';
+
+  const words = BRIEFING_SCRIPT.split(' ');
+  const totalDuration = video.duration || 33;
+  const wordInterval = (totalDuration / words.length) * 1000;
+
+  let currentWord = 0;
+  const subtitleInterval = setInterval(() => {
+    if (currentWord >= words.length) {
+      clearInterval(subtitleInterval);
+      subtitle.style.display = 'none';
+      return;
+    }
+    // Show sliding 5-word window, active word highlighted in yellow
+    const chunk = words.slice(Math.max(0, currentWord - 2), currentWord + 3);
+    const activeIndex = Math.min(currentWord, 2);
+    subtitle.innerHTML = chunk.map((w, i) =>
+      `<span style="color:${i === activeIndex ? '#ffff00' : '#ffffff'};font-weight:${i === activeIndex ? '700' : '400'};">${w}</span>`
+    ).join(' ');
+    currentWord++;
+  }, wordInterval);
+
+  video.addEventListener('ended', () => {
+    clearInterval(subtitleInterval);
+    subtitle.style.display = 'none';
+  });
 }
 
 function showVideoBriefingError(msg) {
