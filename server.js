@@ -1520,6 +1520,81 @@ if (getAccessBtn) {
     return;
   }
 
+  // ── JOIN VIDEOS (Vace Video Joiner) ──────────────────────────
+  if (req.method === 'GET' && req.url === '/api/join-videos') {
+    try {
+      const clipIds = [
+        'e2a42e84bf804423a21c30175060613',
+        'c049d522f6b84eb786c0e30952d3c625',
+        '5ee42d8009c943bdb74d24107a64462b',
+        '02372d2f0a744d0ab875889b18ad893'
+      ];
+      // Fetch video URLs for each clip
+      const videoUrls = [];
+      for (const id of clipIds) {
+        const result = await new Promise((resolve, reject) => {
+          https.get({
+            hostname: 'api.wavespeed.ai',
+            path: '/api/v3/predictions/' + id + '/result',
+            headers: { 'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY }
+          }, statusRes => {
+            let data = '';
+            statusRes.on('data', chunk => data += chunk);
+            statusRes.on('end', () => {
+              try { resolve(JSON.parse(data)); }
+              catch(e) { resolve(null); }
+            });
+          }).on('error', reject);
+        });
+        const url = result?.data?.outputs?.[0];
+        if (url) {
+          videoUrls.push(url);
+          console.log('[JOIN] Clip', id, 'URL:', url);
+        }
+      }
+      console.log('[JOIN] Total clips found:', videoUrls.length);
+      if (videoUrls.length < 2) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not enough video URLs found', urls: videoUrls }));
+        return;
+      }
+      // Use Vace Video Joiner to concatenate clips
+      const payload = JSON.stringify({
+        videos: videoUrls,
+        transition: 'none'
+      });
+      const joinResult = await new Promise((resolve, reject) => {
+        const wavereq = https.request({
+          hostname: 'api.wavespeed.ai',
+          path: '/api/v3/wavespeed-ai/vace-video-joiner',
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          }
+        }, waveres => {
+          let data = '';
+          waveres.on('data', chunk => data += chunk);
+          waveres.on('end', () => {
+            console.log('[JOIN RESULT]', data.slice(0, 300));
+            try { resolve(JSON.parse(data)); }
+            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
+          });
+        });
+        wavereq.on('error', reject);
+        wavereq.write(payload);
+        wavereq.end();
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ videoUrls, joinResult }));
+    } catch(e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/airport/')) {
     const icao = req.url.split('/api/airport/')[1].split('?')[0];
     try {
