@@ -1135,7 +1135,8 @@ if (getAccessBtn) {
             audio_asset_id: 'a9213dac95834047bd46e741bd40de27'
           }
         }],
-        dimension: { width: 1280, height: 720 }
+        dimension: { width: 1280, height: 720 },
+        use_avatar_iv_model: true
       });
       const videoResult = await new Promise((resolve, reject) => {
         const videoReq = https.request({
