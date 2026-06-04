@@ -1031,7 +1031,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
       <div class="spacer"></div>
 
       <!-- video briefing -->
-      <button data-tooltip="AI Video Briefing" onclick="openModal()" style="background:rgba(181,123,255,0.08);border:1px solid rgba(181,123,255,0.4);color:#b57bff;cursor:pointer;padding:7px 10px;border-radius:6px;display:flex;align-items:center;justify-content:center;">
+      <button data-tooltip="AI Video Briefing" onclick="openVideoBriefing()" style="background:rgba(181,123,255,0.08);border:1px solid rgba(181,123,255,0.4);color:#b57bff;cursor:pointer;padding:7px 10px;border-radius:6px;display:flex;align-items:center;justify-content:center;">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M23 7l-7 5 7 5V7z"/>
           <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
@@ -2710,6 +2710,8 @@ animate();
 
 <!-- FIREBASE AUTH -->
 <script>
+const WAITING_VIDEO_URL = 'https://firebasestorage.googleapis.com/v0/b/notamai-a9d57.firebasestorage.app/o/WAITING2.mp4?alt=media&token=8d93efdf-874e-460c-bbbe-dd7c6585758e';
+
 const firebaseConfig = {
   apiKey: "AIzaSyCH8bj9-775vmXU1HnqRFjf09g1yUXvnpo",
   authDomain: "notamai-a9d57.firebaseapp.com",
@@ -6110,6 +6112,197 @@ async function fetchWindsAloft() {
   } catch(e) {
     result.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;">Error fetching winds aloft</div>';
   }
+}
+</script>
+
+<!-- ── VIDEO BRIEFING OVERLAY ──────────────────────────────── -->
+<div id="videoBriefingOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:9000;flex-direction:column;align-items:center;justify-content:center;">
+
+  <!-- Background waiting video -->
+  <video id="waitingVideo" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;opacity:0.7;" muted playsinline loop>
+    <source src="" type="video/mp4">
+  </video>
+
+  <!-- Dark overlay -->
+  <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(6,10,15,0.8));"></div>
+
+  <!-- Close button -->
+  <button onclick="closeVideoBriefing()" style="position:absolute;top:20px;right:20px;background:none;border:none;color:#4a5f72;font-size:24px;cursor:pointer;z-index:2;">✕</button>
+
+  <!-- Content overlay -->
+  <div style="position:relative;z-index:1;text-align:center;padding:40px;max-width:600px;">
+
+    <!-- Logo -->
+    <div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#4a9eff;letter-spacing:4px;margin-bottom:30px;">NOTAM INTELLIGENCE</div>
+
+    <!-- Route -->
+    <div id="vbRoute" style="font-family:'Orbitron',sans-serif;font-size:24px;color:#ffffff;letter-spacing:3px;margin-bottom:8px;">LTFM → EGLL</div>
+
+    <!-- Status message -->
+    <div id="vbStatus" style="font-family:'Share Tech Mono',monospace;font-size:13px;color:#4a9eff;letter-spacing:2px;margin-bottom:30px;">Initializing briefing...</div>
+
+    <!-- Animated FIRs -->
+    <div id="vbFirs" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;letter-spacing:2px;margin-bottom:30px;min-height:20px;"></div>
+
+    <!-- Progress bar -->
+    <div style="width:300px;height:2px;background:#1a2a3a;border-radius:2px;margin:0 auto 16px;">
+      <div id="vbProgress" style="height:100%;background:#4a9eff;border-radius:2px;width:0%;transition:width 0.5s ease;"></div>
+    </div>
+
+    <!-- Progress text -->
+    <div id="vbPercent" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;letter-spacing:2px;">0%</div>
+
+  </div>
+
+  <!-- Result video (hidden until ready) -->
+  <video id="resultVideo" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;" controls>
+    <source src="" type="video/mp4">
+  </video>
+
+</div>
+
+<script>
+// ── VIDEO BRIEFING ──────────────────────────────────────────────
+const vbMessages = [
+  'Scanning active NOTAMs...',
+  'Analyzing departure airport...',
+  'Checking en-route FIRs...',
+  'Analyzing weather conditions...',
+  'Calculating risk score...',
+  'Reviewing SIGMET warnings...',
+  'Preparing captain briefing...',
+  'Finalizing your briefing...'
+];
+
+let vbInterval = null;
+let vbProgressInterval = null;
+let vbStartTime = null;
+let vbEstimatedDuration = 160000;
+
+function openVideoBriefing() {
+  const user = firebase.auth().currentUser;
+  if (!user) {
+    showToast('Please sign in to use Video Briefing');
+    return;
+  }
+
+  const route = document.getElementById('mainInput')?.value?.trim() || 'LTFM → EGLL';
+  document.getElementById('vbRoute').textContent = route.replace(' ', ' → ');
+
+  // Reset state
+  document.getElementById('vbFirs').textContent = '';
+  document.getElementById('vbProgress').style.width = '0%';
+  document.getElementById('vbPercent').textContent = '0%';
+  document.getElementById('vbStatus').textContent = 'Initializing briefing...';
+  document.getElementById('waitingVideo').style.display = 'block';
+  document.getElementById('resultVideo').style.display = 'none';
+  const content = document.querySelector('#videoBriefingOverlay > div:nth-child(4)');
+  if (content) content.style.display = 'block';
+
+  // Show overlay
+  const overlay = document.getElementById('videoBriefingOverlay');
+  overlay.style.display = 'flex';
+
+  // Start waiting video
+  const waitingVideo = document.getElementById('waitingVideo');
+  waitingVideo.querySelector('source').src = WAITING_VIDEO_URL;
+  waitingVideo.load();
+  waitingVideo.play();
+
+  // Status messages
+  let msgIndex = 0;
+  vbInterval = setInterval(() => {
+    document.getElementById('vbStatus').textContent = vbMessages[msgIndex % vbMessages.length];
+    msgIndex++;
+  }, 3000);
+
+  // FIRs animation
+  const firs = ['LTBB', 'LGGG', 'LBSR', 'LOVV', 'EDGG', 'EGTT'];
+  let firIndex = 0;
+  const firTimer = setInterval(() => {
+    if (firIndex < firs.length) {
+      document.getElementById('vbFirs').textContent += (firIndex > 0 ? ' → ' : '') + firs[firIndex];
+      firIndex++;
+    } else {
+      clearInterval(firTimer);
+    }
+  }, 1500);
+
+  // Progress bar
+  vbStartTime = Date.now();
+  vbProgressInterval = setInterval(() => {
+    const elapsed = Date.now() - vbStartTime;
+    const progress = Math.min((elapsed / vbEstimatedDuration) * 90, 90);
+    document.getElementById('vbProgress').style.width = progress + '%';
+    document.getElementById('vbPercent').textContent = Math.floor(progress) + '%';
+  }, 500);
+
+  generateVideoBriefing(route, user.uid);
+}
+
+async function generateVideoBriefing(route, userId) {
+  try {
+    const response = await fetch('/api/generate-video-briefing', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId
+      },
+      body: JSON.stringify({ route, briefingId: window.currentBriefingId })
+    });
+    const data = await response.json();
+    if (data.predictionId) {
+      pollVideoStatus(data.predictionId);
+    } else {
+      showVideoBriefingError('Could not start video generation');
+    }
+  } catch(e) {
+    showVideoBriefingError('Error: ' + e.message);
+  }
+}
+
+async function pollVideoStatus(predictionId) {
+  const poll = setInterval(async () => {
+    try {
+      const res = await fetch('/api/check-video-briefing/' + predictionId);
+      const data = await res.json();
+      if (data.status === 'completed' && data.videoUrl) {
+        clearInterval(poll);
+        clearInterval(vbInterval);
+        clearInterval(vbProgressInterval);
+        document.getElementById('vbProgress').style.width = '100%';
+        document.getElementById('vbPercent').textContent = '100%';
+        document.getElementById('vbStatus').textContent = 'Your briefing is ready!';
+        setTimeout(() => showResultVideo(data.videoUrl), 1000);
+      }
+    } catch(e) {}
+  }, 5000);
+}
+
+function showResultVideo(videoUrl) {
+  const waitingVideo = document.getElementById('waitingVideo');
+  const resultVideo = document.getElementById('resultVideo');
+  const content = document.querySelector('#videoBriefingOverlay > div:nth-child(4)');
+  waitingVideo.style.display = 'none';
+  if (content) content.style.display = 'none';
+  resultVideo.querySelector('source').src = videoUrl;
+  resultVideo.load();
+  resultVideo.style.display = 'block';
+  resultVideo.play();
+}
+
+function showVideoBriefingError(msg) {
+  clearInterval(vbInterval);
+  clearInterval(vbProgressInterval);
+  document.getElementById('vbStatus').textContent = msg;
+}
+
+function closeVideoBriefing() {
+  document.getElementById('videoBriefingOverlay').style.display = 'none';
+  clearInterval(vbInterval);
+  clearInterval(vbProgressInterval);
+  const waitingVideo = document.getElementById('waitingVideo');
+  waitingVideo.pause();
 }
 </script>
 

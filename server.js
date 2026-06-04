@@ -1595,6 +1595,94 @@ if (getAccessBtn) {
     return;
   }
 
+  // ── GENERATE VIDEO BRIEFING ───────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/generate-video-briefing') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { route, briefingId } = JSON.parse(body);
+        const userId = req.headers['x-user-id'];
+        const AUDIO_ASSET_URL = 'https://resource2.heygen.ai/audio/a9213dac95834047bd46e741bd40de27/original.mp3';
+        const audioData = await new Promise((resolve, reject) => {
+          https.get(AUDIO_ASSET_URL, res => {
+            const chunks = [];
+            res.on('data', chunk => chunks.push(chunk));
+            res.on('end', () => resolve(Buffer.concat(chunks)));
+            res.on('error', reject);
+          });
+        });
+        const imageData = fs.readFileSync('./pilot_image.jpg');
+        const imageBase64 = imageData.toString('base64');
+        const audioBase64 = audioData.toString('base64');
+        const payload = JSON.stringify({
+          image: 'data:image/jpeg;base64,' + imageBase64,
+          audio: 'data:audio/mpeg;base64,' + audioBase64,
+          resolution: '480p'
+        });
+        const result = await new Promise((resolve, reject) => {
+          const wavereq = https.request({
+            hostname: 'api.wavespeed.ai',
+            path: '/api/v3/wavespeed-ai/infinitetalk-fast',
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(payload)
+            }
+          }, waveres => {
+            let data = '';
+            waveres.on('data', chunk => data += chunk);
+            waveres.on('end', () => {
+              try { resolve(JSON.parse(data)); }
+              catch(e) { resolve({ error: 'Parse error' }); }
+            });
+          });
+          wavereq.on('error', reject);
+          wavereq.write(payload);
+          wavereq.end();
+        });
+        const predictionId = result?.data?.id;
+        console.log('[VIDEO BRIEFING] Started:', predictionId, 'route:', route);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ predictionId }));
+      } catch(e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // ── CHECK VIDEO BRIEFING STATUS ───────────────────────────────
+  if (req.method === 'GET' && req.url.startsWith('/api/check-video-briefing/')) {
+    const predId = req.url.split('/api/check-video-briefing/')[1];
+    try {
+      const result = await new Promise((resolve, reject) => {
+        https.get({
+          hostname: 'api.wavespeed.ai',
+          path: '/api/v3/predictions/' + predId + '/result',
+          headers: { 'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY }
+        }, statusRes => {
+          let data = '';
+          statusRes.on('data', chunk => data += chunk);
+          statusRes.on('end', () => {
+            try { resolve(JSON.parse(data)); }
+            catch(e) { resolve({ error: 'Parse error' }); }
+          });
+        }).on('error', reject);
+      });
+      const status = result?.data?.status;
+      const videoUrl = result?.data?.outputs?.[0];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status, videoUrl }));
+    } catch(e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/airport/')) {
     const icao = req.url.split('/api/airport/')[1].split('?')[0];
     try {
