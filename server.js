@@ -1128,7 +1128,9 @@ if (getAccessBtn) {
         video_inputs: [{
           character: {
             type: 'talking_photo',
-            talking_photo_id: '8e0149d152e14333a81853524dc7706a'
+            talking_photo_id: '8e0149d152e14333a81853524dc7706a',
+            scale: 1,
+            talking_style: 'stable'
           },
           voice: {
             type: 'audio',
@@ -1136,7 +1138,8 @@ if (getAccessBtn) {
           }
         }],
         dimension: { width: 1280, height: 720 },
-        use_avatar_iv_model: true
+        use_avatar_iv_model: true,
+        caption: false
       });
       const videoResult = await new Promise((resolve, reject) => {
         const videoReq = https.request({
@@ -1161,6 +1164,7 @@ if (getAccessBtn) {
         videoReq.write(videoPayload);
         videoReq.end();
       });
+      console.log('[VIDEO FULL RESULT]', JSON.stringify(videoResult));
       const videoId = videoResult.data?.video_id;
       console.log('[VIDEO ID]', videoId);
       if (videoId) {
