@@ -6117,7 +6117,7 @@ async function fetchWindsAloft() {
 </script>
 
 <!-- ── VIDEO BRIEFING OVERLAY ──────────────────────────────── -->
-<div id="videoBriefingBackdrop" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:8999;" onclick="closeVideoBriefing()"></div>
+<div id="videoBriefingBackdrop" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:8999;"></div>
 <div id="videoBriefingOverlay" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:700px;height:460px;background:#060a0f;border:1px solid #1a2a3a;border-radius:12px;z-index:9000;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,0.9);flex-direction:column;align-items:center;justify-content:center;">
 
   <!-- Background waiting video -->
@@ -6284,7 +6284,14 @@ async function generateVideoBriefing(route, userId) {
 }
 
 async function pollVideoStatus(predictionId) {
+  let pollCount = 0;
   const poll = setInterval(async () => {
+    pollCount++;
+    if (pollCount > 60) {
+      clearInterval(poll);
+      showVideoBriefingError('Video generation timed out. Please try again.');
+      return;
+    }
     try {
       const res = await fetch('/api/check-video-briefing/' + predictionId);
       const data = await res.json();

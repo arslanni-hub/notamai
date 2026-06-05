@@ -18,6 +18,7 @@ const adminDb = admin.firestore();
 
 const PILOT_IMAGE_PATH = './pilot_image.jpg';
 let heygenTestLock = false;
+let videoBriefingLock = false;
 
 // Download pilot image on startup if not already present
 if (!fs.existsSync(PILOT_IMAGE_PATH)) {
@@ -1601,6 +1602,12 @@ if (getAccessBtn) {
   // ── GENERATE VIDEO BRIEFING ───────────────────────────────────
   // ELEVENLABS_KEY must be set in Render environment variables
   if (req.method === 'POST' && req.url === '/api/generate-video-briefing') {
+    if (videoBriefingLock) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Already processing, please wait' }));
+      return;
+    }
+    videoBriefingLock = true;
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
@@ -1620,6 +1627,26 @@ if (getAccessBtn) {
         }
 
         // Step 2: Generate script with Claude Haiku
+        const hour = new Date().getUTCHours();
+        const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
+        const scriptPrompt = `You are an experienced airline captain delivering a pre-flight video briefing. Write a natural 45-second spoken briefing (max 110 words).
+
+Route: ${route}
+Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
+
+Structure (follow exactly):
+1. "${greeting} Captain. Today we're operating ${route}."
+2. Executive summary: most critical risk + GO/NO-GO/GO WITH CONDITIONS classification (2 sentences)
+3. Single most critical NOTAM impact (1-2 sentences)
+4. Weather summary departure and arrival (1 sentence)
+5. "For full NOTAM details and analysis, check the NOTAMs panel in your briefing."
+6. "Have a safe flight."
+
+Rules:
+- Maximum 110 words total
+- Natural spoken language, no lists, no bullet points
+- Plain text only, no markdown`;
+
         const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -1630,20 +1657,7 @@ if (getAccessBtn) {
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 200,
-            messages: [{
-              role: 'user',
-              content: `You are an experienced airline captain. Write a 45-second spoken pre-flight briefing for route ${route}.
-
-Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
-
-Rules:
-- Maximum 110 words, natural spoken language
-- Cover: main risks, weather, go/no-go
-- Professional aviation tone
-- Start with "Good morning" or "Good evening"
-- End with "Have a safe flight"
-- NO markdown, plain text only`
-            }]
+            messages: [{ role: 'user', content: scriptPrompt }]
           })
         });
         const scriptData = await scriptRes.json();
@@ -1661,16 +1675,20 @@ Rules:
           body: JSON.stringify({
             text: script,
             model_id: 'eleven_monolingual_v1',
-            voice_settings: {
-              stability: 0.75,
-              similarity_boost: 0.85,
-              style: 0.3,
-              use_speaker_boost: true
-            }
+            voice_settings: { stability: 0.75, similarity_boost: 0.85 }
           })
         });
+        console.log('[TTS STATUS]', ttsRes.status);
+        if (!ttsRes.ok) {
+          const errText = await ttsRes.text();
+          console.log('[TTS ERROR]', errText.slice(0, 200));
+          throw new Error('ElevenLabs TTS failed: ' + ttsRes.status);
+        }
         const audioBuffer = Buffer.from(await ttsRes.arrayBuffer());
-        console.log('[VIDEO AUDIO] Size:', audioBuffer.length);
+        console.log('[VIDEO AUDIO] Size:', audioBuffer.length, 'bytes');
+        if (audioBuffer.length < 1000) {
+          throw new Error('Audio too small - ElevenLabs may have failed: ' + audioBuffer.length);
+        }
 
         // Step 4: Send image + audio to WaveSpeed InfiniteTalk Fast
         const imageData = fs.readFileSync('./pilot_image.jpg');
@@ -1709,6 +1727,8 @@ Rules:
       } catch(e) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: e.message }));
+      } finally {
+        videoBriefingLock = false;
       }
     });
     return;
