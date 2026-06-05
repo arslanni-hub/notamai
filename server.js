@@ -37,8 +37,11 @@ const PLAN_LIMITS = {
 async function getUserPlan(userId) {
   try {
     const doc = await adminDb.collection('users').doc(userId).get();
-    return doc.exists ? (doc.data().plan || 'free') : 'free';
+    const plan = doc.exists ? (doc.data().plan || 'free') : 'free';
+    console.log('[PLAN CHECK]', userId, 'plan:', plan);
+    return plan;
   } catch(e) {
+    console.log('[PLAN CHECK] Error for', userId, ':', e.message);
     return 'free';
   }
 }
