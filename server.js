@@ -1599,6 +1599,7 @@ if (getAccessBtn) {
   }
 
   // ── GENERATE VIDEO BRIEFING ───────────────────────────────────
+  // ELEVENLABS_KEY must be set in Render environment variables
   if (req.method === 'POST' && req.url === '/api/generate-video-briefing') {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -1606,49 +1607,105 @@ if (getAccessBtn) {
       try {
         const { route, briefingId } = JSON.parse(body);
         const userId = req.headers['x-user-id'];
-        const AUDIO_ASSET_URL = 'https://resource2.heygen.ai/audio/a9213dac95834047bd46e741bd40de27/original.mp3';
-        const audioData = await new Promise((resolve, reject) => {
-          https.get(AUDIO_ASSET_URL, res => {
-            const chunks = [];
-            res.on('data', chunk => chunks.push(chunk));
-            res.on('end', () => resolve(Buffer.concat(chunks)));
-            res.on('error', reject);
-          });
+
+        // Step 1: Get briefing content from Firestore
+        let briefingContent = '';
+        if (briefingId) {
+          try {
+            const doc = await adminDb.collection('briefings').doc(briefingId).get();
+            if (doc.exists) {
+              briefingContent = (doc.data().html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 2000);
+            }
+          } catch(e) { console.log('[VIDEO] Firestore error:', e.message); }
+        }
+
+        // Step 2: Generate script with Claude Haiku
+        const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 200,
+            messages: [{
+              role: 'user',
+              content: `You are an experienced airline captain. Write a 45-second spoken pre-flight briefing for route ${route}.
+
+Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
+
+Rules:
+- Maximum 110 words, natural spoken language
+- Cover: main risks, weather, go/no-go
+- Professional aviation tone
+- Start with "Good morning" or "Good evening"
+- End with "Have a safe flight"
+- NO markdown, plain text only`
+            }]
+          })
         });
+        const scriptData = await scriptRes.json();
+        const script = scriptData.content?.[0]?.text || 'Pre-flight briefing complete. Have a safe flight.';
+        console.log('[VIDEO SCRIPT]', script.slice(0, 100));
+
+        // Step 3: Convert script to audio with ElevenLabs
+        const VOICE_ID = 'TxGEqnHWrfWFTfGW9XjX'; // Edward voice
+        const ttsRes = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + VOICE_ID, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'xi-api-key': process.env.ELEVENLABS_KEY
+          },
+          body: JSON.stringify({
+            text: script,
+            model_id: 'eleven_monolingual_v1',
+            voice_settings: {
+              stability: 0.75,
+              similarity_boost: 0.85,
+              style: 0.3,
+              use_speaker_boost: true
+            }
+          })
+        });
+        const audioBuffer = Buffer.from(await ttsRes.arrayBuffer());
+        console.log('[VIDEO AUDIO] Size:', audioBuffer.length);
+
+        // Step 4: Send image + audio to WaveSpeed InfiniteTalk Fast
         const imageData = fs.readFileSync('./pilot_image.jpg');
         const imageBase64 = imageData.toString('base64');
-        const audioBase64 = audioData.toString('base64');
+        const audioBase64 = audioBuffer.toString('base64');
         const payload = JSON.stringify({
           image: 'data:image/jpeg;base64,' + imageBase64,
           audio: 'data:audio/mpeg;base64,' + audioBase64,
           resolution: '480p'
         });
-        const result = await new Promise((resolve, reject) => {
-          const wavereq = https.request({
-            hostname: 'api.wavespeed.ai',
-            path: '/api/v3/wavespeed-ai/infinitetalk-fast',
-            method: 'POST',
-            headers: {
-              'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(payload)
-            }
-          }, waveres => {
-            let data = '';
-            waveres.on('data', chunk => data += chunk);
-            waveres.on('end', () => {
-              try { resolve(JSON.parse(data)); }
-              catch(e) { resolve({ error: 'Parse error' }); }
-            });
-          });
-          wavereq.on('error', reject);
-          wavereq.write(payload);
-          wavereq.end();
+        const wsRes = await fetch('https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk-fast', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: payload
         });
-        const predictionId = result?.data?.id;
-        console.log('[VIDEO BRIEFING] Started:', predictionId, 'route:', route);
+        const wsData = await wsRes.json();
+        const predictionId = wsData?.data?.id;
+        console.log('[VIDEO BRIEFING] Started:', predictionId, 'Script:', script.slice(0, 50));
+
+        // Step 5: Save to Firestore videos collection
+        await adminDb.collection('videos').add({
+          userId,
+          route,
+          briefingId: briefingId || null,
+          predictionId,
+          script,
+          status: 'processing',
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ predictionId }));
+        res.end(JSON.stringify({ predictionId, script }));
       } catch(e) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: e.message }));
@@ -1677,8 +1734,26 @@ if (getAccessBtn) {
       });
       const status = result?.data?.status;
       const videoUrl = result?.data?.outputs?.[0];
+
+      // Fetch script from Firestore
+      let script = null;
+      try {
+        const videoQuery = await adminDb.collection('videos').where('predictionId', '==', predId).limit(1).get();
+        if (!videoQuery.empty) {
+          script = videoQuery.docs[0].data().script || null;
+          // Update Firestore when completed
+          if (status === 'completed' && videoUrl) {
+            await videoQuery.docs[0].ref.update({
+              status: 'completed',
+              videoUrl,
+              completedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+          }
+        }
+      } catch(e) { console.log('[VIDEO] Firestore update error:', e.message); }
+
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status, videoUrl }));
+      res.end(JSON.stringify({ status, videoUrl, script }));
     } catch(e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));

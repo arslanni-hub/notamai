@@ -6292,6 +6292,7 @@ async function pollVideoStatus(predictionId) {
         clearInterval(poll);
         clearInterval(vbInterval);
         clearInterval(vbProgressInterval);
+        if (data.script) window.currentVideoScript = data.script;
         document.getElementById('vbProgress').style.width = '100%';
         document.getElementById('vbPercent').textContent = '100%';
         document.getElementById('vbStatus').textContent = 'Your briefing is ready!';
@@ -6329,7 +6330,8 @@ function startSubtitles(video) {
   const subtitle = document.getElementById('vbSubtitle');
   subtitle.style.display = 'block';
 
-  const words = BRIEFING_SCRIPT.split(' ');
+  const scriptToUse = window.currentVideoScript || BRIEFING_SCRIPT;
+  const words = scriptToUse.split(' ');
   const totalDuration = video.duration || 33;
   const wordInterval = (totalDuration / words.length) * 1000;
 
