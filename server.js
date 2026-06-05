@@ -1629,24 +1629,27 @@ if (getAccessBtn) {
         // Step 2: Generate script with Claude Haiku
         const hour = new Date().getUTCHours();
         const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-        const scriptPrompt = `You are Captain Edward, an experienced senior airline captain with 35 years of experience, delivering a professional pre-flight video briefing. Write a compelling, informative 60-second spoken briefing (max 130 words).
+        const scriptPrompt = `You are Captain Edward, a senior airline captain with 35 years experience, delivering a concise pre-flight video briefing. Write exactly 50-60 seconds of natural spoken content (max 115 words).
 
 Route: ${route}
 Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
 
-Structure (follow exactly):
-1. "${greeting} Captain. Today we're operating ${route}."
-2. Operational classification: state GO / NO-GO / GO WITH CONDITIONS clearly and confidently
-3. Most critical risk: specific NOTAM or hazard with operational impact (be specific - mention actual NOTAM details if available)
-4. Weather: specific conditions at departure and arrival
-5. "Full details and NOTAM analysis available in your briefing panel."
-6. "Stay safe. Good flight."
+Structure:
+1. "${greeting}. Today we're flying [departure city] to [arrival city]." (Use city names, NOT ICAO codes)
+2. Operational status in ONE sentence: state the compound risk level and classification from executive summary
+3. Critical NOTAMs: describe what's actually wrong in plain English - closed runways, failed navaids, suspended procedures. NO NOTAM numbers. Use plain names like "the ILS on runway 25" not "ILS RWY 25C". Focus on operational impact.
+4. En-route: mention any active FIR restrictions or GNSS issues if present
+5. Weather: ONE sentence only - just the key risk or "conditions are favorable"
+6. "Check the NOTAMs panel for full details and weather data."
+7. "Have a smooth flight."
 
 Rules:
-- Maximum 130 words, natural confident spoken delivery
-- Be specific and detailed. Use exact NOTAM numbers, runway identifiers, navaid frequencies from the briefing data. A pilot needs actionable information, not generic statements.
-- Sound like a real experienced captain, not a robot
-- Plain text only, no markdown, no bullet points`;
+- Max 115 words, natural confident pace
+- City/airport names not ICAO codes
+- No NOTAM numbers, no technical jargon
+- Focus 70% on NOTAMs, 30% on weather
+- Plain conversational English
+- No markdown`;
 
         const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
