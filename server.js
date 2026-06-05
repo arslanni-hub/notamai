@@ -1629,23 +1629,24 @@ if (getAccessBtn) {
         // Step 2: Generate script with Claude Haiku
         const hour = new Date().getUTCHours();
         const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-        const scriptPrompt = `You are an experienced airline captain delivering a pre-flight video briefing. Write a natural 45-second spoken briefing (max 110 words).
+        const scriptPrompt = `You are Captain Edward, an experienced senior airline captain with 35 years of experience, delivering a professional pre-flight video briefing. Write a compelling, informative 45-second spoken briefing (max 110 words).
 
 Route: ${route}
 Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
 
 Structure (follow exactly):
 1. "${greeting} Captain. Today we're operating ${route}."
-2. Executive summary: most critical risk + GO/NO-GO/GO WITH CONDITIONS classification (2 sentences)
-3. Single most critical NOTAM impact (1-2 sentences)
-4. Weather summary departure and arrival (1 sentence)
-5. "For full NOTAM details and analysis, check the NOTAMs panel in your briefing."
-6. "Have a safe flight."
+2. Operational classification: state GO / NO-GO / GO WITH CONDITIONS clearly and confidently
+3. Most critical risk: specific NOTAM or hazard with operational impact (be specific - mention actual NOTAM details if available)
+4. Weather: specific conditions at departure and arrival
+5. "Full details and NOTAM analysis available in your briefing panel."
+6. "Stay safe. Good flight."
 
 Rules:
-- Maximum 110 words total
-- Natural spoken language, no lists, no bullet points
-- Plain text only, no markdown`;
+- Maximum 110 words, natural confident spoken delivery
+- Be specific - use actual NOTAM numbers, runway IDs, navaid names from briefing data
+- Sound like a real experienced captain, not a robot
+- Plain text only, no markdown, no bullet points`;
 
         const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
@@ -1665,7 +1666,7 @@ Rules:
         console.log('[VIDEO SCRIPT]', script.slice(0, 100));
 
         // Step 3: Convert script to audio with ElevenLabs
-        const VOICE_ID = 'TxGEqnHWrfWFTfGW9XjX'; // Edward voice
+        const VOICE_ID = 'jXkeB46JcPXXUSxzn3MD'; // Edward voice
         const ttsRes = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + VOICE_ID, {
           method: 'POST',
           headers: {
