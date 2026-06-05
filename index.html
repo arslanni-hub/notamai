@@ -6162,7 +6162,14 @@ async function fetchWindsAloft() {
   </video>
 
   <!-- Subtitle bar -->
-  <div id="vbSubtitle" style="display:none;position:absolute;bottom:40px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#ffffff;font-family:'Arial',sans-serif;font-size:17px;font-weight:400;padding:6px 20px;border-radius:4px;text-align:center;max-width:85%;z-index:3;line-height:1.5;letter-spacing:0.3px;"></div>
+  <div id="vbSubtitle" style="display:none;position:absolute;bottom:50px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#ffffff;font-family:'Arial',sans-serif;font-size:16px;font-weight:400;padding:8px 20px;border-radius:4px;text-align:center;max-width:90%;z-index:10;line-height:1.6;letter-spacing:0.3px;pointer-events:none;"></div>
+
+  <!-- Video controls -->
+  <div id="vbControls" style="display:none;position:absolute;bottom:10px;right:12px;flex-direction:row;gap:8px;z-index:11;align-items:center;">
+    <button id="vbSubtitleToggle" onclick="toggleSubtitles()" style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.3);color:#ffffff;font-family:Arial,sans-serif;font-size:11px;padding:4px 10px;border-radius:4px;cursor:pointer;">CC</button>
+    <input id="vbVolume" type="range" min="0" max="1" step="0.1" value="1" oninput="setVideoVolume(this.value)" style="width:70px;cursor:pointer;accent-color:#4a9eff;">
+    <button id="vbMute" onclick="toggleVideoMute()" style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.3);color:#ffffff;font-family:Arial,sans-serif;font-size:13px;padding:4px 8px;border-radius:4px;cursor:pointer;">🔊</button>
+  </div>
 
 </div>
 
@@ -6319,6 +6326,7 @@ function showResultVideo(videoUrl) {
   resultVideo.load();
   resultVideo.style.display = 'block';
   resultVideo.play();
+  document.getElementById('vbControls').style.display = 'flex';
 
   // Start subtitles once metadata loaded (duration known)
   resultVideo.addEventListener('loadedmetadata', () => {
@@ -6345,33 +6353,70 @@ function showResultVideo(videoUrl) {
 
 function startSubtitles(video) {
   const subtitle = document.getElementById('vbSubtitle');
+  if (!subtitle) return;
   subtitle.style.display = 'block';
+  subtitle.textContent = '';
 
-  const scriptToUse = window.currentVideoScript || BRIEFING_SCRIPT;
-  const words = scriptToUse.split(' ');
-  const totalDuration = video.duration || 33;
+  if (window.subtitleInterval) clearInterval(window.subtitleInterval);
+
+  const scriptText = window.currentVideoScript || BRIEFING_SCRIPT;
+  const words = scriptText.split(' ');
+  const totalDuration = video.duration || 58;
   const wordInterval = (totalDuration / words.length) * 1000;
 
   let currentWord = 0;
+  let displayedWords = [];
+  const MAX_WORDS = 6;
+
   const subtitleInterval = setInterval(() => {
-    if (currentWord >= words.length) {
-      clearInterval(subtitleInterval);
-      subtitle.style.display = 'none';
+    if (currentWord >= words.length || video.paused || video.ended) {
+      if (video.ended) {
+        clearInterval(subtitleInterval);
+        subtitle.style.display = 'none';
+      }
       return;
     }
-    // Show sliding 5-word window, active word highlighted in yellow
-    const chunk = words.slice(Math.max(0, currentWord - 2), currentWord + 3);
-    const activeIndex = Math.min(currentWord, 2);
-    subtitle.innerHTML = chunk.map((w, i) =>
-      `<span style="color:${i === activeIndex ? '#ffff00' : '#ffffff'};font-weight:${i === activeIndex ? '700' : '400'};">${w}</span>`
-    ).join(' ');
+    displayedWords.push(words[currentWord]);
+    if (displayedWords.length > MAX_WORDS) displayedWords.shift();
+    subtitle.innerHTML = displayedWords.map((w, i) => {
+      const isLast = i === displayedWords.length - 1;
+      return `<span style="color:${isLast ? '#ffff00' : '#ffffff'};font-weight:${isLast ? '700' : '400'};text-shadow:${isLast ? '0 0 8px rgba(255,255,0,0.5)' : 'none'};">${w}</span>`;
+    }).join(' ');
     currentWord++;
   }, wordInterval);
+
+  window.subtitleInterval = subtitleInterval;
 
   video.addEventListener('ended', () => {
     clearInterval(subtitleInterval);
     subtitle.style.display = 'none';
   });
+}
+
+function toggleSubtitles() {
+  const subtitle = document.getElementById('vbSubtitle');
+  const btn = document.getElementById('vbSubtitleToggle');
+  if (subtitle.style.display === 'none') {
+    subtitle.style.display = 'block';
+    btn.style.opacity = '1';
+  } else {
+    subtitle.style.display = 'none';
+    btn.style.opacity = '0.4';
+  }
+}
+
+function setVideoVolume(val) {
+  const video = document.getElementById('resultVideo');
+  if (video) video.volume = parseFloat(val);
+}
+
+function toggleVideoMute() {
+  const video = document.getElementById('resultVideo');
+  const btn = document.getElementById('vbMute');
+  if (video) {
+    video.muted = !video.muted;
+    btn.textContent = video.muted ? '🔇' : '🔊';
+  }
 }
 
 function showVideoBriefingError(msg) {
@@ -6385,9 +6430,11 @@ function closeVideoBriefing() {
   document.getElementById('videoBriefingBackdrop').style.display = 'none';
   clearInterval(vbInterval);
   clearInterval(vbProgressInterval);
+  if (window.subtitleInterval) clearInterval(window.subtitleInterval);
   document.getElementById('waitingVideo').pause();
   document.getElementById('resultVideo').pause();
   document.getElementById('vbSubtitle').style.display = 'none';
+  document.getElementById('vbControls').style.display = 'none';
   const ambientAudio = document.getElementById('vbAmbientAudio');
   ambientAudio.pause();
   ambientAudio.currentTime = 0;

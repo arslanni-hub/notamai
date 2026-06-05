@@ -1629,7 +1629,7 @@ if (getAccessBtn) {
         // Step 2: Generate script with Claude Haiku
         const hour = new Date().getUTCHours();
         const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-        const scriptPrompt = `You are Captain Edward, an experienced senior airline captain with 35 years of experience, delivering a professional pre-flight video briefing. Write a compelling, informative 45-second spoken briefing (max 110 words).
+        const scriptPrompt = `You are Captain Edward, an experienced senior airline captain with 35 years of experience, delivering a professional pre-flight video briefing. Write a compelling, informative 60-second spoken briefing (max 130 words).
 
 Route: ${route}
 Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
@@ -1643,8 +1643,8 @@ Structure (follow exactly):
 6. "Stay safe. Good flight."
 
 Rules:
-- Maximum 110 words, natural confident spoken delivery
-- Be specific - use actual NOTAM numbers, runway IDs, navaid names from briefing data
+- Maximum 130 words, natural confident spoken delivery
+- Be specific and detailed. Use exact NOTAM numbers, runway identifiers, navaid frequencies from the briefing data. A pilot needs actionable information, not generic statements.
 - Sound like a real experienced captain, not a robot
 - Plain text only, no markdown, no bullet points`;
 
