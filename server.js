@@ -2714,14 +2714,20 @@ async function checkNotamAlerts() {
         const latestNotam = notams[0];
         if (!latestNotam) continue;
 
-        // Try multiple ID fields
-        const latestId = latestNotam.id ||
-                         latestNotam.notamNumber ||
-                         latestNotam.notam_number ||
-                         latestNotam.number ||
-                         latestNotam.core?.id ||
-                         latestNotam.properties?.id ||
-                         '';
+        // Try structured fields first
+        let latestId = latestNotam.id ||
+                       latestNotam.notam_id ||
+                       latestNotam.notamNumber ||
+                       latestNotam.notam_number ||
+                       latestNotam.number ||
+                       '';
+
+        // If no structured ID, extract from raw text using regex
+        if (!latestId && latestNotam.raw) {
+          const rawMatch = latestNotam.raw.match(/([A-Z]\d+\/\d{4})/);
+          if (rawMatch) latestId = rawMatch[1];
+        }
+
         const lastSentId = alert.lastSentNotamId || '';
         console.log('[ALERT CHECK]', icao, 'latestId:', latestId, 'lastSentId:', lastSentId);
 
