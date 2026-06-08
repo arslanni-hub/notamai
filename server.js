@@ -2614,6 +2614,13 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
     return;
   }
 
+  if (req.method === 'POST' && req.url === '/api/test-alert') {
+    checkNotamAlerts();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ message: 'Alert check triggered' }));
+    return;
+  }
+
   res.writeHead(404);
   res.end('Not found');
 });
