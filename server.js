@@ -2675,15 +2675,17 @@ async function checkNotamAlerts() {
       const { userId, icao } = alert;
       if (!icao) continue;
 
-      // Get user email
-      let userEmail;
+      // Get user email from Firebase Auth
+      let userEmail = null;
       try {
-        const userDoc = await adminDb.collection('users').doc(userId).get();
-        if (!userDoc.exists) continue;
-        userEmail = userDoc.data().email;
-        if (!userEmail) continue;
-        console.log('[ALERT CHECK] User email:', userEmail, 'ICAO:', icao);
-      } catch(e) { console.log('[ALERT CHECK] User fetch error:', e.message); continue; }
+        const userRecord = await admin.auth().getUser(userId);
+        userEmail = userRecord.email;
+      } catch(e) {
+        console.log('[ALERT CHECK] Could not get user email:', userId, e.message);
+        continue;
+      }
+      if (!userEmail) continue;
+      console.log('[ALERT CHECK] User email:', userEmail, 'ICAO:', icao);
 
       // Fetch latest NOTAMs via SkyLink
       try {
