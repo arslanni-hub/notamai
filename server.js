@@ -2699,22 +2699,45 @@ async function checkNotamAlerts() {
         const notams = data?.notams || [];
         if (notams.length === 0) continue;
 
+        console.log('[ALERT CHECK] Raw NOTAM sample:', JSON.stringify(notams[0]).slice(0, 200));
+
         // Sort by NOTAM number descending to get newest first
         notams.sort((a, b) => {
           const getSeq = n => {
-            const m = (n.id || n.notamNumber || '').match(/[A-Z](\d+)\/\d+/);
+            const id = n.id || n.notamNumber || n.notam_number || n.number || n.core?.id || n.properties?.id || '';
+            const m = id.match(/[A-Z](\d+)\/\d+/);
             return m ? parseInt(m[1]) : 0;
           };
           return getSeq(b) - getSeq(a);
         });
 
         const latestNotam = notams[0];
-        const latestId = latestNotam.id || latestNotam.notamNumber || '';
+        if (!latestNotam) continue;
+
+        // Try multiple ID fields
+        const latestId = latestNotam.id ||
+                         latestNotam.notamNumber ||
+                         latestNotam.notam_number ||
+                         latestNotam.number ||
+                         latestNotam.core?.id ||
+                         latestNotam.properties?.id ||
+                         '';
         const lastSentId = alert.lastSentNotamId || '';
-        console.log('[ALERT CHECK] NOTAMs fetched for', icao, ':', notams.length, 'lastSentId:', lastSentId, 'latestId:', latestId);
+        console.log('[ALERT CHECK]', icao, 'latestId:', latestId, 'lastSentId:', lastSentId);
 
         if (latestId && latestId !== lastSentId) {
-          const notamText = (latestNotam.raw || latestNotam.body || latestId).slice(0, 500);
+          // First time (lastSentId empty) - save baseline ID, don't send email
+          if (!lastSentId) {
+            await alertDoc.ref.update({
+              lastSentNotamId: latestId,
+              lastChecked: admin.firestore.FieldValue.serverTimestamp()
+            });
+            console.log('[ALERT CHECK]', icao, 'First check - saved baseline NOTAM ID:', latestId);
+            continue;
+          }
+
+          // New NOTAM found - send email
+          const notamText = latestNotam.raw || latestNotam.text || latestNotam.body || latestId;
           await sendNotamAlert(userEmail, icao, notamText);
           await alertDoc.ref.update({
             lastSentNotamId: latestId,
