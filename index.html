@@ -4908,6 +4908,11 @@ async function fetchRawData() {
     const notamSection = document.createElement('div');
     notamSection.style.marginBottom = '20px';
     const notamBlocks = notamText.trim().split('\n===NOTAM===\n').filter(n => n.trim());
+    // Sort newest NOTAM first by NOTAM sequence number (e.g. B1234/26 → 1234)
+    notamBlocks.sort((a, b) => {
+      const getNum = s => { const m = s.match(/[A-Z](\d+)\/\d+/); return m ? parseInt(m[1]) : 0; };
+      return getNum(b) - getNum(a);
+    });
     if (notamBlocks.length === 0 || notamText.includes('No active')) {
       const empty = document.createElement('div');
       empty.style.cssText = "font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;";

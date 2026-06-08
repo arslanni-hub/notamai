@@ -847,7 +847,7 @@ IMPORTANT: Never use markdown backticks or code blocks. For RAW NOTAM TEXT field
 <pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>NOTAM TEXT</pre>
 The ! prefix and date format (YYMMDDHHmm) are standard ICAO format - keep them exactly as received.
 
-NOTAM LIMITS: Show maximum 8 NOTAMs per airport, prioritizing CRITICAL and HIGH severity first. For en-route FIRs, show maximum 2 NOTAMs per FIR with brief summaries only — do not include raw NOTAM text blocks for en-route FIRs.`;
+NOTAM LIMITS: Show maximum 8 NOTAMs per airport, prioritizing CRITICAL and HIGH severity first. Order NOTAMs by most recently issued first (highest NOTAM number first). For en-route FIRs, show maximum 2 NOTAMs per FIR with brief summaries only — do not include raw NOTAM text blocks for en-route FIRs.`;
 
 const server = http.createServer(async (req, res) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
@@ -2622,3 +2622,108 @@ server.timeout = 120000;
 server.listen(PORT, () => {
   console.log(`NOTAM Intelligence server running on port ${PORT}`);
 });
+
+// ─── NOTAM ALERT EMAIL SYSTEM ─────────────────────────────────────────────
+// Requires env var: RESEND_API_KEY (add to Render environment variables)
+// Domain: alerts@notamai.com must be verified in Resend dashboard
+
+async function sendNotamAlert(userEmail, icao, notamText) {
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + process.env.RESEND_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'NOTAM Intelligence <alerts@notamai.com>',
+        to: userEmail,
+        subject: '⚠️ NOTAM Alert: ' + icao,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#060a0f;color:#cdd9e5;padding:24px;border-radius:8px;">
+            <div style="font-family:monospace;font-size:18px;color:#4a9eff;margin-bottom:16px;">NOTAM INTELLIGENCE</div>
+            <div style="font-size:20px;font-weight:bold;color:#e63946;margin-bottom:12px;">⚠️ New Critical NOTAM: ${icao}</div>
+            <div style="background:#0d1520;border-left:4px solid #e63946;padding:16px;border-radius:4px;font-family:monospace;font-size:13px;margin-bottom:16px;">${notamText}</div>
+            <div style="font-size:12px;color:#4a5f72;">Check full details at <a href="https://notamai.onrender.com" style="color:#4a9eff;">notamai.onrender.com</a></div>
+          </div>
+        `
+      })
+    });
+    const data = await res.json();
+    console.log('[ALERT EMAIL]', userEmail, icao, data.id ? 'sent:' + data.id : 'failed');
+  } catch(e) {
+    console.log('[ALERT EMAIL ERROR]', e.message);
+  }
+}
+
+async function checkNotamAlerts() {
+  console.log('[ALERT CHECK] Running...');
+  try {
+    const alertsSnap = await adminDb.collection('alerts').where('active', '==', true).get();
+    if (alertsSnap.empty) { console.log('[ALERT CHECK] No active alerts'); return; }
+
+    for (const alertDoc of alertsSnap.docs) {
+      const alert = alertDoc.data();
+      const { userId, icao } = alert;
+      if (!icao) continue;
+
+      // Get user email
+      let userEmail;
+      try {
+        const userDoc = await adminDb.collection('users').doc(userId).get();
+        if (!userDoc.exists) continue;
+        userEmail = userDoc.data().email;
+        if (!userEmail) continue;
+      } catch(e) { console.log('[ALERT CHECK] User fetch error:', e.message); continue; }
+
+      // Fetch latest NOTAMs via SkyLink
+      try {
+        const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + icao, {
+          method: 'GET',
+          headers: {
+            'x-rapidapi-key': process.env.SKYLINK_KEY,
+            'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
+          }
+        });
+        const notams = data?.notams || [];
+        if (notams.length === 0) continue;
+
+        // Sort by NOTAM number descending to get newest first
+        notams.sort((a, b) => {
+          const getSeq = n => {
+            const m = (n.id || n.notamNumber || '').match(/[A-Z](\d+)\/\d+/);
+            return m ? parseInt(m[1]) : 0;
+          };
+          return getSeq(b) - getSeq(a);
+        });
+
+        const latestNotam = notams[0];
+        const latestId = latestNotam.id || latestNotam.notamNumber || '';
+        const lastSentId = alert.lastSentNotamId || '';
+
+        if (latestId && latestId !== lastSentId) {
+          const notamText = (latestNotam.raw || latestNotam.body || latestId).slice(0, 500);
+          await sendNotamAlert(userEmail, icao, notamText);
+          await alertDoc.ref.update({
+            lastSentNotamId: latestId,
+            lastChecked: admin.firestore.FieldValue.serverTimestamp()
+          });
+        } else {
+          console.log('[ALERT CHECK]', icao, 'no new NOTAMs since', lastSentId || 'beginning');
+        }
+      } catch(e) {
+        console.log('[ALERT CHECK ERROR]', icao, e.message);
+      }
+
+      // Small delay between airports to avoid rate limits
+      await new Promise(r => setTimeout(r, 500));
+    }
+  } catch(e) {
+    console.log('[ALERT CHECK MAIN ERROR]', e.message);
+  }
+}
+
+// Run alert check every 30 minutes
+setInterval(checkNotamAlerts, 30 * 60 * 1000);
+// Also run once on startup after 1 minute (allow server to fully initialise)
+setTimeout(checkNotamAlerts, 60 * 1000);
