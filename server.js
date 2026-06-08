@@ -368,13 +368,13 @@ async function getEnrouteNotams(dep, arr) {
     console.log('[ENROUTE] No route match found, using dep/arr FIRs only');
   }
 
-  // Fetch NOTAMs for up to 8 FIRs (skip raw airport codes, filter to route corridor)
+  // Fetch NOTAMs for up to 4 FIRs (skip raw airport codes, filter to route corridor)
   const depFir = firMap[depPrefix] || dep;
   const arrFir = firMap[arrPrefix] || arr;
   const firList = [...firs]
     .filter(f => f !== dep && f !== arr)
     .filter(f => isFirBetweenRoute(f, depFir, arrFir))
-    .slice(0, 8);
+    .slice(0, 4);
   const results = [];
 
   for (const fir of firList) {
@@ -405,7 +405,7 @@ async function getEnrouteNotams(dep, arr) {
         const high = active.filter(n => /TWY.*CLSD|ILS|VOR|NDB|GNSS|GPS|MILITARY|TFR|RESTRICTED|DANGER/i.test(n.raw || n.body || ''));
         const other = active.filter(n => !critical.includes(n) && !high.includes(n));
         const sorted = [...critical, ...high, ...other];
-        const summary = sorted.slice(0, 10).map(n => (n.raw || n.body || '').slice(0, 300)).join('\n');
+        const summary = sorted.slice(0, 3).map(n => (n.raw || n.body || '').slice(0, 150)).join('\n');
         results.push(`FIR ${fir}: ${active.length} active NOTAMs\n${summary || 'No active restrictions'}`);
       } catch(e) {
         results.push(`FIR ${fir}: Oceanic FIR — verify current NAT tracks and oceanic NOTAM status via official sources`);
@@ -435,7 +435,7 @@ async function getEnrouteNotams(dep, arr) {
           const high = active.filter(n => /TWY.*CLSD|ILS|VOR|NDB|GNSS|GPS|MILITARY|TFR|RESTRICTED|DANGER/i.test(n.raw || n.body || ''));
           const other = active.filter(n => !critical.includes(n) && !high.includes(n));
           const sorted = [...critical, ...high, ...other];
-          const summary = sorted.slice(0, 10).map(n => (n.raw || n.body || '').slice(0, 300)).join('\n');
+          const summary = sorted.slice(0, 3).map(n => (n.raw || n.body || '').slice(0, 150)).join('\n');
           results.push(`FIR ${fir}: ${active.length} active NOTAMs\n${summary}`);
         } else {
           results.push(`FIR ${fir}: No active NOTAMs`);
@@ -845,7 +845,9 @@ IMPORTANT: Be concise. Limit each NOTAM card to essential information only. Ensu
 
 IMPORTANT: Never use markdown backticks or code blocks. For RAW NOTAM TEXT field, output the exact NOTAM text inside a pre HTML tag with inline styles. Example:
 <pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>NOTAM TEXT</pre>
-The ! prefix and date format (YYMMDDHHmm) are standard ICAO format - keep them exactly as received.`;
+The ! prefix and date format (YYMMDDHHmm) are standard ICAO format - keep them exactly as received.
+
+NOTAM LIMITS: Show maximum 8 NOTAMs per airport, prioritizing CRITICAL and HIGH severity first. For en-route FIRs, show maximum 2 NOTAMs per FIR with brief summaries only — do not include raw NOTAM text blocks for en-route FIRs.`;
 
 const server = http.createServer(async (req, res) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
@@ -1629,27 +1631,30 @@ if (getAccessBtn) {
         // Step 2: Generate script with Claude Haiku
         const hour = new Date().getUTCHours();
         const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-        const scriptPrompt = `You are Captain Edward, a senior airline captain with 35 years experience, delivering a concise pre-flight video briefing. Write exactly 50-60 seconds of natural spoken content (max 115 words).
+        const scriptPrompt = `You are Captain Edward, senior airline captain with 35 years experience.
+Deliver a professional pre-flight video briefing in 55-60 seconds, natural spoken English, max 115 words.
 
 Route: ${route}
 Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
 
-Structure:
-1. "${greeting}, Captain. Today we're flying [departure city] to [arrival city]." (Use city names, NOT ICAO codes)
-2. Operational status in ONE sentence: state the compound risk level and classification from executive summary
-3. Critical NOTAMs: describe what's actually wrong in plain English - closed runways, failed navaids, suspended procedures. NO NOTAM numbers. Use plain names like "the ILS on runway 25" not "ILS RWY 25C". Focus on operational impact.
-4. En-route: mention any active FIR restrictions or GNSS issues if present
-5. Weather: ONE sentence only - just the key risk or "conditions are favorable"
-6. "Check the NOTAMs panel for full details and weather data."
-7. "Have a smooth flight."
+EXACT STRUCTURE TO FOLLOW:
+1. "${greeting}, Captain. Today we're flying from [departure city] to [arrival city]."
+2. DEPARTURE AIRPORT NOTAMs (2-3 most critical): Describe specific impacts - name runways by full designator (e.g. "runway one seven left"), navaids by name and frequency, procedures by name. Say what's wrong and what crew must do. Most recent NOTAMs first.
+3. ARRIVAL AIRPORT NOTAMs (1-2 most critical): Same approach as departure.
+4. EN-ROUTE: Only mention if active airspace closures, GNSS jamming, or military restrictions on route. Skip if none.
+5. WEATHER: One sentence maximum. Only mention if significant risk. Otherwise skip entirely.
+6. "For complete NOTAM details and weather data, check your NOTAMs panel."
+7. "Have a nice and smooth flight."
 
-Rules:
-- Max 115 words, natural confident pace
-- City/airport names not ICAO codes
-- No NOTAM numbers, no technical jargon
-- Focus 70% on NOTAMs, 30% on weather
-- Plain conversational English
-- No markdown`;
+CRITICAL RULES:
+- Use city names not ICAO codes when speaking
+- Speak runway designators as words: "one seven left" not "17L"
+- Speak navaid names and frequencies naturally: "the ILS on runway two five center"
+- NO NOTAM reference numbers ever
+- NO generic statements - be specific about actual impacts
+- 70% of content = NOTAMs, 20% = en-route, 10% = weather
+- Natural confident captain tone
+- Plain text only, absolutely no markdown`;
 
         const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
