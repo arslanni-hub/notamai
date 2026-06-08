@@ -2667,6 +2667,7 @@ async function checkNotamAlerts() {
   console.log('[ALERT CHECK] Running...');
   try {
     const alertsSnap = await adminDb.collection('alerts').where('active', '==', true).get();
+    console.log('[ALERT CHECK] Found alerts:', alertsSnap.size);
     if (alertsSnap.empty) { console.log('[ALERT CHECK] No active alerts'); return; }
 
     for (const alertDoc of alertsSnap.docs) {
@@ -2681,6 +2682,7 @@ async function checkNotamAlerts() {
         if (!userDoc.exists) continue;
         userEmail = userDoc.data().email;
         if (!userEmail) continue;
+        console.log('[ALERT CHECK] User email:', userEmail, 'ICAO:', icao);
       } catch(e) { console.log('[ALERT CHECK] User fetch error:', e.message); continue; }
 
       // Fetch latest NOTAMs via SkyLink
@@ -2707,6 +2709,7 @@ async function checkNotamAlerts() {
         const latestNotam = notams[0];
         const latestId = latestNotam.id || latestNotam.notamNumber || '';
         const lastSentId = alert.lastSentNotamId || '';
+        console.log('[ALERT CHECK] NOTAMs fetched for', icao, ':', notams.length, 'lastSentId:', lastSentId, 'latestId:', latestId);
 
         if (latestId && latestId !== lastSentId) {
           const notamText = (latestNotam.raw || latestNotam.body || latestId).slice(0, 500);
