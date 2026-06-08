@@ -1772,6 +1772,7 @@ Rules:
               videoUrl,
               completedAt: admin.firestore.FieldValue.serverTimestamp()
             });
+            console.log('[VIDEO ARCHIVE] Saved:', predId);
           }
         }
       } catch(e) { console.log('[VIDEO] Firestore update error:', e.message); }

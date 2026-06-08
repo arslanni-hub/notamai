@@ -4566,21 +4566,33 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>
-  <div style="padding:12px 16px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
-    <div style="display:flex;align-items:center;gap:8px;background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:7px 10px;">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a5f72" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input id="archiveSearch" placeholder="Search briefings..." oninput="filterArchive(this.value)" style="background:none;border:none;outline:none;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:13px;width:100%;">
+  <!-- Archive tabs: BRIEFINGS | VIDEOS -->
+  <div style="display:flex;gap:0;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+    <button id="archiveTab-briefings" onclick="switchArchiveTab('briefings')" style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid #4a9eff;color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">BRIEFINGS</button>
+    <button id="archiveTab-videos" onclick="switchArchiveTab('videos')" style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">VIDEOS</button>
+  </div>
+  <!-- Briefings section -->
+  <div id="archiveSection-briefings" style="display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;">
+    <div id="archiveSearchRow" style="padding:12px 16px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:8px;background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:7px 10px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a5f72" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="archiveSearch" placeholder="Search briefings..." oninput="filterArchive(this.value)" style="background:none;border:none;outline:none;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:13px;width:100%;">
+      </div>
+    </div>
+    <div style="display:flex;gap:0;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+      <button id="filter-all" onclick="setArchiveFilter('all')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid #4a9eff;color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">ALL</button>
+      <button id="filter-critical" onclick="setArchiveFilter('CRITICAL')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">CRITICAL</button>
+      <button id="filter-high" onclick="setArchiveFilter('HIGH')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">HIGH</button>
+      <button id="filter-low" onclick="setArchiveFilter('LOW')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">OTHER</button>
+    </div>
+    <div id="archiveStats" style="padding:8px 16px;border-bottom:1px solid #1a2a3a;font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;flex-shrink:0;">Loading...</div>
+    <div id="archiveList" style="flex:1;overflow-y:auto;padding:8px;">
+      <div style="text-align:center;padding:40px 0;font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;">Loading archive...</div>
     </div>
   </div>
-  <div style="display:flex;gap:0;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
-    <button id="filter-all" onclick="setArchiveFilter('all')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid #4a9eff;color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">ALL</button>
-    <button id="filter-critical" onclick="setArchiveFilter('CRITICAL')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">CRITICAL</button>
-    <button id="filter-high" onclick="setArchiveFilter('HIGH')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">HIGH</button>
-    <button id="filter-low" onclick="setArchiveFilter('LOW')" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">OTHER</button>
-  </div>
-  <div id="archiveStats" style="padding:8px 16px;border-bottom:1px solid #1a2a3a;font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;flex-shrink:0;">Loading...</div>
-  <div id="archiveList" style="flex:1;overflow-y:auto;padding:8px;">
-    <div style="text-align:center;padding:40px 0;font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;">Loading archive...</div>
+  <!-- Videos section -->
+  <div id="archiveSection-videos" style="display:none;flex:1;overflow-y:auto;">
+    <div id="videoArchiveList" style="padding:8px;"></div>
   </div>
 </div>
 
@@ -5673,6 +5685,15 @@ function openArchivePanel() {
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
   setTimeout(() => panel.style.transform = 'translateX(0)', 10);
+  // Reset to briefings tab
+  const briefingsSection = document.getElementById('archiveSection-briefings');
+  const videosSection = document.getElementById('archiveSection-videos');
+  if (briefingsSection) { briefingsSection.style.display = 'flex'; briefingsSection.style.flexDirection = 'column'; briefingsSection.style.flex = '1'; }
+  if (videosSection) videosSection.style.display = 'none';
+  const tabB = document.getElementById('archiveTab-briefings');
+  const tabV = document.getElementById('archiveTab-videos');
+  if (tabB) { tabB.style.borderBottomColor = '#4a9eff'; tabB.style.color = '#4a9eff'; }
+  if (tabV) { tabV.style.borderBottomColor = 'transparent'; tabV.style.color = '#4a5f72'; }
   loadArchive();
 }
 
@@ -5682,6 +5703,108 @@ function closeArchivePanel() {
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
 }
+
+function switchArchiveTab(tab) {
+  // Update tab button styles
+  ['briefings','videos'].forEach(t => {
+    const btn = document.getElementById('archiveTab-' + t);
+    if (!btn) return;
+    const active = t === tab;
+    btn.style.borderBottomColor = active ? '#b57bff' : 'transparent';
+    btn.style.color = active ? '#b57bff' : '#4a5f72';
+  });
+  // Show/hide sections
+  const briefingsSection = document.getElementById('archiveSection-briefings');
+  const videosSection = document.getElementById('archiveSection-videos');
+  if (tab === 'briefings') {
+    briefingsSection.style.display = 'flex';
+    videosSection.style.display = 'none';
+  } else {
+    briefingsSection.style.display = 'none';
+    videosSection.style.display = 'flex';
+    videosSection.style.flexDirection = 'column';
+    videosSection.style.flex = '1';
+    loadVideoArchive();
+  }
+}
+
+async function loadVideoArchive() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  const list = document.getElementById('videoArchiveList');
+  list.innerHTML = '<div style="color:#4a5f72;font-family:\'Share Tech Mono\',monospace;font-size:11px;padding:20px;text-align:center;letter-spacing:1px;">LOADING...</div>';
+  try {
+    const snapshot = await db.collection('videos')
+      .where('userId', '==', user.uid)
+      .where('status', '==', 'completed')
+      .orderBy('createdAt', 'desc')
+      .limit(20)
+      .get();
+    if (snapshot.empty) {
+      list.innerHTML = '<div style="color:#4a5f72;font-family:\'Rajdhani\',sans-serif;font-size:13px;padding:30px 20px;text-align:center;">No video briefings yet.<br><span style="font-size:11px;opacity:0.6;">Generate your first video briefing from the main screen.</span></div>';
+      return;
+    }
+    list.innerHTML = '';
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const date = data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString('en-GB') : '';
+      const scriptPreview = (data.script || '').replace(/'/g, '’').replace(/\n/g, ' ').slice(0, 80);
+      const safeUrl = (data.videoUrl || '').replace(/'/g, '%27');
+      const safeScript = (data.script || '').replace(/'/g, '’').replace(/\n/g, ' ').replace(/`/g, '');
+      const card = document.createElement('div');
+      card.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;';
+      card.onmouseover = function() { this.style.borderColor = '#b57bff'; };
+      card.onmouseout = function() { this.style.borderColor = '#1a2a3a'; };
+      card.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div style="font-family:'Orbitron',sans-serif;font-size:12px;color:#b57bff;">🎬 ${data.route || 'Video Briefing'}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;">${date}</div>
+        </div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;line-height:1.4;margin-bottom:8px;">${scriptPreview}${scriptPreview.length >= 80 ? '...' : ''}</div>
+        <button onclick="playArchivedVideo('${safeUrl}', \`${safeScript}\`)"
+          style="background:#b57bff;border:none;color:#fff;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;padding:4px 12px;border-radius:4px;cursor:pointer;letter-spacing:1px;">
+          ▶ PLAY
+        </button>
+      `;
+      list.appendChild(card);
+    });
+  } catch(e) {
+    list.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;padding:20px;">Error loading videos: ' + e.message + '</div>';
+  }
+}
+
+function playArchivedVideo(videoUrl, script) {
+  window.currentVideoScript = script;
+  // Close archive panel first
+  closeArchivePanel();
+  setTimeout(() => {
+    const overlay = document.getElementById('videoBriefingOverlay');
+    const backdrop = document.getElementById('videoBriefingBackdrop');
+    overlay.style.display = 'flex';
+    backdrop.style.display = 'block';
+    // Skip waiting video, go directly to result
+    const waitingVideo = document.getElementById('waitingVideo');
+    const resultVideo = document.getElementById('resultVideo');
+    waitingVideo.style.display = 'none';
+    // Hide content overlay (progress bar, status, etc.)
+    const contentOverlay = document.getElementById('vbContentOverlay');
+    if (contentOverlay) contentOverlay.style.display = 'none';
+    const src = resultVideo.querySelector('source');
+    if (src) src.src = videoUrl;
+    else resultVideo.src = videoUrl;
+    resultVideo.load();
+    resultVideo.style.display = 'block';
+    resultVideo.onloadedmetadata = function() {
+      resultVideo.play();
+      const subtitle = document.getElementById('vbSubtitle');
+      if (subtitle) {
+        subtitle.style.display = 'block';
+        startSubtitles(resultVideo);
+      }
+    };
+  }, 350);
+}
+
 
 async function loadArchive() {
   const user = firebase.auth().currentUser;
@@ -6150,7 +6273,7 @@ async function fetchWindsAloft() {
   <button onclick="closeVideoBriefing()" style="position:absolute;top:20px;right:20px;background:none;border:none;color:#4a5f72;font-size:24px;cursor:pointer;z-index:2;">✕</button>
 
   <!-- Content overlay -->
-  <div style="position:relative;z-index:1;text-align:center;padding:40px;max-width:600px;">
+  <div id="vbContentOverlay" style="position:relative;z-index:1;text-align:center;padding:40px;max-width:600px;">
 
     <!-- Logo -->
     <div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#4a9eff;letter-spacing:4px;margin-bottom:30px;">NOTAM INTELLIGENCE</div>
@@ -6231,7 +6354,7 @@ function openVideoBriefing() {
   document.getElementById('vbStatus').textContent = 'Initializing briefing...';
   document.getElementById('waitingVideo').style.display = 'block';
   document.getElementById('resultVideo').style.display = 'none';
-  const content = document.querySelector('#videoBriefingOverlay > div:nth-child(4)');
+  const content = document.getElementById('vbContentOverlay');
   if (content) content.style.display = 'block';
 
   // Show backdrop + overlay
@@ -6338,7 +6461,7 @@ async function pollVideoStatus(predictionId) {
 function showResultVideo(videoUrl) {
   const waitingVideo = document.getElementById('waitingVideo');
   const resultVideo = document.getElementById('resultVideo');
-  const content = document.querySelector('#videoBriefingOverlay > div:nth-child(4)');
+  const content = document.getElementById('vbContentOverlay');
   waitingVideo.style.display = 'none';
   if (content) content.style.display = 'none';
   resultVideo.querySelector('source').src = videoUrl;
