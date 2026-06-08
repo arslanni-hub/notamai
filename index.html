@@ -1690,7 +1690,7 @@ function removeFile() {
   document.getElementById('filePreview').classList.remove('show');
 }
 
-async function handleSend() {
+async function handleSend(silent = false) {
   const val = document.getElementById('mainInput').value.trim();
   if (!val && !attachedFile) return;
 
@@ -1703,15 +1703,17 @@ async function handleSend() {
   const loading = document.getElementById('loadingState');
   const content = document.getElementById('resultContent');
 
-  overlay.classList.add('open');
-  document.getElementById('mainNavbar').style.display = 'none';
-  document.getElementById('askNotamAiBtn').style.display = 'flex';
-  loading.style.display = 'flex';
-  content.style.display = 'none';
-  closeAIChat();
-  aiChatHistory = [];
-  aiChatOpen = false;
-  currentChatBriefingId = null;
+  if (!silent) {
+    overlay.classList.add('open');
+    document.getElementById('mainNavbar').style.display = 'none';
+    document.getElementById('askNotamAiBtn').style.display = 'flex';
+    loading.style.display = 'flex';
+    content.style.display = 'none';
+    closeAIChat();
+    aiChatHistory = [];
+    aiChatOpen = false;
+    currentChatBriefingId = null;
+  }
   const startTime = Date.now();
 
   let label = 'NOTAM ANALYSIS IN PROGRESS';
@@ -1730,9 +1732,11 @@ async function handleSend() {
       el.textContent = i <= idx ? msgs[i] : '  ' + msgs[i].slice(2);
     });
   }
-  activateStep(0);
-  setTimeout(() => activateStep(1), 3000);
-  setTimeout(() => activateStep(2), 6000);
+  if (!silent) {
+    activateStep(0);
+    setTimeout(() => activateStep(1), 3000);
+    setTimeout(() => activateStep(2), 6000);
+  }
 
   try {
     const payload = { icao_dep: dep, icao_arr: arr, notam_text: val };
@@ -1762,11 +1766,13 @@ async function handleSend() {
 
     if (response.status === 403) {
       const data = await response.json();
-      loading.style.display = 'none';
-      overlay.classList.remove('open');
-      document.getElementById('mainNavbar').style.display = 'flex';
-      if (data.error === 'limit_reached') {
-        showLimitModal(data.plan, 'briefing', data.usage, data.limit);
+      if (!silent) {
+        loading.style.display = 'none';
+        overlay.classList.remove('open');
+        document.getElementById('mainNavbar').style.display = 'flex';
+        if (data.error === 'limit_reached') {
+          showLimitModal(data.plan, 'briefing', data.usage, data.limit);
+        }
       }
       return;
     }
@@ -1787,7 +1793,7 @@ async function handleSend() {
     let lastRenderLen = 0;
 
     // After exactly 10s: hide loading and reveal content regardless of stream state
-    setTimeout(() => {
+    if (!silent) setTimeout(() => {
       loading.style.display = 'none';
       content.style.display = 'block';
       status.textContent = label + ' — STREAMING...';
@@ -1821,18 +1827,28 @@ async function handleSend() {
             const final = accumulated.replace(/```[\w]*\n([\s\S]*?)```/g,
               "<pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>$1</pre>"
             );
-            content.innerHTML = htmlHead + final + htmlFoot;
-            loading.style.display = 'none';
-            content.style.display = 'block';
-            status.textContent = label + ' — COMPLETE';
-            appendBriefingActions(content);
-            extractBriefingIcaos();
-            // Save to Firestore and reload history
             const riskMatch = (htmlHead + final).match(/\b(CRITICAL|HIGH|MEDIUM|LOW)\b/);
             const detectedRisk = riskMatch ? riskMatch[1] : 'MEDIUM';
             const route = arr ? `${dep} → ${arr}` : dep;
             const fullHtml = htmlHead + final + htmlFoot;
-            saveBriefingToFirestore(route, detectedRisk, fullHtml).then(id => { window.currentBriefingId = id; loadBriefingHistory(); });
+            if (silent) {
+              // Background mode: save but don't show overlay
+              window.backgroundBriefingHtml = fullHtml;
+              window.backgroundBriefingContent = content;
+              window.backgroundBriefingHtmlHead = htmlHead;
+              window.backgroundBriefingFinal = final;
+              window.backgroundBriefingHtmlFoot = htmlFoot;
+              window.backgroundBriefingReady = true;
+              saveBriefingToFirestore(route, detectedRisk, fullHtml).then(id => { window.currentBriefingId = id; loadBriefingHistory(); });
+            } else {
+              content.innerHTML = htmlHead + final + htmlFoot;
+              loading.style.display = 'none';
+              content.style.display = 'block';
+              status.textContent = label + ' — COMPLETE';
+              appendBriefingActions(content);
+              extractBriefingIcaos();
+              saveBriefingToFirestore(route, detectedRisk, fullHtml).then(id => { window.currentBriefingId = id; loadBriefingHistory(); });
+            }
           } else if (evt.type === 'error') {
             loading.style.display = 'block';
             content.style.display = 'none';
@@ -1843,7 +1859,9 @@ async function handleSend() {
     }
   } catch(err) {
     clearInterval(stepInt);
-    loading.innerHTML = '<div class="loading-ring"></div><div class="loading-text" style="color:#e63946">CONNECTION ERROR</div><div class="loading-text" style="font-size:10px;margin-top:8px;color:rgba(74,158,255,0.4)">' + err.message + '</div>';
+    if (!silent) {
+      loading.innerHTML = '<div class="loading-ring"></div><div class="loading-text" style="color:#e63946">CONNECTION ERROR</div><div class="loading-text" style="font-size:10px;margin-top:8px;color:rgba(74,158,255,0.4)">' + err.message + '</div>';
+    }
   }
 }
 
@@ -6260,12 +6278,13 @@ function openVideoBriefing() {
     document.getElementById('vbPercent').textContent = Math.floor(progress) + '%';
   }, 500);
 
+  window.videoBriefingMode = true;
   generateVideoBriefing(route, user.uid);
 
   // Also generate normal briefing in background if not already done
   const mainInput = document.getElementById('mainInput');
   if (mainInput && mainInput.value.trim() && !window.currentBriefingId) {
-    setTimeout(() => { handleSend(); }, 500);
+    setTimeout(() => { handleSend(true); }, 500);
   }
 }
 
@@ -6410,6 +6429,21 @@ function closeVideoBriefing() {
   const ambientAudio = document.getElementById('vbAmbientAudio');
   ambientAudio.pause();
   ambientAudio.currentTime = 0;
+  window.videoBriefingMode = false;
+
+  if (window.backgroundBriefingReady && window.backgroundBriefingHtml) {
+    window.backgroundBriefingReady = false;
+    const overlay = document.getElementById('resultOverlay');
+    const content = document.getElementById('resultContent');
+    content.innerHTML = window.backgroundBriefingHtml;
+    overlay.classList.add('open');
+    document.getElementById('mainNavbar').style.display = 'none';
+    document.getElementById('loadingState').style.display = 'none';
+    content.style.display = 'block';
+    appendBriefingActions(content);
+    extractBriefingIcaos();
+    window.backgroundBriefingHtml = null;
+  }
 }
 </script>
 

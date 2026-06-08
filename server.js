@@ -1635,7 +1635,7 @@ Route: ${route}
 Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
 
 Structure:
-1. "${greeting}. Today we're flying [departure city] to [arrival city]." (Use city names, NOT ICAO codes)
+1. "${greeting}, Captain. Today we're flying [departure city] to [arrival city]." (Use city names, NOT ICAO codes)
 2. Operational status in ONE sentence: state the compound risk level and classification from executive summary
 3. Critical NOTAMs: describe what's actually wrong in plain English - closed runways, failed navaids, suspended procedures. NO NOTAM numbers. Use plain names like "the ILS on runway 25" not "ILS RWY 25C". Focus on operational impact.
 4. En-route: mention any active FIR restrictions or GNSS issues if present
