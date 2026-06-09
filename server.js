@@ -2636,11 +2636,39 @@ server.listen(PORT, () => {
 
 function formatNotamForEmail(raw) {
   if (!raw) return 'No NOTAM data available';
-  return raw
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+
+  // Try to parse structured NOTAM format
+  const numMatch = raw.match(/([A-Z]\d+\/\d{4})/);
+  const notamNum = numMatch ? numMatch[1] : '';
+
+  // Extract location (A field)
+  const locMatch = raw.match(/[A-Z]{4}\s+([A-Z]{4})/);
+  const location = locMatch ? locMatch[1] : (raw.match(/!([A-Z]{4})/)?.[1] || '');
+
+  // Extract dates (B and C fields)
+  const dateMatch = raw.match(/(\d{10})\s+(\d{10})/);
+  const startDate = dateMatch ? dateMatch[1] : '';
+  const endDate = dateMatch ? dateMatch[2] : '';
+
+  // Extract body text (E field) - everything after the dates
+  let body = raw;
+  if (dateMatch) {
+    body = raw.split(dateMatch[0])[1]?.trim() || raw;
+  }
+  // Remove leading !ICAO NOTAM_NUMBER
+  body = body.replace(/^![A-Z]{4}\s+[A-Z]\d+\/\d{4}\s*/, '').trim();
+  // Remove date strings from body
+  body = body.replace(/\d{10}\s*\d{10}/g, '').trim();
+
+  // Build structured output
+  let formatted = '';
+  if (notamNum) formatted += notamNum + ' NOTAMN\n';
+  if (location) formatted += 'A) ' + location + '\n';
+  if (startDate) formatted += 'B) ' + startDate + '\n';
+  if (endDate) formatted += 'C) ' + endDate + '\n';
+  if (body) formatted += 'E) ' + body;
+
+  return formatted || raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
 }
 
 async function sendNotamAlert(userEmail, icao, notamText) {
