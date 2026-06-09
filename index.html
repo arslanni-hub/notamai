@@ -3090,6 +3090,7 @@ firebase.auth().onAuthStateChanged(user => {
     setGreeting();
     loadBriefingHistory();
     loadUserPlan(user.uid);
+    startAlertListener(user.uid);
     // Handle return from checkout
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('upgrade') === 'success') {
@@ -4160,7 +4161,10 @@ function pricing_toggleBilling() {
     </div>
 
     <div class="sidebar-nav-item" onclick="openAlertsPanel()" onmouseenter="showSidebarTooltip('NOTAM Alerts',this)" onmouseleave="hideSidebarTooltip()">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="alertBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:#e63946;color:#fff;font-size:9px;font-weight:700;font-family:'Rajdhani',sans-serif;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 4px;">0</span>
+      </div>
       <span class="sidebar-text">NOTAM Alerts</span>
     </div>
 
@@ -5450,6 +5454,7 @@ function openAlertsPanel() {
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
   setTimeout(() => panel.style.transform = 'translateX(0)', 10);
+  clearAlertBadge();
   renderAlerts();
 }
 
@@ -5458,6 +5463,36 @@ function closeAlertsPanel() {
   const panel = document.getElementById('alertsPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
+}
+
+function startAlertListener(userId) {
+  if (window._alertUnsubscribe) window._alertUnsubscribe();
+  const alertsRef = db.collection('alerts').where('userId', '==', userId).where('active', '==', true);
+  window._alertUnsubscribe = alertsRef.onSnapshot(snapshot => {
+    let newCount = 0;
+    snapshot.docChanges().forEach(change => {
+      if (change.type === 'modified') {
+        const data = change.doc.data();
+        const lastChecked = data.lastChecked?.toDate?.() || new Date(0);
+        const lastSeen = window.lastAlertSeen || new Date(0);
+        if (lastChecked > lastSeen) newCount++;
+      }
+    });
+    if (newCount > 0) showAlertBadge(newCount);
+  });
+}
+
+function showAlertBadge(count) {
+  const badge = document.getElementById('alertBadge');
+  if (!badge) return;
+  badge.textContent = count > 9 ? '9+' : count;
+  badge.style.display = 'flex';
+}
+
+function clearAlertBadge() {
+  const badge = document.getElementById('alertBadge');
+  if (badge) badge.style.display = 'none';
+  window.lastAlertSeen = new Date();
 }
 
 async function addAlert() {
@@ -5522,7 +5557,9 @@ async function renderAlerts() {
     }
     if (empty) empty.style.display = 'none';
     snapshot.forEach(doc => {
-      const icao = doc.data().icao;
+      const data = doc.data();
+      const icao = data.icao;
+      const isNew = data.lastChecked && (new Date() - data.lastChecked.toDate()) < 30 * 60 * 1000;
       const div = document.createElement('div');
       div.className = 'alert-item';
       div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:6px;transition:background 0.15s;margin-bottom:2px;';
@@ -5537,7 +5574,7 @@ async function renderAlerts() {
       div.innerHTML = `
         <div style="width:8px;height:8px;border-radius:50%;background:#2ec4b6;flex-shrink:0;"></div>
         <span style="flex:1;font-family:'Share Tech Mono',monospace;font-size:13px;color:#cdd9e5;letter-spacing:2px;">${icao}</span>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;">watching</div>
+        ${isNew ? '<span style="background:#e63946;color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;font-family:\'Rajdhani\',sans-serif;letter-spacing:1px;">NEW</span>' : '<div style="font-family:\'Rajdhani\',sans-serif;font-size:11px;color:#4a5f72;">watching</div>'}
         <button class="alert-delete" onclick="removeAlert('${icao}')" style="background:none;border:none;cursor:pointer;color:#4a5f72;opacity:0;transition:opacity 0.15s;padding:2px;display:flex;align-items:center;" onmouseover="this.style.color='#e63946'" onmouseout="this.style.color='#4a5f72'">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
