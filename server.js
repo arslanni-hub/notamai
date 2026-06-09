@@ -2701,6 +2701,17 @@ async function checkNotamAlerts() {
 
         console.log('[ALERT CHECK] Raw NOTAM sample:', JSON.stringify(notams[0]).slice(0, 200));
 
+        const allIds = notams.slice(0, 10).map(n => {
+          const id = n.id || n.notam_id || n.notamNumber || '';
+          if (id) return id;
+          if (n.raw) {
+            const match = n.raw.match(/([A-Z]\d+\/\d{4})/);
+            return match ? match[1] : 'unknown';
+          }
+          return 'unknown';
+        });
+        console.log('[ALERT CHECK]', icao, 'first 10 IDs:', allIds.join(', '));
+
         // Sort NOTAMs to find the most recently issued one
         // NOTAM IDs like A227/2026, B1234/26 - higher number = newer
         const sortedNotams = [...notams].sort((a, b) => {
