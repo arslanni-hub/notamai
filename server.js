@@ -2660,7 +2660,7 @@ async function sendNotamAlert(userEmail, icao, notamText) {
 
     <!-- Logo -->
     <div style="margin-bottom:24px;padding:16px 0;border-bottom:1px solid #1a2a3a;text-align:left;">
-      <img src="https://firebasestorage.googleapis.com/v0/b/notamai-a9d57.firebasestorage.app/o/NOTAM%20INTELLIGENCE%20LOGO.png?alt=media&token=37cfea77-d2fe-42c9-b479-a09d8655afb2"
+      <img src="https://i.imgur.com/HzLqV9P.png"
            alt="NOTAM INTELLIGENCE"
            width="200"
            style="height:auto;display:block;" />
