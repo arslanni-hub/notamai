@@ -2701,35 +2701,40 @@ async function checkNotamAlerts() {
 
         console.log('[ALERT CHECK] Raw NOTAM sample:', JSON.stringify(notams[0]).slice(0, 200));
 
-        // Sort by NOTAM number descending to get newest first
-        notams.sort((a, b) => {
-          const getSeq = n => {
-            const id = n.id || n.notamNumber || n.notam_number || n.number || n.core?.id || n.properties?.id || '';
-            const m = id.match(/[A-Z](\d+)\/\d+/);
-            return m ? parseInt(m[1]) : 0;
+        // Sort NOTAMs to find the most recently issued one
+        // NOTAM IDs like A227/2026, B1234/26 - higher number = newer
+        const sortedNotams = [...notams].sort((a, b) => {
+          const getId = n => {
+            const id = n.id || n.notam_id || n.notamNumber || '';
+            if (id) {
+              const match = id.match(/[A-Z](\d+)\/\d+/);
+              return match ? parseInt(match[1]) : 0;
+            }
+            if (n.raw) {
+              const match = n.raw.match(/[A-Z](\d+)\/\d{4}/);
+              return match ? parseInt(match[1]) : 0;
+            }
+            return 0;
           };
-          return getSeq(b) - getSeq(a);
+          return getId(b) - getId(a); // descending - highest number first
         });
 
-        const latestNotam = notams[0];
+        const latestNotam = sortedNotams[0];
         if (!latestNotam) continue;
 
-        // Try structured fields first
+        // Extract ID from sorted latest NOTAM
         let latestId = latestNotam.id ||
                        latestNotam.notam_id ||
                        latestNotam.notamNumber ||
-                       latestNotam.notam_number ||
-                       latestNotam.number ||
                        '';
 
-        // If no structured ID, extract from raw text using regex
         if (!latestId && latestNotam.raw) {
           const rawMatch = latestNotam.raw.match(/([A-Z]\d+\/\d{4})/);
           if (rawMatch) latestId = rawMatch[1];
         }
 
         const lastSentId = alert.lastSentNotamId || '';
-        console.log('[ALERT DEBUG]', icao, 'lastSentId:', lastSentId, 'latestId:', latestId);
+        console.log('[ALERT CHECK]', icao, 'latestId:', latestId, 'lastSentId:', lastSentId);
 
         if (latestId && latestId !== lastSentId) {
           if (!lastSentId) {
