@@ -2729,28 +2729,36 @@ async function checkNotamAlerts() {
         }
 
         const lastSentId = alert.lastSentNotamId || '';
-        console.log('[ALERT CHECK]', icao, 'latestId:', latestId, 'lastSentId:', lastSentId);
+        console.log('[ALERT DEBUG]', icao, 'lastSentId:', lastSentId, 'latestId:', latestId);
 
         if (latestId && latestId !== lastSentId) {
-          // First time (lastSentId empty) - save baseline ID, don't send email
           if (!lastSentId) {
-            await alertDoc.ref.update({
-              lastSentNotamId: latestId,
-              lastChecked: admin.firestore.FieldValue.serverTimestamp()
-            });
-            console.log('[ALERT CHECK]', icao, 'First check - saved baseline NOTAM ID:', latestId);
-            continue;
+            console.log('[ALERT DEBUG]', icao, 'First check - saving baseline:', latestId);
+            try {
+              await alertDoc.ref.update({
+                lastSentNotamId: latestId,
+                lastChecked: admin.firestore.FieldValue.serverTimestamp()
+              });
+              console.log('[ALERT DEBUG]', icao, 'Baseline saved OK');
+            } catch(e) {
+              console.log('[ALERT DEBUG]', icao, 'Baseline save FAILED:', e.message);
+            }
+          } else {
+            console.log('[ALERT DEBUG]', icao, 'New NOTAM detected! Sending email...');
+            const notamText = latestNotam.raw || latestNotam.text || latestNotam.body || latestId;
+            await sendNotamAlert(userEmail, icao, notamText);
+            try {
+              await alertDoc.ref.update({
+                lastSentNotamId: latestId,
+                lastChecked: admin.firestore.FieldValue.serverTimestamp()
+              });
+              console.log('[ALERT DEBUG]', icao, 'Firestore updated OK');
+            } catch(e) {
+              console.log('[ALERT DEBUG]', icao, 'Firestore update FAILED:', e.message);
+            }
           }
-
-          // New NOTAM found - send email
-          const notamText = latestNotam.raw || latestNotam.text || latestNotam.body || latestId;
-          await sendNotamAlert(userEmail, icao, notamText);
-          await alertDoc.ref.update({
-            lastSentNotamId: latestId,
-            lastChecked: admin.firestore.FieldValue.serverTimestamp()
-          });
         } else {
-          console.log('[ALERT CHECK]', icao, 'no new NOTAMs since', lastSentId || 'beginning');
+          console.log('[ALERT DEBUG]', icao, 'No change or latestId empty - skipping');
         }
       } catch(e) {
         console.log('[ALERT CHECK ERROR]', icao, e.message);
