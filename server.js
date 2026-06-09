@@ -2643,7 +2643,7 @@ async function sendNotamAlert(userEmail, icao, notamText) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'NOTAM Intelligence <alerts@notamai.com>',
+        from: 'NOTAM Intelligence <onboarding@resend.dev>',
         to: userEmail,
         subject: '⚠️ NOTAM Alert: ' + icao,
         html: `<!DOCTYPE html>
