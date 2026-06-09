@@ -5591,10 +5591,16 @@ async function renderAlerts() {
         markAlertSeen(doc.id, div);
         closeAlertsPanel();
         setTimeout(() => {
-          openRawPanel();
+          const rawPanel = document.getElementById('rawDataPanel');
+          if (rawPanel) {
+            rawPanel.style.display = 'flex';
+            rawPanel.style.flexDirection = 'column';
+            setTimeout(() => rawPanel.style.transform = 'translateX(0)', 10);
+            openPanel = 'rawData';
+          }
           switchRawTab('notam');
           fetchRawData();
-        }, 300);
+        }, 350);
       };
       div.innerHTML = `
         <div style="width:8px;height:8px;border-radius:50%;background:#2ec4b6;flex-shrink:0;"></div>
