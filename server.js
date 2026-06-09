@@ -2662,8 +2662,10 @@ async function sendNotamAlert(userEmail, icao, notamText) {
     <div style="margin-bottom:24px;padding:16px 0;border-bottom:1px solid #1a2a3a;text-align:left;">
       <img src="https://i.imgur.com/HzLqV9P.png"
            alt="NOTAM INTELLIGENCE"
-           width="200"
-           style="height:auto;display:block;" />
+           width="240"
+           height="40"
+           style="width:240px;height:40px;display:block;border:0;outline:none;"
+           border="0" />
     </div>
 
     <!-- Alert header -->
