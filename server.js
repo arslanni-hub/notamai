@@ -2648,23 +2648,20 @@ async function sendNotamAlert(userEmail, icao, notamText) {
         subject: '⚠️ NOTAM Alert: ' + icao,
         html: `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background-color:#060a0f !important;background:#060a0f;font-family:Arial,sans-serif;">
-  <div style="max-width:560px;margin:0 auto;padding:32px 24px;background-color:#060a0f !important;">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
+</style>
+</head>
+<body style="margin:0;padding:0;background:#060a0f;">
+  <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
 
     <!-- Logo -->
-    <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
-      <tr>
-        <td style="padding:0;">
-          <span style="display:inline-block;font-family:Arial,sans-serif;font-size:18px;font-weight:900;letter-spacing:6px;color:#ffffff;text-transform:uppercase;-webkit-text-fill-color:#ffffff;">NOTAM</span><span style="display:inline-block;font-family:Arial,sans-serif;font-size:18px;font-weight:900;letter-spacing:6px;color:#4a9eff;text-transform:uppercase;-webkit-text-fill-color:#4a9eff;"> INTELLIGENCE</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding-top:4px;">
-          <span style="display:inline-block;width:40px;height:2px;background:#4a9eff;"></span>
-        </td>
-      </tr>
-    </table>
+    <div style="margin-bottom:24px;padding:16px 0;border-bottom:1px solid #1a2a3a;">
+      <span style="font-family:'Orbitron',Arial,sans-serif;font-size:16px;font-weight:900;letter-spacing:4px;color:#ffffff;text-transform:uppercase;">NOTAM</span><span style="font-family:'Orbitron',Arial,sans-serif;font-size:16px;font-weight:900;letter-spacing:4px;color:#4a9eff;text-transform:uppercase;"> INTELLIGENCE</span>
+    </div>
 
     <!-- Alert header -->
     <div style="background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #e63946;border-radius:8px;padding:20px;margin-bottom:16px;">
