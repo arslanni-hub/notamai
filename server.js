@@ -2659,37 +2659,35 @@ async function sendNotamAlert(userEmail, icao, notamText) {
   <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
 
     <!-- Logo -->
-    <div style="margin-bottom:24px;padding:16px 0;border-bottom:1px solid #1a2a3a;text-align:left;">
+    <div style="text-align:center;margin-bottom:28px;padding:20px 0;border-bottom:1px solid #1a2a3a;">
       <img src="https://i.imgur.com/HzLqV9P.png"
            alt="NOTAM INTELLIGENCE"
-           width="320"
-           height="54"
-           style="width:320px;height:54px;display:block;border:0;outline:none;"
-           border="0" />
+           width="400"
+           style="width:400px;max-width:100%;height:auto;display:inline-block;border:0;" />
     </div>
 
     <!-- Alert header -->
-    <div style="background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #e63946;border-radius:8px;padding:20px;margin-bottom:16px;">
-      <div style="font-family:'Courier New',monospace;font-size:11px;color:#e63946;letter-spacing:2px;margin-bottom:8px;">⚠ NEW NOTAM ALERT</div>
-      <div style="font-size:22px;font-weight:700;color:#ffffff;letter-spacing:2px;margin-bottom:4px;">${icao}</div>
-      <div style="font-size:12px;color:#4a5f72;font-family:'Courier New',monospace;">${new Date().toUTCString()}</div>
+    <div style="background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #e63946;border-radius:6px;padding:20px;margin-bottom:16px;">
+      <div style="font-family:'Courier New',monospace;font-size:10px;color:#e63946;letter-spacing:3px;margin-bottom:10px;">⚠ NEW NOTAM ALERT</div>
+      <div style="font-family:'Courier New',monospace;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:4px;margin-bottom:6px;">${icao}</div>
+      <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;">${new Date().toUTCString()}</div>
     </div>
 
     <!-- NOTAM content -->
-    <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:16px;margin-bottom:20px;">
-      <div style="font-family:'Courier New',monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;margin-bottom:8px;">NOTAM DETAILS</div>
-      <div style="font-family:'Courier New',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;white-space:pre-wrap;">${notamText}</div>
+    <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:16px;margin-bottom:20px;">
+      <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;text-transform:uppercase;">NOTAM</div>
+      <div style="font-family:'Courier New',monospace;font-size:12px;color:#cdd9e5;line-height:1.8;white-space:pre-wrap;word-break:break-all;">${notamText}</div>
     </div>
 
-    <!-- CTA button -->
-    <div style="text-align:center;margin-bottom:24px;">
-      <a href="https://notamai.onrender.com" style="display:inline-block;background:#4a9eff;color:#060a0f;font-family:Arial,sans-serif;font-size:13px;font-weight:700;padding:12px 28px;border-radius:6px;text-decoration:none;letter-spacing:1px;">VIEW FULL BRIEFING</a>
+    <!-- Link -->
+    <div style="text-align:center;margin-bottom:20px;">
+      <span style="font-family:'Courier New',monospace;font-size:11px;color:#4a5f72;">Check full details at </span><a href="https://notamai.onrender.com" style="font-family:'Courier New',monospace;font-size:11px;color:#4a9eff;text-decoration:none;">notamai.onrender.com</a>
     </div>
 
     <!-- Footer -->
     <div style="border-top:1px solid #1a2a3a;padding-top:16px;text-align:center;">
-      <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">NOTAM INTELLIGENCE · AI-POWERED AVIATION BRIEFING</div>
-      <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5f72;margin-top:4px;">notamai.com</div>
+      <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5f72;letter-spacing:3px;">NOTAM INTELLIGENCE · AI-POWERED AVIATION BRIEFING</div>
+      <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5f72;margin-top:4px;letter-spacing:1px;">notamai.com</div>
     </div>
 
   </div>
