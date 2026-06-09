@@ -5470,13 +5470,11 @@ function startAlertListener(userId) {
   const alertsRef = db.collection('alerts').where('userId', '==', userId).where('active', '==', true);
   window._alertUnsubscribe = alertsRef.onSnapshot(snapshot => {
     let newCount = 0;
-    snapshot.docChanges().forEach(change => {
-      if (change.type === 'modified') {
-        const data = change.doc.data();
-        const lastChecked = data.lastChecked?.toDate?.() || new Date(0);
-        const lastSeen = window.lastAlertSeen || new Date(0);
-        if (lastChecked > lastSeen) newCount++;
-      }
+    const lastSeen = window.lastAlertSeen || new Date(0);
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const lastChecked = data.lastChecked?.toDate?.();
+      if (lastChecked && lastChecked > lastSeen) newCount++;
     });
     if (newCount > 0) showAlertBadge(newCount);
   });
