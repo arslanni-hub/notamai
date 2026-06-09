@@ -2634,13 +2634,7 @@ server.listen(PORT, () => {
 // Requires env var: RESEND_API_KEY (add to Render environment variables)
 // Domain: alerts@notamai.com must be verified in Resend dashboard
 
-function formatNotamForEmail(raw) {
-  if (!raw) return '';
-  return raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
-}
-
 async function sendNotamAlert(userEmail, icao, notamText) {
-  const formattedNotam = formatNotamForEmail(notamText);
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -2682,7 +2676,7 @@ async function sendNotamAlert(userEmail, icao, notamText) {
     <!-- NOTAM content -->
     <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:16px;margin-bottom:20px;overflow:hidden;">
       <div style="font-family:'Courier New','Lucida Console',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;text-transform:uppercase;">NOTAM · ${icao}</div>
-      <pre style="font-family:'Courier New',monospace;font-size:12px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;word-break:break-word;margin:0;padding:0;background:transparent;border:none;">${formattedNotam}</pre>
+      <pre style="font-family:'Courier New',monospace;font-size:12px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;word-break:break-word;margin:0;padding:0;">${notamText}</pre>
     </div>
 
     <!-- Link -->
