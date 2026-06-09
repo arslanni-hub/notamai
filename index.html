@@ -5467,10 +5467,12 @@ function closeAlertsPanel() {
 
 function startAlertListener(userId) {
   if (window._alertUnsubscribe) window._alertUnsubscribe();
+  // Keep epoch so unread alerts (lastChecked > epoch) show badge on page load
+  if (!window.lastAlertSeen) window.lastAlertSeen = new Date(0);
   const alertsRef = db.collection('alerts').where('userId', '==', userId).where('active', '==', true);
   window._alertUnsubscribe = alertsRef.onSnapshot(snapshot => {
     let newCount = 0;
-    const lastSeen = window.lastAlertSeen || new Date(0);
+    const lastSeen = window.lastAlertSeen;
     snapshot.forEach(doc => {
       const data = doc.data();
       const lastChecked = data.lastChecked?.toDate?.();

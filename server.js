@@ -2653,8 +2653,8 @@ async function sendNotamAlert(userEmail, icao, notamText) {
   <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
 
     <!-- Logo -->
-    <div style="margin-bottom:28px;">
-      <span style="font-family:'Courier New',monospace;font-size:14px;font-weight:700;letter-spacing:3px;color:#ffffff;text-transform:uppercase;">NOTAM</span><span style="font-family:'Courier New',monospace;font-size:14px;font-weight:700;letter-spacing:3px;color:#4a9eff;text-transform:uppercase;"> INTELLIGENCE</span>
+    <div style="margin-bottom:28px;padding:12px 0;border-bottom:1px solid #1a2a3a;">
+      <span style="font-family:monospace;font-size:16px;font-weight:bold;letter-spacing:4px;color:#ffffff;text-transform:uppercase;">NOTAM</span><span style="font-family:monospace;font-size:16px;font-weight:bold;letter-spacing:4px;color:#4a9eff;text-transform:uppercase;"> INTELLIGENCE</span>
     </div>
 
     <!-- Alert header -->
