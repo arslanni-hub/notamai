@@ -2646,14 +2646,44 @@ async function sendNotamAlert(userEmail, icao, notamText) {
         from: 'NOTAM Intelligence <onboarding@resend.dev>',
         to: userEmail,
         subject: '⚠️ NOTAM Alert: ' + icao,
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#060a0f;color:#cdd9e5;padding:24px;border-radius:8px;">
-            <div style="font-family:monospace;font-size:18px;color:#4a9eff;margin-bottom:16px;">NOTAM INTELLIGENCE</div>
-            <div style="font-size:20px;font-weight:bold;color:#e63946;margin-bottom:12px;">⚠️ New Critical NOTAM: ${icao}</div>
-            <div style="background:#0d1520;border-left:4px solid #e63946;padding:16px;border-radius:4px;font-family:monospace;font-size:13px;margin-bottom:16px;">${notamText}</div>
-            <div style="font-size:12px;color:#4a5f72;">Check full details at <a href="https://notamai.onrender.com" style="color:#4a9eff;">notamai.onrender.com</a></div>
-          </div>
-        `
+        html: `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#060a0f;font-family:Arial,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
+
+    <!-- Logo -->
+    <div style="margin-bottom:28px;">
+      <span style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:4px;color:#4a9eff;text-transform:uppercase;">NOTAM INTELLIGENCE</span>
+    </div>
+
+    <!-- Alert header -->
+    <div style="background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #e63946;border-radius:8px;padding:20px;margin-bottom:16px;">
+      <div style="font-family:'Courier New',monospace;font-size:11px;color:#e63946;letter-spacing:2px;margin-bottom:8px;">⚠ NEW NOTAM ALERT</div>
+      <div style="font-size:22px;font-weight:700;color:#ffffff;letter-spacing:2px;margin-bottom:4px;">${icao}</div>
+      <div style="font-size:12px;color:#4a5f72;font-family:'Courier New',monospace;">${new Date().toUTCString()}</div>
+    </div>
+
+    <!-- NOTAM content -->
+    <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <div style="font-family:'Courier New',monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;margin-bottom:8px;">NOTAM DETAILS</div>
+      <div style="font-family:'Courier New',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;white-space:pre-wrap;">${notamText}</div>
+    </div>
+
+    <!-- CTA button -->
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="https://notamai.onrender.com" style="display:inline-block;background:#4a9eff;color:#060a0f;font-family:Arial,sans-serif;font-size:13px;font-weight:700;padding:12px 28px;border-radius:6px;text-decoration:none;letter-spacing:1px;">VIEW FULL BRIEFING</a>
+    </div>
+
+    <!-- Footer -->
+    <div style="border-top:1px solid #1a2a3a;padding-top:16px;text-align:center;">
+      <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">NOTAM INTELLIGENCE · AI-POWERED AVIATION BRIEFING</div>
+      <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5f72;margin-top:4px;">notamai.com</div>
+    </div>
+
+  </div>
+</body>
+</html>`
       })
     });
     const data = await res.json();
