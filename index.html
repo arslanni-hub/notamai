@@ -5585,13 +5585,16 @@ async function renderAlerts() {
         this.querySelector('.alert-delete').style.opacity = '0';
       };
       div.onclick = function(e) {
-        if (e.target.closest('.alert-delete')) return;
+        if (e.target.closest('.delete-alert-btn')) return;
         const rawInput = document.getElementById('rawIcaoInput');
-        if (rawInput) { rawInput.value = icao; fetchRawData(); }
-        switchRawTab('notam');
-        openRawPanel();
+        if (rawInput) rawInput.value = icao;
         markAlertSeen(doc.id, div);
         closeAlertsPanel();
+        setTimeout(() => {
+          openRawPanel();
+          switchRawTab('notam');
+          fetchRawData();
+        }, 300);
       };
       div.innerHTML = `
         <div style="width:8px;height:8px;border-radius:50%;background:#2ec4b6;flex-shrink:0;"></div>
