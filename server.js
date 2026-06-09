@@ -2696,21 +2696,18 @@ async function checkNotamAlerts() {
             'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
           }
         });
-        const notams = data?.notams || [];
+        const notams = data?.notams || data?.data || [];
+        console.log('[ALERT CHECK]', icao, 'total NOTAMs from API:', notams.length);
         if (notams.length === 0) continue;
 
         console.log('[ALERT CHECK] Raw NOTAM sample:', JSON.stringify(notams[0]).slice(0, 200));
 
-        const allIds = notams.slice(0, 10).map(n => {
-          const id = n.id || n.notam_id || n.notamNumber || '';
-          if (id) return id;
-          if (n.raw) {
-            const match = n.raw.match(/([A-Z]\d+\/\d{4})/);
-            return match ? match[1] : 'unknown';
-          }
-          return 'unknown';
+        const sampleIds = notams.slice(0, 5).map(n => {
+          const raw = n.raw || '';
+          const match = raw.match(/([A-Z]\d+\/\d{4})/);
+          return match ? match[1] : (n.id || n.notam_id || 'no-id');
         });
-        console.log('[ALERT CHECK]', icao, 'first 10 IDs:', allIds.join(', '));
+        console.log('[ALERT CHECK]', icao, 'sample IDs:', sampleIds.join(', '));
 
         // Sort NOTAMs to find the most recently issued one
         // NOTAM IDs like A227/2026, B1234/26 - higher number = newer
@@ -2749,18 +2746,18 @@ async function checkNotamAlerts() {
 
         if (latestId && latestId !== lastSentId) {
           if (!lastSentId) {
-            console.log('[ALERT DEBUG]', icao, 'First check - saving baseline:', latestId);
+            console.log('[ALERT CHECK]', icao, 'First check - saving baseline:', latestId);
             try {
               await alertDoc.ref.update({
                 lastSentNotamId: latestId,
                 lastChecked: admin.firestore.FieldValue.serverTimestamp()
               });
-              console.log('[ALERT DEBUG]', icao, 'Baseline saved OK');
-            } catch(e) {
-              console.log('[ALERT DEBUG]', icao, 'Baseline save FAILED:', e.message);
+              console.log('[ALERT CHECK]', icao, 'Baseline saved OK:', latestId);
+            } catch(saveErr) {
+              console.log('[ALERT CHECK]', icao, 'Baseline save FAILED:', saveErr.message);
             }
           } else {
-            console.log('[ALERT DEBUG]', icao, 'New NOTAM detected! Sending email...');
+            console.log('[ALERT CHECK]', icao, 'New NOTAM detected! Sending email...');
             const notamText = latestNotam.raw || latestNotam.text || latestNotam.body || latestId;
             await sendNotamAlert(userEmail, icao, notamText);
             try {
