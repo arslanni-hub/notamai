@@ -2634,7 +2634,17 @@ server.listen(PORT, () => {
 // Requires env var: RESEND_API_KEY (add to Render environment variables)
 // Domain: alerts@notamai.com must be verified in Resend dashboard
 
+function formatNotamForEmail(raw) {
+  if (!raw) return 'No NOTAM data available';
+  return raw
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 async function sendNotamAlert(userEmail, icao, notamText) {
+  const formattedNotam = formatNotamForEmail(notamText);
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -2668,26 +2678,26 @@ async function sendNotamAlert(userEmail, icao, notamText) {
 
     <!-- Alert header -->
     <div style="background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #e63946;border-radius:6px;padding:20px;margin-bottom:16px;">
-      <div style="font-family:'Courier New',monospace;font-size:10px;color:#e63946;letter-spacing:3px;margin-bottom:10px;">⚠ NEW NOTAM ALERT</div>
-      <div style="font-family:'Courier New',monospace;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:4px;margin-bottom:6px;">${icao}</div>
-      <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;">${new Date().toUTCString()}</div>
+      <div style="font-family:'Courier New','Lucida Console',monospace;font-size:10px;color:#e63946;letter-spacing:3px;margin-bottom:10px;">⚠ NEW NOTAM ALERT</div>
+      <div style="font-family:'Courier New','Lucida Console',monospace;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:4px;margin-bottom:6px;">${icao}</div>
+      <div style="font-family:'Courier New','Lucida Console',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;">${new Date().toUTCString()}</div>
     </div>
 
     <!-- NOTAM content -->
-    <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:16px;margin-bottom:20px;">
-      <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;text-transform:uppercase;">NOTAM</div>
-      <div style="font-family:'Courier New',monospace;font-size:12px;color:#cdd9e5;line-height:1.8;white-space:pre-wrap;word-break:break-all;">${notamText}</div>
+    <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:16px;margin-bottom:20px;overflow:hidden;">
+      <div style="font-family:'Courier New','Lucida Console',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;text-transform:uppercase;">NOTAM · ${icao}</div>
+      <div style="font-family:'Courier New','Lucida Console',monospace;font-size:12px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;word-break:break-word;">${formattedNotam}</div>
     </div>
 
     <!-- Link -->
     <div style="text-align:center;margin-bottom:20px;">
-      <span style="font-family:'Courier New',monospace;font-size:11px;color:#4a5f72;">Check full details at </span><a href="https://notamai.onrender.com" style="font-family:'Courier New',monospace;font-size:11px;color:#4a9eff;text-decoration:none;">notamai.onrender.com</a>
+      <span style="font-family:'Courier New','Lucida Console',monospace;font-size:11px;color:#4a5f72;">Check full details at </span><a href="https://notamai.onrender.com" style="font-family:'Courier New','Lucida Console',monospace;font-size:11px;color:#4a9eff;text-decoration:none;">notamai.onrender.com</a>
     </div>
 
     <!-- Footer -->
     <div style="border-top:1px solid #1a2a3a;padding-top:16px;text-align:center;">
-      <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5f72;letter-spacing:3px;">NOTAM INTELLIGENCE · AI-POWERED AVIATION BRIEFING</div>
-      <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5f72;margin-top:4px;letter-spacing:1px;">notamai.com</div>
+      <div style="font-family:'Courier New','Lucida Console',monospace;font-size:10px;color:#4a5f72;letter-spacing:3px;">NOTAM INTELLIGENCE · AI-POWERED AVIATION BRIEFING</div>
+      <div style="font-family:'Courier New','Lucida Console',monospace;font-size:10px;color:#4a5f72;margin-top:4px;letter-spacing:1px;">notamai.com</div>
     </div>
 
   </div>
