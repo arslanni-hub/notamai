@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOTAM Intelligence — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+* { margin:0;padding:0;box-sizing:border-box; }
+body { background:#060a0f;color:#cdd9e5;font-family:'Rajdhani',sans-serif;min-height:100vh; }
+.header { display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;border-bottom:1px solid #1a2a3a;background:#060a0f; }
+.logo { font-family:'Orbitron',sans-serif;font-size:12px;color:#ffffff;letter-spacing:3px; }
+.logo span { color:#4a9eff; }
+.admin-badge { font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:2px;border:1px solid #f4841a;padding:2px 8px;border-radius:3px; }
+.tabs { display:flex;border-bottom:1px solid #1a2a3a;padding:0 24px;background:#060a0f; }
+.tab { padding:12px 20px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;cursor:pointer;text-transform:uppercase; }
+.tab.active { color:#4a9eff;border-bottom-color:#4a9eff; }
+.content { padding:24px;max-width:1200px;margin:0 auto; }
+.stats-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px; }
+.stat-card { background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:20px; }
+.stat-label { font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px; }
+.stat-value { font-family:'Orbitron',sans-serif;font-size:24px;font-weight:700;color:#ffffff; }
+.stat-sub { font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;margin-top:4px; }
+.stat-up { color:#2ec4b6; }
+.stat-down { color:#e63946; }
+.section-title { font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:3px;margin-bottom:16px;margin-top:24px; }
+.table-wrap { background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;overflow:hidden;margin-bottom:24px; }
+table { width:100%;border-collapse:collapse; }
+th { font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;padding:12px 16px;text-align:left;border-bottom:1px solid #1a2a3a;background:#060a0f; }
+td { font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:10px 16px;border-bottom:1px solid #0d1520; }
+tr:hover td { background:#0d1520; }
+.badge { font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;font-family:'Share Tech Mono',monospace; }
+.badge-free { background:rgba(74,158,255,0.1);color:#4a9eff;border:1px solid rgba(74,158,255,0.3); }
+.badge-pro { background:rgba(46,196,182,0.1);color:#2ec4b6;border:1px solid rgba(46,196,182,0.3); }
+.badge-premium { background:rgba(181,123,255,0.1);color:#b57bff;border:1px solid rgba(181,123,255,0.3); }
+.loading { color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;padding:40px;text-align:center; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+</style>
+</head>
+<body>
+
+<div id="authCheck" style="display:flex;align-items:center;justify-content:center;height:100vh;">
+  <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a5f72;letter-spacing:2px;">AUTHENTICATING...</div>
+</div>
+
+<div id="adminPanel" style="display:none;">
+  <div class="header">
+    <div class="logo">NOTAM <span>INTELLIGENCE</span></div>
+    <div class="admin-badge">ADMIN</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview')">Overview</button>
+    <button class="tab" onclick="switchTab('users')">Users</button>
+    <button class="tab" onclick="switchTab('revenue')">Revenue</button>
+    <button class="tab" onclick="switchTab('usage')">Usage</button>
+    <button class="tab" onclick="switchTab('system')">System</button>
+  </div>
+
+  <div class="content">
+
+    <!-- OVERVIEW TAB -->
+    <div id="tab-overview" class="tab-content active">
+      <div class="stats-grid" id="overviewStats">
+        <div class="loading">LOADING...</div>
+      </div>
+    </div>
+
+    <!-- USERS TAB -->
+    <div id="tab-users" class="tab-content">
+      <div id="usersContent"><div class="loading">LOADING...</div></div>
+    </div>
+
+    <!-- REVENUE TAB -->
+    <div id="tab-revenue" class="tab-content">
+      <div id="revenueContent"><div class="loading">LOADING...</div></div>
+    </div>
+
+    <!-- USAGE TAB -->
+    <div id="tab-usage" class="tab-content">
+      <div id="usageContent"><div class="loading">LOADING...</div></div>
+    </div>
+
+    <!-- SYSTEM TAB -->
+    <div id="tab-system" class="tab-content">
+      <div id="systemContent"><div class="loading">LOADING...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCH8bj9-775vmXU1HnqRFjf09g1yUXvnpo",
+  authDomain: "notamai-a9d57.firebaseapp.com",
+  projectId: "notamai-a9d57",
+  storageBucket: "notamai-a9d57.firebasestorage.app",
+  messagingSenderId: "793570221190",
+  appId: "1:793570221190:web:aab696c96dbde26d9f4507"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const ADMIN_EMAIL = 'arslanni@gmail.com';
+
+// Auth check
+firebase.auth().onAuthStateChanged(async (user) => {
+  if (!user || user.email !== ADMIN_EMAIL) {
+    window.location.href = '/';
+    return;
+  }
+  document.getElementById('authCheck').style.display = 'none';
+  document.getElementById('adminPanel').style.display = 'block';
+  await loadOverview();
+});
+
+// Tab switching
+function switchTab(tab) {
+  const tabs = ['overview', 'users', 'revenue', 'usage', 'system'];
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+
+  if (tab === 'users') loadUsers();
+  if (tab === 'revenue') loadRevenue();
+  if (tab === 'usage') loadUsage();
+  if (tab === 'system') loadSystem();
+}
+
+// OVERVIEW
+async function loadOverview() {
+  try {
+    const usersSnap = await db.collection('users').get();
+    const users = usersSnap.docs.map(d => d.data());
+    const total = users.length;
+    const free = users.filter(u => !u.plan || u.plan === 'free').length;
+    const pro = users.filter(u => u.plan === 'pro').length;
+    const premium = users.filter(u => u.plan === 'premium').length;
+
+    const mrr = (pro * 49) + (premium * 99);
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const briefingsSnap = await db.collection('briefings').where('createdAt', '>=', monthStart).get();
+    const monthlyBriefings = briefingsSnap.size;
+
+    const totalBriefingsSnap = await db.collection('briefings').get();
+    const totalBriefings = totalBriefingsSnap.size;
+
+    const videosSnap = await db.collection('videos').where('status', '==', 'completed').get();
+    const totalVideos = videosSnap.size;
+
+    const alertsSnap = await db.collection('alerts').where('active', '==', true).get();
+    const totalAlerts = alertsSnap.size;
+
+    document.getElementById('overviewStats').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-label">MONTHLY RECURRING REVENUE</div>
+        <div class="stat-value">$${mrr.toLocaleString()}</div>
+        <div class="stat-sub">ARR: $${(mrr * 12).toLocaleString()}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">TOTAL USERS</div>
+        <div class="stat-value">${total}</div>
+        <div class="stat-sub">
+          <span style="color:#4a5f72;">Free: ${free}</span> ·
+          <span style="color:#2ec4b6;">Pro: ${pro}</span> ·
+          <span style="color:#b57bff;">Premium: ${premium}</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">BRIEFINGS THIS MONTH</div>
+        <div class="stat-value">${monthlyBriefings}</div>
+        <div class="stat-sub">Total: ${totalBriefings}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">VIDEO BRIEFINGS</div>
+        <div class="stat-value">${totalVideos}</div>
+        <div class="stat-sub">Completed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ACTIVE ALERTS</div>
+        <div class="stat-value">${totalAlerts}</div>
+        <div class="stat-sub">Across all users</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">CONVERSION RATE</div>
+        <div class="stat-value">${total > 0 ? Math.round(((pro + premium) / total) * 100) : 0}%</div>
+        <div class="stat-sub">Paid / Total users</div>
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('overviewStats').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+  }
+}
+
+// USERS
+async function loadUsers() {
+  document.getElementById('usersContent').innerHTML = '<div class="loading">LOADING USERS...</div>';
+  try {
+    const snap = await db.collection('users').orderBy('updatedAt', 'desc').limit(100).get();
+
+    const rows = snap.docs.map(doc => {
+      const d = doc.data();
+      const plan = d.plan || 'free';
+      const date = d.updatedAt?.toDate ? d.updatedAt.toDate().toLocaleDateString('en-GB') : '—';
+      return `<tr>
+        <td style="font-family:'Share Tech Mono',monospace;font-size:11px;">${doc.id.slice(0, 12)}...</td>
+        <td>${d.displayName || '—'}</td>
+        <td><span class="badge badge-${plan}">${plan.toUpperCase()}</span></td>
+        <td>${date}</td>
+      </tr>`;
+    }).join('');
+
+    const free = snap.docs.filter(d => !d.data().plan || d.data().plan === 'free').length;
+    const pro = snap.docs.filter(d => d.data().plan === 'pro').length;
+    const premium = snap.docs.filter(d => d.data().plan === 'premium').length;
+
+    document.getElementById('usersContent').innerHTML = `
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat-card">
+          <div class="stat-label">FREE</div>
+          <div class="stat-value" style="color:#4a9eff;">${free}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">PRO</div>
+          <div class="stat-value" style="color:#2ec4b6;">${pro}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">PREMIUM</div>
+          <div class="stat-value" style="color:#b57bff;">${premium}</div>
+        </div>
+      </div>
+      <div class="section-title">USER LIST</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>USER ID</th><th>NAME</th><th>PLAN</th><th>UPDATED</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:#4a5f72;">No users yet</td></tr>'}</tbody>
+        </table>
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('usersContent').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+  }
+}
+
+// REVENUE
+async function loadRevenue() {
+  document.getElementById('revenueContent').innerHTML = '<div class="loading">LOADING...</div>';
+  try {
+    const snap = await db.collection('users').get();
+    const users = snap.docs.map(d => d.data());
+    const pro = users.filter(u => u.plan === 'pro').length;
+    const premium = users.filter(u => u.plan === 'premium').length;
+    const mrr = (pro * 49) + (premium * 99);
+    const arr = mrr * 12;
+
+    document.getElementById('revenueContent').innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">MRR</div>
+          <div class="stat-value">$${mrr.toLocaleString()}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">ARR</div>
+          <div class="stat-value">$${arr.toLocaleString()}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">PRO REVENUE</div>
+          <div class="stat-value">$${(pro * 49).toLocaleString()}</div>
+          <div class="stat-sub">${pro} × $49</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">PREMIUM REVENUE</div>
+          <div class="stat-value">$${(premium * 99).toLocaleString()}</div>
+          <div class="stat-sub">${premium} × $99</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">EST. API COST/MO</div>
+          <div class="stat-value" style="color:#e63946;">$${((pro * 10) + (premium * 25)).toLocaleString()}</div>
+          <div class="stat-sub">Claude + ElevenLabs + WaveSpeed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">EST. GROSS MARGIN</div>
+          <div class="stat-value" style="color:#2ec4b6;">${mrr > 0 ? Math.round(((mrr - ((pro * 10) + (premium * 25))) / mrr) * 100) : 0}%</div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('revenueContent').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+  }
+}
+
+// USAGE
+async function loadUsage() {
+  document.getElementById('usageContent').innerHTML = '<div class="loading">LOADING...</div>';
+  try {
+    const briefSnap = await db.collection('briefings').get();
+    const totalBriefings = briefSnap.size;
+
+    const routeCount = {};
+    briefSnap.docs.forEach(doc => {
+      const route = doc.data().route || 'Unknown';
+      routeCount[route] = (routeCount[route] || 0) + 1;
+    });
+    const topRoutes = Object.entries(routeCount).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+    const videoSnap = await db.collection('videos').where('status', '==', 'completed').get();
+
+    const alertSnap = await db.collection('alerts').where('active', '==', true).get();
+    const alertIcaos = {};
+    alertSnap.docs.forEach(doc => {
+      const icao = doc.data().icao;
+      alertIcaos[icao] = (alertIcaos[icao] || 0) + 1;
+    });
+    const topAlerts = Object.entries(alertIcaos).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+    const likedSnap = await db.collection('briefings').where('liked', '==', true).get();
+    const dislikedSnap = await db.collection('briefings').where('liked', '==', false).get();
+
+    document.getElementById('usageContent').innerHTML = `
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat-card">
+          <div class="stat-label">TOTAL BRIEFINGS</div>
+          <div class="stat-value">${totalBriefings}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">VIDEO BRIEFINGS</div>
+          <div class="stat-value">${videoSnap.size}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">👍 LIKED</div>
+          <div class="stat-value" style="color:#2ec4b6;">${likedSnap.size}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">👎 DISLIKED</div>
+          <div class="stat-value" style="color:#e63946;">${dislikedSnap.size}</div>
+        </div>
+      </div>
+
+      <div class="section-title">TOP 10 ROUTES</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ROUTE</th><th>COUNT</th></tr></thead>
+          <tbody>${topRoutes.map(([r, c]) => `<tr><td>${r}</td><td>${c}</td></tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:#4a5f72;">No data</td></tr>'}</tbody>
+        </table>
+      </div>
+
+      <div class="section-title">TOP MONITORED AIRPORTS</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ICAO</th><th>WATCHERS</th></tr></thead>
+          <tbody>${topAlerts.map(([i, c]) => `<tr><td>${i}</td><td>${c}</td></tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:#4a5f72;">No data</td></tr>'}</tbody>
+        </table>
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('usageContent').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+  }
+}
+
+// SYSTEM
+async function loadSystem() {
+  document.getElementById('systemContent').innerHTML = '<div class="loading">LOADING...</div>';
+  try {
+    const now = new Date();
+    const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+
+    const usageSnap = await db.collection('usage').get();
+    let totalBriefingsThisMonth = 0;
+    let totalChatThisMonth = 0;
+    let totalAnalysisThisMonth = 0;
+
+    usageSnap.docs.forEach(doc => {
+      if (doc.id.endsWith(monthKey)) {
+        const d = doc.data();
+        totalBriefingsThisMonth += d.briefings || 0;
+        totalChatThisMonth += d.chat || 0;
+        totalAnalysisThisMonth += d.analysis || 0;
+      }
+    });
+
+    const briefingCost = totalBriefingsThisMonth * 0.09;
+    const chatCost = totalChatThisMonth * 0.003;
+    const analysisCost = totalAnalysisThisMonth * 0.002;
+    const totalCost = briefingCost + chatCost + analysisCost;
+
+    document.getElementById('systemContent').innerHTML = `
+      <div class="section-title">API USAGE THIS MONTH</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">BRIEFINGS</div>
+          <div class="stat-value">${totalBriefingsThisMonth}</div>
+          <div class="stat-sub">Est. cost: $${briefingCost.toFixed(2)}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">CHAT MESSAGES</div>
+          <div class="stat-value">${totalChatThisMonth}</div>
+          <div class="stat-sub">Est. cost: $${chatCost.toFixed(2)}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">NOTAM ANALYSIS</div>
+          <div class="stat-value">${totalAnalysisThisMonth}</div>
+          <div class="stat-sub">Est. cost: $${analysisCost.toFixed(2)}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">TOTAL API COST</div>
+          <div class="stat-value" style="color:#e63946;">$${totalCost.toFixed(2)}</div>
+          <div class="stat-sub">Claude only</div>
+        </div>
+      </div>
+
+      <div class="section-title">SYSTEM INFO</div>
+      <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);">
+        <div class="stat-card">
+          <div class="stat-label">SERVER</div>
+          <div class="stat-value" style="font-size:16px;color:#2ec4b6;">ONLINE</div>
+          <div class="stat-sub">Render Starter Plan</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">ALERT CHECK INTERVAL</div>
+          <div class="stat-value" style="font-size:16px;">5 min</div>
+          <div class="stat-sub">NOTAM monitoring active</div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('systemContent').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+  }
+}
+</script>
+</body>
+</html>

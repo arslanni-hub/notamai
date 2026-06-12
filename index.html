@@ -2002,6 +2002,11 @@ function briefingFeedback(type) {
   const color = type === 'positive' ? '#2ec4b6' : '#e63946';
   btn.style.color = color;
   setTimeout(() => btn.style.color = '#4a5f72', 2000);
+  if (window.currentBriefingId) {
+    db.collection('briefings').doc(window.currentBriefingId).update({
+      liked: type === 'positive'
+    }).catch(e => console.log('feedback save error:', e));
+  }
 }
 
 function retryBriefing() {

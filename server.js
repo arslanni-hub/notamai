@@ -902,6 +902,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && (req.url === '/admin' || req.url === '/admin/')) {
+    const html = fs.readFileSync(path.join(__dirname, 'admin.html'), 'utf8');
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(html);
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/b/')) {
     const briefingId = req.url.split('/b/')[1].split('?')[0];
     const shareHtml = `<!DOCTYPE html>
