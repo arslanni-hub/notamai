@@ -33,6 +33,7 @@ tr:hover td { background:#0d1520; }
 .badge-free { background:rgba(74,158,255,0.1);color:#4a9eff;border:1px solid rgba(74,158,255,0.3); }
 .badge-pro { background:rgba(46,196,182,0.1);color:#2ec4b6;border:1px solid rgba(46,196,182,0.3); }
 .badge-premium { background:rgba(181,123,255,0.1);color:#b57bff;border:1px solid rgba(181,123,255,0.3); }
+.badge-admin { background:rgba(244,132,26,0.1);color:#f4841a;border:1px solid rgba(244,132,26,0.3); }
 .loading { color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;padding:40px;text-align:center; }
 .tab-content { display:none; }
 .tab-content.active { display:block; }
@@ -216,14 +217,18 @@ async function loadUsers() {
     const pro = users.filter(u => u.plan === 'pro').length;
     const premium = users.filter(u => u.plan === 'premium').length;
 
-    const rows = users.map(u => `
-      <tr>
-        <td style="font-family:'Share Tech Mono',monospace;font-size:11px;">${u.email}</td>
-        <td>${u.displayName}</td>
-        <td><span class="badge badge-${u.plan}">${u.plan.toUpperCase()}</span></td>
-        <td>${u.updatedAt}</td>
-      </tr>
-    `).join('');
+    const rows = users.map(u => {
+      const planLabel = u.email === 'arslanni@gmail.com' ? 'ADMIN' : u.plan.toUpperCase();
+      const planClass = u.email === 'arslanni@gmail.com' ? 'admin' : u.plan;
+      return `
+        <tr>
+          <td style="font-family:'Share Tech Mono',monospace;font-size:11px;">${u.email}</td>
+          <td>${u.displayName}</td>
+          <td><span class="badge badge-${planClass}">${planLabel}</span></td>
+          <td>${u.updatedAt}</td>
+        </tr>
+      `;
+    }).join('');
 
     document.getElementById('usersContent').innerHTML = `
       <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
