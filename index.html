@@ -5597,19 +5597,20 @@ async function renderAlerts() {
     snapshot.forEach(doc => {
       const data = doc.data();
       const icao = data.icao;
-      const isNew = data.lastChecked &&
-                    data.lastChecked.toDate &&
-                    data.lastChecked.toDate() > (window.lastAlertSeen || new Date(0));
+      const lastSeen = window.lastAlertSeen || new Date(0);
+      const lastChecked = data.lastChecked?.toDate?.();
+      const isNew = lastChecked && lastChecked > lastSeen;
+      console.log('[ALERT NEW CHECK]', data.icao, 'lastChecked:', lastChecked, 'lastSeen:', lastSeen, 'isNew:', isNew);
       const div = document.createElement('div');
       div.className = 'alert-item';
       div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:6px;transition:background 0.15s;margin-bottom:2px;cursor:pointer;';
       div.onmouseover = function() {
         this.style.background = 'rgba(255,255,255,0.06)';
-        this.querySelector('.alert-delete').style.opacity = '1';
+        this.querySelector('.delete-alert-btn').style.opacity = '1';
       };
       div.onmouseout = function() {
         this.style.background = 'none';
-        this.querySelector('.alert-delete').style.opacity = '0';
+        this.querySelector('.delete-alert-btn').style.opacity = '0';
       };
       div.onclick = function(e) {
         if (e.target.closest('.delete-alert-btn')) return;
@@ -5633,7 +5634,7 @@ async function renderAlerts() {
         <div style="width:8px;height:8px;border-radius:50%;background:#2ec4b6;flex-shrink:0;"></div>
         <span style="flex:1;font-family:'Share Tech Mono',monospace;font-size:13px;color:#cdd9e5;letter-spacing:2px;">${icao}</span>
         ${isNew ? '<span class="alert-new-badge" style="background:#e63946;color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;font-family:\'Rajdhani\',sans-serif;letter-spacing:1px;">NEW</span>' : '<div style="font-family:\'Rajdhani\',sans-serif;font-size:11px;color:#4a5f72;">watching</div>'}
-        <button class="alert-delete" onclick="removeAlert('${icao}')" style="background:none;border:none;cursor:pointer;color:#4a5f72;opacity:0;transition:opacity 0.15s;padding:2px;display:flex;align-items:center;" onmouseover="this.style.color='#e63946'" onmouseout="this.style.color='#4a5f72'">
+        <button class="delete-alert-btn" onclick="event.stopPropagation();event.preventDefault();removeAlert('${icao}')" style="background:none;border:none;cursor:pointer;color:#4a5f72;opacity:0;transition:opacity 0.15s;padding:2px;display:flex;align-items:center;" onmouseover="this.style.color='#e63946'" onmouseout="this.style.color='#4a5f72'">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       `;

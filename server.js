@@ -2798,6 +2798,7 @@ async function checkNotamAlerts() {
           } else {
             console.log('[ALERT CHECK]', icao, 'New NOTAM detected! Sending email...');
             const notamText = latestNotam.raw || latestNotam.text || latestNotam.body || latestId;
+            console.log('[SENDING EMAIL]', userEmail, icao);
             await sendNotamAlert(userEmail, icao, notamText);
             try {
               await alertDoc.ref.update({
