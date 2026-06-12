@@ -1040,9 +1040,10 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
 
       <!-- send -->
       <button onclick="handleSend()" data-tooltip="Generate AI Briefing" style="background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.4);color:#4a9eff;cursor:pointer;padding:7px 10px;border-radius:6px;display:flex;align-items:center;justify-content:center;">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="#4a9eff" stroke="none">
-          <path d="M12 2L4 15h5v7l6-8h-4L12 2z"/>
-          <path d="M12 2l8 13h-5v7l-6-8h4L12 2z"/>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <g transform="rotate(45 12 12)">
+            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+          </g>
         </svg>
       </button>
     </div>
@@ -6683,7 +6684,7 @@ function closeVideoBriefing() {
 // ── Onboarding ──────────────────────────────────────────────
 const ONBOARDING_STEPS = [
   {
-    icon: `<svg width="44" height="44" viewBox="0 0 24 24" fill="#4a9eff" stroke="none" style="transform:rotate(45deg)"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>`,
+    icon: `<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(45 12 12)"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></g></svg>`,
     title: 'Welcome to NOTAM Intelligence',
     desc: 'The world\'s first <strong style="color:#4a9eff;">AI-powered pre-flight intelligence platform</strong>. Instant NOTAM analysis, risk assessment, and video briefings for any route worldwide.',
     highlight: null
