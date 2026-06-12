@@ -262,12 +262,46 @@ async function loadUsers() {
 async function loadRevenue() {
   document.getElementById('revenueContent').innerHTML = '<div class="loading">LOADING...</div>';
   try {
+    // Users / MRR
     const snap = await db.collection('users').get();
     const users = snap.docs.map(d => d.data());
     const pro = users.filter(u => u.plan === 'pro').length;
     const premium = users.filter(u => u.plan === 'premium').length;
     const mrr = (pro * 49) + (premium * 99);
     const arr = mrr * 12;
+
+    // Usage this month
+    const now = new Date();
+    const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    const usageSnap = await db.collection('usage').get();
+    let totalBriefingsThisMonth = 0, totalChatThisMonth = 0, totalAnalysisThisMonth = 0;
+    usageSnap.docs.forEach(doc => {
+      if (doc.id.endsWith(monthKey)) {
+        const d = doc.data();
+        totalBriefingsThisMonth += d.briefings || 0;
+        totalChatThisMonth += d.chat || 0;
+        totalAnalysisThisMonth += d.analysis || 0;
+      }
+    });
+    const videoSnap = await db.collection('videos').where('status', '==', 'completed').get();
+    const totalVideos = videoSnap.size;
+
+    // Fixed monthly costs
+    const fixedCosts = { render: 7, claudePro: 20 };
+
+    // Variable costs
+    const briefingCost = totalBriefingsThisMonth * 0.09;
+    const chatCost = totalChatThisMonth * 0.003;
+    const analysisCost = totalAnalysisThisMonth * 0.002;
+    const videoApiCost = totalVideos * 0.68;
+    const ttsApiCost = totalVideos * 0.03;
+    const firebaseCost = 1;
+    const resendCost = 0;
+
+    const totalVariableCost = briefingCost + chatCost + analysisCost + videoApiCost + ttsApiCost + firebaseCost + resendCost;
+    const totalFixedCost = fixedCosts.render + fixedCosts.claudePro;
+    const totalCost = totalVariableCost + totalFixedCost;
+    const grossMargin = mrr > 0 ? Math.round(((mrr - totalCost) / mrr) * 100) : 0;
 
     document.getElementById('revenueContent').innerHTML = `
       <div class="stats-grid">
@@ -290,14 +324,38 @@ async function loadRevenue() {
           <div class="stat-sub">${premium} × $99</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">EST. API COST/MO</div>
-          <div class="stat-value" style="color:#e63946;">$${((pro * 10) + (premium * 25)).toLocaleString()}</div>
-          <div class="stat-sub">Claude + ElevenLabs + WaveSpeed</div>
+          <div class="stat-label">TOTAL COSTS/MO</div>
+          <div class="stat-value" style="color:#e63946;">$${totalCost.toFixed(2)}</div>
+          <div class="stat-sub">Fixed + variable</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">EST. GROSS MARGIN</div>
-          <div class="stat-value" style="color:#2ec4b6;">${mrr > 0 ? Math.round(((mrr - ((pro * 10) + (premium * 25))) / mrr) * 100) : 0}%</div>
+          <div class="stat-value" style="color:#2ec4b6;">${grossMargin}%</div>
+          <div class="stat-sub">After all costs</div>
         </div>
+      </div>
+
+      <div class="section-title">MONTHLY INFRASTRUCTURE COSTS</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>PLATFORM</th><th>TYPE</th><th>COST</th></tr></thead>
+          <tbody>
+            <tr><td>Render Starter</td><td>Fixed</td><td>$7.00</td></tr>
+            <tr><td>Claude Pro (dev)</td><td>Fixed</td><td>$20.00</td></tr>
+            <tr><td>Anthropic API (briefings)</td><td>Variable</td><td>$${briefingCost.toFixed(2)}</td></tr>
+            <tr><td>Anthropic API (chat)</td><td>Variable</td><td>$${chatCost.toFixed(2)}</td></tr>
+            <tr><td>Anthropic API (analysis)</td><td>Variable</td><td>$${analysisCost.toFixed(2)}</td></tr>
+            <tr><td>WaveSpeed (video)</td><td>Variable</td><td>$${videoApiCost.toFixed(2)}</td></tr>
+            <tr><td>ElevenLabs TTS</td><td>Variable</td><td>$${ttsApiCost.toFixed(2)}</td></tr>
+            <tr><td>Firebase</td><td>Variable</td><td>~$1.00</td></tr>
+            <tr><td>Resend</td><td>Variable</td><td>$0.00</td></tr>
+            <tr><td>LemonSqueezy</td><td>Commission</td><td>5% + $0.50/txn</td></tr>
+            <tr style="border-top:1px solid #4a9eff;">
+              <td><strong>TOTAL</strong></td><td></td>
+              <td style="color:#e63946;"><strong>$${totalCost.toFixed(2)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     `;
   } catch(e) {
