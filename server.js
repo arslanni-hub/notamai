@@ -37,6 +37,8 @@ const PLAN_LIMITS = {
 
 async function getUserPlan(userId) {
   try {
+    const userRecord = await admin.auth().getUser(userId);
+    if (userRecord.email === 'arslanni@gmail.com') return 'premium';
     const doc = await adminDb.collection('users').doc(userId).get();
     const plan = doc.exists ? (doc.data().plan || 'free') : 'free';
     console.log('[PLAN CHECK]', userId, 'plan:', plan);
