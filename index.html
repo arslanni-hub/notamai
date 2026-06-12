@@ -6681,25 +6681,25 @@ function closeVideoBriefing() {
 // ── Onboarding ──────────────────────────────────────────────
 const ONBOARDING_STEPS = [
   {
-    icon: '✈️',
+    icon: `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>`,
     title: 'Welcome to NOTAM Intelligence',
     desc: 'The world\'s first <strong style="color:#4a9eff;">AI-powered pre-flight intelligence platform</strong>. Instant NOTAM analysis, risk assessment, and video briefings for any route worldwide.',
     highlight: null
   },
   {
-    icon: '🤖',
+    icon: `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/><path d="M8 12h.01M12 8h.01M16 12h.01M12 16h.01"/></svg>`,
     title: 'AI-Powered Flight Briefing',
     desc: 'Generate a complete AI briefing with risk matrix, NOTAM analysis, and weather in seconds. Try typing <strong style="color:#4a9eff;">KJFK EGLL</strong> or any route worldwide. Supports natural language too.',
     highlight: 'mainInput'
   },
   {
-    icon: '🎬',
+    icon: `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`,
     title: 'AI Video Briefing',
     desc: '<strong style="color:#b57bff;">World\'s first AI video briefing system.</strong> Get your pre-flight briefing delivered by an AI captain in a 45-second video. Available exclusively on Premium.',
     highlight: null
   },
   {
-    icon: '⚡',
+    icon: `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#e63946" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
     title: 'Live Analysis & Smart Alerts',
     desc: 'One-tap <strong style="color:#4a9eff;">AI analysis</strong> for any NOTAM, METAR or SIGMET. Ask our <strong style="color:#4a9eff;">AI Assistant</strong> anything about your route. Get <strong style="color:#e63946;">instant email alerts</strong> the moment new NOTAMs are published.',
     highlight: null
@@ -6727,7 +6727,7 @@ function renderOnboardingStep() {
   // Update content
   document.getElementById('onboardingContent').innerHTML = `
     <div style="text-align:center;margin-bottom:20px;">
-      <div style="font-size:36px;margin-bottom:12px;">${step.icon}</div>
+      <div style="margin-bottom:16px;display:flex;justify-content:center;">${step.icon}</div>
       <div style="font-family:'Orbitron',sans-serif;font-size:14px;color:#ffffff;font-weight:700;margin-bottom:12px;letter-spacing:1px;">${step.title}</div>
       <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#8a9bb0;line-height:1.6;">${step.desc}</div>
     </div>
