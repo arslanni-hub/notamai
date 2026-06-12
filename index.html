@@ -5446,7 +5446,7 @@ document.getElementById('savedRouteInput')?.addEventListener('keydown', function
   if (e.key === 'Enter') saveRoute();
 });
 
-function openAlertsPanel() {
+async function openAlertsPanel() {
   if (openPanel === 'alerts') { closeAlertsPanel(); return; }
   closeAllPanels();
   openPanel = 'alerts';
@@ -5454,6 +5454,16 @@ function openAlertsPanel() {
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
   setTimeout(() => panel.style.transform = 'translateX(0)', 10);
+  // Save seen timestamp to Firestore so badge clears on next page load too
+  const user = firebase.auth().currentUser;
+  if (user) {
+    try {
+      await db.collection('users').doc(user.uid).set({
+        lastAlertSeenAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      window.lastAlertSeen = new Date();
+    } catch(e) {}
+  }
   clearAlertBadge();
   renderAlerts();
 }
@@ -5465,21 +5475,31 @@ function closeAlertsPanel() {
   setTimeout(() => panel.style.display = 'none', 300);
 }
 
-function startAlertListener(userId) {
+async function startAlertListener(userId) {
+  // Load lastAlertSeenAt from Firestore so badge persists correctly across reloads
+  try {
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (userDoc.exists && userDoc.data().lastAlertSeenAt) {
+      window.lastAlertSeen = userDoc.data().lastAlertSeenAt.toDate();
+    } else {
+      window.lastAlertSeen = new Date(0);
+    }
+  } catch(e) {
+    window.lastAlertSeen = new Date(0);
+  }
+
   if (window._alertUnsubscribe) window._alertUnsubscribe();
-  // Keep epoch so unread alerts (lastChecked > epoch) show badge on page load
-  if (!window.lastAlertSeen) window.lastAlertSeen = new Date(0);
   const alertsRef = db.collection('alerts').where('userId', '==', userId).where('active', '==', true);
   window._alertUnsubscribe = alertsRef.onSnapshot(snapshot => {
     let newCount = 0;
-    const lastSeen = window.lastAlertSeen;
-    const seen = JSON.parse(localStorage.getItem('seenAlerts') || '[]');
+    const lastSeen = window.lastAlertSeen || new Date(0);
     snapshot.forEach(doc => {
       const data = doc.data();
       const lastChecked = data.lastChecked?.toDate?.();
-      if (lastChecked && lastChecked > lastSeen && !seen.includes(doc.id)) newCount++;
+      if (lastChecked && lastChecked > lastSeen) newCount++;
     });
     if (newCount > 0) showAlertBadge(newCount);
+    else clearAlertBadge();
   });
 }
 
@@ -5496,13 +5516,19 @@ function clearAlertBadge() {
   window.lastAlertSeen = new Date();
 }
 
-function markAlertSeen(alertId, card) {
+async function markAlertSeen(alertId, card) {
   const newBadge = card.querySelector('.alert-new-badge');
   if (newBadge) newBadge.remove();
-  const seen = JSON.parse(localStorage.getItem('seenAlerts') || '[]');
-  if (!seen.includes(alertId)) {
-    seen.push(alertId);
-    localStorage.setItem('seenAlerts', JSON.stringify(seen));
+  const user = firebase.auth().currentUser;
+  if (user) {
+    try {
+      await db.collection('users').doc(user.uid).set({
+        lastAlertSeenAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      window.lastAlertSeen = new Date();
+    } catch(e) {
+      console.log('markAlertSeen error:', e);
+    }
   }
   if (document.querySelectorAll('.alert-new-badge').length === 0) clearAlertBadge();
 }
@@ -5571,8 +5597,9 @@ async function renderAlerts() {
     snapshot.forEach(doc => {
       const data = doc.data();
       const icao = data.icao;
-      const seen = JSON.parse(localStorage.getItem('seenAlerts') || '[]');
-      const isNew = data.lastChecked && (new Date() - data.lastChecked.toDate()) < 30 * 60 * 1000 && !seen.includes(doc.id);
+      const isNew = data.lastChecked &&
+                    data.lastChecked.toDate &&
+                    data.lastChecked.toDate() > (window.lastAlertSeen || new Date(0));
       const div = document.createElement('div');
       div.className = 'alert-item';
       div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:6px;transition:background 0.15s;margin-bottom:2px;cursor:pointer;';
