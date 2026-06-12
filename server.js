@@ -911,6 +911,41 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && req.url === '/api/admin/users') {
+    const authHeader = req.headers.authorization || '';
+    const idToken = authHeader.replace('Bearer ', '');
+    try {
+      const decoded = await admin.auth().verifyIdToken(idToken);
+      if (decoded.email !== 'arslanni@gmail.com') {
+        res.writeHead(403);
+        res.end(JSON.stringify({ error: 'Forbidden' }));
+        return;
+      }
+      const usersSnap = await adminDb.collection('users').get();
+      const users = await Promise.all(usersSnap.docs.map(async doc => {
+        const data = doc.data();
+        let email = '—';
+        try {
+          const authUser = await admin.auth().getUser(doc.id);
+          email = authUser.email || '—';
+        } catch(e) {}
+        return {
+          uid: doc.id,
+          email,
+          plan: data.plan || 'free',
+          displayName: data.displayName || '—',
+          updatedAt: data.updatedAt?.toDate?.()?.toLocaleDateString('en-GB') || '—'
+        };
+      }));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(users));
+    } catch(e) {
+      res.writeHead(401);
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/b/')) {
     const briefingId = req.url.split('/b/')[1].split('?')[0];
     const shareHtml = `<!DOCTYPE html>

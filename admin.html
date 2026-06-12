@@ -206,23 +206,24 @@ async function loadOverview() {
 async function loadUsers() {
   document.getElementById('usersContent').innerHTML = '<div class="loading">LOADING USERS...</div>';
   try {
-    const snap = await db.collection('users').orderBy('updatedAt', 'desc').limit(100).get();
+    const idToken = await firebase.auth().currentUser.getIdToken();
+    const res = await fetch('/api/admin/users', {
+      headers: { 'Authorization': 'Bearer ' + idToken }
+    });
+    const users = await res.json();
 
-    const rows = snap.docs.map(doc => {
-      const d = doc.data();
-      const plan = d.plan || 'free';
-      const date = d.updatedAt?.toDate ? d.updatedAt.toDate().toLocaleDateString('en-GB') : '—';
-      return `<tr>
-        <td style="font-family:'Share Tech Mono',monospace;font-size:11px;">${doc.id.slice(0, 12)}...</td>
-        <td>${d.displayName || '—'}</td>
-        <td><span class="badge badge-${plan}">${plan.toUpperCase()}</span></td>
-        <td>${date}</td>
-      </tr>`;
-    }).join('');
+    const free = users.filter(u => u.plan === 'free').length;
+    const pro = users.filter(u => u.plan === 'pro').length;
+    const premium = users.filter(u => u.plan === 'premium').length;
 
-    const free = snap.docs.filter(d => !d.data().plan || d.data().plan === 'free').length;
-    const pro = snap.docs.filter(d => d.data().plan === 'pro').length;
-    const premium = snap.docs.filter(d => d.data().plan === 'premium').length;
+    const rows = users.map(u => `
+      <tr>
+        <td style="font-family:'Share Tech Mono',monospace;font-size:11px;">${u.email}</td>
+        <td>${u.displayName}</td>
+        <td><span class="badge badge-${u.plan}">${u.plan.toUpperCase()}</span></td>
+        <td>${u.updatedAt}</td>
+      </tr>
+    `).join('');
 
     document.getElementById('usersContent').innerHTML = `
       <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
@@ -242,7 +243,7 @@ async function loadUsers() {
       <div class="section-title">USER LIST</div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>USER ID</th><th>NAME</th><th>PLAN</th><th>UPDATED</th></tr></thead>
+          <thead><tr><th>EMAIL</th><th>NAME</th><th>PLAN</th><th>UPDATED</th></tr></thead>
           <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:#4a5f72;">No users yet</td></tr>'}</tbody>
         </table>
       </div>
