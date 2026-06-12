@@ -2555,7 +2555,7 @@ function handleAuthBgClick(e) {
 
 /* Typing animation */
 (function() {
-  const sequences = ['KJFK EGLL', 'LTFM EGLL', 'EHAM LEMD'];
+  const sequences = ['KJFK EGLL', 'OMDB EGLL', 'EHAM LEMD'];
   let seqIdx = 0, charIdx = 0, deleting = false;
   function tick() {
     const el = document.getElementById('authTyped');
@@ -4034,7 +4034,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
     <!-- FAQ -->
     <div class="faq-section">
       <h2 class="faq-title">Frequently Asked Questions</h2>
-      <div class="faq-item"><div class="faq-q">What counts as one briefing?</div><div class="faq-a">Each route or airport query counts as one briefing. LTFM EGLL and LTFM alone each count as one briefing.</div></div>
+      <div class="faq-item"><div class="faq-q">What counts as one briefing?</div><div class="faq-a">Each route or airport query counts as one briefing. KJFK EGLL and KJFK alone each count as one briefing.</div></div>
       <div class="faq-item"><div class="faq-q">Can I cancel anytime?</div><div class="faq-a">Yes. Cancel your subscription anytime with no cancellation fees.</div></div>
       <div class="faq-item"><div class="faq-q">Is my data secure?</div><div class="faq-a">Yes. All data is encrypted and we never share your flight data with third parties.</div></div>
       <div class="faq-item"><div class="faq-q">Do you offer a student discount?</div><div class="faq-a">Yes. Contact us at <a href="mailto:hello@notamai.com" style="color:#4a9eff;">hello@notamai.com</a> for student and flight school pricing.</div></div>
@@ -4766,7 +4766,7 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
   </div>
   <div style="padding:12px 16px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
     <div style="display:flex;gap:8px;">
-      <input id="savedRouteInput" type="text" placeholder="e.g. LTFM EGLL" maxlength="20" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+      <input id="savedRouteInput" type="text" placeholder="e.g. KJFK EGLL" maxlength="20" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
       <button onclick="saveRoute()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;">SAVE</button>
     </div>
   </div>
@@ -6449,7 +6449,7 @@ function openVideoBriefing() {
 
   const inputVal = document.getElementById('mainInput')?.value?.trim();
   if (!inputVal || inputVal.length < 4) {
-    showToast('⚠️ Please enter a route first (e.g. LTFM EGLL)');
+    showToast('⚠️ Please enter a route first (e.g. KJFK EGLL)');
     return;
   }
 
@@ -6683,25 +6683,25 @@ const ONBOARDING_STEPS = [
   {
     icon: '✈️',
     title: 'Welcome to NOTAM Intelligence',
-    desc: 'The world\'s first AI-powered pre-flight intelligence platform. Instant NOTAM analysis, weather briefings, and video briefings for any route worldwide.',
+    desc: 'The world\'s first <strong style="color:#4a9eff;">AI-powered pre-flight intelligence platform</strong>. Instant NOTAM analysis, risk assessment, and video briefings for any route worldwide.',
     highlight: null
   },
   {
-    icon: '🎯',
-    title: 'AI Briefing',
-    desc: 'Generate complete AI briefings with risk assessment in seconds. Try: <strong style="color:#4a9eff;">KJFK EGLL</strong> or any route worldwide.',
+    icon: '🤖',
+    title: 'AI-Powered Flight Briefing',
+    desc: 'Generate a complete AI briefing with risk matrix, NOTAM analysis, and weather in seconds. Try typing <strong style="color:#4a9eff;">KJFK EGLL</strong> or any route worldwide. Supports natural language too.',
     highlight: 'mainInput'
   },
   {
     icon: '🎬',
-    title: 'Video Briefing ⭐',
-    desc: 'Get your briefing delivered by an AI captain in a 45-second video. The world\'s first AI video briefing system.',
+    title: 'AI Video Briefing',
+    desc: '<strong style="color:#b57bff;">World\'s first AI video briefing system.</strong> Get your pre-flight briefing delivered by an AI captain in a 45-second video. Available exclusively on Premium.',
     highlight: null
   },
   {
-    icon: '🔔',
-    title: 'Live Analysis & Alerts',
-    desc: 'One-tap AI analysis for any NOTAM, METAR or SIGMET. Ask our AI assistant anything. Get instant email alerts for new NOTAMs.',
+    icon: '⚡',
+    title: 'Live Analysis & Smart Alerts',
+    desc: 'One-tap <strong style="color:#4a9eff;">AI analysis</strong> for any NOTAM, METAR or SIGMET. Ask our <strong style="color:#4a9eff;">AI Assistant</strong> anything about your route. Get <strong style="color:#e63946;">instant email alerts</strong> the moment new NOTAMs are published.',
     highlight: null
   }
 ];
