@@ -3030,7 +3030,7 @@ function deleteBriefing(e, id) {
   renderSidebarHistory();
 }
 
-firebase.auth().onAuthStateChanged(user => {
+firebase.auth().onAuthStateChanged(async user => {
   console.log('onAuthStateChanged fired, user:', user ? user.email : 'null');
   const sidebar = document.getElementById('appSidebar');
   const navbar  = document.getElementById('mainNavbar');
@@ -3091,6 +3091,14 @@ firebase.auth().onAuthStateChanged(user => {
     loadBriefingHistory();
     loadUserPlan(user.uid);
     startAlertListener(user.uid);
+    // Check if first time user
+    try {
+      const userDoc = await db.collection('users').doc(user.uid).get();
+      const data = userDoc.exists ? userDoc.data() : {};
+      if (!data.onboardingComplete) {
+        setTimeout(() => showOnboarding(), 1500);
+      }
+    } catch(e) {}
     // Handle return from checkout
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('upgrade') === 'success') {
@@ -6669,7 +6677,121 @@ function closeVideoBriefing() {
     window.backgroundBriefingHtml = null;
   }
 }
+
+// ── Onboarding ──────────────────────────────────────────────
+const ONBOARDING_STEPS = [
+  {
+    icon: '✈️',
+    title: 'Welcome to NOTAM Intelligence',
+    desc: 'Your AI-powered pre-flight briefing assistant. Get instant analysis of NOTAMs, weather, and airspace restrictions for any route worldwide.',
+    highlight: null
+  },
+  {
+    icon: '🎯',
+    title: 'Generate Your First Briefing',
+    desc: 'Type your route in the input field — use ICAO codes like <strong style="color:#4a9eff;">LTFM EGLL</strong> or natural language like <strong style="color:#4a9eff;">"Istanbul to London"</strong>. Hit the blue button to generate.',
+    highlight: 'mainInput'
+  },
+  {
+    icon: '📡',
+    title: 'Live NOTAMs & Weather',
+    desc: 'Access real-time NOTAMs, METAR, TAF and SIGMET data for any airport. Use the <strong style="color:#4a9eff;">NOTAMs & MET</strong> panel in the sidebar for detailed raw data.',
+    highlight: null
+  },
+  {
+    icon: '🔔',
+    title: 'Set Up NOTAM Alerts',
+    desc: 'Get instant email notifications when new NOTAMs are published for airports you monitor. Add airports in the <strong style="color:#4a9eff;">NOTAM Alerts</strong> panel.',
+    highlight: null
+  }
+];
+
+let currentOnboardingStep = 0;
+
+function showOnboarding() {
+  currentOnboardingStep = 0;
+  renderOnboardingStep();
+  const modal = document.getElementById('onboardingModal');
+  modal.style.display = 'flex';
+}
+
+function renderOnboardingStep() {
+  const step = ONBOARDING_STEPS[currentOnboardingStep];
+  const total = ONBOARDING_STEPS.length;
+
+  // Update dots
+  document.querySelectorAll('.ob-dot').forEach((dot, i) => {
+    dot.style.background = i === currentOnboardingStep ? '#4a9eff' : '#1a2a3a';
+  });
+
+  // Update content
+  document.getElementById('onboardingContent').innerHTML = `
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:36px;margin-bottom:12px;">${step.icon}</div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:14px;color:#ffffff;font-weight:700;margin-bottom:12px;letter-spacing:1px;">${step.title}</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#8a9bb0;line-height:1.6;">${step.desc}</div>
+    </div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;letter-spacing:2px;">${currentOnboardingStep + 1} / ${total}</div>
+  `;
+
+  // Update next button
+  const nextBtn = document.getElementById('obNext');
+  if (currentOnboardingStep === total - 1) {
+    nextBtn.textContent = 'Get Started →';
+    nextBtn.style.background = '#2ec4b6';
+  } else {
+    nextBtn.textContent = 'Next →';
+    nextBtn.style.background = '#4a9eff';
+  }
+}
+
+function nextOnboardingStep() {
+  if (currentOnboardingStep < ONBOARDING_STEPS.length - 1) {
+    currentOnboardingStep++;
+    renderOnboardingStep();
+  } else {
+    closeOnboarding();
+  }
+}
+
+function closeOnboarding() {
+  document.getElementById('onboardingModal').style.display = 'none';
+  // Save to Firestore so it doesn't show again
+  const user = firebase.auth().currentUser;
+  if (user) {
+    db.collection('users').doc(user.uid).set({
+      onboardingComplete: true
+    }, { merge: true });
+  }
+}
 </script>
+
+<!-- Onboarding Modal -->
+<div id="onboardingModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#0a0f18;border:1px solid #1a2a3a;border-radius:12px;padding:32px;max-width:480px;width:90%;position:relative;">
+
+    <!-- Close -->
+    <button onclick="closeOnboarding()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#4a5f72;cursor:pointer;font-size:18px;">✕</button>
+
+    <!-- Step indicator -->
+    <div id="onboardingDots" style="display:flex;gap:6px;justify-content:center;margin-bottom:24px;">
+      <div class="ob-dot" style="width:8px;height:8px;border-radius:50%;background:#4a9eff;"></div>
+      <div class="ob-dot" style="width:8px;height:8px;border-radius:50%;background:#1a2a3a;"></div>
+      <div class="ob-dot" style="width:8px;height:8px;border-radius:50%;background:#1a2a3a;"></div>
+      <div class="ob-dot" style="width:8px;height:8px;border-radius:50%;background:#1a2a3a;"></div>
+    </div>
+
+    <!-- Content -->
+    <div id="onboardingContent"></div>
+
+    <!-- Buttons -->
+    <div style="display:flex;gap:10px;margin-top:24px;">
+      <button id="obSkip" onclick="closeOnboarding()" style="flex:1;padding:10px;background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:13px;border-radius:6px;cursor:pointer;">Skip</button>
+      <button id="obNext" onclick="nextOnboardingStep()" style="flex:2;padding:10px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;border-radius:6px;cursor:pointer;">Next →</button>
+    </div>
+
+  </div>
+</div>
 
 </body>
 </html>
