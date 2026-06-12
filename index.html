@@ -5462,18 +5462,20 @@ async function openAlertsPanel() {
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
   setTimeout(() => panel.style.transform = 'translateX(0)', 10);
-  // Save seen timestamp to Firestore so badge clears on next page load too
+  // Render first so NEW badges are visible
+  await renderAlerts();
+  // Then update lastAlertSeenAt AFTER render
   const user = firebase.auth().currentUser;
   if (user) {
     try {
       await db.collection('users').doc(user.uid).set({
         lastAlertSeenAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
+      // Update local variable after saving
       window.lastAlertSeen = new Date();
     } catch(e) {}
   }
   clearAlertBadge();
-  renderAlerts();
 }
 
 function closeAlertsPanel() {
