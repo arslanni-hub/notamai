@@ -1907,26 +1907,30 @@ CRITICAL RULES:
   if (req.method === 'GET' && req.url.startsWith('/api/airport-search/')) {
     const query = decodeURIComponent(req.url.split('/api/airport-search/')[1]);
     try {
-      // Try by name first
-      const nameRes = await fetchURL('https://api.api-ninjas.com/v1/airports?name=' + encodeURIComponent(query) + '&limit=6', {
-        headers: { 'X-Api-Key': process.env.API_NINJAS_KEY }
-      });
+      const headers = { 'X-Api-Key': process.env.API_NINJAS_KEY };
 
-      // Also try by city
-      const cityRes = await fetchURL('https://api.api-ninjas.com/v1/airports?city=' + encodeURIComponent(query) + '&limit=6', {
-        headers: { 'X-Api-Key': process.env.API_NINJAS_KEY }
-      });
+      const [nameRes, cityRes] = await Promise.all([
+        fetchURL('https://api.api-ninjas.com/v1/airports?name=' + encodeURIComponent(query) + '&limit=6', { headers }),
+        fetchURL('https://api.api-ninjas.com/v1/airports?city=' + encodeURIComponent(query) + '&limit=6', { headers })
+      ]);
 
-      const combined = [...(Array.isArray(nameRes) ? nameRes : []), ...(Array.isArray(cityRes) ? cityRes : [])];
+      const combined = [
+        ...(Array.isArray(nameRes) ? nameRes : []),
+        ...(Array.isArray(cityRes) ? cityRes : [])
+      ];
+
       const unique = combined
         .filter(a => a.icao && a.icao.length === 4)
         .filter((v, i, a) => a.findIndex(t => t.icao === v.icao) === i)
         .slice(0, 8)
         .map(a => ({ id: a.icao, name: a.name, country: a.country }));
 
+      console.log('[AIRPORT SEARCH]', query, '->', unique.length, 'results');
+
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(unique));
     } catch(e) {
+      console.log('[AIRPORT SEARCH ERROR]', e.message);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end('[]');
     }

@@ -6460,16 +6460,16 @@ function fetchAirportOrFir() {
 }
 
 function searchAptFir(query) {
-  console.log('[SEARCH]', query, 'mode:', aptMode, 'FIR_DB size:', Object.keys(FIR_DATABASE || {}).length);
   if (!query || query.length < 2) {
     document.getElementById('aptSearchResults').style.display = 'none';
     return;
   }
+
   const resultsDiv = document.getElementById('aptSearchResults');
   const q = query.toLowerCase();
 
-  // Search FIR database in FIR mode
   if (aptMode === 'fir') {
+    // FIR search - local database
     const firResults = Object.entries(FIR_DATABASE || {})
       .filter(([code, fir]) =>
         code.toLowerCase().includes(q) ||
@@ -6477,7 +6477,8 @@ function searchAptFir(query) {
         fir.country.toLowerCase().includes(q) ||
         fir.name.toLowerCase().split(' ').some(word => word.startsWith(q))
       )
-      .slice(0, 5);
+      .slice(0, 6);
+
     if (firResults.length > 0) {
       resultsDiv.style.display = 'block';
       resultsDiv.innerHTML = firResults.map(([code, fir]) => `
@@ -6492,45 +6493,30 @@ function searchAptFir(query) {
     return;
   }
 
-  // Airport mode — search local database, fallback to API for exact ICAO
-  if (aptMode === 'airport' && query.length >= 2) {
-    const localResults = Object.entries(AIRPORT_DATABASE)
-      .filter(([code, name]) =>
-        code.toLowerCase().includes(q) ||
-        name.toLowerCase().includes(q)
-      )
-      .slice(0, 6);
+  // AIRPORT mode
+  if (query.length >= 3) {
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">Searching...</div>';
 
-    if (localResults.length > 0) {
-      resultsDiv.style.display = 'block';
-      resultsDiv.innerHTML = localResults.map(([code, name]) => `
-        <div onclick="selectAptFir('${code}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
-          <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${code}</span>
-          <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${name}</span>
-        </div>
-      `).join('');
-    } else if (query.length === 4) {
-      // Not in local DB — try exact ICAO lookup via API
-      resultsDiv.style.display = 'block';
-      resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">Searching...</div>';
-      fetch('/api/airport-search/' + encodeURIComponent(query.toUpperCase()))
-        .then(r => r.json())
-        .then(data => {
-          if (data && data.length > 0) {
-            resultsDiv.innerHTML = data.slice(0, 6).map(apt => `
-              <div onclick="selectAptFir('${apt.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
-                <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${apt.id}</span>
-                <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${apt.name || ''}, ${apt.country || ''}</span>
-              </div>
-            `).join('');
-          } else {
-            resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">No results found</div>';
-          }
-        })
-        .catch(() => { resultsDiv.style.display = 'none'; });
-    } else {
-      resultsDiv.style.display = 'none';
-    }
+    // Call API Ninjas via our backend
+    fetch('/api/airport-search/' + encodeURIComponent(query))
+      .then(r => r.json())
+      .then(data => {
+        if (!data || data.length === 0) {
+          resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">No results found</div>';
+          return;
+        }
+        resultsDiv.style.display = 'block';
+        resultsDiv.innerHTML = data.map(apt => `
+          <div onclick="selectAptFir('${apt.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${apt.id}</span>
+            <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${apt.name}, ${apt.country}</span>
+          </div>
+        `).join('');
+      })
+      .catch(() => {
+        resultsDiv.style.display = 'none';
+      });
   }
 }
 
