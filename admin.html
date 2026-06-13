@@ -293,7 +293,7 @@ async function loadRevenue() {
     const briefingCost = totalBriefingsThisMonth * 0.09;
     const chatCost = totalChatThisMonth * 0.003;
     const analysisCost = totalAnalysisThisMonth * 0.002;
-    const videoApiCost = totalVideos * 0.68;
+    const videoApiCost = totalVideos * 0.80;
     const ttsApiCost = totalVideos * 0.03;
     const firebaseCost = 1;
     const resendCost = 0;
@@ -349,6 +349,7 @@ async function loadRevenue() {
             <tr><td>ElevenLabs TTS</td><td>Variable</td><td>$${ttsApiCost.toFixed(2)}</td></tr>
             <tr><td>Firebase</td><td>Variable</td><td>~$1.00</td></tr>
             <tr><td>Resend</td><td>Variable</td><td>$0.00</td></tr>
+            <tr><td>SkyLink API (NOTAM data)</td><td>Fixed</td><td>$0.00</td></tr>
             <tr><td>LemonSqueezy</td><td>Commission</td><td>5% + $0.50/txn</td></tr>
             <tr style="border-top:1px solid #4a9eff;">
               <td><strong>TOTAL</strong></td><td></td>
