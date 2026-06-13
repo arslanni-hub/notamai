@@ -1908,7 +1908,7 @@ CRITICAL RULES:
     const query = decodeURIComponent(req.url.split('/api/airport-search/')[1]);
     try {
       const data = await fetchURL(
-        'https://skylink-api.p.rapidapi.com/v3/airports?search=' + encodeURIComponent(query) + '&limit=8&type=large_airport,medium_airport',
+        'https://skylink-api.p.rapidapi.com/v3/airports/search?query=' + encodeURIComponent(query) + '&limit=8',
         {
           headers: {
             'X-RapidAPI-Key': process.env.SKYLINK_KEY,
@@ -1919,16 +1919,16 @@ CRITICAL RULES:
 
       console.log('[AIRPORT SEARCH]', query, '->', JSON.stringify(data).slice(0, 200));
 
-      const airports = Array.isArray(data) ? data : (data?.airports || data?.data || []);
+      const airports = Array.isArray(data) ? data : (data?.airports || data?.results || []);
 
       const results = airports
-        .filter(a => a.icao && a.icao.length === 4)
+        .filter(a => (a.icao || a.ident) && (a.icao || a.ident).length === 4)
         .slice(0, 8)
         .map(a => ({
-          id: a.icao,
-          name: a.name || a.airport_name || '',
+          id: a.icao || a.ident,
+          name: a.name || '',
           country: a.country || a.iso_country || '',
-          city: a.municipality || a.city || ''
+          city: a.city || a.municipality || ''
         }));
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
