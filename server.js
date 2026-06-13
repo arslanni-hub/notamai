@@ -2861,6 +2861,35 @@ async function checkNotamAlerts() {
         console.log('[ALERT CHECK ERROR]', icao, e.message);
       }
 
+      // Check SIGMETs for this ICAO (free, no rate limit)
+      try {
+        const sigmetData = await fetchURL('https://aviationweather.gov/api/data/airsigmet?format=json&hazard=sigmet&icao=' + icao);
+        const sigmets = Array.isArray(sigmetData) ? sigmetData : [];
+
+        if (sigmets.length > 0) {
+          const latestSigmet = sigmets[0];
+          const sigmetId = latestSigmet.airsigmetId || latestSigmet.isigmetId || '';
+          const lastSentSigmetId = alert.lastSentSigmetId || '';
+
+          if (sigmetId && sigmetId !== lastSentSigmetId) {
+            const sigmetText = latestSigmet.rawAirSigmet || (latestSigmet.hazard + ' ' + latestSigmet.severity) || sigmetId;
+
+            // Send SIGMET alert email
+            await sendNotamAlert(userEmail, icao + ' SIGMET', sigmetText);
+
+            // Update Firestore
+            await alertDoc.ref.update({
+              lastSentSigmetId: sigmetId,
+              lastChecked: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            console.log('[SIGMET ALERT]', userEmail, icao, sigmetId);
+          }
+        }
+      } catch(e) {
+        console.log('[SIGMET CHECK ERROR]', icao, e.message);
+      }
+
       // Small delay between airports to avoid rate limits
       await new Promise(r => setTimeout(r, 500));
     }
