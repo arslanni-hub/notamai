@@ -376,7 +376,10 @@ async function loadUsage() {
       const route = doc.data().route || 'Unknown';
       routeCount[route] = (routeCount[route] || 0) + 1;
     });
-    const topRoutes = Object.entries(routeCount).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const topRoutes = Object.entries(routeCount)
+      .filter(([route]) => route.includes('→') || route.includes(' '))
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
 
     const videoSnap = await db.collection('videos').where('status', '==', 'completed').get();
 
