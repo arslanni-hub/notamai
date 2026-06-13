@@ -2870,6 +2870,6 @@ async function checkNotamAlerts() {
 }
 
 // Run alert check every 30 minutes
-setInterval(checkNotamAlerts, 5 * 60 * 1000);
+setInterval(checkNotamAlerts, 10 * 60 * 1000);
 // Also run once on startup after 30 seconds (allow server to fully initialise)
 setTimeout(checkNotamAlerts, 30 * 1000);
