@@ -1907,31 +1907,32 @@ CRITICAL RULES:
   if (req.method === 'GET' && req.url.startsWith('/api/airport-search/')) {
     const query = decodeURIComponent(req.url.split('/api/airport-search/')[1]);
     try {
-      const headers = { 'X-Api-Key': process.env.API_NINJAS_KEY };
+      const data = await fetchURL(
+        'https://skylink-api.p.rapidapi.com/v3/airports?search=' + encodeURIComponent(query) + '&limit=8&type=large_airport,medium_airport',
+        {
+          headers: {
+            'X-RapidAPI-Key': process.env.SKYLINK_KEY,
+            'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
+          }
+        }
+      );
 
-      const [nameRes, cityRes] = await Promise.all([
-        fetchURL('https://api.api-ninjas.com/v1/airports?name=' + encodeURIComponent(query) + '&limit=6', { headers }),
-        fetchURL('https://api.api-ninjas.com/v1/airports?city=' + encodeURIComponent(query) + '&limit=6', { headers })
-      ]);
+      console.log('[AIRPORT SEARCH]', query, '->', JSON.stringify(data).slice(0, 200));
 
-      console.log('[API NINJAS NAME]', query, JSON.stringify(nameRes).slice(0, 200));
-      console.log('[API NINJAS CITY]', query, JSON.stringify(cityRes).slice(0, 200));
+      const airports = Array.isArray(data) ? data : (data?.airports || data?.data || []);
 
-      const combined = [
-        ...(Array.isArray(nameRes) ? nameRes : []),
-        ...(Array.isArray(cityRes) ? cityRes : [])
-      ];
-
-      const unique = combined
+      const results = airports
         .filter(a => a.icao && a.icao.length === 4)
-        .filter((v, i, a) => a.findIndex(t => t.icao === v.icao) === i)
         .slice(0, 8)
-        .map(a => ({ id: a.icao, name: a.name, country: a.country }));
-
-      console.log('[AIRPORT SEARCH]', query, '->', unique.length, 'results');
+        .map(a => ({
+          id: a.icao,
+          name: a.name || a.airport_name || '',
+          country: a.country || a.iso_country || '',
+          city: a.municipality || a.city || ''
+        }));
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(unique));
+      res.end(JSON.stringify(results));
     } catch(e) {
       console.log('[AIRPORT SEARCH ERROR]', e.message);
       res.writeHead(200, { 'Content-Type': 'application/json' });
