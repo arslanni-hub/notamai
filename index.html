@@ -6109,7 +6109,7 @@ document.addEventListener('click', function(e) {
 
   <!-- Tab buttons -->
   <div style="display:flex;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
-    <button id="tab-airport" onclick="switchToolTab('airport')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid #4a9eff;color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">AIRPORT</button>
+    <button id="tab-airport" onclick="switchToolTab('airport')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid #4a9eff;color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">AIRPORT / FIR</button>
     <button id="tab-sunmoon" onclick="switchToolTab('sunmoon')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">SUN/MOON</button>
     <button id="tab-winds" onclick="switchToolTab('winds')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">WINDS ALOFT</button>
   </div>
@@ -6117,13 +6117,20 @@ document.addEventListener('click', function(e) {
   <!-- Tab contents -->
   <div id="toolsContent" style="flex:1;overflow-y:auto;padding:16px;">
 
-    <!-- AIRPORT INFO TAB -->
+    <!-- AIRPORT / FIR TAB -->
     <div id="toolTab-airport">
-      <div style="display:flex;gap:8px;margin-bottom:16px;">
-        <input id="airportIcaoInput" type="text" placeholder="ICAO code (e.g. LTFM)" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fetchAirportInfo()">
-        <button onclick="fetchAirportInfo()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
+      <!-- Toggle buttons -->
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <button id="aptModeBtn" onclick="setAptMode('airport')" style="flex:1;padding:7px;background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.4);color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;border-radius:4px;cursor:pointer;">AIRPORT</button>
+        <button id="firModeBtn" onclick="setAptMode('fir')" style="flex:1;padding:7px;background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;border-radius:4px;cursor:pointer;">FIR</button>
       </div>
-      <div id="airportInfoResult" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;text-align:center;padding:20px 0;">Enter an ICAO code to get airport information</div>
+      <!-- Input row -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <input id="airportIcaoInput" type="text" placeholder="ICAO code (e.g. KJFK)" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fetchAirportOrFir()">
+        <button onclick="fetchAirportOrFir()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
+      </div>
+      <!-- Result -->
+      <div id="airportInfoResult" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;text-align:center;padding:20px 0;">Enter an ICAO code to get airport or FIR information</div>
     </div>
 
     <!-- SUN/MOON TAB -->
@@ -6181,6 +6188,248 @@ function switchToolTab(tab) {
     btn.style.borderBottomColor = t === tab ? colors[t] : 'transparent';
     btn.style.color = t === tab ? colors[t] : '#4a5f72';
   });
+}
+
+// AIRPORT / FIR MODE TOGGLE
+let aptMode = 'airport';
+
+function setAptMode(mode) {
+  aptMode = mode;
+  const aptBtn = document.getElementById('aptModeBtn');
+  const firBtn = document.getElementById('firModeBtn');
+  if (mode === 'airport') {
+    aptBtn.style.background = 'rgba(74,158,255,0.1)';
+    aptBtn.style.borderColor = 'rgba(74,158,255,0.4)';
+    aptBtn.style.color = '#4a9eff';
+    firBtn.style.background = 'none';
+    firBtn.style.borderColor = '#1a2a3a';
+    firBtn.style.color = '#4a5f72';
+    document.getElementById('airportIcaoInput').placeholder = 'ICAO code (e.g. KJFK)';
+  } else {
+    firBtn.style.background = 'rgba(74,158,255,0.1)';
+    firBtn.style.borderColor = 'rgba(74,158,255,0.4)';
+    firBtn.style.color = '#4a9eff';
+    aptBtn.style.background = 'none';
+    aptBtn.style.borderColor = '#1a2a3a';
+    aptBtn.style.color = '#4a5f72';
+    document.getElementById('airportIcaoInput').placeholder = 'FIR code (e.g. LTAA)';
+  }
+  document.getElementById('airportInfoResult').innerHTML = '';
+}
+
+function fetchAirportOrFir() {
+  if (aptMode === 'airport') {
+    fetchAirportInfo();
+  } else {
+    fetchFirInfo();
+  }
+}
+
+async function fetchFirInfo() {
+  const icao = document.getElementById('airportIcaoInput').value.trim().toUpperCase();
+  if (!icao || icao.length < 4) return;
+  const result = document.getElementById('airportInfoResult');
+  result.innerHTML = '<div style="color:#4a9eff;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">FETCHING FIR DATA...</div>';
+
+  const FIR_DATABASE = {
+    // TURKEY
+    'LTAA': { name: 'Ankara FIR', country: 'Turkey', region: 'Europe' },
+    'LTBB': { name: 'Istanbul FIR', country: 'Turkey', region: 'Europe' },
+    // EUROPE
+    'EGTT': { name: 'London FIR', country: 'United Kingdom', region: 'Europe' },
+    'EGPX': { name: 'Scottish FIR', country: 'United Kingdom', region: 'Europe' },
+    'EGGX': { name: 'Shanwick Oceanic FIR', country: 'UK/Ireland', region: 'Oceanic' },
+    'EISN': { name: 'Shannon FIR', country: 'Ireland', region: 'Europe' },
+    'LFFF': { name: 'Paris FIR', country: 'France', region: 'Europe' },
+    'LFMM': { name: 'Marseille FIR', country: 'France', region: 'Europe' },
+    'EDGG': { name: 'Langen FIR', country: 'Germany', region: 'Europe' },
+    'EDMM': { name: 'Munich FIR', country: 'Germany', region: 'Europe' },
+    'LIIV': { name: 'Roma FIR', country: 'Italy', region: 'Europe' },
+    'LIPZ': { name: 'Padova FIR', country: 'Italy', region: 'Europe' },
+    'LECM': { name: 'Madrid FIR', country: 'Spain', region: 'Europe' },
+    'GCCC': { name: 'Canarias FIR', country: 'Spain', region: 'Europe' },
+    'LPPC': { name: 'Lisboa FIR', country: 'Portugal', region: 'Europe' },
+    'EBUR': { name: 'Brussels FIR', country: 'Belgium', region: 'Europe' },
+    'EHAA': { name: 'Amsterdam FIR', country: 'Netherlands', region: 'Europe' },
+    'EKDK': { name: 'Copenhagen FIR', country: 'Denmark', region: 'Europe' },
+    'ENOR': { name: 'Oslo FIR', country: 'Norway', region: 'Europe' },
+    'ESAA': { name: 'Stockholm FIR', country: 'Sweden', region: 'Europe' },
+    'EFIN': { name: 'Helsinki FIR', country: 'Finland', region: 'Europe' },
+    'BIRD': { name: 'Reykjavik FIR', country: 'Iceland', region: 'Europe' },
+    'EPWW': { name: 'Warsaw FIR', country: 'Poland', region: 'Europe' },
+    'LKAA': { name: 'Praha FIR', country: 'Czech Republic', region: 'Europe' },
+    'LOVV': { name: 'Wien FIR', country: 'Austria', region: 'Europe' },
+    'LSZR': { name: 'Zurich FIR', country: 'Switzerland', region: 'Europe' },
+    'LJLA': { name: 'Ljubljana FIR', country: 'Slovenia', region: 'Europe' },
+    'LDZO': { name: 'Zagreb FIR', country: 'Croatia', region: 'Europe' },
+    'LYBA': { name: 'Beograd FIR', country: 'Serbia', region: 'Europe' },
+    'LBSR': { name: 'Sofia FIR', country: 'Bulgaria', region: 'Europe' },
+    'LRBB': { name: 'Bucuresti FIR', country: 'Romania', region: 'Europe' },
+    'LHCC': { name: 'Budapest FIR', country: 'Hungary', region: 'Europe' },
+    'LZBB': { name: 'Bratislava FIR', country: 'Slovakia', region: 'Europe' },
+    'LGGG': { name: 'Athinai FIR', country: 'Greece', region: 'Europe' },
+    'LCCC': { name: 'Nicosia FIR', country: 'Cyprus', region: 'Europe' },
+    'LAAA': { name: 'Tirana FIR', country: 'Albania', region: 'Europe' },
+    'LWSS': { name: 'Skopje FIR', country: 'North Macedonia', region: 'Europe' },
+    'LQSB': { name: 'Sarajevo FIR', country: 'Bosnia', region: 'Europe' },
+    // MIDDLE EAST
+    'ORBB': { name: 'Baghdad FIR', country: 'Iraq', region: 'Middle East' },
+    'OSTT': { name: 'Damascus FIR', country: 'Syria', region: 'Middle East' },
+    'OJAC': { name: 'Amman FIR', country: 'Jordan', region: 'Middle East' },
+    'OLBB': { name: 'Beirut FIR', country: 'Lebanon', region: 'Middle East' },
+    'HECC': { name: 'Cairo FIR', country: 'Egypt', region: 'Middle East' },
+    'OEJD': { name: 'Jeddah FIR', country: 'Saudi Arabia', region: 'Middle East' },
+    'OOKB': { name: 'Muscat FIR', country: 'Oman', region: 'Middle East' },
+    'OMAE': { name: 'Emirates FIR', country: 'UAE', region: 'Middle East' },
+    'OBBB': { name: 'Bahrain FIR', country: 'Bahrain', region: 'Middle East' },
+    'OTBD': { name: 'Doha FIR', country: 'Qatar', region: 'Middle East' },
+    'OYSC': { name: 'Sanaa FIR', country: 'Yemen', region: 'Middle East' },
+    'OIIX': { name: 'Tehran FIR', country: 'Iran', region: 'Middle East' },
+    'OPKR': { name: 'Karachi FIR', country: 'Pakistan', region: 'Middle East' },
+    'OPLA': { name: 'Lahore FIR', country: 'Pakistan', region: 'Middle East' },
+    'LLLL': { name: 'Tel Aviv FIR', country: 'Israel', region: 'Middle East' },
+    // CENTRAL ASIA
+    'UTAA': { name: 'Ashgabat FIR', country: 'Turkmenistan', region: 'Central Asia' },
+    'UCFM': { name: 'Bishkek FIR', country: 'Kyrgyzstan', region: 'Central Asia' },
+    'UAAA': { name: 'Almaty FIR', country: 'Kazakhstan', region: 'Central Asia' },
+    'UGGG': { name: 'Tbilisi FIR', country: 'Georgia', region: 'Central Asia' },
+    'UDDD': { name: 'Yerevan FIR', country: 'Armenia', region: 'Central Asia' },
+    'UBBA': { name: 'Baku FIR', country: 'Azerbaijan', region: 'Central Asia' },
+    // RUSSIA/CIS
+    'UUWV': { name: 'Moskva FIR', country: 'Russia', region: 'Russia/CIS' },
+    'ULLL': { name: 'Sankt-Peterburg FIR', country: 'Russia', region: 'Russia/CIS' },
+    'UNNT': { name: 'Novosibirsk FIR', country: 'Russia', region: 'Russia/CIS' },
+    'UHHH': { name: 'Khabarovsk FIR', country: 'Russia', region: 'Russia/CIS' },
+    'UKBV': { name: 'Kyiv FIR', country: 'Ukraine', region: 'Russia/CIS' },
+    'UMMV': { name: 'Minsk FIR', country: 'Belarus', region: 'Russia/CIS' },
+    // SOUTH ASIA
+    'VIDF': { name: 'Delhi FIR', country: 'India', region: 'South Asia' },
+    'VECF': { name: 'Calcutta FIR', country: 'India', region: 'South Asia' },
+    'VAAF': { name: 'Mumbai FIR', country: 'India', region: 'South Asia' },
+    'VOCB': { name: 'Chennai FIR', country: 'India', region: 'South Asia' },
+    'VCCF': { name: 'Colombo FIR', country: 'Sri Lanka', region: 'South Asia' },
+    'VNKT': { name: 'Kathmandu FIR', country: 'Nepal', region: 'South Asia' },
+    'VGDT': { name: 'Dhaka FIR', country: 'Bangladesh', region: 'South Asia' },
+    // SOUTHEAST ASIA
+    'VTBB': { name: 'Bangkok FIR', country: 'Thailand', region: 'SE Asia' },
+    'VVHM': { name: 'Ho Chi Minh FIR', country: 'Vietnam', region: 'SE Asia' },
+    'WMFC': { name: 'Kuala Lumpur FIR', country: 'Malaysia', region: 'SE Asia' },
+    'WBFC': { name: 'Kota Kinabalu FIR', country: 'Malaysia', region: 'SE Asia' },
+    'WSJC': { name: 'Singapore FIR', country: 'Singapore', region: 'SE Asia' },
+    'WAAF': { name: 'Jakarta FIR', country: 'Indonesia', region: 'SE Asia' },
+    'WIIF': { name: 'Ujung Pandang FIR', country: 'Indonesia', region: 'SE Asia' },
+    'RPHI': { name: 'Manila FIR', country: 'Philippines', region: 'SE Asia' },
+    'VYYY': { name: 'Yangon FIR', country: 'Myanmar', region: 'SE Asia' },
+    'VDPP': { name: 'Phnom Penh FIR', country: 'Cambodia', region: 'SE Asia' },
+    'VLVT': { name: 'Vientiane FIR', country: 'Laos', region: 'SE Asia' },
+    // EAST ASIA
+    'ZBPE': { name: 'Beijing FIR', country: 'China', region: 'East Asia' },
+    'ZSHA': { name: 'Shanghai FIR', country: 'China', region: 'East Asia' },
+    'ZGZU': { name: 'Guangzhou FIR', country: 'China', region: 'East Asia' },
+    'ZWWW': { name: 'Urumqi FIR', country: 'China', region: 'East Asia' },
+    'RJJJ': { name: 'Fukuoka FIR', country: 'Japan', region: 'East Asia' },
+    'RKRR': { name: 'Incheon FIR', country: 'South Korea', region: 'East Asia' },
+    'RCTP': { name: 'Taipei FIR', country: 'Taiwan', region: 'East Asia' },
+    'VHHH': { name: 'Hongkong FIR', country: 'Hong Kong', region: 'East Asia' },
+    // AFRICA
+    'DAAA': { name: 'Alger FIR', country: 'Algeria', region: 'Africa' },
+    'DTTC': { name: 'Tunis FIR', country: 'Tunisia', region: 'Africa' },
+    'GMMM': { name: 'Casablanca FIR', country: 'Morocco', region: 'Africa' },
+    'HAAA': { name: 'Addis Abeba FIR', country: 'Ethiopia', region: 'Africa' },
+    'HCSM': { name: 'Mogadishu FIR', country: 'Somalia', region: 'Africa' },
+    'HKNA': { name: 'Nairobi FIR', country: 'Kenya', region: 'Africa' },
+    'HTTT': { name: 'Dar es Salaam FIR', country: 'Tanzania', region: 'Africa' },
+    'FAJA': { name: 'Johannesburg FIR', country: 'South Africa', region: 'Africa' },
+    'FZAA': { name: 'Kinshasa FIR', country: 'DRC', region: 'Africa' },
+    'DNKK': { name: 'Kano FIR', country: 'Nigeria', region: 'Africa' },
+    'DGAC': { name: 'Accra FIR', country: 'Ghana', region: 'Africa' },
+    'GOOO': { name: 'Dakar Oceanic FIR', country: 'Senegal', region: 'Oceanic' },
+    'DRRR': { name: 'Niamey FIR', country: 'Niger', region: 'Africa' },
+    'FCCC': { name: 'Brazzaville FIR', country: 'Congo', region: 'Africa' },
+    // OCEANIC
+    'KZNY': { name: 'New York Oceanic FIR', country: 'USA', region: 'Oceanic' },
+    'KZAK': { name: 'Oakland Oceanic FIR', country: 'USA', region: 'Oceanic' },
+    'CZQX': { name: 'Gander Oceanic FIR', country: 'Canada', region: 'Oceanic' },
+    'NFFF': { name: 'Nadi FIR', country: 'Fiji', region: 'Oceanic' },
+    'YMMM': { name: 'Melbourne FIR', country: 'Australia', region: 'Oceanic' },
+    'NZZC': { name: 'Auckland FIR', country: 'New Zealand', region: 'Oceanic' },
+    'AGGG': { name: 'Honiara FIR', country: 'Solomon Islands', region: 'Oceanic' },
+    // NORTH AMERICA
+    'KZJX': { name: 'Jacksonville FIR', country: 'USA', region: 'N. America' },
+    'KZHU': { name: 'Houston FIR', country: 'USA', region: 'N. America' },
+    'KZFW': { name: 'Fort Worth FIR', country: 'USA', region: 'N. America' },
+    'KZMP': { name: 'Minneapolis FIR', country: 'USA', region: 'N. America' },
+    'KZMA': { name: 'Miami FIR', country: 'USA', region: 'N. America' },
+    'KZSE': { name: 'Seattle FIR', country: 'USA', region: 'N. America' },
+    'KZLA': { name: 'Los Angeles FIR', country: 'USA', region: 'N. America' },
+    'KZOB': { name: 'Cleveland FIR', country: 'USA', region: 'N. America' },
+    'KZBW': { name: 'Boston FIR', country: 'USA', region: 'N. America' },
+    'KZDC': { name: 'Washington FIR', country: 'USA', region: 'N. America' },
+    'KZAU': { name: 'Chicago FIR', country: 'USA', region: 'N. America' },
+    'KZKC': { name: 'Kansas City FIR', country: 'USA', region: 'N. America' },
+    'KZAB': { name: 'Albuquerque FIR', country: 'USA', region: 'N. America' },
+    'KZLC': { name: 'Salt Lake City FIR', country: 'USA', region: 'N. America' },
+    'KZDV': { name: 'Denver FIR', country: 'USA', region: 'N. America' },
+    'CZUL': { name: 'Montreal FIR', country: 'Canada', region: 'N. America' },
+    'CZVR': { name: 'Vancouver FIR', country: 'Canada', region: 'N. America' },
+    'CZEG': { name: 'Edmonton FIR', country: 'Canada', region: 'N. America' },
+    'CZWG': { name: 'Winnipeg FIR', country: 'Canada', region: 'N. America' },
+    'MMEX': { name: 'Mexico FIR', country: 'Mexico', region: 'N. America' },
+    'MHTG': { name: 'Tegucigalpa FIR', country: 'Honduras', region: 'N. America' },
+    'MGGT': { name: 'Guatemala FIR', country: 'Guatemala', region: 'N. America' },
+    'TJZS': { name: 'San Juan FIR', country: 'Puerto Rico', region: 'N. America' },
+    // SOUTH AMERICA
+    'SBAZ': { name: 'Amazonico FIR', country: 'Brazil', region: 'S. America' },
+    'SBBS': { name: 'Brasilia FIR', country: 'Brazil', region: 'S. America' },
+    'SBRE': { name: 'Recife FIR', country: 'Brazil', region: 'S. America' },
+    'SAEF': { name: 'Buenos Aires FIR', country: 'Argentina', region: 'S. America' },
+    'SCEZ': { name: 'Santiago FIR', country: 'Chile', region: 'S. America' },
+    'SPIM': { name: 'Lima FIR', country: 'Peru', region: 'S. America' },
+    'SKED': { name: 'Bogota FIR', country: 'Colombia', region: 'S. America' },
+    'SVZM': { name: 'Maiquetia FIR', country: 'Venezuela', region: 'S. America' },
+  };
+
+  const firInfo = FIR_DATABASE[icao];
+
+  if (firInfo) {
+    let notamCount = 0;
+    try {
+      const notamRes = await fetch('/api/raw/notam/' + icao);
+      const notamText = await notamRes.text();
+      const notamMatches = notamText.match(/![\w]/g);
+      notamCount = notamMatches ? notamMatches.length : 0;
+    } catch(e) {}
+
+    result.innerHTML = `
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:14px;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#ffffff;margin-bottom:4px;">${icao}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:15px;color:#4a9eff;margin-bottom:12px;font-weight:600;">${firInfo.name}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">COUNTRY</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:13px;color:#4a9eff;">${firInfo.country}</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">REGION</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:13px;color:#4a9eff;">${firInfo.region}</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;grid-column:1/-1;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">ACTIVE NOTAMs</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:13px;color:#cdd9e5;">${notamCount > 0 ? notamCount + ' NOTAMs' : 'Checking...'}</div>
+          </div>
+        </div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;letter-spacing:1px;">Flight Information Region</div>
+      </div>
+    `;
+  } else {
+    result.innerHTML = `
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:14px;text-align:center;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:14px;color:#e63946;margin-bottom:8px;">${icao}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;">FIR not found in database</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;margin-top:8px;">Try a valid FIR ICAO code (e.g. LTAA, EGTT, OMAE)</div>
+      </div>
+    `;
+  }
 }
 
 // AIRPORT INFO
