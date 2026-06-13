@@ -1907,12 +1907,14 @@ CRITICAL RULES:
   if (req.method === 'GET' && req.url.startsWith('/api/airport-search/')) {
     const query = decodeURIComponent(req.url.split('/api/airport-search/')[1]);
     try {
-      const data = await fetchURL('https://aviationweather.gov/api/data/airport?ids=' + encodeURIComponent(query) + '&format=json');
-      const nameData = await fetchURL('https://aviationweather.gov/api/data/airport?site=' + encodeURIComponent(query) + '&format=json');
-      const combined = [...(Array.isArray(data) ? data : []), ...(Array.isArray(nameData) ? nameData : [])];
-      const unique = combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+      const icaoData = await fetchURL('https://aviationweather.gov/api/data/airport?ids=' + encodeURIComponent(query.toUpperCase()) + '&format=json');
+      if (Array.isArray(icaoData) && icaoData.length > 0) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(icaoData));
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(unique));
+      res.end('[]');
     } catch(e) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end('[]');

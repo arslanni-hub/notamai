@@ -6355,6 +6355,75 @@ const FIR_DATABASE = {
   'SVZM': { name: 'Maiquetia FIR', country: 'Venezuela', region: 'S. America' },
 };
 
+const AIRPORT_DATABASE = {
+  'EGLL': 'London Heathrow, United Kingdom',
+  'EGKK': 'London Gatwick, United Kingdom',
+  'EHAM': 'Amsterdam Schiphol, Netherlands',
+  'EDDF': 'Frankfurt Airport, Germany',
+  'EDDM': 'Munich Airport, Germany',
+  'LFPG': 'Paris Charles de Gaulle, France',
+  'LFPO': 'Paris Orly, France',
+  'LEMD': 'Madrid Barajas, Spain',
+  'LEBL': 'Barcelona El Prat, Spain',
+  'LIRF': 'Rome Fiumicino, Italy',
+  'LSZH': 'Zurich Airport, Switzerland',
+  'LSGG': 'Geneva Airport, Switzerland',
+  'LOWW': 'Vienna Airport, Austria',
+  'EPWA': 'Warsaw Chopin, Poland',
+  'EKCH': 'Copenhagen Airport, Denmark',
+  'ESSA': 'Stockholm Arlanda, Sweden',
+  'ENGM': 'Oslo Gardermoen, Norway',
+  'EFHK': 'Helsinki Vantaa, Finland',
+  'LTFM': 'Istanbul Airport, Turkey',
+  'LTAI': 'Antalya Airport, Turkey',
+  'LGAV': 'Athens Eleftherios Venizelos, Greece',
+  'LCLK': 'Larnaca Airport, Cyprus',
+  'OMDB': 'Dubai International, UAE',
+  'OMDW': 'Dubai World Central, UAE',
+  'OMAA': 'Abu Dhabi International, UAE',
+  'OERK': 'Riyadh King Khalid, Saudi Arabia',
+  'OEJN': 'Jeddah King Abdulaziz, Saudi Arabia',
+  'OTHH': 'Doha Hamad International, Qatar',
+  'OBBI': 'Bahrain International, Bahrain',
+  'OKBK': 'Kuwait International, Kuwait',
+  'OIMM': 'Mashhad Shahid Hashemi Nejad, Iran',
+  'OIII': 'Tehran Imam Khomeini, Iran',
+  'HECA': 'Cairo International, Egypt',
+  'HAAB': 'Addis Ababa Bole, Ethiopia',
+  'DNMM': 'Lagos Murtala Muhammed, Nigeria',
+  'FAOR': 'Johannesburg OR Tambo, South Africa',
+  'KJFK': 'New York JFK, United States',
+  'KLAX': 'Los Angeles International, United States',
+  'KORD': 'Chicago O\'Hare, United States',
+  'KATL': 'Atlanta Hartsfield-Jackson, United States',
+  'KDFW': 'Dallas Fort Worth, United States',
+  'KDEN': 'Denver International, United States',
+  'KSFO': 'San Francisco International, United States',
+  'KMIA': 'Miami International, United States',
+  'KEWR': 'Newark Liberty, United States',
+  'KBOS': 'Boston Logan, United States',
+  'CYYZ': 'Toronto Pearson, Canada',
+  'CYVR': 'Vancouver International, Canada',
+  'MMMX': 'Mexico City Benito Juarez, Mexico',
+  'SBGR': 'São Paulo Guarulhos, Brazil',
+  'SAEZ': 'Buenos Aires Ezeiza, Argentina',
+  'VHHH': 'Hong Kong International, Hong Kong',
+  'ZBAA': 'Beijing Capital, China',
+  'ZSPD': 'Shanghai Pudong, China',
+  'RJTT': 'Tokyo Haneda, Japan',
+  'RJAA': 'Tokyo Narita, Japan',
+  'RKSI': 'Seoul Incheon, South Korea',
+  'WSSS': 'Singapore Changi, Singapore',
+  'VTBS': 'Bangkok Suvarnabhumi, Thailand',
+  'WMKK': 'Kuala Lumpur International, Malaysia',
+  'WIII': 'Jakarta Soekarno-Hatta, Indonesia',
+  'VIDP': 'Delhi Indira Gandhi, India',
+  'VABB': 'Mumbai Chhatrapati Shivaji, India',
+  'YSSY': 'Sydney Kingsford Smith, Australia',
+  'YMML': 'Melbourne Airport, Australia',
+  'NZAA': 'Auckland International, New Zealand',
+};
+
 // AIRPORT / FIR MODE TOGGLE
 let aptMode = 'airport';
 
@@ -6423,47 +6492,45 @@ function searchAptFir(query) {
     return;
   }
 
-  // Airport mode — search via API
-  if (query.length >= 3) {
-    resultsDiv.style.display = 'block';
-    resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">Searching...</div>';
-    fetch('/api/airport-search/' + encodeURIComponent(query))
-      .then(r => r.json())
-      .then(data => {
-        if (!data || data.length === 0) {
-          // Try direct ICAO lookup if query looks like a code
-          if (query.length === 4) {
-            fetch('/api/airport-search/' + query.toUpperCase())
-              .then(r => r.json())
-              .then(data2 => {
-                if (data2 && data2.length > 0) {
-                  resultsDiv.style.display = 'block';
-                  resultsDiv.innerHTML = data2.slice(0, 6).map(apt => `
-                    <div onclick="selectAptFir('${apt.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
-                      <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${apt.id}</span>
-                      <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${apt.name || ''}, ${apt.country || ''}</span>
-                    </div>
-                  `).join('');
-                } else {
-                  resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">No results found</div>';
-                }
-              })
-              .catch(() => {
-                resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">No results found</div>';
-              });
+  // Airport mode — search local database, fallback to API for exact ICAO
+  if (aptMode === 'airport' && query.length >= 2) {
+    const localResults = Object.entries(AIRPORT_DATABASE)
+      .filter(([code, name]) =>
+        code.toLowerCase().includes(q) ||
+        name.toLowerCase().includes(q)
+      )
+      .slice(0, 6);
+
+    if (localResults.length > 0) {
+      resultsDiv.style.display = 'block';
+      resultsDiv.innerHTML = localResults.map(([code, name]) => `
+        <div onclick="selectAptFir('${code}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${code}</span>
+          <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${name}</span>
+        </div>
+      `).join('');
+    } else if (query.length === 4) {
+      // Not in local DB — try exact ICAO lookup via API
+      resultsDiv.style.display = 'block';
+      resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">Searching...</div>';
+      fetch('/api/airport-search/' + encodeURIComponent(query.toUpperCase()))
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            resultsDiv.innerHTML = data.slice(0, 6).map(apt => `
+              <div onclick="selectAptFir('${apt.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
+                <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${apt.id}</span>
+                <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${apt.name || ''}, ${apt.country || ''}</span>
+              </div>
+            `).join('');
           } else {
             resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">No results found</div>';
           }
-          return;
-        }
-        resultsDiv.innerHTML = data.slice(0, 6).map(apt => `
-          <div onclick="selectAptFir('${apt.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
-            <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${apt.id}</span>
-            <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${apt.name || ''}, ${apt.country || ''}</span>
-          </div>
-        `).join('');
-      })
-      .catch(() => { resultsDiv.style.display = 'none'; });
+        })
+        .catch(() => { resultsDiv.style.display = 'none'; });
+    } else {
+      resultsDiv.style.display = 'none';
+    }
   }
 }
 
