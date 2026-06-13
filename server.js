@@ -2770,10 +2770,16 @@ async function checkNotamAlerts() {
       if (!userEmail) continue;
       console.log('[ALERT CHECK] User email:', userEmail, 'ICAO:', icao);
 
-      // Fetch latest NOTAMs via aviationweather.gov (free, no key needed)
+      // Fetch latest NOTAMs via SkyLink
       try {
-        const notamRes = await fetchURL('https://aviationweather.gov/api/data/notam?icaos=' + icao + '&format=json&hazard=true');
-        const notams = Array.isArray(notamRes) ? notamRes : [];
+        const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + icao, {
+          method: 'GET',
+          headers: {
+            'x-rapidapi-key': process.env.SKYLINK_KEY,
+            'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
+          }
+        });
+        const notams = data?.notams || data?.data || [];
         console.log('[ALERT CHECK]', icao, 'total NOTAMs from API:', notams.length);
         if (notams.length === 0) continue;
 
