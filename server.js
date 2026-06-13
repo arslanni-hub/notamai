@@ -2863,6 +2863,7 @@ async function checkNotamAlerts() {
 
       // Check SIGMETs for this ICAO (free, no rate limit)
       try {
+        console.log('[SIGMET CHECK] Checking', icao);
         const sigmetData = await fetchURL('https://aviationweather.gov/api/data/airsigmet?format=json&hazard=sigmet&icao=' + icao);
         const sigmets = Array.isArray(sigmetData) ? sigmetData : [];
 
