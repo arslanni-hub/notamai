@@ -6125,10 +6125,16 @@ document.addEventListener('click', function(e) {
         <button id="firModeBtn" onclick="setAptMode('fir')" style="flex:1;padding:7px;background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;border-radius:4px;cursor:pointer;">FIR</button>
       </div>
       <!-- Input row -->
-      <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
         <input id="airportIcaoInput" type="text" placeholder="ICAO code (e.g. KJFK)" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fetchAirportOrFir()">
         <button onclick="fetchAirportOrFir()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
       </div>
+      <!-- Name/city search -->
+      <div style="margin-bottom:12px;">
+        <input id="aptSearchInput" type="text" placeholder="Search by name or city (e.g. Istanbul, London...)" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;outline:none;" oninput="searchAptFir(this.value)">
+      </div>
+      <!-- Search results dropdown -->
+      <div id="aptSearchResults" style="display:none;background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:12px;max-height:200px;overflow-y:auto;"></div>
       <!-- Result -->
       <div id="airportInfoResult" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;text-align:center;padding:20px 0;">Enter an ICAO code to get airport or FIR information</div>
     </div>
@@ -6223,6 +6229,66 @@ function fetchAirportOrFir() {
   } else {
     fetchFirInfo();
   }
+}
+
+function searchAptFir(query) {
+  if (!query || query.length < 2) {
+    document.getElementById('aptSearchResults').style.display = 'none';
+    return;
+  }
+  const resultsDiv = document.getElementById('aptSearchResults');
+  const q = query.toLowerCase();
+
+  // Search FIR database in FIR mode
+  if (aptMode === 'fir') {
+    const firResults = Object.entries(FIR_DATABASE || {})
+      .filter(([code, fir]) =>
+        code.toLowerCase().includes(q) ||
+        fir.name.toLowerCase().includes(q) ||
+        fir.country.toLowerCase().includes(q)
+      )
+      .slice(0, 5);
+    if (firResults.length > 0) {
+      resultsDiv.style.display = 'block';
+      resultsDiv.innerHTML = firResults.map(([code, fir]) => `
+        <div onclick="selectAptFir('${code}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${code}</span>
+          <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${fir.name}, ${fir.country}</span>
+        </div>
+      `).join('');
+    } else {
+      resultsDiv.style.display = 'none';
+    }
+    return;
+  }
+
+  // Airport mode — search via API
+  if (query.length >= 3) {
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">Searching...</div>';
+    fetch('/api/airport-search/' + encodeURIComponent(query))
+      .then(r => r.json())
+      .then(data => {
+        if (!data || data.length === 0) {
+          resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">No results found</div>';
+          return;
+        }
+        resultsDiv.innerHTML = data.slice(0, 6).map(apt => `
+          <div onclick="selectAptFir('${apt.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${apt.id}</span>
+            <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${apt.name || ''}, ${apt.country || ''}</span>
+          </div>
+        `).join('');
+      })
+      .catch(() => { resultsDiv.style.display = 'none'; });
+  }
+}
+
+function selectAptFir(code) {
+  document.getElementById('airportIcaoInput').value = code;
+  document.getElementById('aptSearchResults').style.display = 'none';
+  document.getElementById('aptSearchInput').value = '';
+  fetchAirportOrFir();
 }
 
 async function fetchFirInfo() {
