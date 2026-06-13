@@ -6356,72 +6356,143 @@ const FIR_DATABASE = {
 };
 
 const AIRPORT_DATABASE = {
-  'EGLL': 'London Heathrow, United Kingdom',
-  'EGKK': 'London Gatwick, United Kingdom',
-  'EHAM': 'Amsterdam Schiphol, Netherlands',
-  'EDDF': 'Frankfurt Airport, Germany',
-  'EDDM': 'Munich Airport, Germany',
-  'LFPG': 'Paris Charles de Gaulle, France',
-  'LFPO': 'Paris Orly, France',
-  'LEMD': 'Madrid Barajas, Spain',
-  'LEBL': 'Barcelona El Prat, Spain',
-  'LIRF': 'Rome Fiumicino, Italy',
-  'LSZH': 'Zurich Airport, Switzerland',
-  'LSGG': 'Geneva Airport, Switzerland',
-  'LOWW': 'Vienna Airport, Austria',
-  'EPWA': 'Warsaw Chopin, Poland',
-  'EKCH': 'Copenhagen Airport, Denmark',
-  'ESSA': 'Stockholm Arlanda, Sweden',
-  'ENGM': 'Oslo Gardermoen, Norway',
-  'EFHK': 'Helsinki Vantaa, Finland',
-  'LTFM': 'Istanbul Airport, Turkey',
-  'LTAI': 'Antalya Airport, Turkey',
-  'LGAV': 'Athens Eleftherios Venizelos, Greece',
-  'LCLK': 'Larnaca Airport, Cyprus',
-  'OMDB': 'Dubai International, UAE',
-  'OMDW': 'Dubai World Central, UAE',
-  'OMAA': 'Abu Dhabi International, UAE',
-  'OERK': 'Riyadh King Khalid, Saudi Arabia',
-  'OEJN': 'Jeddah King Abdulaziz, Saudi Arabia',
-  'OTHH': 'Doha Hamad International, Qatar',
-  'OBBI': 'Bahrain International, Bahrain',
-  'OKBK': 'Kuwait International, Kuwait',
-  'OIMM': 'Mashhad Shahid Hashemi Nejad, Iran',
-  'OIII': 'Tehran Imam Khomeini, Iran',
-  'HECA': 'Cairo International, Egypt',
-  'HAAB': 'Addis Ababa Bole, Ethiopia',
-  'DNMM': 'Lagos Murtala Muhammed, Nigeria',
-  'FAOR': 'Johannesburg OR Tambo, South Africa',
-  'KJFK': 'New York JFK, United States',
-  'KLAX': 'Los Angeles International, United States',
-  'KORD': 'Chicago O\'Hare, United States',
-  'KATL': 'Atlanta Hartsfield-Jackson, United States',
-  'KDFW': 'Dallas Fort Worth, United States',
-  'KDEN': 'Denver International, United States',
-  'KSFO': 'San Francisco International, United States',
-  'KMIA': 'Miami International, United States',
-  'KEWR': 'Newark Liberty, United States',
-  'KBOS': 'Boston Logan, United States',
-  'CYYZ': 'Toronto Pearson, Canada',
-  'CYVR': 'Vancouver International, Canada',
-  'MMMX': 'Mexico City Benito Juarez, Mexico',
-  'SBGR': 'São Paulo Guarulhos, Brazil',
-  'SAEZ': 'Buenos Aires Ezeiza, Argentina',
-  'VHHH': 'Hong Kong International, Hong Kong',
-  'ZBAA': 'Beijing Capital, China',
-  'ZSPD': 'Shanghai Pudong, China',
-  'RJTT': 'Tokyo Haneda, Japan',
-  'RJAA': 'Tokyo Narita, Japan',
-  'RKSI': 'Seoul Incheon, South Korea',
-  'WSSS': 'Singapore Changi, Singapore',
-  'VTBS': 'Bangkok Suvarnabhumi, Thailand',
-  'WMKK': 'Kuala Lumpur International, Malaysia',
-  'WIII': 'Jakarta Soekarno-Hatta, Indonesia',
-  'VIDP': 'Delhi Indira Gandhi, India',
-  'VABB': 'Mumbai Chhatrapati Shivaji, India',
-  'YSSY': 'Sydney Kingsford Smith, Australia',
-  'YMML': 'Melbourne Airport, Australia',
-  'NZAA': 'Auckland International, New Zealand',
+  'LTFM': { name: 'Istanbul Airport', city: 'Istanbul', country: 'Turkey' },
+  'LTFJ': { name: 'Sabiha Gokcen Airport', city: 'Istanbul', country: 'Turkey' },
+  'LTAC': { name: 'Esenboga Airport', city: 'Ankara', country: 'Turkey' },
+  'LTBJ': { name: 'Adnan Menderes Airport', city: 'Izmir', country: 'Turkey' },
+  'LTAI': { name: 'Antalya Airport', city: 'Antalya', country: 'Turkey' },
+  'LTFE': { name: 'Dalaman Airport', city: 'Dalaman', country: 'Turkey' },
+  'LTBW': { name: 'Bursa Airport', city: 'Bursa', country: 'Turkey' },
+  'LTAN': { name: 'Konya Airport', city: 'Konya', country: 'Turkey' },
+  'LTAU': { name: 'Kayseri Airport', city: 'Kayseri', country: 'Turkey' },
+  'LTCC': { name: 'Diyarbakir Airport', city: 'Diyarbakir', country: 'Turkey' },
+  'LTCE': { name: 'Erzurum Airport', city: 'Erzurum', country: 'Turkey' },
+  'LTCG': { name: 'Trabzon Airport', city: 'Trabzon', country: 'Turkey' },
+  'LTCI': { name: 'Van Airport', city: 'Van', country: 'Turkey' },
+  'LTCR': { name: 'Adana Airport', city: 'Adana', country: 'Turkey' },
+  'LTCS': { name: 'Gaziantep Airport', city: 'Gaziantep', country: 'Turkey' },
+  'LTDA': { name: 'Hatay Airport', city: 'Hatay', country: 'Turkey' },
+  'EGLL': { name: 'Heathrow Airport', city: 'London', country: 'UK' },
+  'EGKK': { name: 'Gatwick Airport', city: 'London', country: 'UK' },
+  'EGSS': { name: 'Stansted Airport', city: 'London', country: 'UK' },
+  'EGCC': { name: 'Manchester Airport', city: 'Manchester', country: 'UK' },
+  'EGPH': { name: 'Edinburgh Airport', city: 'Edinburgh', country: 'UK' },
+  'EHAM': { name: 'Schiphol Airport', city: 'Amsterdam', country: 'Netherlands' },
+  'EDDF': { name: 'Frankfurt Airport', city: 'Frankfurt', country: 'Germany' },
+  'EDDM': { name: 'Munich Airport', city: 'Munich', country: 'Germany' },
+  'EDDB': { name: 'Berlin Brandenburg', city: 'Berlin', country: 'Germany' },
+  'EDDL': { name: 'Dusseldorf Airport', city: 'Dusseldorf', country: 'Germany' },
+  'LFPG': { name: 'Charles de Gaulle', city: 'Paris', country: 'France' },
+  'LFPO': { name: 'Paris Orly', city: 'Paris', country: 'France' },
+  'LFMN': { name: 'Nice Cote d Azur', city: 'Nice', country: 'France' },
+  'LEMD': { name: 'Madrid Barajas', city: 'Madrid', country: 'Spain' },
+  'LEBL': { name: 'Barcelona El Prat', city: 'Barcelona', country: 'Spain' },
+  'LEMG': { name: 'Malaga Airport', city: 'Malaga', country: 'Spain' },
+  'LIRF': { name: 'Rome Fiumicino', city: 'Rome', country: 'Italy' },
+  'LIMC': { name: 'Milan Malpensa', city: 'Milan', country: 'Italy' },
+  'LIPZ': { name: 'Venice Airport', city: 'Venice', country: 'Italy' },
+  'LGAV': { name: 'Athens Venizelos', city: 'Athens', country: 'Greece' },
+  'LCLK': { name: 'Larnaca Airport', city: 'Larnaca', country: 'Cyprus' },
+  'LCPH': { name: 'Paphos Airport', city: 'Paphos', country: 'Cyprus' },
+  'LOWW': { name: 'Vienna Airport', city: 'Vienna', country: 'Austria' },
+  'LSZH': { name: 'Zurich Airport', city: 'Zurich', country: 'Switzerland' },
+  'LSGG': { name: 'Geneva Airport', city: 'Geneva', country: 'Switzerland' },
+  'EBBR': { name: 'Brussels Airport', city: 'Brussels', country: 'Belgium' },
+  'EIDW': { name: 'Dublin Airport', city: 'Dublin', country: 'Ireland' },
+  'EKCH': { name: 'Copenhagen Airport', city: 'Copenhagen', country: 'Denmark' },
+  'ESSA': { name: 'Stockholm Arlanda', city: 'Stockholm', country: 'Sweden' },
+  'ENGM': { name: 'Oslo Gardermoen', city: 'Oslo', country: 'Norway' },
+  'EFHK': { name: 'Helsinki Airport', city: 'Helsinki', country: 'Finland' },
+  'EPWA': { name: 'Warsaw Chopin', city: 'Warsaw', country: 'Poland' },
+  'LKPR': { name: 'Prague Vaclav Havel', city: 'Prague', country: 'Czech Republic' },
+  'LHBP': { name: 'Budapest Liszt Ferenc', city: 'Budapest', country: 'Hungary' },
+  'LROP': { name: 'Bucharest Otopeni', city: 'Bucharest', country: 'Romania' },
+  'LBSF': { name: 'Sofia Airport', city: 'Sofia', country: 'Bulgaria' },
+  'LYBT': { name: 'Belgrade Nikola Tesla', city: 'Belgrade', country: 'Serbia' },
+  'LDZA': { name: 'Zagreb Airport', city: 'Zagreb', country: 'Croatia' },
+  'OMDB': { name: 'Dubai International', city: 'Dubai', country: 'UAE' },
+  'OMDW': { name: 'Al Maktoum International', city: 'Dubai', country: 'UAE' },
+  'OMAA': { name: 'Abu Dhabi International', city: 'Abu Dhabi', country: 'UAE' },
+  'OTHH': { name: 'Hamad International', city: 'Doha', country: 'Qatar' },
+  'OBBI': { name: 'Bahrain International', city: 'Manama', country: 'Bahrain' },
+  'OERK': { name: 'King Khalid International', city: 'Riyadh', country: 'Saudi Arabia' },
+  'OEJN': { name: 'King Abdulaziz International', city: 'Jeddah', country: 'Saudi Arabia' },
+  'OOKB': { name: 'Muscat International', city: 'Muscat', country: 'Oman' },
+  'LLBG': { name: 'Ben Gurion Airport', city: 'Tel Aviv', country: 'Israel' },
+  'HECA': { name: 'Cairo International', city: 'Cairo', country: 'Egypt' },
+  'ORBI': { name: 'Baghdad International', city: 'Baghdad', country: 'Iraq' },
+  'OIIE': { name: 'Imam Khomeini International', city: 'Tehran', country: 'Iran' },
+  'OLBA': { name: 'Beirut Rafic Hariri', city: 'Beirut', country: 'Lebanon' },
+  'OJAM': { name: 'Queen Alia International', city: 'Amman', country: 'Jordan' },
+  'OPRN': { name: 'Islamabad International', city: 'Islamabad', country: 'Pakistan' },
+  'OPKC': { name: 'Jinnah International', city: 'Karachi', country: 'Pakistan' },
+  'VIDP': { name: 'Indira Gandhi International', city: 'Delhi', country: 'India' },
+  'VABB': { name: 'Chhatrapati Shivaji', city: 'Mumbai', country: 'India' },
+  'VOMM': { name: 'Chennai International', city: 'Chennai', country: 'India' },
+  'VOBL': { name: 'Kempegowda International', city: 'Bangalore', country: 'India' },
+  'ZBAA': { name: 'Beijing Capital', city: 'Beijing', country: 'China' },
+  'ZBAD': { name: 'Beijing Daxing', city: 'Beijing', country: 'China' },
+  'ZSPD': { name: 'Shanghai Pudong', city: 'Shanghai', country: 'China' },
+  'ZSSS': { name: 'Shanghai Hongqiao', city: 'Shanghai', country: 'China' },
+  'ZGGG': { name: 'Guangzhou Baiyun', city: 'Guangzhou', country: 'China' },
+  'VHHH': { name: 'Hong Kong International', city: 'Hong Kong', country: 'Hong Kong' },
+  'RCTP': { name: 'Taiwan Taoyuan', city: 'Taipei', country: 'Taiwan' },
+  'RJTT': { name: 'Tokyo Haneda', city: 'Tokyo', country: 'Japan' },
+  'RJAA': { name: 'Tokyo Narita', city: 'Tokyo', country: 'Japan' },
+  'RJBB': { name: 'Kansai International', city: 'Osaka', country: 'Japan' },
+  'RKSI': { name: 'Incheon International', city: 'Seoul', country: 'South Korea' },
+  'WSSS': { name: 'Singapore Changi', city: 'Singapore', country: 'Singapore' },
+  'VTBS': { name: 'Suvarnabhumi Airport', city: 'Bangkok', country: 'Thailand' },
+  'VTBD': { name: 'Don Mueang Airport', city: 'Bangkok', country: 'Thailand' },
+  'WMKK': { name: 'Kuala Lumpur International', city: 'Kuala Lumpur', country: 'Malaysia' },
+  'WADD': { name: 'Ngurah Rai Airport', city: 'Bali', country: 'Indonesia' },
+  'WIII': { name: 'Soekarno Hatta', city: 'Jakarta', country: 'Indonesia' },
+  'RPLL': { name: 'Ninoy Aquino International', city: 'Manila', country: 'Philippines' },
+  'VVTS': { name: 'Tan Son Nhat', city: 'Ho Chi Minh City', country: 'Vietnam' },
+  'VVNB': { name: 'Noi Bai International', city: 'Hanoi', country: 'Vietnam' },
+  'KJFK': { name: 'John F Kennedy International', city: 'New York', country: 'USA' },
+  'KLGA': { name: 'LaGuardia Airport', city: 'New York', country: 'USA' },
+  'KEWR': { name: 'Newark Liberty', city: 'New York', country: 'USA' },
+  'KLAX': { name: 'Los Angeles International', city: 'Los Angeles', country: 'USA' },
+  'KORD': { name: 'O Hare International', city: 'Chicago', country: 'USA' },
+  'KATL': { name: 'Hartsfield Jackson Atlanta', city: 'Atlanta', country: 'USA' },
+  'KDFW': { name: 'Dallas Fort Worth', city: 'Dallas', country: 'USA' },
+  'KMIA': { name: 'Miami International', city: 'Miami', country: 'USA' },
+  'KSFO': { name: 'San Francisco International', city: 'San Francisco', country: 'USA' },
+  'KLAS': { name: 'Harry Reid International', city: 'Las Vegas', country: 'USA' },
+  'KDEN': { name: 'Denver International', city: 'Denver', country: 'USA' },
+  'KBOS': { name: 'Logan International', city: 'Boston', country: 'USA' },
+  'KSEA': { name: 'Seattle Tacoma', city: 'Seattle', country: 'USA' },
+  'KIAH': { name: 'George Bush Intercontinental', city: 'Houston', country: 'USA' },
+  'KPHX': { name: 'Phoenix Sky Harbor', city: 'Phoenix', country: 'USA' },
+  'CYYZ': { name: 'Toronto Pearson', city: 'Toronto', country: 'Canada' },
+  'CYVR': { name: 'Vancouver International', city: 'Vancouver', country: 'Canada' },
+  'CYUL': { name: 'Montreal Trudeau', city: 'Montreal', country: 'Canada' },
+  'MMIX': { name: 'Mexico City International', city: 'Mexico City', country: 'Mexico' },
+  'SBGR': { name: 'Guarulhos International', city: 'Sao Paulo', country: 'Brazil' },
+  'SBGL': { name: 'Galeao International', city: 'Rio de Janeiro', country: 'Brazil' },
+  'SAEZ': { name: 'Ezeiza International', city: 'Buenos Aires', country: 'Argentina' },
+  'SCEL': { name: 'Arturo Merino Benitez', city: 'Santiago', country: 'Chile' },
+  'SKBO': { name: 'El Dorado International', city: 'Bogota', country: 'Colombia' },
+  'SPJC': { name: 'Jorge Chavez International', city: 'Lima', country: 'Peru' },
+  'FACT': { name: 'Cape Town International', city: 'Cape Town', country: 'South Africa' },
+  'FAJS': { name: 'OR Tambo International', city: 'Johannesburg', country: 'South Africa' },
+  'HAAB': { name: 'Bole International', city: 'Addis Ababa', country: 'Ethiopia' },
+  'HKJK': { name: 'Jomo Kenyatta International', city: 'Nairobi', country: 'Kenya' },
+  'DNMM': { name: 'Murtala Muhammed', city: 'Lagos', country: 'Nigeria' },
+  'GMMN': { name: 'Mohammed V International', city: 'Casablanca', country: 'Morocco' },
+  'DTTA': { name: 'Tunis Carthage', city: 'Tunis', country: 'Tunisia' },
+  'DAAG': { name: 'Houari Boumediene', city: 'Algiers', country: 'Algeria' },
+  'UUEE': { name: 'Sheremetyevo International', city: 'Moscow', country: 'Russia' },
+  'UUDD': { name: 'Domodedovo International', city: 'Moscow', country: 'Russia' },
+  'ULLI': { name: 'Pulkovo Airport', city: 'Saint Petersburg', country: 'Russia' },
+  'UGGG': { name: 'Tbilisi International', city: 'Tbilisi', country: 'Georgia' },
+  'UBBB': { name: 'Heydar Aliyev International', city: 'Baku', country: 'Azerbaijan' },
+  'UAAA': { name: 'Almaty International', city: 'Almaty', country: 'Kazakhstan' },
+  'YMML': { name: 'Melbourne Airport', city: 'Melbourne', country: 'Australia' },
+  'YSSY': { name: 'Sydney Kingsford Smith', city: 'Sydney', country: 'Australia' },
+  'YBBN': { name: 'Brisbane Airport', city: 'Brisbane', country: 'Australia' },
+  'NZAA': { name: 'Auckland Airport', city: 'Auckland', country: 'New Zealand' },
 };
 
 // AIRPORT / FIR MODE TOGGLE
@@ -6493,30 +6564,30 @@ function searchAptFir(query) {
     return;
   }
 
-  // AIRPORT mode
-  if (query.length >= 3) {
-    resultsDiv.style.display = 'block';
-    resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">Searching...</div>';
+  // AIRPORT mode — local database search
+  if (aptMode === 'airport' && query.length >= 2) {
+    const results = Object.entries(AIRPORT_DATABASE)
+      .filter(([code, apt]) =>
+        code.toLowerCase().includes(q) ||
+        apt.name.toLowerCase().includes(q) ||
+        apt.city.toLowerCase().includes(q) ||
+        apt.country.toLowerCase().includes(q)
+      )
+      .slice(0, 8);
 
-    // Call API Ninjas via our backend
-    fetch('/api/airport-search/' + encodeURIComponent(query))
-      .then(r => r.json())
-      .then(data => {
-        if (!data || data.length === 0) {
-          resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">No results found</div>';
-          return;
-        }
-        resultsDiv.style.display = 'block';
-        resultsDiv.innerHTML = data.map(apt => `
-          <div onclick="selectAptFir('${apt.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
-            <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${apt.id}</span>
-            <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${apt.name}, ${apt.country}</span>
-          </div>
-        `).join('');
-      })
-      .catch(() => {
-        resultsDiv.style.display = 'none';
-      });
+    if (results.length > 0) {
+      resultsDiv.style.display = 'block';
+      resultsDiv.innerHTML = results.map(([code, apt]) => `
+        <div onclick="selectAptFir('${code}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${code}</span>
+          <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${apt.name}, ${apt.city}</span>
+        </div>
+      `).join('');
+    } else {
+      resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">No results found</div>';
+      resultsDiv.style.display = 'block';
+    }
+    return;
   }
 }
 
