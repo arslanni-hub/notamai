@@ -6131,7 +6131,7 @@ document.addEventListener('click', function(e) {
       </div>
       <!-- Name/city search -->
       <div style="margin-bottom:12px;">
-        <input id="aptSearchInput" type="text" placeholder="Search by name or city (e.g. Istanbul, London...)" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;outline:none;" oninput="searchAptFir(this.value)">
+        <input id="aptSearchInput" type="text" placeholder="Search airport/FIR name, city or country..." style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;outline:none;" oninput="searchAptFir(this.value)">
       </div>
       <!-- Search results dropdown -->
       <div id="aptSearchResults" style="display:none;background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:12px;max-height:200px;overflow-y:auto;"></div>
@@ -6405,7 +6405,8 @@ function searchAptFir(query) {
       .filter(([code, fir]) =>
         code.toLowerCase().includes(q) ||
         fir.name.toLowerCase().includes(q) ||
-        fir.country.toLowerCase().includes(q)
+        fir.country.toLowerCase().includes(q) ||
+        fir.name.toLowerCase().split(' ').some(word => word.startsWith(q))
       )
       .slice(0, 5);
     if (firResults.length > 0) {
