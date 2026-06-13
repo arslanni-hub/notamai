@@ -1914,6 +1914,9 @@ CRITICAL RULES:
         fetchURL('https://api.api-ninjas.com/v1/airports?city=' + encodeURIComponent(query) + '&limit=6', { headers })
       ]);
 
+      console.log('[API NINJAS NAME]', query, JSON.stringify(nameRes).slice(0, 200));
+      console.log('[API NINJAS CITY]', query, JSON.stringify(cityRes).slice(0, 200));
+
       const combined = [
         ...(Array.isArray(nameRes) ? nameRes : []),
         ...(Array.isArray(cityRes) ? cityRes : [])
