@@ -2096,7 +2096,7 @@ MANDATORY:
   if (req.method === 'GET' && req.url.startsWith('/api/raw/delays/')) {
     const icao = req.url.split('/api/raw/delays/')[1].toUpperCase();
     try {
-      const data = await fetchURL('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
+      const data = await fetchURL('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json&taf=true');
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
     } catch(e) {

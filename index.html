@@ -4827,13 +4827,19 @@ function closeAllPanels() {
 }
 
 function switchRawTab(tab) {
-  const colors = { notam: '#4a9eff', metar: '#2ec4b6', sigmet: '#f4841a', pirep: '#f4c430', delays: '#e63946' };
-  ['notam','metar','sigmet','pirep','delays'].forEach(t => {
-    document.getElementById('rawSection-' + t).style.display = t === tab ? 'block' : 'none';
+  const colors = { notam: '#4a9eff', metar: '#2ec4b6', taf: '#2ec4b6', sigmet: '#f4841a', pirep: '#f4c430', delays: '#e63946' };
+  // Reset all tabs first
+  ['notam', 'metar', 'taf', 'sigmet', 'pirep', 'delays'].forEach(t => {
     const btn = document.getElementById('rawTab-' + t);
-    btn.style.borderBottomColor = t === tab ? colors[t] : 'transparent';
-    btn.style.color = t === tab ? colors[t] : '#4a5f72';
+    if (btn) { btn.style.color = '#4a5f72'; btn.style.borderBottomColor = 'transparent'; }
+    const sec = document.getElementById('rawSection-' + t);
+    if (sec) sec.style.display = 'none';
   });
+  // Highlight active tab
+  const activeBtn = document.getElementById('rawTab-' + tab);
+  if (activeBtn) { activeBtn.style.color = colors[tab] || '#4a9eff'; activeBtn.style.borderBottomColor = colors[tab] || '#4a9eff'; }
+  const activeSec = document.getElementById('rawSection-' + tab);
+  if (activeSec) activeSec.style.display = 'block';
 }
 
 async function openAnalysisPanel(title, data, prompt, color) {
@@ -5537,13 +5543,28 @@ async function fetchRawData() {
       .then(data => {
         const delays = Array.isArray(data) ? data : [];
         const airport = delays[0];
-        const delayInfo = airport?.delayIndex || airport?.delay || null;
         if (!airport) {
           delaysSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No airport data found</div>';
         } else {
           delaysSec.innerHTML = '';
           const airportJson = JSON.stringify(airport);
-          const displayText = airport?.rawOb || airport?.name || airportJson.slice(0, 300);
+
+          // Build a readable status string from available fields
+          const lines = [];
+          if (airport.name) lines.push('AIRPORT : ' + airport.name);
+          if (airport.icaoId || airport.iataId) lines.push('IDENT   : ' + [airport.icaoId, airport.iataId].filter(Boolean).join(' / '));
+          if (airport.elev != null) lines.push('ELEV    : ' + airport.elev + ' ft');
+          if (airport.rwyCfg) lines.push('RWY CFG : ' + airport.rwyCfg);
+          if (airport.wx) lines.push('WX      : ' + airport.wx);
+          // Delay indicators
+          const hasDelay = airport.avgDelay || airport.delayIndex || airport.arrDelays || airport.depDelays || airport.gtGrnd || airport.delay;
+          if (airport.avgDelay) lines.push('AVG DLY : ' + airport.avgDelay + ' min');
+          if (airport.arrDelays) lines.push('ARR DLY : ' + airport.arrDelays);
+          if (airport.depDelays) lines.push('DEP DLY : ' + airport.depDelays);
+          if (airport.gtGrnd) lines.push('GND STP : ' + airport.gtGrnd);
+          if (!hasDelay) lines.push('DELAYS  : No active delay programs');
+          if (airport.taf) lines.push('\nTAF:\n' + airport.taf);
+          const displayText = lines.length > 1 ? lines.join('\n') : (airport.rawOb || airportJson.slice(0, 300));
 
           const wrapper = document.createElement('div');
           wrapper.style.marginBottom = '8px';
@@ -5610,7 +5631,7 @@ async function fetchRawData() {
               const response = await fetch('/api/analyze-notam', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-user-id': firebase.auth().currentUser?.uid || '' },
-                body: JSON.stringify({ notam: airportJson, type: 'AIRPORT STATUS', prompt: 'Analyze this airport status data. Explain: 1) Current operational status 2) Any delays or restrictions 3) Weather impact if any 4) Recommendations for pilots departing or arriving. Be concise and practical.' })
+                body: JSON.stringify({ notam: airportJson, type: 'AIRPORT STATUS', prompt: 'Based on this airport data, provide: 1) Current operational status 2) Active runway configuration 3) Any weather or traffic delays 4) Pilot recommendations for arrival/departure. Be brief and actionable.' })
               });
               if (response.status === 403) {
                 clearInterval(dotsInterval);
