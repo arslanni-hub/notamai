@@ -4827,7 +4827,7 @@ function closeAllPanels() {
 }
 
 function switchRawTab(tab) {
-  const colors = { notam: '#4a9eff', metar: '#2ec4b6', sigmet: '#f4841a', pirep: '#2ec4b6', delays: '#f4841a' };
+  const colors = { notam: '#4a9eff', metar: '#2ec4b6', sigmet: '#f4841a', pirep: '#f4c430', delays: '#e63946' };
   ['notam','metar','sigmet','pirep','delays'].forEach(t => {
     document.getElementById('rawSection-' + t).style.display = t === tab ? 'block' : 'none';
     const btn = document.getElementById('rawTab-' + t);
@@ -4836,16 +4836,13 @@ function switchRawTab(tab) {
   });
 }
 
-async function analyzePirep(btn) {
-  const raw = btn.getAttribute('data-raw');
-  if (!raw) return;
-
+async function openAnalysisPanel(title, data, prompt, color) {
   const modal = document.getElementById('analysisModal');
   const content = document.getElementById('analysisContent');
   if (!modal || !content) return;
 
   modal.style.display = 'flex';
-  content.innerHTML = '<div style="color:#4a9eff;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">ANALYZING PIREP...</div>';
+  content.innerHTML = `<div style="color:${color};font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;">ANALYZING...</div>`;
 
   try {
     const user = firebase.auth().currentUser;
@@ -4855,24 +4852,34 @@ async function analyzePirep(btn) {
         'Content-Type': 'application/json',
         'x-user-id': user?.uid || ''
       },
-      body: JSON.stringify({
-        notam: raw,
-        type: 'PIREP',
-        prompt: 'Analyze this Pilot Report (PIREP) and explain: 1) What weather conditions were reported 2) Location and altitude 3) Severity and operational impact 4) Recommendation for pilots'
-      })
+      body: JSON.stringify({ notam: data, type: title, prompt })
     });
 
-    const data = await res.json();
+    const result = await res.json();
     content.innerHTML = `
       <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;line-height:1.7;">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;margin-bottom:12px;">PIREP ANALYSIS</div>
-        <div style="background:#060a0f;border:1px solid #1a3a38;border-left:3px solid #2ec4b6;padding:10px;border-radius:4px;margin-bottom:12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">${raw}</div>
-        <div>${data.analysis || data.content || 'Analysis unavailable'}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:${color};letter-spacing:2px;margin-bottom:12px;">${title}</div>
+        <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid ${color};padding:10px;border-radius:4px;margin-bottom:12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;white-space:pre-wrap;">${data.slice(0, 300)}</div>
+        <div>${result.analysis || result.content || 'Analysis unavailable'}</div>
       </div>
     `;
   } catch(e) {
-    content.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;">Analysis failed: ' + e.message + '</div>';
+    content.innerHTML = `<div style="color:#e63946;font-family:'Rajdhani',sans-serif;">Analysis failed: ${e.message}</div>`;
   }
+}
+
+async function analyzePirep(raw) {
+  openAnalysisPanel('PIREP ANALYSIS', raw,
+    'Analyze this Pilot Report (PIREP). Explain: 1) Weather conditions reported (turbulence, icing, wind shear) 2) Location and altitude 3) Severity level and operational impact 4) Specific recommendations for pilots on this route. Be concise and practical.',
+    '#f4c430'
+  );
+}
+
+async function analyzeDelay(airportJson) {
+  openAnalysisPanel('AIRPORT STATUS ANALYSIS', airportJson,
+    'Analyze this airport status data. Explain: 1) Current operational status 2) Any delays or restrictions 3) Weather impact if any 4) Recommendations for pilots departing or arriving. Be concise and practical.',
+    '#e63946'
+  );
 }
 
 function openRawDataPanel() {
@@ -5413,15 +5420,16 @@ async function fetchRawData() {
           pirepSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No PIREPs reported in the last 3 hours within 200nm</div>';
         } else {
           pirepSec.innerHTML = pireps.map(p => `
-            <div style="background:#060a0f;border:1px solid #1a3a38;border-left:3px solid #2ec4b6;border-radius:4px;padding:12px;margin-bottom:8px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;">PIREP</div>
-                <button onclick="analyzePirep(this)" data-raw="${(p.rawOb || p.raw || '').replace(/"/g, '&quot;')}"
-                  style="background:rgba(46,196,182,0.1);border:1px solid rgba(46,196,182,0.3);color:#2ec4b6;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:3px 8px;border-radius:3px;cursor:pointer;">
-                  ✦ ANALYZE
-                </button>
+            <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f4c430;border-radius:4px;padding:12px;margin-bottom:8px;position:relative;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4c430;letter-spacing:2px;">PIREP</div>
+                <div style="position:relative;display:inline-block;">
+                  <span onclick="analyzePirep('${(p.rawOb || p.raw || '').replace(/'/g, "\\'").replace(/\n/g, ' ')}')"
+                    style="cursor:pointer;font-size:14px;color:#f4c430;user-select:none;"
+                    title="Analyze this PIREP">✦</span>
+                </div>
               </div>
-              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;white-space:pre-wrap;">${p.rawOb || p.raw || JSON.stringify(p).slice(0, 200)}</div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;white-space:pre-wrap;">${p.rawOb || p.raw || ''}</div>
             </div>
           `).join('');
         }
@@ -5439,17 +5447,18 @@ async function fetchRawData() {
         const delayInfo = airport?.delayIndex || airport?.delay || null;
         if (!airport) {
           delaysSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No airport data found</div>';
-        } else if (!delayInfo) {
-          delaysSec.innerHTML = `
-            <div style="background:#060a0f;border:1px solid #3a2a1a;border-left:3px solid #f4841a;border-radius:4px;padding:12px;margin-bottom:8px;">
-              <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:2px;margin-bottom:8px;">AIRPORT STATUS</div>
-              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${JSON.stringify(airport, null, 2).slice(0, 500)}</div>
-            </div>`;
         } else {
           delaysSec.innerHTML = `
-            <div style="background:#060a0f;border:1px solid #3a2a1a;border-left:3px solid #f4841a;border-radius:4px;padding:12px;margin-bottom:8px;">
-              <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:2px;margin-bottom:8px;">AIRPORT STATUS</div>
-              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${JSON.stringify(airport, null, 2).slice(0, 500)}</div>
+            <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #e63946;border-radius:4px;padding:12px;margin-bottom:8px;position:relative;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#e63946;letter-spacing:2px;">AIRPORT STATUS</div>
+                <div style="position:relative;display:inline-block;">
+                  <span onclick="analyzeDelay('${JSON.stringify(airport).replace(/'/g, "\\'")}')"
+                    style="cursor:pointer;font-size:14px;color:#e63946;user-select:none;"
+                    title="Analyze airport status">✦</span>
+                </div>
+              </div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${airport?.rawOb || airport?.name || JSON.stringify(airport).slice(0, 300)}</div>
             </div>`;
         }
       })
