@@ -2083,7 +2083,7 @@ MANDATORY:
   if (req.method === 'GET' && req.url.startsWith('/api/raw/pireps/')) {
     const icao = req.url.split('/api/raw/pireps/')[1].toUpperCase();
     try {
-      const data = await fetchURL('https://aviationweather.gov/api/data/pirep?id=' + icao + '&format=json&age=3&distance=100');
+      const data = await fetchURL('https://aviationweather.gov/api/data/pirep?id=' + icao + '&format=json&age=3&distance=200');
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
     } catch(e) {

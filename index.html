@@ -5369,40 +5369,50 @@ async function fetchRawData() {
     fetch('/api/raw/pireps/' + icao)
       .then(r => r.json())
       .then(data => {
-        const pireps = data?.pireps || data?.data || [];
+        const pireps = Array.isArray(data) ? data : (data?.pireps || data?.data || []);
         if (pireps.length === 0) {
-          pirepSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No PIREPs reported in the last 3 hours</div>';
+          pirepSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No PIREPs reported in the last 3 hours within 200nm</div>';
         } else {
-          pirepSec.innerHTML = pireps.map(p => `
+          pirepSec.innerHTML = pireps.map(p => {
+            const rawText = p.rawOb || p.raw || ((p.airepType || '') + ' ' + (p.obsTime || '') + ' ' + (p.temp || '')).trim() || JSON.stringify(p).slice(0, 200);
+            return `
             <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:12px;margin-bottom:8px;">
               <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#2ec4b6;margin-bottom:6px;">PIREP</div>
-              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${p.raw || p.text || JSON.stringify(p)}</div>
-            </div>
-          `).join('');
+              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${rawText}</div>
+            </div>`;
+          }).join('');
         }
       })
       .catch(() => {
         pirepSec.innerHTML = '<div style="color:#e63946;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;">Error fetching PIREPs</div>';
       });
 
-    // Fetch FAA Delays
+    // Fetch airport/delay info
     fetch('/api/raw/delays/' + icao)
       .then(r => r.json())
       .then(data => {
-        const delays = data?.delays || data?.programs || [];
-        if (!delays || delays.length === 0) {
-          delaysSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No active delays or ground stops</div>';
+        const delays = Array.isArray(data) ? data : [];
+        const airport = delays[0];
+        const delayInfo = airport?.delayIndex || airport?.delay || null;
+        if (!airport) {
+          delaysSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No airport data found</div>';
+        } else if (!delayInfo) {
+          delaysSec.innerHTML = `
+            <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:12px;margin-bottom:8px;">
+              <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#2ec4b6;margin-bottom:6px;">${airport.id || icao}</div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${airport.name || ''} — No active delays or ground stops</div>
+              ${airport.elev ? `<div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-top:6px;">Elevation: ${airport.elev}ft</div>` : ''}
+            </div>`;
         } else {
-          delaysSec.innerHTML = delays.map(d => `
+          delaysSec.innerHTML = `
             <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f4841a;border-radius:4px;padding:12px;margin-bottom:8px;">
-              <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#f4841a;margin-bottom:6px;">⚠ DELAY PROGRAM</div>
-              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${d.type || ''} — ${d.reason || ''} — Avg delay: ${d.avgDelay || 'N/A'}</div>
-            </div>
-          `).join('');
+              <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#f4841a;margin-bottom:6px;">⚠ DELAY INDEX: ${delayInfo}</div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${airport.name || airport.id || icao}</div>
+            </div>`;
         }
       })
       .catch(() => {
-        delaysSec.innerHTML = '<div style="color:#e63946;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;">Error fetching delays</div>';
+        delaysSec.innerHTML = '<div style="color:#e63946;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;">Error fetching airport/delay data</div>';
       });
 
   } catch(e) {
