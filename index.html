@@ -2735,7 +2735,6 @@ animate();
 <!-- FIREBASE AUTH -->
 <script>
 const WAITING_VIDEO_URL = 'https://firebasestorage.googleapis.com/v0/b/notamai-a9d57.firebasestorage.app/o/WAITING2.mp4?alt=media&token=8d93efdf-874e-460c-bbbe-dd7c6585758e';
-const BRIEFING_SCRIPT = "Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Today's route analysis shows critical infrastructure impacts at your departure airport. Runway 18R is closed due to construction works until end of month. ILS system on runway 36L is unserviceable. Weather at destination is VFR with visibility above minimums. No active SIGMETs on your route. Have a safe and smooth flight.";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCH8bj9-775vmXU1HnqRFjf09g1yUXvnpo",
@@ -5891,7 +5890,6 @@ async function loadVideoArchive() {
 }
 
 function playArchivedVideo(videoUrl, script) {
-  window.currentVideoScript = script;
   // Close archive panel first
   closeArchivePanel();
   setTimeout(() => {
@@ -6883,8 +6881,6 @@ async function fetchWindsAloft() {
     <source src="" type="video/mp4">
   </video>
 
-  <!-- Subtitle bar -->
-  <div id="vbSubtitle" style="display:none;position:absolute;bottom:50px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#ffffff;font-family:'Arial',sans-serif;font-size:16px;font-weight:400;padding:8px 20px;border-radius:4px;text-align:center;max-width:90%;z-index:10;line-height:1.6;letter-spacing:0.3px;pointer-events:none;"></div>
 
 
 </div>
@@ -7023,7 +7019,6 @@ async function pollVideoStatus(predictionId) {
         clearInterval(poll);
         clearInterval(vbInterval);
         clearInterval(vbProgressInterval);
-        if (data.script) window.currentVideoScript = data.script;
         document.getElementById('vbProgress').style.width = '100%';
         document.getElementById('vbPercent').textContent = '100%';
         document.getElementById('vbStatus').textContent = 'Your briefing is ready!';
@@ -7044,19 +7039,16 @@ function showResultVideo(videoUrl) {
   resultVideo.style.display = 'block';
   resultVideo.play();
 
-  // Start subtitles once metadata loaded (duration known)
-  resultVideo.addEventListener('loadedmetadata', () => {
-    startSubtitles(resultVideo);
-  });
-
-  // Reset and restart subtitles on replay
-  resultVideo.addEventListener('play', () => {
-    const subtitle = document.getElementById('vbSubtitle');
-    if (subtitle) {
-      subtitle.style.display = 'none';
-      subtitle.textContent = '';
+  // Track completion for close-button flow
+  window.videoCompleted = false;
+  resultVideo.addEventListener('ended', () => {
+    window.videoCompleted = true;
+    // Auto-close and start briefing when video finishes
+    closeVideoBriefing();
+    const mainInput = document.getElementById('mainInput');
+    if (mainInput && mainInput.value.trim()) {
+      setTimeout(() => handleSend(), 500);
     }
-    startSubtitles(resultVideo);
   });
 
   // Fade out ambient audio
@@ -7065,48 +7057,6 @@ function showResultVideo(videoUrl) {
     if (ambient.volume > 0.02) ambient.volume -= 0.02;
     else { clearInterval(fadeOut); ambient.pause(); }
   }, 100);
-}
-
-function startSubtitles(video) {
-  const subtitle = document.getElementById('vbSubtitle');
-  if (!subtitle) return;
-  subtitle.style.display = 'block';
-  subtitle.textContent = '';
-
-  if (window.subtitleInterval) clearInterval(window.subtitleInterval);
-
-  const scriptText = window.currentVideoScript || BRIEFING_SCRIPT;
-  const words = scriptText.split(' ');
-  const totalDuration = video.duration || 58;
-  const wordInterval = (totalDuration / words.length) * 1000;
-
-  let currentWord = 0;
-  let displayedWords = [];
-  const MAX_WORDS = 6;
-
-  const subtitleInterval = setInterval(() => {
-    if (currentWord >= words.length || video.paused || video.ended) {
-      if (video.ended) {
-        clearInterval(subtitleInterval);
-        subtitle.style.display = 'none';
-      }
-      return;
-    }
-    displayedWords.push(words[currentWord]);
-    if (displayedWords.length > MAX_WORDS) displayedWords.shift();
-    subtitle.innerHTML = displayedWords.map((w, i) => {
-      const isLast = i === displayedWords.length - 1;
-      return `<span style="color:${isLast ? '#ffff00' : '#ffffff'};font-weight:${isLast ? '700' : '400'};text-shadow:${isLast ? '0 0 8px rgba(255,255,0,0.5)' : 'none'};">${w}</span>`;
-    }).join(' ');
-    currentWord++;
-  }, wordInterval);
-
-  window.subtitleInterval = subtitleInterval;
-
-  video.addEventListener('ended', () => {
-    clearInterval(subtitleInterval);
-    subtitle.style.display = 'none';
-  });
 }
 
 function showVideoBriefingError(msg) {
@@ -7120,14 +7070,20 @@ function closeVideoBriefing() {
   document.getElementById('videoBriefingBackdrop').style.display = 'none';
   clearInterval(vbInterval);
   clearInterval(vbProgressInterval);
-  if (window.subtitleInterval) clearInterval(window.subtitleInterval);
   document.getElementById('waitingVideo').pause();
   document.getElementById('resultVideo').pause();
-  document.getElementById('vbSubtitle').style.display = 'none';
   const ambientAudio = document.getElementById('vbAmbientAudio');
   ambientAudio.pause();
   ambientAudio.currentTime = 0;
   window.videoBriefingMode = false;
+
+  // If user manually closed after video completed, start briefing
+  if (window.videoCompleted) {
+    const mainInput = document.getElementById('mainInput');
+    if (mainInput && mainInput.value.trim()) {
+      setTimeout(() => handleSend(), 500);
+    }
+  }
 
   if (window.backgroundBriefingReady && window.backgroundBriefingHtml) {
     window.backgroundBriefingReady = false;

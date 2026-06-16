@@ -1683,12 +1683,13 @@ Route: ${route}
 Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
 
 FORMAT (write exactly this way):
-"${greeting}, Captain. Today we're flying from [Full Airport Name] to [Full Airport Name]. [One sentence: most critical departure NOTAM with specific details]. [One sentence: most critical arrival NOTAM with specific details]. [One sentence: weather conditions at both airports]. [One sentence: en-route hazards only if active, otherwise skip]. Check the NOTAMs panel for complete details. Have a safe and smooth flight."
+"${greeting}, Captain. Today we're flying from [City Name] to [City Name]. [One sentence: most critical departure NOTAM]. [One sentence: most critical arrival NOTAM]. [One sentence: weather at both airports]. [One sentence: en-route hazards if any]. Check the NOTAMs panel for complete details. Have a safe and smooth flight."
 
 RULES:
-- Count words: must be 95-105 total
+- Write naturally for 45 seconds of speech
+- Use city names only (Istanbul, Frankfurt, Dubai) never airport names or ICAO codes
+- Do NOT include any meta-text like word counts in the output
 - Say "${greeting}, Captain" at start - always include Captain
-- Full airport names, never ICAO codes
 - Runway numbers as words: one seven left, two five right
 - No NOTAM numbers
 - Most recent NOTAMs first
