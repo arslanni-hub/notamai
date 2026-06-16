@@ -1815,6 +1815,67 @@ IMPORTANT: The briefing data above contains real NOTAMs. Read it carefully and e
     return;
   }
 
+  // ── TEST VIDEO SCRIPT (no WaveSpeed call) ─────────────────────
+  if (req.method === 'POST' && req.url === '/api/test-video-script') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { route, briefingId } = JSON.parse(body);
+        const userId = req.headers['x-user-id'];
+
+        // Same logic as generate-video-briefing but without WaveSpeed call
+        let briefingContent = '';
+        console.log('[TEST SCRIPT] briefingId:', briefingId, 'userId:', userId);
+
+        if (briefingId) {
+          const doc = await adminDb.collection('briefings').doc(briefingId).get();
+          if (doc.exists) {
+            briefingContent = (doc.data().html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 3000);
+            console.log('[TEST SCRIPT] briefingId content length:', briefingContent.length);
+          }
+        }
+
+        if (!briefingContent && userId) {
+          const latest = await adminDb.collection('briefings').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(1).get();
+          if (!latest.empty) {
+            briefingContent = (latest.docs[0].data().html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 3000);
+            console.log('[TEST SCRIPT] latest briefing content length:', briefingContent.length);
+          }
+        }
+
+        console.log('[TEST SCRIPT] Content preview:', briefingContent.slice(0, 200));
+
+        const hour = new Date().getUTCHours();
+        const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
+
+        const scriptResponse = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 200,
+            messages: [{ role: 'user', content: `Route: ${route}\nBriefing: ${briefingContent}\nWrite a 45-second briefing starting with "${greeting}, Captain."` }]
+          })
+        });
+
+        const scriptData = await scriptResponse.json();
+        const script = scriptData.content?.[0]?.text || 'No script generated';
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ script, contentLength: briefingContent.length, preview: briefingContent.slice(0, 200) }));
+      } catch(e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
   // ── CHECK VIDEO BRIEFING STATUS ───────────────────────────────
   if (req.method === 'GET' && req.url.startsWith('/api/check-video-briefing/')) {
     const predId = req.url.split('/api/check-video-briefing/')[1];
