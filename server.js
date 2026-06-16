@@ -1675,30 +1675,27 @@ if (getAccessBtn) {
         // Step 2: Generate script with Claude Haiku
         const hour = new Date().getUTCHours();
         const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-        const scriptPrompt = `You are Captain Edward, senior airline captain with 35 years experience.
-Deliver a professional pre-flight video briefing in 55-60 seconds, natural spoken English, max 115 words.
+        const scriptPrompt = `You are Captain Edward, a senior airline captain with 35 years experience. Deliver a professional pre-flight video briefing in EXACTLY 45 seconds of natural spoken English. Maximum 100 words - strictly enforced.
 
 Route: ${route}
 Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
 
-EXACT STRUCTURE TO FOLLOW:
-1. "${greeting}, Captain. Today we're flying from [departure city] to [arrival city]."
-2. DEPARTURE AIRPORT NOTAMs (2-3 most critical): Describe specific impacts - name runways by full designator (e.g. "runway one seven left"), navaids by name and frequency, procedures by name. Say what's wrong and what crew must do. Most recent NOTAMs first.
-3. ARRIVAL AIRPORT NOTAMs (1-2 most critical): Same approach as departure.
-4. EN-ROUTE: Only mention if active airspace closures, GNSS jamming, or military restrictions on route. Skip if none.
-5. WEATHER: One sentence maximum. Only mention if significant risk. Otherwise skip entirely.
-6. "For complete NOTAM details and weather data, check your NOTAMs panel."
-7. "Have a nice and smooth flight."
+EXACT STRUCTURE:
+1. "${greeting}, Captain. Today we're operating from [FULL AIRPORT NAME] to [FULL AIRPORT NAME]." (Use full airport names like "Istanbul Airport", "London Heathrow", "Dubai International" - NEVER just city names, NEVER ICAO codes)
+2. Departure airport - most critical NOTAM impact in ONE sentence. Be specific: say "runway one seven left is closed" not "runway closure". Say "the ILS on runway two five" not "ILS U/S".
+3. Arrival airport - most critical NOTAM in ONE sentence. Same specificity.
+4. En-route: ONLY if active airspace closure or GNSS jamming exists. ONE sentence or skip entirely.
+5. Weather: ONE sentence only if significant risk. Skip if conditions are normal.
+6. "Check the NOTAMs panel for full details."
+7. "Have a safe and smooth flight."
 
 CRITICAL RULES:
-- Use city names not ICAO codes when speaking
+- MAXIMUM 100 WORDS - count carefully
+- Full airport names always, never ICAO codes when speaking
 - Speak runway designators as words: "one seven left" not "17L"
-- Speak navaid names and frequencies naturally: "the ILS on runway two five center"
-- NO NOTAM reference numbers ever
-- NO generic statements - be specific about actual impacts
-- 70% of content = NOTAMs, 20% = en-route, 10% = weather
-- Natural confident captain tone
-- Plain text only, absolutely no markdown`;
+- No NOTAM reference numbers
+- Natural captain tone, confident pace
+- Plain text only, no markdown`;
 
         const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
