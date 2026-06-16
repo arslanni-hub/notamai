@@ -4798,6 +4798,8 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
     <button id="rawTab-notam" onclick="switchRawTab('notam')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid #4a9eff;color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">NOTAMs</button>
     <button id="rawTab-metar" onclick="switchRawTab('metar')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">METAR/TAF</button>
     <button id="rawTab-sigmet" onclick="switchRawTab('sigmet')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">SIGMET</button>
+    <button id="rawTab-pirep" onclick="switchRawTab('pirep')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">PIREP</button>
+    <button id="rawTab-delays" onclick="switchRawTab('delays')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">DELAYS</button>
   </div>
   <div id="rawResults" style="flex:1;overflow-y:auto;padding:8px;">
     <div id="rawSection-notam">
@@ -4805,6 +4807,8 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
     </div>
     <div id="rawSection-metar" style="display:none;"></div>
     <div id="rawSection-sigmet" style="display:none;"></div>
+    <div id="rawSection-pirep" style="display:none;"></div>
+    <div id="rawSection-delays" style="display:none;"></div>
   </div>
 </div>
 
@@ -4823,10 +4827,10 @@ function closeAllPanels() {
 }
 
 function switchRawTab(tab) {
-  ['notam','metar','sigmet'].forEach(t => {
+  ['notam','metar','sigmet','pirep','delays'].forEach(t => {
     document.getElementById('rawSection-' + t).style.display = t === tab ? 'block' : 'none';
     const btn = document.getElementById('rawTab-' + t);
-    const colors = { notam: '#4a9eff', metar: '#2ec4b6', sigmet: '#f4841a' };
+    const colors = { notam: '#4a9eff', metar: '#2ec4b6', sigmet: '#f4841a', pirep: '#2ec4b6', delays: '#f4841a' };
     btn.style.borderBottomColor = t === tab ? colors[t] : 'transparent';
     btn.style.color = t === tab ? colors[t] : '#4a5f72';
   });
@@ -4898,11 +4902,15 @@ async function fetchRawData() {
   const notamSec = document.getElementById('rawSection-notam');
   const metarSec = document.getElementById('rawSection-metar');
   const sigmetSec = document.getElementById('rawSection-sigmet');
+  const pirepSec = document.getElementById('rawSection-pirep');
+  const delaysSec = document.getElementById('rawSection-delays');
 
   const loadingHtml = '<div style="text-align:center;padding:40px 0;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">FETCHING DATA...</div>';
   notamSec.innerHTML = loadingHtml;
   metarSec.innerHTML = '';
   sigmetSec.innerHTML = '';
+  pirepSec.innerHTML = loadingHtml;
+  delaysSec.innerHTML = loadingHtml;
   switchRawTab('notam');
 
   try {
@@ -5356,6 +5364,46 @@ async function fetchRawData() {
     sigmetSec.appendChild(sigmetSection);
 
     switchRawTab('notam');
+
+    // Fetch PIREPs
+    fetch('/api/raw/pireps/' + icao)
+      .then(r => r.json())
+      .then(data => {
+        const pireps = data?.pireps || data?.data || [];
+        if (pireps.length === 0) {
+          pirepSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No PIREPs reported in the last 3 hours</div>';
+        } else {
+          pirepSec.innerHTML = pireps.map(p => `
+            <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:12px;margin-bottom:8px;">
+              <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#2ec4b6;margin-bottom:6px;">PIREP</div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${p.raw || p.text || JSON.stringify(p)}</div>
+            </div>
+          `).join('');
+        }
+      })
+      .catch(() => {
+        pirepSec.innerHTML = '<div style="color:#e63946;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;">Error fetching PIREPs</div>';
+      });
+
+    // Fetch FAA Delays
+    fetch('/api/raw/delays/' + icao)
+      .then(r => r.json())
+      .then(data => {
+        const delays = data?.delays || data?.programs || [];
+        if (!delays || delays.length === 0) {
+          delaysSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No active delays or ground stops</div>';
+        } else {
+          delaysSec.innerHTML = delays.map(d => `
+            <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f4841a;border-radius:4px;padding:12px;margin-bottom:8px;">
+              <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#f4841a;margin-bottom:6px;">⚠ DELAY PROGRAM</div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${d.type || ''} — ${d.reason || ''} — Avg delay: ${d.avgDelay || 'N/A'}</div>
+            </div>
+          `).join('');
+        }
+      })
+      .catch(() => {
+        delaysSec.innerHTML = '<div style="color:#e63946;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;">Error fetching delays</div>';
+      });
 
   } catch(e) {
     document.getElementById('rawSection-notam').innerHTML = '<div style="text-align:center;padding:40px 0;font-family:\'Rajdhani\',sans-serif;font-size:14px;color:#e63946;">Error fetching data. Please try again.</div>';
