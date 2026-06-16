@@ -1660,6 +1660,8 @@ if (getAccessBtn) {
       try {
         const { route, briefingId } = JSON.parse(body);
         const userId = req.headers['x-user-id'];
+        console.log('[VIDEO] briefingId received:', briefingId);
+        console.log('[VIDEO] userId:', userId);
 
         // Step 1: Get briefing content from Firestore
         let briefingContent = '';
@@ -1667,15 +1669,42 @@ if (getAccessBtn) {
           try {
             const doc = await adminDb.collection('briefings').doc(briefingId).get();
             if (doc.exists) {
-              briefingContent = (doc.data().html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 2000);
+              briefingContent = (doc.data().html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 3000);
+              console.log('[VIDEO] Using briefingId, content length:', briefingContent.length);
+            } else {
+              console.log('[VIDEO] briefingId not found in Firestore');
             }
           } catch(e) { console.log('[VIDEO] Firestore error:', e.message); }
         }
 
+        // If no briefingId or doc not found, fetch latest briefing for this user
+        if (!briefingContent && userId) {
+          try {
+            const latestBriefing = await adminDb.collection('briefings')
+              .where('userId', '==', userId)
+              .orderBy('createdAt', 'desc')
+              .limit(1)
+              .get();
+
+            if (!latestBriefing.empty) {
+              briefingContent = (latestBriefing.docs[0].data().html || '')
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .slice(0, 3000);
+              console.log('[VIDEO] Using latest briefing, content length:', briefingContent.length);
+            } else {
+              console.log('[VIDEO] No briefings found for user');
+            }
+          } catch(e) {
+            console.log('[VIDEO] Firestore latest briefing error:', e.message);
+          }
+        }
+
+        console.log('[VIDEO BRIEFING CONTENT]', briefingContent ? briefingContent.slice(0, 300) : 'EMPTY');
+
         // Step 2: Generate script with Claude Haiku
         const hour = new Date().getUTCHours();
         const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-        console.log('[VIDEO BRIEFING CONTENT]', briefingContent ? briefingContent.slice(0, 300) : 'EMPTY');
         const scriptPrompt = `You are Captain Edward. Write a 45-second pre-flight briefing script. 110 words exactly.
 
 Route: ${route}
