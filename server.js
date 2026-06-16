@@ -2109,7 +2109,7 @@ MANDATORY:
   if (req.method === 'GET' && req.url.startsWith('/api/raw/charts/')) {
     const icao = req.url.split('/api/raw/charts/')[1].toUpperCase();
     try {
-      const data = await fetchURL('https://skylink-api.p.rapidapi.com/v3/charts/' + icao, {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/charts/' + icao, {
         headers: {
           'X-RapidAPI-Key': process.env.SKYLINK_KEY,
           'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
