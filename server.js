@@ -1761,7 +1761,9 @@ RULES:
 - No NOTAM reference numbers
 - If no critical NOTAMs: say "no critical NOTAMs active at [city]"
 - 105-110 words exactly
-- Plain text only`;
+- Output plain spoken text ONLY - no markdown, no #headers, no bullet points, no asterisks
+- Do not start with # or any special characters
+- Write as if speaking naturally, not writing a document`;
 
         const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
