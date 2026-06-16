@@ -5432,7 +5432,7 @@ async function fetchRawData() {
             wrapper.style.marginBottom = '8px';
 
             const pirepBox = document.createElement('div');
-            pirepBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f4c430;border-radius:4px;padding:12px;position:relative;transition:border-color 0.2s;cursor:default;';
+            pirepBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #1a2a3a;border-radius:4px;padding:12px;margin-bottom:8px;position:relative;transition:border-left-color 0.2s;';
 
             const header = document.createElement('div');
             header.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#f4c430;letter-spacing:2px;margin-bottom:6px;';
@@ -5458,16 +5458,12 @@ async function fetchRawData() {
             analysisDiv.style.cssText = "display:none;position:relative;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #f4c430;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;";
 
             pirepBox.onmouseenter = function() {
-              this.style.borderTopColor = '#f4c430';
-              this.style.borderRightColor = '#f4c430';
-              this.style.borderBottomColor = '#f4c430';
+              this.style.borderLeftColor = '#f4c430';
               cornerIcon.style.opacity = '1';
             };
             pirepBox.onmouseleave = function() {
               if (analysisDiv.style.display !== 'block') {
-                this.style.borderTopColor = '#1a2a3a';
-                this.style.borderRightColor = '#1a2a3a';
-                this.style.borderBottomColor = '#1a2a3a';
+                this.style.borderLeftColor = '#1a2a3a';
                 cornerIcon.style.opacity = '0';
               }
             };
@@ -5481,9 +5477,7 @@ async function fetchRawData() {
                 cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(0deg) saturate(3) brightness(1.2);">✨</span>';
                 cornerIcon.appendChild(tooltip);
                 tooltip.textContent = 'Analyze';
-                pirepBox.style.borderTopColor = '#1a2a3a';
-                pirepBox.style.borderRightColor = '#1a2a3a';
-                pirepBox.style.borderBottomColor = '#1a2a3a';
+                pirepBox.style.borderLeftColor = '#1a2a3a';
                 cornerIcon.style.opacity = '0';
                 return;
               }
@@ -5511,9 +5505,7 @@ async function fetchRawData() {
                 analysisDiv.innerHTML = '';
                 streamAnalysisText(analysisDiv, data.analysis || 'Unable to analyze.', '#f4c430', function() {
                   analysisDiv.style.display = 'none';
-                  pirepBox.style.borderTopColor = '#1a2a3a';
-                  pirepBox.style.borderRightColor = '#1a2a3a';
-                  pirepBox.style.borderBottomColor = '#1a2a3a';
+                  pirepBox.style.borderLeftColor = '#1a2a3a';
                   cornerIcon.style.opacity = '0';
                   cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(0deg) saturate(3) brightness(1.2);">✨</span>';
                   cornerIcon.appendChild(tooltip);
@@ -5574,7 +5566,7 @@ async function fetchRawData() {
           wrapper.style.marginBottom = '8px';
 
           const delayBox = document.createElement('div');
-          delayBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #e63946;border-radius:4px;padding:12px;position:relative;transition:border-color 0.2s;cursor:default;';
+          delayBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #1a2a3a;border-radius:4px;padding:12px;margin-bottom:8px;position:relative;transition:border-left-color 0.2s;';
 
           const header = document.createElement('div');
           header.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#e63946;letter-spacing:2px;margin-bottom:6px;';
@@ -5600,16 +5592,12 @@ async function fetchRawData() {
           analysisDiv.style.cssText = "display:none;position:relative;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #e63946;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;";
 
           delayBox.onmouseenter = function() {
-            this.style.borderTopColor = '#e63946';
-            this.style.borderRightColor = '#e63946';
-            this.style.borderBottomColor = '#e63946';
+            this.style.borderLeftColor = '#e63946';
             cornerIcon.style.opacity = '1';
           };
           delayBox.onmouseleave = function() {
             if (analysisDiv.style.display !== 'block') {
-              this.style.borderTopColor = '#1a2a3a';
-              this.style.borderRightColor = '#1a2a3a';
-              this.style.borderBottomColor = '#1a2a3a';
+              this.style.borderLeftColor = '#1a2a3a';
               cornerIcon.style.opacity = '0';
             }
           };
@@ -5623,9 +5611,7 @@ async function fetchRawData() {
               cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
               cornerIcon.appendChild(tooltip);
               tooltip.textContent = 'Analyze';
-              delayBox.style.borderTopColor = '#1a2a3a';
-              delayBox.style.borderRightColor = '#1a2a3a';
-              delayBox.style.borderBottomColor = '#1a2a3a';
+              delayBox.style.borderLeftColor = '#1a2a3a';
               cornerIcon.style.opacity = '0';
               return;
             }
@@ -5653,9 +5639,7 @@ async function fetchRawData() {
               analysisDiv.innerHTML = '';
               streamAnalysisText(analysisDiv, data.analysis || 'Unable to analyze.', '#e63946', function() {
                 analysisDiv.style.display = 'none';
-                delayBox.style.borderTopColor = '#1a2a3a';
-                delayBox.style.borderRightColor = '#1a2a3a';
-                delayBox.style.borderBottomColor = '#1a2a3a';
+                delayBox.style.borderLeftColor = '#1a2a3a';
                 cornerIcon.style.opacity = '0';
                 cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
                 cornerIcon.appendChild(tooltip);
