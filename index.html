@@ -4827,13 +4827,52 @@ function closeAllPanels() {
 }
 
 function switchRawTab(tab) {
+  const colors = { notam: '#4a9eff', metar: '#2ec4b6', sigmet: '#f4841a', pirep: '#2ec4b6', delays: '#f4841a' };
   ['notam','metar','sigmet','pirep','delays'].forEach(t => {
     document.getElementById('rawSection-' + t).style.display = t === tab ? 'block' : 'none';
     const btn = document.getElementById('rawTab-' + t);
-    const colors = { notam: '#4a9eff', metar: '#2ec4b6', sigmet: '#f4841a', pirep: '#2ec4b6', delays: '#f4841a' };
     btn.style.borderBottomColor = t === tab ? colors[t] : 'transparent';
     btn.style.color = t === tab ? colors[t] : '#4a5f72';
   });
+}
+
+async function analyzePirep(btn) {
+  const raw = btn.getAttribute('data-raw');
+  if (!raw) return;
+
+  const modal = document.getElementById('analysisModal');
+  const content = document.getElementById('analysisContent');
+  if (!modal || !content) return;
+
+  modal.style.display = 'flex';
+  content.innerHTML = '<div style="color:#4a9eff;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">ANALYZING PIREP...</div>';
+
+  try {
+    const user = firebase.auth().currentUser;
+    const res = await fetch('/api/analyze-notam', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': user?.uid || ''
+      },
+      body: JSON.stringify({
+        notam: raw,
+        type: 'PIREP',
+        prompt: 'Analyze this Pilot Report (PIREP) and explain: 1) What weather conditions were reported 2) Location and altitude 3) Severity and operational impact 4) Recommendation for pilots'
+      })
+    });
+
+    const data = await res.json();
+    content.innerHTML = `
+      <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;line-height:1.7;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;margin-bottom:12px;">PIREP ANALYSIS</div>
+        <div style="background:#060a0f;border:1px solid #1a3a38;border-left:3px solid #2ec4b6;padding:10px;border-radius:4px;margin-bottom:12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">${raw}</div>
+        <div>${data.analysis || data.content || 'Analysis unavailable'}</div>
+      </div>
+    `;
+  } catch(e) {
+    content.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;">Analysis failed: ' + e.message + '</div>';
+  }
 }
 
 function openRawDataPanel() {
@@ -5373,14 +5412,18 @@ async function fetchRawData() {
         if (pireps.length === 0) {
           pirepSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No PIREPs reported in the last 3 hours within 200nm</div>';
         } else {
-          pirepSec.innerHTML = pireps.map(p => {
-            const rawText = p.rawOb || p.raw || ((p.airepType || '') + ' ' + (p.obsTime || '') + ' ' + (p.temp || '')).trim() || JSON.stringify(p).slice(0, 200);
-            return `
-            <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:12px;margin-bottom:8px;">
-              <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#2ec4b6;margin-bottom:6px;">PIREP</div>
-              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${rawText}</div>
-            </div>`;
-          }).join('');
+          pirepSec.innerHTML = pireps.map(p => `
+            <div style="background:#060a0f;border:1px solid #1a3a38;border-left:3px solid #2ec4b6;border-radius:4px;padding:12px;margin-bottom:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;">PIREP</div>
+                <button onclick="analyzePirep(this)" data-raw="${(p.rawOb || p.raw || '').replace(/"/g, '&quot;')}"
+                  style="background:rgba(46,196,182,0.1);border:1px solid rgba(46,196,182,0.3);color:#2ec4b6;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:3px 8px;border-radius:3px;cursor:pointer;">
+                  ✦ ANALYZE
+                </button>
+              </div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;white-space:pre-wrap;">${p.rawOb || p.raw || JSON.stringify(p).slice(0, 200)}</div>
+            </div>
+          `).join('');
         }
       })
       .catch(() => {
@@ -5398,16 +5441,15 @@ async function fetchRawData() {
           delaysSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No airport data found</div>';
         } else if (!delayInfo) {
           delaysSec.innerHTML = `
-            <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:12px;margin-bottom:8px;">
-              <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#2ec4b6;margin-bottom:6px;">${airport.id || icao}</div>
-              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${airport.name || ''} — No active delays or ground stops</div>
-              ${airport.elev ? `<div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-top:6px;">Elevation: ${airport.elev}ft</div>` : ''}
+            <div style="background:#060a0f;border:1px solid #3a2a1a;border-left:3px solid #f4841a;border-radius:4px;padding:12px;margin-bottom:8px;">
+              <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:2px;margin-bottom:8px;">AIRPORT STATUS</div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${JSON.stringify(airport, null, 2).slice(0, 500)}</div>
             </div>`;
         } else {
           delaysSec.innerHTML = `
-            <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f4841a;border-radius:4px;padding:12px;margin-bottom:8px;">
-              <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#f4841a;margin-bottom:6px;">⚠ DELAY INDEX: ${delayInfo}</div>
-              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${airport.name || airport.id || icao}</div>
+            <div style="background:#060a0f;border:1px solid #3a2a1a;border-left:3px solid #f4841a;border-radius:4px;padding:12px;margin-bottom:8px;">
+              <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:2px;margin-bottom:8px;">AIRPORT STATUS</div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${JSON.stringify(airport, null, 2).slice(0, 500)}</div>
             </div>`;
         }
       })
