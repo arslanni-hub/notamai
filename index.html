@@ -5419,19 +5419,112 @@ async function fetchRawData() {
         if (pireps.length === 0) {
           pirepSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No PIREPs reported in the last 3 hours within 200nm</div>';
         } else {
-          pirepSec.innerHTML = pireps.map(p => `
-            <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f4c430;border-radius:4px;padding:12px;margin-bottom:8px;position:relative;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4c430;letter-spacing:2px;">PIREP</div>
-                <div style="position:relative;display:inline-block;">
-                  <span onclick="analyzePirep('${(p.rawOb || p.raw || '').replace(/'/g, "\\'").replace(/\n/g, ' ')}')"
-                    style="cursor:pointer;font-size:14px;color:#f4c430;user-select:none;"
-                    title="Analyze this PIREP">✦</span>
-                </div>
-              </div>
-              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;white-space:pre-wrap;">${p.rawOb || p.raw || ''}</div>
-            </div>
-          `).join('');
+          pirepSec.innerHTML = '';
+          pireps.forEach(p => {
+            const rawText = p.rawOb || p.raw || '';
+            const wrapper = document.createElement('div');
+            wrapper.style.marginBottom = '8px';
+
+            const pirepBox = document.createElement('div');
+            pirepBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #f4c430;border-radius:4px;padding:12px;position:relative;transition:border-color 0.2s;cursor:default;';
+
+            const header = document.createElement('div');
+            header.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#f4c430;letter-spacing:2px;margin-bottom:6px;';
+            header.textContent = 'PIREP';
+            pirepBox.appendChild(header);
+
+            const body = document.createElement('div');
+            body.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;white-space:pre-wrap;';
+            body.textContent = rawText;
+            pirepBox.appendChild(body);
+
+            const cornerIcon = document.createElement('div');
+            cornerIcon.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+            cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(0deg) saturate(3) brightness(1.2);">✨</span>';
+
+            const tooltip = document.createElement('div');
+            tooltip.textContent = 'Analyze';
+            tooltip.style.cssText = "position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;";
+            cornerIcon.appendChild(tooltip);
+            pirepBox.appendChild(cornerIcon);
+
+            const analysisDiv = document.createElement('div');
+            analysisDiv.style.cssText = "display:none;position:relative;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #f4c430;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;";
+
+            pirepBox.onmouseenter = function() {
+              this.style.borderLeftColor = '#f4c430';
+              this.style.borderColor = '#f4c430';
+              cornerIcon.style.opacity = '1';
+            };
+            pirepBox.onmouseleave = function() {
+              if (analysisDiv.style.display !== 'block') {
+                this.style.borderColor = '#1a2a3a';
+                this.style.borderLeftColor = '#f4c430';
+                cornerIcon.style.opacity = '0';
+              }
+            };
+            cornerIcon.onmouseenter = function(e) { e.stopPropagation(); tooltip.style.opacity = '1'; };
+            cornerIcon.onmouseleave = function(e) { e.stopPropagation(); tooltip.style.opacity = '0'; };
+
+            cornerIcon.onclick = async function(e) {
+              e.stopPropagation();
+              if (analysisDiv.style.display === 'block') {
+                analysisDiv.style.display = 'none';
+                cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(0deg) saturate(3) brightness(1.2);">✨</span>';
+                cornerIcon.appendChild(tooltip);
+                tooltip.textContent = 'Analyze';
+                pirepBox.style.borderColor = '#1a2a3a';
+                pirepBox.style.borderLeftColor = '#f4c430';
+                cornerIcon.style.opacity = '0';
+                return;
+              }
+              analysisDiv.style.display = 'block';
+              analysisDiv.innerHTML = '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;display:flex;align-items:center;gap:6px;"><span id="pirepLoadingDots">Analyzing</span></div>';
+              let dots = 0;
+              const dotsInterval = setInterval(() => { dots = (dots+1)%4; const el = analysisDiv.querySelector('#pirepLoadingDots'); if (el) el.textContent = 'Analyzing' + '.'.repeat(dots); }, 400);
+              cornerIcon.innerHTML = '<span style="font-size:13px;opacity:0.4;">✨</span>';
+              tooltip.textContent = 'Analyzing...';
+              try {
+                const response = await fetch('/api/analyze-notam', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'x-user-id': firebase.auth().currentUser?.uid || '' },
+                  body: JSON.stringify({ notam: rawText, type: 'PIREP', prompt: 'Analyze this Pilot Report (PIREP). Explain: 1) Weather conditions reported (turbulence, icing, wind shear) 2) Location and altitude 3) Severity level and operational impact 4) Specific recommendations for pilots on this route. Be concise and practical.' })
+                });
+                if (response.status === 403) {
+                  clearInterval(dotsInterval);
+                  analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
+                  cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(0deg) saturate(3) brightness(1.2);">✨</span>';
+                  cornerIcon.appendChild(tooltip);
+                  return;
+                }
+                const data = await response.json();
+                clearInterval(dotsInterval);
+                analysisDiv.innerHTML = '';
+                streamAnalysisText(analysisDiv, data.analysis || 'Unable to analyze.', '#f4c430', function() {
+                  analysisDiv.style.display = 'none';
+                  pirepBox.style.borderColor = '#1a2a3a';
+                  pirepBox.style.borderLeftColor = '#f4c430';
+                  cornerIcon.style.opacity = '0';
+                  cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(0deg) saturate(3) brightness(1.2);">✨</span>';
+                  cornerIcon.appendChild(tooltip);
+                  tooltip.textContent = 'Analyze';
+                });
+                cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(0deg) saturate(3) brightness(1.2);">✨</span>';
+                cornerIcon.appendChild(tooltip);
+                tooltip.textContent = 'Hide';
+              } catch(e2) {
+                clearInterval(dotsInterval);
+                analysisDiv.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;">Error analyzing. Please try again.</div>';
+                cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(0deg) saturate(3) brightness(1.2);">✨</span>';
+                cornerIcon.appendChild(tooltip);
+                tooltip.textContent = 'Analyze';
+              }
+            };
+
+            wrapper.appendChild(pirepBox);
+            wrapper.appendChild(analysisDiv);
+            pirepSec.appendChild(wrapper);
+          });
         }
       })
       .catch(() => {
@@ -5448,18 +5541,111 @@ async function fetchRawData() {
         if (!airport) {
           delaysSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No airport data found</div>';
         } else {
-          delaysSec.innerHTML = `
-            <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #e63946;border-radius:4px;padding:12px;margin-bottom:8px;position:relative;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#e63946;letter-spacing:2px;">AIRPORT STATUS</div>
-                <div style="position:relative;display:inline-block;">
-                  <span onclick="analyzeDelay('${JSON.stringify(airport).replace(/'/g, "\\'")}')"
-                    style="cursor:pointer;font-size:14px;color:#e63946;user-select:none;"
-                    title="Analyze airport status">✦</span>
-                </div>
-              </div>
-              <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;">${airport?.rawOb || airport?.name || JSON.stringify(airport).slice(0, 300)}</div>
-            </div>`;
+          delaysSec.innerHTML = '';
+          const airportJson = JSON.stringify(airport);
+          const displayText = airport?.rawOb || airport?.name || airportJson.slice(0, 300);
+
+          const wrapper = document.createElement('div');
+          wrapper.style.marginBottom = '8px';
+
+          const delayBox = document.createElement('div');
+          delayBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #e63946;border-radius:4px;padding:12px;position:relative;transition:border-color 0.2s;cursor:default;';
+
+          const header = document.createElement('div');
+          header.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#e63946;letter-spacing:2px;margin-bottom:6px;';
+          header.textContent = 'AIRPORT STATUS';
+          delayBox.appendChild(header);
+
+          const body = document.createElement('div');
+          body.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;';
+          body.textContent = displayText;
+          delayBox.appendChild(body);
+
+          const cornerIcon = document.createElement('div');
+          cornerIcon.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+          cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
+
+          const tooltip = document.createElement('div');
+          tooltip.textContent = 'Analyze';
+          tooltip.style.cssText = "position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;";
+          cornerIcon.appendChild(tooltip);
+          delayBox.appendChild(cornerIcon);
+
+          const analysisDiv = document.createElement('div');
+          analysisDiv.style.cssText = "display:none;position:relative;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #e63946;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;";
+
+          delayBox.onmouseenter = function() {
+            this.style.borderColor = '#e63946';
+            cornerIcon.style.opacity = '1';
+          };
+          delayBox.onmouseleave = function() {
+            if (analysisDiv.style.display !== 'block') {
+              this.style.borderColor = '#1a2a3a';
+              this.style.borderLeftColor = '#e63946';
+              cornerIcon.style.opacity = '0';
+            }
+          };
+          cornerIcon.onmouseenter = function(e) { e.stopPropagation(); tooltip.style.opacity = '1'; };
+          cornerIcon.onmouseleave = function(e) { e.stopPropagation(); tooltip.style.opacity = '0'; };
+
+          cornerIcon.onclick = async function(e) {
+            e.stopPropagation();
+            if (analysisDiv.style.display === 'block') {
+              analysisDiv.style.display = 'none';
+              cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
+              cornerIcon.appendChild(tooltip);
+              tooltip.textContent = 'Analyze';
+              delayBox.style.borderColor = '#1a2a3a';
+              delayBox.style.borderLeftColor = '#e63946';
+              cornerIcon.style.opacity = '0';
+              return;
+            }
+            analysisDiv.style.display = 'block';
+            analysisDiv.innerHTML = '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;display:flex;align-items:center;gap:6px;"><span id="delayLoadingDots">Analyzing</span></div>';
+            let dots = 0;
+            const dotsInterval = setInterval(() => { dots = (dots+1)%4; const el = analysisDiv.querySelector('#delayLoadingDots'); if (el) el.textContent = 'Analyzing' + '.'.repeat(dots); }, 400);
+            cornerIcon.innerHTML = '<span style="font-size:13px;opacity:0.4;">✨</span>';
+            tooltip.textContent = 'Analyzing...';
+            try {
+              const response = await fetch('/api/analyze-notam', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-user-id': firebase.auth().currentUser?.uid || '' },
+                body: JSON.stringify({ notam: airportJson, type: 'AIRPORT STATUS', prompt: 'Analyze this airport status data. Explain: 1) Current operational status 2) Any delays or restrictions 3) Weather impact if any 4) Recommendations for pilots departing or arriving. Be concise and practical.' })
+              });
+              if (response.status === 403) {
+                clearInterval(dotsInterval);
+                analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
+                cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
+                cornerIcon.appendChild(tooltip);
+                return;
+              }
+              const data = await response.json();
+              clearInterval(dotsInterval);
+              analysisDiv.innerHTML = '';
+              streamAnalysisText(analysisDiv, data.analysis || 'Unable to analyze.', '#e63946', function() {
+                analysisDiv.style.display = 'none';
+                delayBox.style.borderColor = '#1a2a3a';
+                delayBox.style.borderLeftColor = '#e63946';
+                cornerIcon.style.opacity = '0';
+                cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
+                cornerIcon.appendChild(tooltip);
+                tooltip.textContent = 'Analyze';
+              });
+              cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
+              cornerIcon.appendChild(tooltip);
+              tooltip.textContent = 'Hide';
+            } catch(e2) {
+              clearInterval(dotsInterval);
+              analysisDiv.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;">Error analyzing. Please try again.</div>';
+              cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
+              cornerIcon.appendChild(tooltip);
+              tooltip.textContent = 'Analyze';
+            }
+          };
+
+          wrapper.appendChild(delayBox);
+          wrapper.appendChild(analysisDiv);
+          delaysSec.appendChild(wrapper);
         }
       })
       .catch(() => {
