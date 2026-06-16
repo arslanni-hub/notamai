@@ -6984,12 +6984,6 @@ function openVideoBriefing() {
 
   window.videoBriefingMode = true;
   generateVideoBriefing(route, user.uid);
-
-  // Also generate normal briefing in background if not already done
-  const mainInput = document.getElementById('mainInput');
-  if (mainInput && mainInput.value.trim() && !window.currentBriefingId) {
-    setTimeout(() => { handleSend(true); }, 500);
-  }
 }
 
 async function generateVideoBriefing(route, userId) {
