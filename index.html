@@ -4888,9 +4888,17 @@ async function analyzeDelay(airportJson) {
   );
 }
 
-async function analyzeAirmet(raw) {
-  openAnalysisPanel('AIRMET ANALYSIS', raw,
-    'Analyze this AIRMET (Airmen\'s Meteorological Information). Explain: 1) Type of hazard (turbulence/icing/IFR) 2) Affected area and altitudes 3) Severity and duration 4) Operational impact and pilot recommendations.',
+const hazardDescMap = {
+  'MT-OBSC': 'Mountain Obscuration', 'IFR': 'IFR Conditions (Low Visibility/Ceiling)',
+  'TURB': 'Turbulence', 'ICE': 'Icing', 'LLWS': 'Low Level Wind Shear',
+  'SFC-WIND': 'Strong Surface Winds', 'FZLVL': 'Freezing Level'
+};
+
+function analyzeAirmet(hazard, region, validFrom, validTo) {
+  const desc = hazardDescMap[hazard] || hazard;
+  const content = 'AIRMET: ' + desc + ' | Region: ' + region + ' | Valid: ' + validFrom + ' to ' + validTo;
+  openAnalysisPanel('AIRMET ANALYSIS', content,
+    'Analyze this AIRMET (Airmen\'s Meteorological Information): Hazard type: ' + desc + ' in region ' + region + '. Valid from ' + validFrom + ' to ' + validTo + '. Explain: 1) What this hazard means for flight 2) Affected altitudes and area 3) Pilot recommendations 4) Whether to avoid or proceed with caution.',
     '#9b59b6'
   );
 }
@@ -5330,7 +5338,7 @@ async function fetchRawData() {
 
     const sigmetSubHeader = document.createElement('div');
     sigmetSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:3px;padding:8px 0 6px;";
-    sigmetSubHeader.textContent = '— SIGMET —';
+    sigmetSubHeader.textContent = 'SIGMET';
     sigmetSection.appendChild(sigmetSubHeader);
 
     const sigmetLines = sigmetText.trim() === 'NO_SIGMET' ? [] : sigmetText.trim().split('\n\n').filter(s => s.trim());
@@ -5428,7 +5436,7 @@ async function fetchRawData() {
     // AIRMET sub-header placeholder (will be populated async below)
     const airmetSubHeader = document.createElement('div');
     airmetSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#9b59b6;letter-spacing:3px;padding:8px 0 6px;";
-    airmetSubHeader.textContent = '— AIRMET —';
+    airmetSubHeader.textContent = 'AIRMET';
     sigmetSection.appendChild(airmetSubHeader);
     const airmetContainer = document.createElement('div');
     sigmetSection.appendChild(airmetContainer);
@@ -5442,32 +5450,49 @@ async function fetchRawData() {
         if (airmets.length === 0) {
           const noAirmet = document.createElement('div');
           noAirmet.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;padding:8px 0;";
-          noAirmet.textContent = '— No active AIRMETs';
+          noAirmet.textContent = 'No active AIRMETs';
           airmetContainer.appendChild(noAirmet);
           return;
         }
+        // Group by validTimeFrom
+        const groups = {};
         airmets.forEach(a => {
-          const rawText = a.rawAirSigmet || a.text || a.hazard || JSON.stringify(a).slice(0, 200);
+          const key = a.validTimeFrom || a.timeFrom || 'UNKNOWN';
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(a);
+        });
+        Object.entries(groups).forEach(([timeKey, group]) => {
+          const firstA = group[0];
+          const validFrom = firstA.validTimeFrom || firstA.timeFrom || '';
+          const validTo = firstA.validTimeTo || firstA.timeTo || '';
+          const region = firstA.region || firstA.airSigmetType || '';
+          const hazards = group.map(a => hazardDescMap[a.hazard] || a.hazard || 'GENERAL').filter(Boolean);
+          const uniqueHazards = [...new Set(hazards)];
+
           const wrapper = document.createElement('div');
           wrapper.style.marginBottom = '8px';
 
           const aBox = document.createElement('div');
-          aBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;position:relative;transition:border-color 0.2s;cursor:default;';
+          aBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.8;position:relative;transition:border-color 0.2s;cursor:default;';
 
           const aHeader = document.createElement('div');
           aHeader.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:10px;color:#9b59b6;letter-spacing:2px;margin-bottom:6px;';
-          aHeader.textContent = 'AIRMET · ' + (a.hazard || a.type || 'GENERAL');
+          aHeader.textContent = 'AIRMET · ' + uniqueHazards.join(' · ');
           aBox.appendChild(aHeader);
 
           const aBody = document.createElement('div');
-          aBody.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;';
-          aBody.textContent = rawText;
+          aBody.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:11px;color:#cdd9e5;line-height:1.8;';
+          const lines = [];
+          if (region) lines.push('REGION : ' + region);
+          if (validFrom) lines.push('FROM   : ' + validFrom);
+          if (validTo)   lines.push('TO     : ' + validTo);
+          lines.push('HAZARD : ' + uniqueHazards.join(', '));
+          aBody.textContent = lines.join('\n');
           aBox.appendChild(aBody);
 
           const aCorner = document.createElement('div');
           aCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;cursor:pointer;';
           aCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
-
           const aTooltip = document.createElement('div');
           aTooltip.textContent = 'Analyze';
           aTooltip.style.cssText = 'position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;';
@@ -5494,6 +5519,9 @@ async function fetchRawData() {
               aCorner.style.opacity = '0';
               return;
             }
+            const desc = uniqueHazards.join(', ');
+            const content = 'AIRMET: ' + desc + ' | Region: ' + region + ' | Valid: ' + validFrom + ' to ' + validTo;
+            const prompt = 'Analyze this AIRMET (Airmen\'s Meteorological Information): Hazard type: ' + desc + ' in region ' + region + '. Valid from ' + validFrom + ' to ' + validTo + '. Explain: 1) What this hazard means for flight 2) Affected altitudes and area 3) Pilot recommendations 4) Whether to avoid or proceed with caution.';
             aAnalysisDiv.style.display = 'block';
             aAnalysisDiv.innerHTML = '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;"><span id="airmetDots">Analyzing</span></div>';
             let dots = 0;
@@ -5505,7 +5533,7 @@ async function fetchRawData() {
               const resp = await fetch('/api/analyze-notam', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-user-id': firebase.auth().currentUser?.uid || '' },
-                body: JSON.stringify({ notam: rawText, type: 'AIRMET', prompt: 'Analyze this AIRMET (Airmen\'s Meteorological Information). Explain: 1) Type of hazard (turbulence/icing/IFR) 2) Affected area and altitudes 3) Severity and duration 4) Operational impact and pilot recommendations.' })
+                body: JSON.stringify({ notam: content, type: 'AIRMET', prompt })
               });
               if (resp.status === 403) {
                 clearInterval(dotsInterval);
