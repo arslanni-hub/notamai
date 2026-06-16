@@ -1648,6 +1648,7 @@ if (getAccessBtn) {
   // ── GENERATE VIDEO BRIEFING ───────────────────────────────────
   // ELEVENLABS_KEY must be set in Render environment variables
   if (req.method === 'POST' && req.url === '/api/generate-video-briefing') {
+    console.log('[VIDEO BRIEFING] Request received');
     if (videoBriefingLock) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Already processing, please wait' }));
@@ -1665,7 +1666,7 @@ if (getAccessBtn) {
         const icaos = route.trim().toUpperCase().split(/[\s,->]+/).filter(s => s.length === 4);
         const depIcao = icaos[0] || '';
         const arrIcao = icaos[1] || '';
-        console.log('[VIDEO] Route:', route, 'DEP:', depIcao, 'ARR:', arrIcao);
+        console.log('[VIDEO BRIEFING] Route:', route, 'DEP:', depIcao, 'ARR:', arrIcao);
 
         // Fetch NOTAMs directly from SkyLink for both airports
         let depNotams = [];
@@ -1673,6 +1674,7 @@ if (getAccessBtn) {
         let depMetar = '';
         let arrMetar = '';
 
+        console.log('[VIDEO] Fetching NOTAMs for DEP:', depIcao, 'ARR:', arrIcao);
         try {
           const depData = await fetchURL('https://notam-info1.p.rapidapi.com/notams?location=' + depIcao, {
             headers: {
