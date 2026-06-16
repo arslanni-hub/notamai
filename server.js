@@ -1660,84 +1660,108 @@ if (getAccessBtn) {
       try {
         const { route, briefingId } = JSON.parse(body);
         const userId = req.headers['x-user-id'];
-        console.log('[VIDEO] briefingId received:', briefingId);
-        console.log('[VIDEO] userId:', userId);
 
-        // Step 1: Get briefing content from Firestore
-        let briefingContent = '';
-        if (briefingId) {
-          try {
-            const doc = await adminDb.collection('briefings').doc(briefingId).get();
-            if (doc.exists) {
-              let rawHtml1 = doc.data().html || '';
-              rawHtml1 = rawHtml1.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-              rawHtml1 = rawHtml1.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-              rawHtml1 = rawHtml1.replace(/<[^>]*>/g, ' ');
-              rawHtml1 = rawHtml1.replace(/\s+/g, ' ').trim();
-              rawHtml1 = rawHtml1.replace(/--[\w-]+:[^;]+;/g, '');
-              rawHtml1 = rawHtml1.replace(/:root\s*\{[^}]*\}/g, '');
-              briefingContent = rawHtml1.slice(0, 3000);
-              console.log('[VIDEO] Using briefingId, content length:', briefingContent.length);
-            } else {
-              console.log('[VIDEO] briefingId not found in Firestore');
+        // Parse ICAO codes from route
+        const icaos = route.trim().toUpperCase().split(/[\s,->]+/).filter(s => s.length === 4);
+        const depIcao = icaos[0] || '';
+        const arrIcao = icaos[1] || '';
+        console.log('[VIDEO] Route:', route, 'DEP:', depIcao, 'ARR:', arrIcao);
+
+        // Fetch NOTAMs directly from SkyLink for both airports
+        let depNotams = [];
+        let arrNotams = [];
+        let depMetar = '';
+        let arrMetar = '';
+
+        try {
+          const depData = await fetchURL('https://notam-info1.p.rapidapi.com/notams?location=' + depIcao, {
+            headers: {
+              'X-RapidAPI-Key': process.env.SKYLINK_KEY,
+              'X-RapidAPI-Host': 'notam-info1.p.rapidapi.com'
             }
-          } catch(e) { console.log('[VIDEO] Firestore error:', e.message); }
+          });
+          depNotams = depData?.notams || depData?.data || [];
+          console.log('[VIDEO] DEP NOTAMs:', depNotams.length);
+        } catch(e) {
+          console.log('[VIDEO] DEP NOTAM error:', e.message);
         }
 
-        // If no briefingId or doc not found, fetch latest briefing for this user
-        if (!briefingContent && userId) {
-          try {
-            const latestBriefing = await adminDb.collection('briefings')
-              .where('userId', '==', userId)
-              .orderBy('createdAt', 'desc')
-              .limit(1)
-              .get();
-
-            if (!latestBriefing.empty) {
-              let rawHtml2 = latestBriefing.docs[0].data().html || '';
-              rawHtml2 = rawHtml2.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-              rawHtml2 = rawHtml2.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-              rawHtml2 = rawHtml2.replace(/<[^>]*>/g, ' ');
-              rawHtml2 = rawHtml2.replace(/\s+/g, ' ').trim();
-              rawHtml2 = rawHtml2.replace(/--[\w-]+:[^;]+;/g, '');
-              rawHtml2 = rawHtml2.replace(/:root\s*\{[^}]*\}/g, '');
-              briefingContent = rawHtml2.slice(0, 3000);
-              console.log('[VIDEO] Using latest briefing, content length:', briefingContent.length);
-            } else {
-              console.log('[VIDEO] No briefings found for user');
+        try {
+          const arrData = await fetchURL('https://notam-info1.p.rapidapi.com/notams?location=' + arrIcao, {
+            headers: {
+              'X-RapidAPI-Key': process.env.SKYLINK_KEY,
+              'X-RapidAPI-Host': 'notam-info1.p.rapidapi.com'
             }
-          } catch(e) {
-            console.log('[VIDEO] Firestore latest briefing error:', e.message);
-          }
+          });
+          arrNotams = arrData?.notams || arrData?.data || [];
+          console.log('[VIDEO] ARR NOTAMs:', arrNotams.length);
+        } catch(e) {
+          console.log('[VIDEO] ARR NOTAM error:', e.message);
         }
 
-        console.log('[VIDEO BRIEFING CONTENT]', briefingContent ? briefingContent.slice(0, 300) : 'EMPTY');
+        // Fetch METAR for weather
+        try {
+          const depMetarData = await fetchURL('https://aviationweather.gov/api/data/metar?ids=' + depIcao + '&format=json');
+          depMetar = depMetarData?.[0]?.rawOb || '';
+        } catch(e) {}
+
+        try {
+          const arrMetarData = await fetchURL('https://aviationweather.gov/api/data/metar?ids=' + arrIcao + '&format=json');
+          arrMetar = arrMetarData?.[0]?.rawOb || '';
+        } catch(e) {}
+
+        // Sort by most recent (highest NOTAM number) and take top 8
+        function getCriticalNotams(notams) {
+          return notams
+            .sort((a, b) => {
+              const getNum = (n) => {
+                const raw = n.raw || '';
+                const match = raw.match(/[A-Z](\d+)\/\d{4}/);
+                return match ? parseInt(match[1]) : 0;
+              };
+              return getNum(b) - getNum(a);
+            })
+            .slice(0, 8)
+            .map(n => n.raw || n.text || '')
+            .filter(Boolean)
+            .join('\n');
+        }
+
+        const depNotamText = getCriticalNotams(depNotams);
+        const arrNotamText = getCriticalNotams(arrNotams);
+        console.log('[VIDEO] DEP NOTAM text length:', depNotamText.length);
+        console.log('[VIDEO] ARR NOTAM text length:', arrNotamText.length);
 
         // Step 2: Generate script with Claude Haiku
         const hour = new Date().getUTCHours();
         const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-        const scriptPrompt = `You are Captain Edward. Write a 45-second pre-flight briefing script. 110 words exactly.
 
-Route: ${route}
-Briefing data:
-${briefingContent || 'No briefing data available'}
+        const scriptPrompt = `You are Captain Edward, a senior airline captain. Write a 45-second pre-flight briefing. Target 105-110 words.
 
-OUTPUT FORMAT - write exactly this:
-"${greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [CRITICAL NOTAM 1 from departure - be specific about what is closed/failed]. [CRITICAL NOTAM 2 from departure if exists]. [CRITICAL NOTAM 1 from arrival - be specific]. [CRITICAL NOTAM 2 from arrival if exists]. [Weather summary - one sentence]. Check the NOTAMs panel for full details. Have a safe and smooth flight."
+Route: ${depIcao} to ${arrIcao}
 
-MANDATORY RULES:
-- Start with "${greeting}, Captain." - ALWAYS include "Captain"
-- End with "Have a safe and smooth flight." - ALWAYS
-- NOTAM PRIORITY: 1) Airport/runway closures 2) ILS/VOR/NDB failures 3) Approach procedure changes
-- Use HIGHEST numbered NOTAMs first (most recent = most important)
-- If briefing data shows runway closed, YOU MUST mention it
-- Never say "standard operations" or "no significant NOTAMs" if there IS briefing data
-- City names only, never ICAO codes
+DEPARTURE NOTAMs (${depIcao}):
+${depNotamText || 'No active NOTAMs'}
+
+ARRIVAL NOTAMs (${arrIcao}):
+${arrNotamText || 'No active NOTAMs'}
+
+DEPARTURE WEATHER: ${depMetar || 'Not available'}
+ARRIVAL WEATHER: ${arrMetar || 'Not available'}
+
+OUTPUT FORMAT:
+"${greeting}, Captain. Today we're flying from [departure city name] to [arrival city name]. [Most critical departure NOTAM in plain English - be specific about what is closed or failed]. [Most critical arrival NOTAM in plain English]. [Brief weather summary if significant]. Check the NOTAMs panel for complete details. Have a safe and smooth flight."
+
+RULES:
+- Start: "${greeting}, Captain." — always
+- End: "Have a safe and smooth flight." — always
+- NOTAM PRIORITY: runway/airport closures > ILS/navaid failures > procedure changes
+- Use city names, never ICAO codes
 - Runway numbers as words: "one seven left"
 - No NOTAM reference numbers
-- Plain text only
-
-IMPORTANT: The briefing data above contains real NOTAMs. Read it carefully and extract the most critical ones.`;
+- If no critical NOTAMs: say "no critical NOTAMs active at [city]"
+- 105-110 words exactly
+- Plain text only`;
 
         const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
