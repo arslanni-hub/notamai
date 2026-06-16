@@ -1669,7 +1669,14 @@ if (getAccessBtn) {
           try {
             const doc = await adminDb.collection('briefings').doc(briefingId).get();
             if (doc.exists) {
-              briefingContent = (doc.data().html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 3000);
+              let rawHtml1 = doc.data().html || '';
+              rawHtml1 = rawHtml1.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+              rawHtml1 = rawHtml1.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+              rawHtml1 = rawHtml1.replace(/<[^>]*>/g, ' ');
+              rawHtml1 = rawHtml1.replace(/\s+/g, ' ').trim();
+              rawHtml1 = rawHtml1.replace(/--[\w-]+:[^;]+;/g, '');
+              rawHtml1 = rawHtml1.replace(/:root\s*\{[^}]*\}/g, '');
+              briefingContent = rawHtml1.slice(0, 3000);
               console.log('[VIDEO] Using briefingId, content length:', briefingContent.length);
             } else {
               console.log('[VIDEO] briefingId not found in Firestore');
@@ -1687,10 +1694,14 @@ if (getAccessBtn) {
               .get();
 
             if (!latestBriefing.empty) {
-              briefingContent = (latestBriefing.docs[0].data().html || '')
-                .replace(/<[^>]*>/g, ' ')
-                .replace(/\s+/g, ' ')
-                .slice(0, 3000);
+              let rawHtml2 = latestBriefing.docs[0].data().html || '';
+              rawHtml2 = rawHtml2.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+              rawHtml2 = rawHtml2.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+              rawHtml2 = rawHtml2.replace(/<[^>]*>/g, ' ');
+              rawHtml2 = rawHtml2.replace(/\s+/g, ' ').trim();
+              rawHtml2 = rawHtml2.replace(/--[\w-]+:[^;]+;/g, '');
+              rawHtml2 = rawHtml2.replace(/:root\s*\{[^}]*\}/g, '');
+              briefingContent = rawHtml2.slice(0, 3000);
               console.log('[VIDEO] Using latest briefing, content length:', briefingContent.length);
             } else {
               console.log('[VIDEO] No briefings found for user');
@@ -1831,7 +1842,14 @@ IMPORTANT: The briefing data above contains real NOTAMs. Read it carefully and e
         if (briefingId) {
           const doc = await adminDb.collection('briefings').doc(briefingId).get();
           if (doc.exists) {
-            briefingContent = (doc.data().html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 3000);
+            let rawHtml3 = doc.data().html || '';
+            rawHtml3 = rawHtml3.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+            rawHtml3 = rawHtml3.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+            rawHtml3 = rawHtml3.replace(/<[^>]*>/g, ' ');
+            rawHtml3 = rawHtml3.replace(/\s+/g, ' ').trim();
+            rawHtml3 = rawHtml3.replace(/--[\w-]+:[^;]+;/g, '');
+            rawHtml3 = rawHtml3.replace(/:root\s*\{[^}]*\}/g, '');
+            briefingContent = rawHtml3.slice(0, 3000);
             console.log('[TEST SCRIPT] briefingId content length:', briefingContent.length);
           }
         }
@@ -1839,7 +1857,14 @@ IMPORTANT: The briefing data above contains real NOTAMs. Read it carefully and e
         if (!briefingContent && userId) {
           const latest = await adminDb.collection('briefings').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(1).get();
           if (!latest.empty) {
-            briefingContent = (latest.docs[0].data().html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 3000);
+            let rawHtml4 = latest.docs[0].data().html || '';
+            rawHtml4 = rawHtml4.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+            rawHtml4 = rawHtml4.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+            rawHtml4 = rawHtml4.replace(/<[^>]*>/g, ' ');
+            rawHtml4 = rawHtml4.replace(/\s+/g, ' ').trim();
+            rawHtml4 = rawHtml4.replace(/--[\w-]+:[^;]+;/g, '');
+            rawHtml4 = rawHtml4.replace(/:root\s*\{[^}]*\}/g, '');
+            briefingContent = rawHtml4.slice(0, 3000);
             console.log('[TEST SCRIPT] latest briefing content length:', briefingContent.length);
           }
         }
