@@ -7039,18 +7039,6 @@ function showResultVideo(videoUrl) {
   resultVideo.style.display = 'block';
   resultVideo.play();
 
-  // Track completion for close-button flow
-  window.videoCompleted = false;
-  resultVideo.addEventListener('ended', () => {
-    window.videoCompleted = true;
-    // Auto-close and start briefing when video finishes
-    closeVideoBriefing();
-    const mainInput = document.getElementById('mainInput');
-    if (mainInput && mainInput.value.trim()) {
-      setTimeout(() => handleSend(), 500);
-    }
-  });
-
   // Fade out ambient audio
   const ambient = document.getElementById('vbAmbientAudio');
   const fadeOut = setInterval(() => {
@@ -7066,37 +7054,41 @@ function showVideoBriefingError(msg) {
 }
 
 function closeVideoBriefing() {
-  document.getElementById('videoBriefingOverlay').style.display = 'none';
-  document.getElementById('videoBriefingBackdrop').style.display = 'none';
-  clearInterval(vbInterval);
-  clearInterval(vbProgressInterval);
-  document.getElementById('waitingVideo').pause();
-  document.getElementById('resultVideo').pause();
+  const overlay = document.getElementById('videoBriefingOverlay');
+  const backdrop = document.getElementById('videoBriefingBackdrop');
+  overlay.style.display = 'none';
+  backdrop.style.display = 'none';
+
+  // Stop videos
+  const waitingVideo = document.getElementById('waitingVideo');
+  const resultVideo = document.getElementById('resultVideo');
+  if (waitingVideo) { waitingVideo.pause(); waitingVideo.currentTime = 0; }
+  if (resultVideo) { resultVideo.pause(); resultVideo.currentTime = 0; resultVideo.style.display = 'none'; }
+
+  // Clear intervals
+  if (vbInterval) clearInterval(vbInterval);
+  if (vbProgressInterval) clearInterval(vbProgressInterval);
+  if (window.subtitleInterval) clearInterval(window.subtitleInterval);
+
+  // Reset waiting video display
+  const waitingVideoEl = document.getElementById('waitingVideo');
+  if (waitingVideoEl) waitingVideoEl.style.display = 'block';
+
+  // Show content overlay again
+  const contentOverlay = document.getElementById('vbContentOverlay');
+  if (contentOverlay) contentOverlay.style.display = 'flex';
+
+  // Stop ambient audio
   const ambientAudio = document.getElementById('vbAmbientAudio');
   ambientAudio.pause();
   ambientAudio.currentTime = 0;
+
   window.videoBriefingMode = false;
 
-  // If user manually closed after video completed, start briefing
-  if (window.videoCompleted) {
-    const mainInput = document.getElementById('mainInput');
-    if (mainInput && mainInput.value.trim()) {
-      setTimeout(() => handleSend(), 500);
-    }
-  }
-
-  if (window.backgroundBriefingReady && window.backgroundBriefingHtml) {
-    window.backgroundBriefingReady = false;
-    const overlay = document.getElementById('resultOverlay');
-    const content = document.getElementById('resultContent');
-    content.innerHTML = window.backgroundBriefingHtml;
-    overlay.classList.add('open');
-    document.getElementById('mainNavbar').style.display = 'none';
-    document.getElementById('loadingState').style.display = 'none';
-    content.style.display = 'block';
-    appendBriefingActions(content);
-    extractBriefingIcaos();
-    window.backgroundBriefingHtml = null;
+  // Start briefing after modal closes
+  const mainInput = document.getElementById('mainInput');
+  if (mainInput && mainInput.value.trim()) {
+    setTimeout(() => handleSend(), 800);
   }
 }
 

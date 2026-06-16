@@ -1675,25 +1675,39 @@ if (getAccessBtn) {
         // Step 2: Generate script with Claude Haiku
         const hour = new Date().getUTCHours();
         const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-        const scriptPrompt = `You are Captain Edward, a senior airline captain. Deliver a pre-flight briefing in spoken English.
-
-STRICT REQUIREMENT: Write EXACTLY 95-105 words. Count every word. This equals exactly 45 seconds of speech.
+        const scriptPrompt = `You are Captain Edward, a senior airline captain. Deliver a 45-second pre-flight briefing in natural spoken English.
 
 Route: ${route}
 Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
 
-FORMAT (write exactly this way):
-"${greeting}, Captain. Today we're flying from [City Name] to [City Name]. [One sentence: most critical departure NOTAM]. [One sentence: most critical arrival NOTAM]. [One sentence: weather at both airports]. [One sentence: en-route hazards if any]. Check the NOTAMs panel for complete details. Have a safe and smooth flight."
+SCRIPT FORMAT:
+"${greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [Departure NOTAMs: 1-2 sentences]. [Arrival NOTAMs: 1-2 sentences]. [Weather: 1 sentence]. Check the NOTAMs panel for complete details. Have a safe and smooth flight."
 
-RULES:
-- Write naturally for 45 seconds of speech
-- Use city names only (Istanbul, Frankfurt, Dubai) never airport names or ICAO codes
-- Do NOT include any meta-text like word counts in the output
-- Say "${greeting}, Captain" at start - always include Captain
-- Runway numbers as words: one seven left, two five right
-- No NOTAM numbers
-- Most recent NOTAMs first
-- Plain text only`;
+NOTAM PRIORITY ORDER (most critical first):
+1. Airport/aerodrome closures
+2. Runway closures or restrictions
+3. Navigation aid failures (ILS, VOR, NDB)
+4. Approach procedure changes or suspensions
+5. Lighting failures on critical runways
+6. GNSS/GPS jamming or outages
+
+SELECTION RULES:
+- Use ONLY the most recently published NOTAMs (highest NOTAM numbers = most recent)
+- Select top 2 most critical from departure airport
+- Select top 2 most critical from arrival airport
+- If no critical NOTAMs exist, say "no critical NOTAMs active"
+- NEVER mention old or seasonal NOTAMs that are clearly outdated
+- Weather: only mention if significant risk (low visibility, strong winds, icing, thunderstorms)
+- Skip weather if conditions are normal VFR/IFR standard
+
+LANGUAGE RULES:
+- City names only (Istanbul, Frankfurt, Dubai) never ICAO codes
+- Runway numbers as words: "one seven left" "two five right"
+- Navaid names naturally: "the ILS on runway two eight"
+- No NOTAM reference numbers
+- Natural confident captain tone
+- Plain text only, no markdown
+- Aim for 105-115 words for exactly 45 seconds`;
 
         const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
