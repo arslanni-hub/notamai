@@ -2125,6 +2125,27 @@ MANDATORY:
     return;
   }
 
+  if (req.method === 'GET' && req.url.startsWith('/api/distance/')) {
+    const parts = req.url.split('/api/distance/')[1].split('/');
+    const origin = parts[0].toUpperCase();
+    const dest = parts[1].toUpperCase();
+    try {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/distance?origin=' + origin + '&destination=' + dest, {
+        headers: {
+          'X-RapidAPI-Key': process.env.SKYLINK_KEY,
+          'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
+        }
+      });
+      console.log('[DISTANCE]', origin, dest, JSON.stringify(data).slice(0, 200));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch(e) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/raw/')) {
     const urlParams = req.url.replace('/api/raw/', '');
     const [type, icao] = urlParams.split('/');
