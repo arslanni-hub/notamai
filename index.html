@@ -6503,7 +6503,7 @@ document.addEventListener('click', function(e) {
           style="width:100%;box-sizing:border-box;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;margin-bottom:12px;"
           oninput="this.value=this.value.toUpperCase()"
           onkeydown="if(event.key==='Enter')fetchDistance()">
-        <button onclick="fetchDistance()" style="width:100%;background:#4a9eff;border:none;color:#060a0f;padding:10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">CALCULATE</button>
+        <button onclick="fetchDistance()" style="width:100%;background:#b57bff;border:none;color:#060a0f;padding:10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">CALCULATE</button>
       </div>
       <div id="distanceResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter departure and arrival ICAO codes</div>
     </div>
@@ -6569,14 +6569,14 @@ async function fetchDistance() {
     result.innerHTML = `
       <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:8px;padding:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #1a2a3a;">
-          <div style="text-align:center;flex:1;">
-            <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#4a9eff;">${from}</div>
-            <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${fromName}</div>
+          <div style="text-align:center;flex:1;min-width:0;">
+            <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#b57bff;">${from}</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px;margin-left:auto;margin-right:auto;">${fromName}</div>
           </div>
-          <div style="color:#4a5f72;font-size:18px;padding:0 8px;">→</div>
-          <div style="text-align:center;flex:1;">
-            <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#4a9eff;">${to}</div>
-            <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${toName}</div>
+          <div style="color:#b57bff;font-size:18px;padding:0 8px;">→</div>
+          <div style="text-align:center;flex:1;min-width:0;">
+            <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#b57bff;">${to}</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px;margin-left:auto;margin-right:auto;">${toName}</div>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
