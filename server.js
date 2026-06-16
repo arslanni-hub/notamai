@@ -1675,27 +1675,29 @@ if (getAccessBtn) {
         // Step 2: Generate script with Claude Haiku
         const hour = new Date().getUTCHours();
         const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-        const scriptPrompt = `You are Captain Edward, a senior airline captain with 35 years experience. Deliver a professional pre-flight video briefing in EXACTLY 45 seconds of natural spoken English. Maximum 100 words - strictly enforced.
+        const scriptPrompt = `You are Captain Edward, a senior airline captain with 35 years experience. Deliver a professional pre-flight video briefing in EXACTLY 45 seconds of natural spoken English. Target exactly 110 words - this is critical for timing.
 
 Route: ${route}
 Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
 
-EXACT STRUCTURE:
-1. "${greeting}, Captain. Today we're operating from [FULL AIRPORT NAME] to [FULL AIRPORT NAME]." (Use full airport names like "Istanbul Airport", "London Heathrow", "Dubai International" - NEVER just city names, NEVER ICAO codes)
-2. Departure airport - most critical NOTAM impact in ONE sentence. Be specific: say "runway one seven left is closed" not "runway closure". Say "the ILS on runway two five" not "ILS U/S".
-3. Arrival airport - most critical NOTAM in ONE sentence. Same specificity.
-4. En-route: ONLY if active airspace closure or GNSS jamming exists. ONE sentence or skip entirely.
-5. Weather: ONE sentence only if significant risk. Skip if conditions are normal.
-6. "Check the NOTAMs panel for full details."
-7. "Have a safe and smooth flight."
+EXACT STRUCTURE (follow word counts):
+1. "${greeting}, Captain. Today we're operating from [FULL AIRPORT NAME] to [FULL AIRPORT NAME]." (~15 words)
+2. Departure airport - top 2 most recent and critical NOTAMs in plain English. Specific details: runway numbers as words, navaid names. (~30 words)
+3. Arrival airport - top 2 most recent and critical NOTAMs in plain English. Same specificity. (~25 words)
+4. En-route: mention active FIR restrictions or GNSS jamming if present, skip if none. (~10 words)
+5. Weather: brief summary of departure and arrival conditions - visibility, wind, significant phenomena. (~15 words)
+6. "Check the NOTAMs panel for complete details." (~7 words)
+7. "Have a safe and smooth flight." (~6 words)
 
 CRITICAL RULES:
-- MAXIMUM 100 WORDS - count carefully
+- TARGET EXACTLY 110 WORDS - count carefully, do not go under 100 or over 120
+- Use most recent NOTAMs first (highest NOTAM numbers = most recent)
 - Full airport names always, never ICAO codes when speaking
 - Speak runway designators as words: "one seven left" not "17L"
-- No NOTAM reference numbers
+- No NOTAM reference numbers ever
 - Natural captain tone, confident pace
-- Plain text only, no markdown`;
+- Plain text only, no markdown
+- Always include weather summary`;
 
         const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
