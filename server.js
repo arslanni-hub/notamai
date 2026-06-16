@@ -2130,7 +2130,7 @@ MANDATORY:
     const origin = parts[0].toUpperCase();
     const dest = parts[1].toUpperCase();
     try {
-      const data = await fetchURL('https://skylink-api.p.rapidapi.com/distance?origin=' + origin + '&destination=' + dest, {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/distance?from_icao=' + origin + '&to_icao=' + dest, {
         headers: {
           'X-RapidAPI-Key': process.env.SKYLINK_KEY,
           'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
