@@ -1675,39 +1675,29 @@ if (getAccessBtn) {
         // Step 2: Generate script with Claude Haiku
         const hour = new Date().getUTCHours();
         const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-        const scriptPrompt = `You are Captain Edward, a senior airline captain. Deliver a 45-second pre-flight briefing in natural spoken English.
+        console.log('[VIDEO BRIEFING CONTENT]', briefingContent ? briefingContent.slice(0, 300) : 'EMPTY');
+        const scriptPrompt = `You are Captain Edward. Write a 45-second pre-flight briefing script. 110 words exactly.
 
 Route: ${route}
-Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
+Briefing data:
+${briefingContent || 'No briefing data available'}
 
-SCRIPT FORMAT:
-"${greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [Departure NOTAMs: 1-2 sentences]. [Arrival NOTAMs: 1-2 sentences]. [Weather: 1 sentence]. Check the NOTAMs panel for complete details. Have a safe and smooth flight."
+OUTPUT FORMAT - write exactly this:
+"${greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [CRITICAL NOTAM 1 from departure - be specific about what is closed/failed]. [CRITICAL NOTAM 2 from departure if exists]. [CRITICAL NOTAM 1 from arrival - be specific]. [CRITICAL NOTAM 2 from arrival if exists]. [Weather summary - one sentence]. Check the NOTAMs panel for full details. Have a safe and smooth flight."
 
-NOTAM PRIORITY ORDER (most critical first):
-1. Airport/aerodrome closures
-2. Runway closures or restrictions
-3. Navigation aid failures (ILS, VOR, NDB)
-4. Approach procedure changes or suspensions
-5. Lighting failures on critical runways
-6. GNSS/GPS jamming or outages
-
-SELECTION RULES:
-- Use ONLY the most recently published NOTAMs (highest NOTAM numbers = most recent)
-- Select top 2 most critical from departure airport
-- Select top 2 most critical from arrival airport
-- If no critical NOTAMs exist, say "no critical NOTAMs active"
-- NEVER mention old or seasonal NOTAMs that are clearly outdated
-- Weather: only mention if significant risk (low visibility, strong winds, icing, thunderstorms)
-- Skip weather if conditions are normal VFR/IFR standard
-
-LANGUAGE RULES:
-- City names only (Istanbul, Frankfurt, Dubai) never ICAO codes
-- Runway numbers as words: "one seven left" "two five right"
-- Navaid names naturally: "the ILS on runway two eight"
+MANDATORY RULES:
+- Start with "${greeting}, Captain." - ALWAYS include "Captain"
+- End with "Have a safe and smooth flight." - ALWAYS
+- NOTAM PRIORITY: 1) Airport/runway closures 2) ILS/VOR/NDB failures 3) Approach procedure changes
+- Use HIGHEST numbered NOTAMs first (most recent = most important)
+- If briefing data shows runway closed, YOU MUST mention it
+- Never say "standard operations" or "no significant NOTAMs" if there IS briefing data
+- City names only, never ICAO codes
+- Runway numbers as words: "one seven left"
 - No NOTAM reference numbers
-- Natural confident captain tone
-- Plain text only, no markdown
-- Aim for 105-115 words for exactly 45 seconds`;
+- Plain text only
+
+IMPORTANT: The briefing data above contains real NOTAMs. Read it carefully and extract the most critical ones.`;
 
         const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
