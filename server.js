@@ -1738,7 +1738,7 @@ if (getAccessBtn) {
         const hour = new Date().getUTCHours();
         const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
 
-        const scriptPrompt = `You are Captain Edward, a senior airline captain with 35 years experience. Speak naturally. MAXIMUM 100 WORDS — strictly enforced. Count every word before finishing.
+        const scriptPrompt = `You are Captain Edward, a senior airline captain with 35 years experience. Speak naturally for exactly 50 seconds. 105-110 words total — count carefully.
 
 Route: ${depIcao} to ${arrIcao}
 
@@ -1753,7 +1753,7 @@ ARRIVAL WEATHER: ${arrMetar || 'Not available'}
 
 Write EXACTLY this structure, spoken naturally:
 
-"${greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [Single most critical departure NOTAM - one sentence, specific details]. [Single most critical arrival NOTAM - one sentence, specific details]. [Weather - one sentence only if significant risk, skip if normal]. Check the NOTAMs panel for complete details. Have a safe and smooth flight."
+"${greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [Most critical departure NOTAM - one sentence, specific details, plain English]. [Second most critical departure NOTAM if exists - one sentence]. [Most critical arrival NOTAM - one sentence, specific details]. [Second most critical arrival NOTAM if exists - one sentence]. [Weather - one sentence only if significant risk, skip if normal]. Check the NOTAMs panel for complete details. Have a safe and smooth flight."
 
 MANDATORY:
 - First words must be "${greeting}, Captain." — ALWAYS
@@ -1762,7 +1762,7 @@ MANDATORY:
 - City names only, never ICAO codes
 - Runway numbers as words: "one seven left"
 - No NOTAM reference numbers
-- Maximum 100 words strictly`;
+- 105-110 words total — count carefully`;
 
         const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
