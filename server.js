@@ -1675,29 +1675,24 @@ if (getAccessBtn) {
         // Step 2: Generate script with Claude Haiku
         const hour = new Date().getUTCHours();
         const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-        const scriptPrompt = `You are Captain Edward, a senior airline captain with 35 years experience. Deliver a professional pre-flight video briefing in EXACTLY 45 seconds of natural spoken English. Target exactly 110 words - this is critical for timing.
+        const scriptPrompt = `You are Captain Edward, a senior airline captain. Deliver a pre-flight briefing in spoken English.
+
+STRICT REQUIREMENT: Write EXACTLY 95-105 words. Count every word. This equals exactly 45 seconds of speech.
 
 Route: ${route}
 Briefing data: ${briefingContent || 'Standard pre-flight briefing'}
 
-EXACT STRUCTURE (follow word counts):
-1. "${greeting}, Captain. Today we're operating from [FULL AIRPORT NAME] to [FULL AIRPORT NAME]." (~15 words)
-2. Departure airport - top 2 most recent and critical NOTAMs in plain English. Specific details: runway numbers as words, navaid names. (~30 words)
-3. Arrival airport - top 2 most recent and critical NOTAMs in plain English. Same specificity. (~25 words)
-4. En-route: mention active FIR restrictions or GNSS jamming if present, skip if none. (~10 words)
-5. Weather: brief summary of departure and arrival conditions - visibility, wind, significant phenomena. (~15 words)
-6. "Check the NOTAMs panel for complete details." (~7 words)
-7. "Have a safe and smooth flight." (~6 words)
+FORMAT (write exactly this way):
+"${greeting}, Captain. Today we're flying from [Full Airport Name] to [Full Airport Name]. [One sentence: most critical departure NOTAM with specific details]. [One sentence: most critical arrival NOTAM with specific details]. [One sentence: weather conditions at both airports]. [One sentence: en-route hazards only if active, otherwise skip]. Check the NOTAMs panel for complete details. Have a safe and smooth flight."
 
-CRITICAL RULES:
-- TARGET EXACTLY 110 WORDS - count carefully, do not go under 100 or over 120
-- Use most recent NOTAMs first (highest NOTAM numbers = most recent)
-- Full airport names always, never ICAO codes when speaking
-- Speak runway designators as words: "one seven left" not "17L"
-- No NOTAM reference numbers ever
-- Natural captain tone, confident pace
-- Plain text only, no markdown
-- Always include weather summary`;
+RULES:
+- Count words: must be 95-105 total
+- Say "${greeting}, Captain" at start - always include Captain
+- Full airport names, never ICAO codes
+- Runway numbers as words: one seven left, two five right
+- No NOTAM numbers
+- Most recent NOTAMs first
+- Plain text only`;
 
         const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',

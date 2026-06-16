@@ -7017,7 +7017,7 @@ async function pollVideoStatus(predictionId) {
   let pollCount = 0;
   const poll = setInterval(async () => {
     pollCount++;
-    if (pollCount > 60) {
+    if (pollCount > 90) {
       clearInterval(poll);
       showVideoBriefingError('Video generation timed out. Please try again.');
       return;
