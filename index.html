@@ -6424,6 +6424,7 @@ document.addEventListener('click', function(e) {
     <button id="tab-sunmoon" onclick="switchToolTab('sunmoon')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">SUN/MOON</button>
     <button id="tab-winds" onclick="switchToolTab('winds')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">WINDS ALOFT</button>
     <button id="tab-charts" onclick="switchToolTab('charts')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">CHARTS</button>
+    <button id="tab-distance" onclick="switchToolTab('distance')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">DIST/BRG</button>
   </div>
 
   <!-- Tab contents -->
@@ -6490,6 +6491,23 @@ document.addEventListener('click', function(e) {
       <div id="chartsResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter an ICAO code to load charts</div>
     </div>
 
+    <!-- DISTANCE / BEARING TAB -->
+    <div id="toolTab-distance" style="display:none;">
+      <div style="margin-bottom:12px;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:6px;">FROM</div>
+        <input id="distFromInput" type="text" placeholder="ICAO (e.g. LTFM)" maxlength="4"
+          style="width:100%;box-sizing:border-box;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;margin-bottom:8px;"
+          oninput="this.value=this.value.toUpperCase()">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:6px;">TO</div>
+        <input id="distToInput" type="text" placeholder="ICAO (e.g. EGLL)" maxlength="4"
+          style="width:100%;box-sizing:border-box;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;margin-bottom:12px;"
+          oninput="this.value=this.value.toUpperCase()"
+          onkeydown="if(event.key==='Enter')fetchDistance()">
+        <button onclick="fetchDistance()" style="width:100%;background:#4a9eff;border:none;color:#060a0f;padding:10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">CALCULATE</button>
+      </div>
+      <div id="distanceResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter departure and arrival ICAO codes</div>
+    </div>
+
   </div>
 </div>
 
@@ -6519,13 +6537,66 @@ function closeToolsPanel() {
 }
 
 function switchToolTab(tab) {
-  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff' };
-  ['airport','sunmoon','winds','charts'].forEach(t => {
+  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff', distance: '#b57bff' };
+  ['airport','sunmoon','winds','charts','distance'].forEach(t => {
     const sec = document.getElementById('toolTab-' + t);
     if (sec) sec.style.display = t === tab ? 'block' : 'none';
     const btn = document.getElementById('tab-' + t);
     if (btn) { btn.style.borderBottomColor = t === tab ? colors[t] : 'transparent'; btn.style.color = t === tab ? colors[t] : '#4a5f72'; }
   });
+}
+
+async function fetchDistance() {
+  const from = document.getElementById('distFromInput').value.trim().toUpperCase();
+  const to = document.getElementById('distToInput').value.trim().toUpperCase();
+  if (!from || !to || from.length < 3 || to.length < 3) return;
+  const result = document.getElementById('distanceResult');
+  result.innerHTML = '<div style="color:#b57bff;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">CALCULATING...</div>';
+  try {
+    const res = await fetch('/api/distance/' + from + '/' + to);
+    const data = await res.json();
+    if (data.error || data.detail) {
+      result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Could not calculate distance</div>';
+      return;
+    }
+    const distNm = data.distance?.toFixed(1) || '—';
+    const distKm = data.distance ? (data.distance * 1.852).toFixed(1) : '—';
+    const bearing = data.bearing?.toFixed(1) || '—';
+    const fromName = data.from_point?.name || from;
+    const toName = data.to_point?.name || to;
+    const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    const dir = bearing !== '—' ? dirs[Math.round(parseFloat(bearing) / 22.5) % 16] : '—';
+    result.innerHTML = `
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:8px;padding:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #1a2a3a;">
+          <div style="text-align:center;flex:1;">
+            <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#4a9eff;">${from}</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${fromName}</div>
+          </div>
+          <div style="color:#4a5f72;font-size:18px;padding:0 8px;">→</div>
+          <div style="text-align:center;flex:1;">
+            <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#4a9eff;">${to}</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${toName}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:12px;text-align:center;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:2px;margin-bottom:6px;">DISTANCE</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:20px;font-weight:700;color:#ffffff;">${distNm}</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;">NM</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;margin-top:2px;">${distKm} km</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:12px;text-align:center;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:2px;margin-bottom:6px;">BEARING</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:20px;font-weight:700;color:#ffffff;">${bearing}°</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;">${dir}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error: ' + e.message + '</div>';
+  }
 }
 
 let allChartsData = {};
