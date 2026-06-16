@@ -1676,26 +1676,26 @@ if (getAccessBtn) {
 
         console.log('[VIDEO] Fetching NOTAMs for DEP:', depIcao, 'ARR:', arrIcao);
         try {
-          const depData = await fetchURL('https://notam-info1.p.rapidapi.com/notams?location=' + depIcao, {
+          const depData = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + depIcao, {
             headers: {
               'X-RapidAPI-Key': process.env.SKYLINK_KEY,
-              'X-RapidAPI-Host': 'notam-info1.p.rapidapi.com'
+              'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
             }
           });
-          depNotams = depData?.notams || depData?.data || [];
+          depNotams = depData?.notams || [];
           console.log('[VIDEO] DEP NOTAMs:', depNotams.length);
         } catch(e) {
           console.log('[VIDEO] DEP NOTAM error:', e.message);
         }
 
         try {
-          const arrData = await fetchURL('https://notam-info1.p.rapidapi.com/notams?location=' + arrIcao, {
+          const arrData = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + arrIcao, {
             headers: {
               'X-RapidAPI-Key': process.env.SKYLINK_KEY,
-              'X-RapidAPI-Host': 'notam-info1.p.rapidapi.com'
+              'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
             }
           });
-          arrNotams = arrData?.notams || arrData?.data || [];
+          arrNotams = arrData?.notams || [];
           console.log('[VIDEO] ARR NOTAMs:', arrNotams.length);
         } catch(e) {
           console.log('[VIDEO] ARR NOTAM error:', e.message);
