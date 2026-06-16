@@ -4800,6 +4800,7 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
     <button id="rawTab-sigmet" onclick="switchRawTab('sigmet')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">SIGMET</button>
     <button id="rawTab-pirep" onclick="switchRawTab('pirep')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">PIREP</button>
     <button id="rawTab-delays" onclick="switchRawTab('delays')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">DELAYS</button>
+    <button id="rawTab-airmet" onclick="switchRawTab('airmet')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">AIRMET</button>
   </div>
   <div id="rawResults" style="flex:1;overflow-y:auto;padding:8px;">
     <div id="rawSection-notam">
@@ -4809,6 +4810,7 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
     <div id="rawSection-sigmet" style="display:none;"></div>
     <div id="rawSection-pirep" style="display:none;"></div>
     <div id="rawSection-delays" style="display:none;"></div>
+    <div id="rawSection-airmet" style="display:none;"></div>
   </div>
 </div>
 
@@ -4827,9 +4829,9 @@ function closeAllPanels() {
 }
 
 function switchRawTab(tab) {
-  const colors = { notam: '#4a9eff', metar: '#2ec4b6', taf: '#2ec4b6', sigmet: '#f4841a', pirep: '#f4c430', delays: '#e63946' };
+  const colors = { notam: '#4a9eff', metar: '#2ec4b6', taf: '#2ec4b6', sigmet: '#f4841a', pirep: '#f4c430', delays: '#e63946', airmet: '#9b59b6' };
   // Reset all tabs first
-  ['notam', 'metar', 'taf', 'sigmet', 'pirep', 'delays'].forEach(t => {
+  ['notam', 'metar', 'taf', 'sigmet', 'pirep', 'delays', 'airmet'].forEach(t => {
     const btn = document.getElementById('rawTab-' + t);
     if (btn) { btn.style.color = '#4a5f72'; btn.style.borderBottomColor = 'transparent'; }
     const sec = document.getElementById('rawSection-' + t);
@@ -5668,6 +5670,41 @@ async function fetchRawData() {
       })
       .catch(() => {
         delaysSec.innerHTML = '<div style="color:#e63946;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;">Error fetching airport/delay data</div>';
+      });
+
+    // Fetch AIRMETs
+    const airmetSec = document.getElementById('rawSection-airmet');
+    airmetSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">Loading AIRMETs...</div>';
+    fetch('/api/airmet/' + icao)
+      .then(r => r.json())
+      .then(data => {
+        const airmets = Array.isArray(data) ? data : [];
+        if (airmets.length === 0) {
+          airmetSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No active AIRMETs</div>';
+          return;
+        }
+        airmetSec.innerHTML = '';
+        airmets.forEach(a => {
+          const card = document.createElement('div');
+          card.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;margin-bottom:8px;position:relative;transition:border-color 0.2s;cursor:default;';
+          card.onmouseenter = function() { this.style.borderColor = '#9b59b6'; };
+          card.onmouseleave = function() { this.style.borderColor = '#1a2a3a'; };
+
+          const header = document.createElement('div');
+          header.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:10px;color:#9b59b6;letter-spacing:2px;margin-bottom:8px;';
+          header.textContent = 'AIRMET · ' + (a.hazard || a.type || 'GENERAL');
+
+          const body = document.createElement('div');
+          body.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;line-height:1.6;white-space:pre-wrap;';
+          body.textContent = a.rawAirSigmet || a.text || a.hazard || JSON.stringify(a).slice(0, 200);
+
+          card.appendChild(header);
+          card.appendChild(body);
+          airmetSec.appendChild(card);
+        });
+      })
+      .catch(() => {
+        airmetSec.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;padding:20px;">Error fetching AIRMETs</div>';
       });
 
   } catch(e) {
