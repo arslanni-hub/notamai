@@ -6864,7 +6864,6 @@ async function fetchWindsAloft() {
     <div id="vbStatus" style="font-family:'Share Tech Mono',monospace;font-size:13px;color:#4a9eff;letter-spacing:2px;margin-bottom:30px;">Initializing briefing...</div>
 
     <!-- Animated FIRs -->
-    <div id="vbFirs" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;letter-spacing:2px;margin-bottom:30px;min-height:20px;"></div>
 
     <!-- Progress bar -->
     <div style="width:300px;height:2px;background:#1a2a3a;border-radius:2px;margin:0 auto 16px;">
@@ -6925,7 +6924,6 @@ function openVideoBriefing() {
   document.getElementById('vbRoute').textContent = route.replace(' ', ' → ');
 
   // Reset state
-  document.getElementById('vbFirs').textContent = '';
   document.getElementById('vbProgress').style.width = '0%';
   document.getElementById('vbPercent').textContent = '0%';
   document.getElementById('vbStatus').textContent = 'Initializing briefing...';
@@ -6956,18 +6954,6 @@ function openVideoBriefing() {
     document.getElementById('vbStatus').textContent = vbMessages[msgIndex % vbMessages.length];
     msgIndex++;
   }, 3000);
-
-  // FIRs animation
-  const firs = ['LTBB', 'LGGG', 'LBSR', 'LOVV', 'EDGG', 'EGTT'];
-  let firIndex = 0;
-  const firTimer = setInterval(() => {
-    if (firIndex < firs.length) {
-      document.getElementById('vbFirs').textContent += (firIndex > 0 ? ' → ' : '') + firs[firIndex];
-      firIndex++;
-    } else {
-      clearInterval(firTimer);
-    }
-  }, 1500);
 
   // Progress bar
   vbStartTime = Date.now();
