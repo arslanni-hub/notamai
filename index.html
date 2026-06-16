@@ -6423,6 +6423,7 @@ document.addEventListener('click', function(e) {
     <button id="tab-airport" onclick="switchToolTab('airport')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid #4a9eff;color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">AIRPORT / FIR</button>
     <button id="tab-sunmoon" onclick="switchToolTab('sunmoon')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">SUN/MOON</button>
     <button id="tab-winds" onclick="switchToolTab('winds')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">WINDS ALOFT</button>
+    <button id="tab-charts" onclick="switchToolTab('charts')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">CHARTS</button>
   </div>
 
   <!-- Tab contents -->
@@ -6469,6 +6470,26 @@ document.addEventListener('click', function(e) {
       <div id="windsAloftResult" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;text-align:center;padding:20px 0;">Enter an ICAO code to get winds aloft data</div>
     </div>
 
+    <!-- CHARTS TAB -->
+    <div id="toolTab-charts" style="display:none;">
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input id="chartsIcaoInput" type="text" placeholder="ICAO code (e.g. EGLL)" maxlength="4"
+          style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;"
+          oninput="this.value=this.value.toUpperCase()"
+          onkeydown="if(event.key==='Enter')fetchCharts()">
+        <button onclick="fetchCharts()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
+      </div>
+      <div id="chartsCategoryBtns" style="display:none;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+        <button onclick="filterCharts('ALL',event)" class="chart-cat-btn active" style="padding:4px 10px;background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.3);color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;border-radius:3px;cursor:pointer;">ALL</button>
+        <button onclick="filterCharts('GND',event)" class="chart-cat-btn" style="padding:4px 10px;background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;border-radius:3px;cursor:pointer;">GND</button>
+        <button onclick="filterCharts('SID',event)" class="chart-cat-btn" style="padding:4px 10px;background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;border-radius:3px;cursor:pointer;">SID</button>
+        <button onclick="filterCharts('STAR',event)" class="chart-cat-btn" style="padding:4px 10px;background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;border-radius:3px;cursor:pointer;">STAR</button>
+        <button onclick="filterCharts('APP',event)" class="chart-cat-btn" style="padding:4px 10px;background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;border-radius:3px;cursor:pointer;">APP</button>
+        <button onclick="filterCharts('GEN',event)" class="chart-cat-btn" style="padding:4px 10px;background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;border-radius:3px;cursor:pointer;">GEN</button>
+      </div>
+      <div id="chartsResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter an ICAO code to load charts</div>
+    </div>
+
   </div>
 </div>
 
@@ -6498,13 +6519,71 @@ function closeToolsPanel() {
 }
 
 function switchToolTab(tab) {
-  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6' };
-  ['airport','sunmoon','winds'].forEach(t => {
-    document.getElementById('toolTab-' + t).style.display = t === tab ? 'block' : 'none';
+  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff' };
+  ['airport','sunmoon','winds','charts'].forEach(t => {
+    const sec = document.getElementById('toolTab-' + t);
+    if (sec) sec.style.display = t === tab ? 'block' : 'none';
     const btn = document.getElementById('tab-' + t);
-    btn.style.borderBottomColor = t === tab ? colors[t] : 'transparent';
-    btn.style.color = t === tab ? colors[t] : '#4a5f72';
+    if (btn) { btn.style.borderBottomColor = t === tab ? colors[t] : 'transparent'; btn.style.color = t === tab ? colors[t] : '#4a5f72'; }
   });
+}
+
+let allChartsData = {};
+
+async function fetchCharts() {
+  const icao = document.getElementById('chartsIcaoInput').value.trim().toUpperCase();
+  if (!icao || icao.length < 3) return;
+  const result = document.getElementById('chartsResult');
+  const catBtns = document.getElementById('chartsCategoryBtns');
+  result.innerHTML = '<div style="color:#4a9eff;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">LOADING CHARTS...</div>';
+  catBtns.style.display = 'none';
+  try {
+    const res = await fetch('/api/raw/charts/' + icao);
+    const data = await res.json();
+    if (data.detail || data.error) {
+      result.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;text-align:center;padding:20px;">No charts available for ' + icao + '</div>';
+      return;
+    }
+    allChartsData = data.charts || {};
+    catBtns.style.display = 'flex';
+    filterCharts('ALL');
+  } catch(e) {
+    result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error loading charts</div>';
+  }
+}
+
+function filterCharts(category, evt) {
+  document.querySelectorAll('.chart-cat-btn').forEach(btn => {
+    btn.style.background = 'none';
+    btn.style.borderColor = '#1a2a3a';
+    btn.style.color = '#4a5f72';
+  });
+  if (evt && evt.target) {
+    evt.target.style.background = 'rgba(74,158,255,0.1)';
+    evt.target.style.borderColor = 'rgba(74,158,255,0.3)';
+    evt.target.style.color = '#4a9eff';
+  }
+  const result = document.getElementById('chartsResult');
+  let charts = [];
+  if (category === 'ALL') {
+    Object.values(allChartsData).forEach(catCharts => { charts = charts.concat(catCharts); });
+  } else {
+    charts = allChartsData[category] || [];
+  }
+  if (charts.length === 0) {
+    result.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;text-align:center;padding:20px;">No ' + category + ' charts available</div>';
+    return;
+  }
+  const catColors = { GND: '#2ec4b6', SID: '#4a9eff', STAR: '#b57bff', APP: '#f4841a', GEN: '#f4c430' };
+  result.innerHTML = charts.map(chart => `
+    <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid ${catColors[chart.category] || '#4a9eff'};border-radius:4px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <div style="min-width:0;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:${catColors[chart.category] || '#4a9eff'};letter-spacing:1px;margin-bottom:3px;">${chart.category || ''}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${chart.name || ''}</div>
+      </div>
+      <a href="${chart.url}" target="_blank" style="flex-shrink:0;background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.3);color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;border-radius:3px;text-decoration:none;white-space:nowrap;">PDF ↗</a>
+    </div>
+  `).join('');
 }
 
 // GLOBAL FIR DATABASE
