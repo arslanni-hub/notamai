@@ -2149,7 +2149,7 @@ MANDATORY:
   if (req.method === 'GET' && req.url.startsWith('/api/navaids/')) {
     const icao = req.url.split('/api/navaids/')[1].toUpperCase();
     try {
-      const data = await fetchURL('https://skylink-api.p.rapidapi.com/navaids?icao=' + icao, {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/navaids?airport=' + icao, {
         headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' }
       });
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -2163,7 +2163,7 @@ MANDATORY:
     const origin = parts[0].toUpperCase();
     const dest = parts[1].toUpperCase();
     try {
-      const data = await fetchURL('https://skylink-api.p.rapidapi.com/ml/flight-time?origin=' + origin + '&destination=' + dest, {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/ml/flight-time?from_icao=' + origin + '&to_icao=' + dest, {
         headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' }
       });
       res.writeHead(200, { 'Content-Type': 'application/json' });
