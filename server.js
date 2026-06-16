@@ -2083,12 +2083,7 @@ MANDATORY:
   if (req.method === 'GET' && req.url.startsWith('/api/raw/pireps/')) {
     const icao = req.url.split('/api/raw/pireps/')[1].toUpperCase();
     try {
-      const data = await fetchURL('https://skylink-api.p.rapidapi.com/pireps?icao=' + icao, {
-        headers: {
-          'X-RapidAPI-Key': process.env.SKYLINK_KEY,
-          'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
-        }
-      });
+      const data = await fetchURL('https://aviationweather.gov/api/data/pirep?id=' + icao + '&format=json&age=3&distance=100');
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
     } catch(e) {
@@ -2101,12 +2096,7 @@ MANDATORY:
   if (req.method === 'GET' && req.url.startsWith('/api/raw/delays/')) {
     const icao = req.url.split('/api/raw/delays/')[1].toUpperCase();
     try {
-      const data = await fetchURL('https://skylink-api.p.rapidapi.com/faa/delays?icao=' + icao, {
-        headers: {
-          'X-RapidAPI-Key': process.env.SKYLINK_KEY,
-          'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
-        }
-      });
+      const data = await fetchURL('https://nasstatus.faa.gov/api/airport-conditions/' + icao);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
     } catch(e) {
