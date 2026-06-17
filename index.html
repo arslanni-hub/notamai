@@ -5482,7 +5482,7 @@ async function fetchRawData() {
           aBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#cdd9e5;line-height:1.8;position:relative;transition:border-color 0.2s;cursor:default;';
 
           const aHeader = document.createElement('div');
-          aHeader.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:10px;color:#9b59b6;letter-spacing:2px;margin-bottom:6px;';
+          aHeader.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:10px;color:#8a9bb0;letter-spacing:2px;margin-bottom:6px;';
           aHeader.textContent = 'AIRMET · ' + uniqueHazards.join(' · ');
           aBox.appendChild(aHeader);
 
@@ -5598,6 +5598,10 @@ async function fetchRawData() {
           pirepSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No PIREPs reported in the last 3 hours within 200nm</div>';
         } else {
           pirepSec.innerHTML = '';
+          const pirepSubHeader = document.createElement('div');
+          pirepSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4c430;letter-spacing:1px;margin-bottom:10px;";
+          pirepSubHeader.textContent = 'PIREP';
+          pirepSec.appendChild(pirepSubHeader);
           pireps.forEach(p => {
             const rawText = p.rawOb || p.raw || '';
             const wrapper = document.createElement('div');
@@ -5606,13 +5610,8 @@ async function fetchRawData() {
             const pirepBox = document.createElement('div');
             pirepBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;position:relative;transition:border-color 0.2s;cursor:default;';
 
-            const header = document.createElement('div');
-            header.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#f4c430;letter-spacing:2px;margin-bottom:6px;';
-            header.textContent = 'PIREP';
-            pirepBox.appendChild(header);
-
             const body = document.createElement('div');
-            body.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;white-space:pre-wrap;';
+            body.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:12px;color:#8a9bb0;line-height:1.6;white-space:pre-wrap;';
             body.textContent = rawText;
             pirepBox.appendChild(body);
 
@@ -5717,6 +5716,10 @@ async function fetchRawData() {
           delaysSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No airport data found</div>';
         } else {
           delaysSec.innerHTML = '';
+          const delaysSubHeader = document.createElement('div');
+          delaysSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#e63946;letter-spacing:1px;margin-bottom:10px;";
+          delaysSubHeader.textContent = 'DELAYS';
+          delaysSec.appendChild(delaysSubHeader);
           const airportJson = JSON.stringify(airport);
 
           // Build a readable status string from available fields
@@ -5742,13 +5745,8 @@ async function fetchRawData() {
           const delayBox = document.createElement('div');
           delayBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;position:relative;transition:border-color 0.2s;cursor:default;';
 
-          const header = document.createElement('div');
-          header.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#e63946;letter-spacing:2px;margin-bottom:6px;';
-          header.textContent = 'AIRPORT STATUS';
-          delayBox.appendChild(header);
-
           const body = document.createElement('div');
-          body.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:12px;color:#cdd9e5;line-height:1.6;';
+          body.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:12px;color:#8a9bb0;line-height:1.6;';
           body.textContent = displayText;
           delayBox.appendChild(body);
 
