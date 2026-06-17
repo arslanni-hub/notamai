@@ -2172,6 +2172,45 @@ MANDATORY:
     return;
   }
 
+  if (req.method === 'GET' && req.url.startsWith('/api/flight-status/')) {
+    const flightNum = req.url.split('/api/flight-status/')[1].toUpperCase();
+    try {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/flight_status/' + flightNum, {
+        headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' }
+      });
+      console.log('[FLIGHT STATUS]', flightNum, JSON.stringify(data).slice(0,300));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch(e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
+    return;
+  }
+
+  if (req.method === 'GET' && req.url.startsWith('/api/carbon/')) {
+    const parts = req.url.split('/api/carbon/')[1].split('/');
+    try {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/carbon?origin=' + parts[0] + '&destination=' + parts[1], {
+        headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' }
+      });
+      console.log('[CARBON]', parts[0], parts[1], JSON.stringify(data).slice(0,300));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch(e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
+    return;
+  }
+
+  if (req.method === 'GET' && req.url.startsWith('/api/aircraft/')) {
+    const reg = req.url.split('/api/aircraft/')[1].toUpperCase();
+    try {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/aircraft/registration/' + reg, {
+        headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' }
+      });
+      console.log('[AIRCRAFT]', reg, JSON.stringify(data).slice(0,300));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch(e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/airmet/')) {
     const icao = req.url.split('/api/airmet/')[1].toUpperCase();
 
