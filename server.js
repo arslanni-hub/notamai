@@ -2196,7 +2196,7 @@ MANDATORY:
   if (req.method === 'GET' && req.url.startsWith('/api/airsigmet/')) {
     const icao = req.url.split('/api/airsigmet/')[1].toUpperCase();
     try {
-      const data = await fetchURL('https://skylink-api.p.rapidapi.com/weather/airsigmet/' + icao, {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/weather/airsigmet?icao=' + icao, {
         headers: {
           'X-RapidAPI-Key': process.env.SKYLINK_KEY,
           'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
