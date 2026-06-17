@@ -2092,22 +2092,18 @@ MANDATORY:
   if (req.method === 'GET' && req.url.startsWith('/api/airport-search/')) {
     const query = decodeURIComponent(req.url.split('/api/airport-search/')[1]);
     try {
-      const data = await fetchURL(
-        'https://skylink-api.p.rapidapi.com/v3/airports/search?query=' + encodeURIComponent(query) + '&limit=8',
-        {
-          headers: {
-            'X-RapidAPI-Key': process.env.SKYLINK_KEY,
-            'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
-          }
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/airports/search/text?q=' + encodeURIComponent(query) + '&limit=8', {
+        headers: {
+          'X-RapidAPI-Key': process.env.SKYLINK_KEY,
+          'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
         }
-      );
+      });
 
-      console.log('[AIRPORT SEARCH]', query, '->', JSON.stringify(data).slice(0, 200));
+      console.log('[AIRPORT TEXT SEARCH]', query, JSON.stringify(data).slice(0,300));
 
       const airports = Array.isArray(data) ? data : (data?.airports || data?.results || []);
-
       const results = airports
-        .filter(a => (a.icao || a.ident) && (a.icao || a.ident).length === 4)
+        .filter(a => (a.icao || a.ident))
         .slice(0, 8)
         .map(a => ({
           id: a.icao || a.ident,
