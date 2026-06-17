@@ -6929,15 +6929,17 @@ async function fetchLiveTraffic() {
     const aircraft = data?.aircraft || [];
 
     if (aircraft.length === 0) {
-      result.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;text-align:center;padding:20px;">No aircraft detected nearby</div>';
+      result.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;text-align:center;padding:20px;line-height:1.6;">No aircraft detected nearby.<br><span style="font-size:11px;color:#3a4a5a;">ADS-B coverage varies by region — Europe & North America have the densest networks.</span></div>';
       return;
     }
 
+    const count = data.total_count || aircraft.length;
     result.innerHTML = `
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#00e676;letter-spacing:2px;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#00e676;letter-spacing:2px;margin-bottom:${count < 5 ? '4px' : '10px'};display:flex;align-items:center;gap:6px;">
         <span style="width:6px;height:6px;background:#00e676;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite;"></span>
-        ${data.total_count || aircraft.length} AIRCRAFT WITHIN 50NM
+        ${count} AIRCRAFT WITHIN 50NM
       </div>
+      ${count < 5 ? '<div style="font-family:\'Rajdhani\',sans-serif;font-size:10px;color:#3a4a5a;margin-bottom:10px;">Coverage may be limited in this region</div>' : ''}
       ${aircraft.map(a => {
         const alt = a.is_on_ground ? 'On Ground' : (a.altitude ? a.altitude.toLocaleString() + ' ft' : '—');
         const speed = a.ground_speed ? Math.round(a.ground_speed) + ' kt' : '—';
