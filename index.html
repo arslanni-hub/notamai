@@ -5499,7 +5499,7 @@ async function fetchRawData() {
         } else {
           pirepSec.innerHTML = '';
           const pirepSubHeader = document.createElement('div');
-          pirepSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4c430;letter-spacing:1px;margin-bottom:10px;";
+          pirepSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4c430;letter-spacing:1px;margin-top:10px;margin-bottom:10px;";
           pirepSubHeader.textContent = 'PIREP';
           pirepSec.appendChild(pirepSubHeader);
           pireps.forEach(p => {
@@ -5617,7 +5617,7 @@ async function fetchRawData() {
         } else {
           delaysSec.innerHTML = '';
           const delaysSubHeader = document.createElement('div');
-          delaysSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#e63946;letter-spacing:1px;margin-bottom:10px;";
+          delaysSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#e63946;letter-spacing:1px;margin-top:10px;margin-bottom:10px;";
           delaysSubHeader.textContent = 'DELAYS';
           delaysSec.appendChild(delaysSubHeader);
           const airportJson = JSON.stringify(airport);
