@@ -5553,8 +5553,14 @@ async function fetchRawData() {
             icon.addEventListener('mouseleave', e => { e.stopPropagation(); if (tip) tip.style.opacity = '0'; });
             icon.addEventListener('click', function(e) {
               e.stopPropagation();
+              e.preventDefault();
               const idx = parseInt(this.getAttribute('data-idx'));
-              analyzePirep(pirepRawTexts[idx]);
+              console.log('[PIREP CLICK] Icon clicked, idx:', idx, 'raw:', pirepRawTexts[idx]);
+              if (typeof analyzePirep === 'function') {
+                analyzePirep(pirepRawTexts[idx]);
+              } else {
+                console.log('[PIREP CLICK] analyzePirep is not a function!');
+              }
             });
           });
         }
