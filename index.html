@@ -4875,6 +4875,8 @@ async function openAnalysisPanel(title, data, prompt, color) {
 }
 
 async function analyzePirep(raw) {
+  console.log('[ANALYZE PIREP] Called with raw:', raw);
+  console.log('[ANALYZE PIREP] openAnalysisPanel exists:', typeof openAnalysisPanel);
   openAnalysisPanel('PIREP ANALYSIS', raw,
     'Analyze this Pilot Report (PIREP): ' + raw + '. Explain: 1) What hazard was reported 2) Severity level 3) Operational impact 4) Pilot recommendation. Keep under 100 words, no markdown.',
     '#f4c430'
@@ -7783,6 +7785,14 @@ function closeOnboarding() {
       <button id="obNext" onclick="nextOnboardingStep()" style="flex:2;padding:10px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;border-radius:6px;cursor:pointer;">Next →</button>
     </div>
 
+  </div>
+</div>
+
+<!-- Analysis Modal (used by openAnalysisPanel / analyzePirep / analyzeDelay / analyzeAirmet) -->
+<div id="analysisModal" style="display:none;position:fixed;inset:0;z-index:9000;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);padding:20px;box-sizing:border-box;">
+  <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;padding:20px;position:relative;">
+    <button onclick="document.getElementById('analysisModal').style.display='none'" style="position:absolute;top:12px;right:12px;background:none;border:none;color:#4a5f72;cursor:pointer;font-size:18px;line-height:1;padding:4px;">✕</button>
+    <div id="analysisContent"></div>
   </div>
 </div>
 
