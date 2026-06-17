@@ -4898,7 +4898,13 @@ function analyzeAirmet(hazard, region, validFrom, validTo) {
   const desc = hazardDescMap[hazard] || hazard;
   const content = 'AIRMET: ' + desc + ' | Region: ' + region + ' | Valid: ' + validFrom + ' to ' + validTo;
   openAnalysisPanel('AIRMET ANALYSIS', content,
-    'Analyze this AIRMET (Airmen\'s Meteorological Information): Hazard type: ' + desc + ' in region ' + region + '. Valid from ' + validFrom + ' to ' + validTo + '. Explain: 1) What this hazard means for flight 2) Affected altitudes and area 3) Pilot recommendations 4) Whether to avoid or proceed with caution.',
+    'You are an aviation weather expert. Analyze this AIRMET for flight crews. ' +
+    'AIRMET details: Hazard=' + hazard + ' (' + desc + '), Region=' + region + ', Valid from unix=' + validFrom + ' to unix=' + validTo + '. ' +
+    'Provide: 1) Brief explanation of ' + desc + ' hazard in plain English ' +
+    '2) Which phase of flight is most affected (departure/cruise/arrival) ' +
+    '3) Specific GO/NO-GO recommendation ' +
+    '4) One key action crew must take. ' +
+    'Keep response under 100 words. Be direct and practical. No markdown headers.',
     '#9b59b6'
   );
 }
@@ -5337,7 +5343,7 @@ async function fetchRawData() {
     sigmetSection.style.marginBottom = '20px';
 
     const sigmetSubHeader = document.createElement('div');
-    sigmetSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:3px;padding:8px 0 6px;";
+    sigmetSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:3px;padding:8px 0 6px;margin-bottom:10px;";
     sigmetSubHeader.textContent = 'SIGMET';
     sigmetSection.appendChild(sigmetSubHeader);
 
@@ -5435,7 +5441,7 @@ async function fetchRawData() {
     }
     // AIRMET sub-header placeholder (will be populated async below)
     const airmetSubHeader = document.createElement('div');
-    airmetSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#9b59b6;letter-spacing:3px;padding:8px 0 6px;";
+    airmetSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#9b59b6;letter-spacing:3px;padding:8px 0 6px;margin-bottom:10px;";
     airmetSubHeader.textContent = 'AIRMET';
     sigmetSection.appendChild(airmetSubHeader);
     const airmetContainer = document.createElement('div');
@@ -5473,7 +5479,7 @@ async function fetchRawData() {
           wrapper.style.marginBottom = '8px';
 
           const aBox = document.createElement('div');
-          aBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;line-height:1.8;position:relative;transition:border-color 0.2s;cursor:default;';
+          aBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#cdd9e5;line-height:1.8;position:relative;transition:border-color 0.2s;cursor:default;';
 
           const aHeader = document.createElement('div');
           aHeader.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:10px;color:#9b59b6;letter-spacing:2px;margin-bottom:6px;';
@@ -5481,7 +5487,7 @@ async function fetchRawData() {
           aBox.appendChild(aHeader);
 
           const aBody = document.createElement('div');
-          aBody.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:11px;color:#cdd9e5;line-height:1.8;';
+          aBody.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;line-height:1.8;';
           const lines = [];
           if (region) lines.push('REGION : ' + region);
           if (validFrom) lines.push('FROM   : ' + validFrom);
@@ -5520,8 +5526,15 @@ async function fetchRawData() {
               return;
             }
             const desc = uniqueHazards.join(', ');
+            const hazard = group.map(a => a.hazard || '').join(', ');
             const content = 'AIRMET: ' + desc + ' | Region: ' + region + ' | Valid: ' + validFrom + ' to ' + validTo;
-            const prompt = 'Analyze this AIRMET (Airmen\'s Meteorological Information): Hazard type: ' + desc + ' in region ' + region + '. Valid from ' + validFrom + ' to ' + validTo + '. Explain: 1) What this hazard means for flight 2) Affected altitudes and area 3) Pilot recommendations 4) Whether to avoid or proceed with caution.';
+            const prompt = 'You are an aviation weather expert. Analyze this AIRMET for flight crews. ' +
+              'AIRMET details: Hazard=' + hazard + ' (' + desc + '), Region=' + region + ', Valid from unix=' + validFrom + ' to unix=' + validTo + '. ' +
+              'Provide: 1) Brief explanation of ' + desc + ' hazard in plain English ' +
+              '2) Which phase of flight is most affected (departure/cruise/arrival) ' +
+              '3) Specific GO/NO-GO recommendation ' +
+              '4) One key action crew must take. ' +
+              'Keep response under 100 words. Be direct and practical. No markdown headers.';
             aAnalysisDiv.style.display = 'block';
             aAnalysisDiv.innerHTML = '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;"><span id="airmetDots">Analyzing</span></div>';
             let dots = 0;
