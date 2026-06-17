@@ -5445,148 +5445,46 @@ async function fetchRawData() {
     airmetSubHeader.textContent = 'AIRMET';
     sigmetSection.appendChild(airmetSubHeader);
     const airmetContainer = document.createElement('div');
+    airmetContainer.id = 'airmetContainer';
     sigmetSection.appendChild(airmetContainer);
     sigmetSec.appendChild(sigmetSection);
 
-    // Fetch AIRMET/SIGMET globally via SkyLink bbox
+    // Fetch global AIRMET/SIGMET via SkyLink bbox
     fetch('/api/airsigmet/' + icao)
       .then(r => r.json())
-      .then(airmetData => {
-        const reports = airmetData?.reports || (Array.isArray(airmetData) ? airmetData : []);
-        console.log('[AIRSIGMET DATA]', reports);
-        const airmets = reports.filter(r => r.airSigmetType === 'AIRMET' || r.type === 'AIRMET' || (!r.airSigmetType && !r.type));
-        if (airmets.length === 0) {
-          const noAirmet = document.createElement('div');
-          noAirmet.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;padding:8px 0;";
-          noAirmet.textContent = 'No active AIRMETs';
-          airmetContainer.appendChild(noAirmet);
+      .then(data => {
+        const reports = data?.reports || [];
+        const ac = document.getElementById('airmetContainer');
+        if (!ac) return;
+        if (reports.length === 0) {
+          ac.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:10px 0;">No active AIRMET/SIGMET in this region</div>';
           return;
         }
-        // Group by validTimeFrom
-        const groups = {};
-        airmets.forEach(a => {
-          const key = a.validTimeFrom || a.timeFrom || a.validTime || 'UNKNOWN';
-          if (!groups[key]) groups[key] = [];
-          groups[key].push(a);
-        });
-        Object.entries(groups).forEach(([timeKey, group]) => {
-          const firstA = group[0];
-          const validFrom = firstA.validTimeFrom || firstA.timeFrom || firstA.validTime || '';
-          const validTo = firstA.validTimeTo || firstA.timeTo || firstA.expireTime || '';
-          const region = firstA.region || firstA.area || firstA.issuingCenter || '';
-          const hazards = group.map(a => hazardDescMap[a.hazard] || a.hazard || 'GENERAL').filter(Boolean);
-          const uniqueHazards = [...new Set(hazards)];
-
-          const wrapper = document.createElement('div');
-          wrapper.style.marginBottom = '8px';
-
-          const aBox = document.createElement('div');
-          aBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#cdd9e5;line-height:1.8;position:relative;transition:border-color 0.2s;cursor:default;';
-
-          const aHeader = document.createElement('div');
-          aHeader.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:10px;color:#8a9bb0;letter-spacing:2px;margin-bottom:6px;';
-          aHeader.textContent = 'AIRMET · ' + uniqueHazards.join(' · ');
-          aBox.appendChild(aHeader);
-
-          const aBody = document.createElement('div');
-          aBody.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;line-height:1.8;';
-          const lines = [];
-          if (region) lines.push('REGION : ' + region);
-          if (validFrom) lines.push('FROM   : ' + validFrom);
-          if (validTo)   lines.push('TO     : ' + validTo);
-          lines.push('HAZARD : ' + uniqueHazards.join(', '));
-          aBody.textContent = lines.join('\n');
-          aBox.appendChild(aBody);
-
-          const aCorner = document.createElement('div');
-          aCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;cursor:pointer;';
-          aCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
-          const aTooltip = document.createElement('div');
-          aTooltip.textContent = 'Analyze';
-          aTooltip.style.cssText = 'position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;';
-          aCorner.appendChild(aTooltip);
-          aBox.appendChild(aCorner);
-
-          const aAnalysisDiv = document.createElement('div');
-          aAnalysisDiv.style.cssText = 'display:none;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #9b59b6;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;position:relative;';
-
-          aBox.onmouseenter = function() { this.style.borderColor = '#9b59b6'; aCorner.style.opacity = '1'; };
-          aBox.onmouseleave = function() {
-            if (aAnalysisDiv.style.display !== 'block') { this.style.borderColor = '#1a2a3a'; aCorner.style.opacity = '0'; }
+        ac.innerHTML = '';
+        reports.forEach(r => {
+          const card = document.createElement('div');
+          card.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;margin-bottom:8px;position:relative;transition:border-color 0.2s;cursor:default;';
+          card.onmouseenter = function() { this.style.borderColor = '#9b59b6'; };
+          card.onmouseleave = function() {
+            this.style.borderTopColor = '#1a2a3a';
+            this.style.borderRightColor = '#1a2a3a';
+            this.style.borderBottomColor = '#1a2a3a';
+            this.style.borderLeftColor = '#1a2a3a';
           };
-          aCorner.onmouseenter = function(e) { e.stopPropagation(); aTooltip.style.opacity = '1'; };
-          aCorner.onmouseleave = function(e) { e.stopPropagation(); aTooltip.style.opacity = '0'; };
-
-          aCorner.onclick = async function(e) {
-            e.stopPropagation();
-            if (aAnalysisDiv.style.display === 'block') {
-              aAnalysisDiv.style.display = 'none';
-              aCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
-              aCorner.appendChild(aTooltip);
-              aBox.style.borderColor = '#1a2a3a';
-              aCorner.style.opacity = '0';
-              return;
-            }
-            const desc = uniqueHazards.join(', ');
-            const hazard = group.map(a => a.hazard || '').join(', ');
-            const content = 'AIRMET: ' + desc + ' | Region: ' + region + ' | Valid: ' + validFrom + ' to ' + validTo;
-            const prompt = 'You are an aviation weather expert. Analyze this AIRMET for flight crews. ' +
-              'AIRMET details: Hazard=' + hazard + ' (' + desc + '), Region=' + region + ', Valid from unix=' + validFrom + ' to unix=' + validTo + '. ' +
-              'Provide: 1) Brief explanation of ' + desc + ' hazard in plain English ' +
-              '2) Which phase of flight is most affected (departure/cruise/arrival) ' +
-              '3) Specific GO/NO-GO recommendation ' +
-              '4) One key action crew must take. ' +
-              'Keep response under 100 words. Be direct and practical. No markdown headers.';
-            aAnalysisDiv.style.display = 'block';
-            aAnalysisDiv.innerHTML = '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;"><span id="airmetDots">Analyzing</span></div>';
-            let dots = 0;
-            const dotsInterval = setInterval(() => { dots=(dots+1)%4; const el=aAnalysisDiv.querySelector('#airmetDots'); if(el) el.textContent='Analyzing'+'.'.repeat(dots); }, 400);
-            aCorner.innerHTML = '<span style="font-size:13px;opacity:0.4;">✨</span>';
-            aBox.style.borderColor = '#9b59b6';
-            aCorner.style.opacity = '1';
-            try {
-              const resp = await fetch('/api/analyze-notam', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-user-id': firebase.auth().currentUser?.uid || '' },
-                body: JSON.stringify({ notam: content, type: 'AIRMET', prompt })
-              });
-              if (resp.status === 403) {
-                clearInterval(dotsInterval);
-                aAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
-                aCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
-                aCorner.appendChild(aTooltip);
-                return;
-              }
-              const data = await resp.json();
-              clearInterval(dotsInterval);
-              aAnalysisDiv.innerHTML = '';
-              streamAnalysisText(aAnalysisDiv, data.analysis || 'Unable to analyze.', '#9b59b6', function() {
-                aAnalysisDiv.style.display = 'none';
-                aBox.style.borderColor = '#1a2a3a';
-                aCorner.style.opacity = '0';
-                aCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
-                aCorner.appendChild(aTooltip);
-              });
-              aCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
-              aCorner.appendChild(aTooltip);
-            } catch(err) {
-              clearInterval(dotsInterval);
-              aAnalysisDiv.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;">Error analyzing. Please try again.</div>';
-              aCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
-              aCorner.appendChild(aTooltip);
-            }
-          };
-
-          wrapper.appendChild(aBox);
-          wrapper.appendChild(aAnalysisDiv);
-          airmetContainer.appendChild(wrapper);
+          const header = document.createElement('div');
+          header.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:10px;color:#8a9bb0;letter-spacing:1px;margin-bottom:6px;';
+          header.textContent = (r.type || r.airSigmetType || 'AIRSIGMET').toUpperCase() + (r.hazard ? ' · ' + r.hazard : '');
+          const body = document.createElement('div');
+          body.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:12px;color:#8a9bb0;line-height:1.6;white-space:pre-wrap;';
+          body.textContent = r.raw_text || r.text || r.rawOb || JSON.stringify(r).slice(0, 300);
+          card.appendChild(header);
+          card.appendChild(body);
+          ac.appendChild(card);
         });
       })
       .catch(() => {
-        const errDiv = document.createElement('div');
-        errDiv.style.cssText = "color:#e63946;font-family:'Rajdhani',sans-serif;font-size:13px;padding:8px 0;";
-        errDiv.textContent = 'Error fetching AIRMETs';
-        airmetContainer.appendChild(errDiv);
+        const ac = document.getElementById('airmetContainer');
+        if (ac) ac.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:12px;padding:10px 0;">AIRMET/SIGMET data temporarily unavailable</div>';
       });
 
     switchRawTab('notam');
