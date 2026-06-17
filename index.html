@@ -5503,8 +5503,11 @@ async function fetchRawData() {
           pirepSubHeader.textContent = 'PIREP';
           pirepSec.appendChild(pirepSubHeader);
 
+          // Store raw texts by index to avoid attribute encoding issues
+          const pirepRawTexts = pireps.map(p => p.rawOb || p.raw || '');
+
           const pirepList = document.createElement('div');
-          pirepList.innerHTML = pireps.map(p => {
+          pirepList.innerHTML = pireps.map((p, i) => {
             const altitude = p.fltLvl ? (p.fltLvl * 100) + ' ft' : 'N/A';
             const hazards = [];
             if (p.tbInt1) hazards.push('Turbulence: ' + p.tbInt1 + (p.tbType1 ? ' ' + p.tbType1 : ''));
@@ -5515,12 +5518,15 @@ async function fetchRawData() {
             const minutesAgo = obsDate ? Math.round((Date.now() - obsDate.getTime()) / 60000) : null;
             const timeText = minutesAgo !== null ? (minutesAgo < 60 ? minutesAgo + ' min ago' : Math.floor(minutesAgo/60) + 'h ago') : '';
             return `
-              <div class="pirep-card" style="background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;margin-bottom:8px;transition:border-color 0.2s;cursor:default;position:relative;">
+              <div class="pirep-card" data-idx="${i}" style="background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;margin-bottom:8px;transition:border-color 0.2s;cursor:default;position:relative;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                   <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:#f4c430;">${p.icaoId || '—'}</div>
-                  <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="display:flex;align-items:center;gap:8px;position:relative;">
                     <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;">${timeText}</div>
-                    <span class="pirep-analyze" data-raw="${(p.rawOb || p.raw || '').replace(/"/g, '&quot;')}" style="opacity:0;cursor:pointer;font-size:14px;transition:opacity 0.2s;">✨</span>
+                    <div class="pirep-analyze" data-idx="${i}" style="position:relative;width:20px;height:20px;display:flex;align-items:center;justify-content:center;opacity:0;cursor:pointer;font-size:14px;transition:opacity 0.2s;">
+                      ✨
+                      <div class="pirep-tooltip" style="position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;">Analyze</div>
+                    </div>
                   </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
@@ -5533,6 +5539,8 @@ async function fetchRawData() {
           }).join('');
           pirepSec.appendChild(pirepList);
 
+          console.log('[PIREP WIRING] Found', pirepList.querySelectorAll('.pirep-analyze').length, 'analyze icons');
+
           pirepList.querySelectorAll('.pirep-card').forEach(card => {
             const icon = card.querySelector('.pirep-analyze');
             card.addEventListener('mouseenter', () => { card.style.borderColor = '#f4c430'; if (icon) icon.style.opacity = '1'; });
@@ -5540,10 +5548,13 @@ async function fetchRawData() {
           });
 
           pirepList.querySelectorAll('.pirep-analyze').forEach(icon => {
+            const tip = icon.querySelector('.pirep-tooltip');
+            icon.addEventListener('mouseenter', e => { e.stopPropagation(); if (tip) tip.style.opacity = '1'; });
+            icon.addEventListener('mouseleave', e => { e.stopPropagation(); if (tip) tip.style.opacity = '0'; });
             icon.addEventListener('click', function(e) {
               e.stopPropagation();
-              const raw = this.getAttribute('data-raw');
-              analyzePirep(raw);
+              const idx = parseInt(this.getAttribute('data-idx'));
+              analyzePirep(pirepRawTexts[idx]);
             });
           });
         }
