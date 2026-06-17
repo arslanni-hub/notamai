@@ -2163,7 +2163,7 @@ MANDATORY:
     const origin = parts[0].toUpperCase();
     const dest = parts[1].toUpperCase();
     try {
-      const data = await fetchURL('https://skylink-api.p.rapidapi.com/ml/flight-time?from_icao=' + origin + '&to_icao=' + dest, {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/ml/flight-time?from=' + origin + '&to=' + dest, {
         headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' }
       });
       res.writeHead(200, { 'Content-Type': 'application/json' });
