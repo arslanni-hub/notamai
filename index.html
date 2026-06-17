@@ -6496,6 +6496,8 @@ document.addEventListener('click', function(e) {
     <button id="tab-winds" onclick="switchToolTab('winds')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">WINDS ALOFT</button>
     <button id="tab-charts" onclick="switchToolTab('charts')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">CHARTS</button>
     <button id="tab-distance" onclick="switchToolTab('distance')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">DIST/BRG</button>
+    <button id="tab-navaids" onclick="switchToolTab('navaids')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">NAVAIDS</button>
+    <button id="tab-flighttime" onclick="switchToolTab('flighttime')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">FLIGHT TIME</button>
   </div>
 
   <!-- Tab contents -->
@@ -6579,6 +6581,35 @@ document.addEventListener('click', function(e) {
       <div id="distanceResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter departure and arrival ICAO codes</div>
     </div>
 
+    <!-- NAVAIDS TAB -->
+    <div id="toolTab-navaids" style="display:none;">
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input id="navaidsIcaoInput" type="text" placeholder="ICAO (e.g. EGLL)" maxlength="4"
+          style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;box-sizing:border-box;"
+          oninput="this.value=this.value.toUpperCase()"
+          onkeydown="if(event.key==='Enter')fetchNavaids()">
+        <button onclick="fetchNavaids()" style="background:#2ec4b6;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
+      </div>
+      <div id="navaidsResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter an ICAO code to find navigation aids</div>
+    </div>
+
+    <!-- FLIGHT TIME TAB -->
+    <div id="toolTab-flighttime" style="display:none;">
+      <div style="margin-bottom:12px;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:6px;">FROM</div>
+        <input id="ftFromInput" type="text" placeholder="ICAO (e.g. KJFK)" maxlength="4"
+          style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;margin-bottom:8px;box-sizing:border-box;"
+          oninput="this.value=this.value.toUpperCase()">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:6px;">TO</div>
+        <input id="ftToInput" type="text" placeholder="ICAO (e.g. EGLL)" maxlength="4"
+          style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;margin-bottom:12px;box-sizing:border-box;"
+          oninput="this.value=this.value.toUpperCase()"
+          onkeydown="if(event.key==='Enter')fetchFlightTime()">
+        <button onclick="fetchFlightTime()" style="width:100%;background:#f4841a;border:none;color:#060a0f;padding:10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">ESTIMATE</button>
+      </div>
+      <div id="flighttimeResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter departure and arrival to estimate flight time</div>
+    </div>
+
   </div>
 </div>
 
@@ -6608,13 +6639,78 @@ function closeToolsPanel() {
 }
 
 function switchToolTab(tab) {
-  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff', distance: '#b57bff' };
-  ['airport','sunmoon','winds','charts','distance'].forEach(t => {
+  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff', distance: '#b57bff', navaids: '#2ec4b6', flighttime: '#f4841a' };
+  ['airport','sunmoon','winds','charts','distance','navaids','flighttime'].forEach(t => {
     const sec = document.getElementById('toolTab-' + t);
     if (sec) sec.style.display = t === tab ? 'block' : 'none';
     const btn = document.getElementById('tab-' + t);
     if (btn) { btn.style.borderBottomColor = t === tab ? colors[t] : 'transparent'; btn.style.color = t === tab ? colors[t] : '#4a5f72'; }
   });
+}
+
+async function fetchNavaids() {
+  const icao = document.getElementById('navaidsIcaoInput').value.trim().toUpperCase();
+  if (!icao || icao.length < 3) return;
+  const result = document.getElementById('navaidsResult');
+  result.innerHTML = '<div style="color:#2ec4b6;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">SEARCHING...</div>';
+  try {
+    const res = await fetch('/api/navaids/' + icao);
+    const data = await res.json();
+    const navaids = data?.navaids || [];
+    if (navaids.length === 0) {
+      result.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;text-align:center;padding:20px;">No navaids found for ' + icao + '</div>';
+      return;
+    }
+    result.innerHTML = navaids.map(n => `
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:12px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#2ec4b6;">${n.ident}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;">${n.type}</div>
+        </div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;margin-bottom:8px;">${n.name}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">FREQ: ${(n.frequency_khz/1000).toFixed(1)} MHz</div>
+          ${n.dme_channel ? '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;">DME: ' + n.dme_channel + '</div>' : ''}
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">ELEV: ${n.elevation_ft} ft</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">PWR: ${n.power || '—'}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error fetching navaids</div>';
+  }
+}
+
+async function fetchFlightTime() {
+  const from = document.getElementById('ftFromInput').value.trim().toUpperCase();
+  const to = document.getElementById('ftToInput').value.trim().toUpperCase();
+  if (!from || !to || from.length < 3 || to.length < 3) return;
+  const result = document.getElementById('flighttimeResult');
+  result.innerHTML = '<div style="color:#f4841a;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">CALCULATING...</div>';
+  try {
+    const res = await fetch('/api/ml-flighttime/' + from + '/' + to);
+    const data = await res.json();
+    if (data.error || data.detail) {
+      result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Could not estimate flight time</div>';
+      return;
+    }
+    const hours = Math.floor(data.estimated_minutes / 60);
+    const mins = data.estimated_minutes % 60;
+    result.innerHTML = `
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:8px;padding:16px;text-align:center;">
+        <div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:16px;">
+          <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#f4841a;">${from}</div>
+          <div style="color:#4a5f72;">→</div>
+          <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#f4841a;">${to}</div>
+        </div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:32px;font-weight:700;color:#ffffff;margin-bottom:4px;">${hours}h ${mins}m</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">ESTIMATED FLIGHT TIME</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;">${data.distance_nm} NM · ML Prediction</div>
+      </div>
+    `;
+  } catch(e) {
+    result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error calculating flight time</div>';
+  }
 }
 
 async function fetchDistance() {
