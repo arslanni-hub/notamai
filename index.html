@@ -5448,7 +5448,13 @@ async function fetchRawData() {
     sigmetSection.appendChild(airmetContainer);
     sigmetSec.appendChild(sigmetSection);
 
-    // Fetch AIRMETs into sigmet section
+    // Fetch AIRMETs into sigmet section (US airspace only)
+    if (!icao.startsWith('K') && !icao.startsWith('P')) {
+      const noAirmet = document.createElement('div');
+      noAirmet.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;padding:8px 0;";
+      noAirmet.textContent = 'AIRMETs are only available for US airspace';
+      airmetContainer.appendChild(noAirmet);
+    } else {
     fetch('/api/airmet/' + icao)
       .then(r => r.json())
       .then(airmetData => {
@@ -5586,6 +5592,7 @@ async function fetchRawData() {
         errDiv.textContent = 'Error fetching AIRMETs';
         airmetContainer.appendChild(errDiv);
       });
+    } // end US airspace check
 
     switchRawTab('notam');
 

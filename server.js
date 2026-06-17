@@ -2174,11 +2174,22 @@ MANDATORY:
 
   if (req.method === 'GET' && req.url.startsWith('/api/airmet/')) {
     const icao = req.url.split('/api/airmet/')[1].toUpperCase();
+
+    // AIRMETs only exist for US airspace
+    if (!icao.startsWith('K') && !icao.startsWith('P')) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify([]));
+      return;
+    }
+
     try {
-      const data = await fetchURL('https://aviationweather.gov/api/data/airmet?format=json', {});
+      const data = await fetchURL('https://aviationweather.gov/api/data/airmet?format=json');
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
-    } catch(e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
+    } catch(e) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: e.message }));
+    }
     return;
   }
 
