@@ -6587,6 +6587,8 @@ document.addEventListener('click', function(e) {
     <button id="tab-navaids" onclick="switchToolTab('navaids')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">NAVAIDS</button>
     <button id="tab-distance" onclick="switchToolTab('distance')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">DIST/BRG</button>
     <button id="tab-flighttime" onclick="switchToolTab('flighttime')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">FLIGHT TIME</button>
+    <button id="tab-flightstatus" onclick="switchToolTab('flightstatus')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">FLIGHT STATUS</button>
+    <button id="tab-aircraft" onclick="switchToolTab('aircraft')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">AIRCRAFT</button>
   </div>
 
   <!-- Tab contents -->
@@ -6699,6 +6701,30 @@ document.addEventListener('click', function(e) {
       <div id="flighttimeResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter departure and arrival to estimate flight time</div>
     </div>
 
+    <!-- FLIGHT STATUS TAB -->
+    <div id="toolTab-flightstatus" style="display:none;">
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input id="flightNumInput" type="text" placeholder="Flight number (e.g. TK1)"
+          style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;box-sizing:border-box;"
+          oninput="this.value=this.value.toUpperCase()"
+          onkeydown="if(event.key==='Enter')fetchFlightStatus()">
+        <button onclick="fetchFlightStatus()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">TRACK</button>
+      </div>
+      <div id="flightStatusResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter a flight number to track status</div>
+    </div>
+
+    <!-- AIRCRAFT TAB -->
+    <div id="toolTab-aircraft" style="display:none;">
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input id="aircraftRegInput" type="text" placeholder="Tail number (e.g. N12345)"
+          style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;box-sizing:border-box;"
+          oninput="this.value=this.value.toUpperCase()"
+          onkeydown="if(event.key==='Enter')fetchAircraft()">
+        <button onclick="fetchAircraft()" style="background:#b57bff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">LOOKUP</button>
+      </div>
+      <div id="aircraftResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter a tail number to look up aircraft</div>
+    </div>
+
   </div>
 </div>
 
@@ -6728,13 +6754,87 @@ function closeToolsPanel() {
 }
 
 function switchToolTab(tab) {
-  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff', distance: '#b57bff', navaids: '#a3e635', flighttime: '#f4841a' };
-  ['airport','sunmoon','winds','charts','distance','navaids','flighttime'].forEach(t => {
+  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff', distance: '#b57bff', navaids: '#a3e635', flighttime: '#f4841a', flightstatus: '#4a9eff', aircraft: '#b57bff' };
+  ['airport','sunmoon','winds','charts','distance','navaids','flighttime','flightstatus','aircraft'].forEach(t => {
     const sec = document.getElementById('toolTab-' + t);
     if (sec) sec.style.display = t === tab ? 'block' : 'none';
     const btn = document.getElementById('tab-' + t);
     if (btn) { btn.style.borderBottomColor = t === tab ? colors[t] : 'transparent'; btn.style.color = t === tab ? colors[t] : '#4a5f72'; }
   });
+}
+
+async function fetchFlightStatus() {
+  const flightNum = document.getElementById('flightNumInput').value.trim().toUpperCase();
+  if (!flightNum) return;
+  const result = document.getElementById('flightStatusResult');
+  result.innerHTML = '<div style="color:#4a9eff;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">TRACKING...</div>';
+  try {
+    const res = await fetch('/api/flight-status/' + flightNum);
+    const data = await res.json();
+    if (data.error || data.detail) {
+      result.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;text-align:center;padding:20px;">Flight not found</div>';
+      return;
+    }
+    result.innerHTML = `
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:8px;padding:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#4a9eff;">${data.flight_number || flightNum}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#2ec4b6;">${data.status || '—'}</div>
+        </div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;margin-bottom:12px;">${data.airline || ''}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:10px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:6px;">DEPARTURE</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;margin-bottom:4px;">${data.departure?.airport || '—'}</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">Sched: ${data.departure?.scheduled_time || '—'}</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#2ec4b6;">Actual: ${data.departure?.actual_time || '—'}</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">Gate: ${data.departure?.gate || '—'}</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:10px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:6px;">ARRIVAL</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;margin-bottom:4px;">${data.arrival?.airport || '—'}</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">Sched: ${data.arrival?.scheduled_time || '—'}</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#2ec4b6;">Est: ${data.arrival?.estimated_time || '—'}</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">Gate: ${data.arrival?.gate || '—'}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error tracking flight</div>';
+  }
+}
+
+async function fetchAircraft() {
+  const reg = document.getElementById('aircraftRegInput').value.trim().toUpperCase();
+  if (!reg) return;
+  const result = document.getElementById('aircraftResult');
+  result.innerHTML = '<div style="color:#b57bff;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">SEARCHING...</div>';
+  try {
+    const res = await fetch('/api/aircraft/' + reg);
+    const data = await res.json();
+    if (!data.found || !data.aircraft) {
+      result.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;text-align:center;padding:20px;">Aircraft not found</div>';
+      return;
+    }
+    const a = data.aircraft;
+    const photo = a.photos?.[0]?.image || '';
+    result.innerHTML = `
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:8px;padding:16px;">
+        ${photo ? '<img src="' + photo + '" style="width:100%;border-radius:6px;margin-bottom:12px;">' : ''}
+        <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#b57bff;margin-bottom:4px;">${a.registration}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;margin-bottom:12px;">${a.manufacturer || ''} ${a.type_name || ''}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">ICAO24: ${a.icao24 || '—'}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">Owner: ${a.owner_operator || '—'}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">Built: ${a.year_built || '—'}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">Military: ${a.is_military ? 'Yes' : 'No'}</div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error looking up aircraft</div>';
+  }
 }
 
 async function fetchNavaids() {
