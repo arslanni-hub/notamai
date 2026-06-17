@@ -5505,11 +5505,8 @@ async function fetchRawData() {
           pirepSubHeader.textContent = 'PIREP';
           pirepSec.appendChild(pirepSubHeader);
 
-          // Store raw texts by index to avoid attribute encoding issues
-          const pirepRawTexts = pireps.map(p => p.rawOb || p.raw || '');
-
-          const pirepList = document.createElement('div');
-          pirepList.innerHTML = pireps.map((p, i) => {
+          pireps.forEach(p => {
+            const rawText = p.rawOb || p.raw || '';
             const altitude = p.fltLvl ? (p.fltLvl * 100) + ' ft' : 'N/A';
             const hazards = [];
             if (p.tbInt1) hazards.push('Turbulence: ' + p.tbInt1 + (p.tbType1 ? ' ' + p.tbType1 : ''));
@@ -5519,51 +5516,101 @@ async function fetchRawData() {
             const obsDate = p.obsTime ? new Date(p.obsTime * 1000) : null;
             const minutesAgo = obsDate ? Math.round((Date.now() - obsDate.getTime()) / 60000) : null;
             const timeText = minutesAgo !== null ? (minutesAgo < 60 ? minutesAgo + ' min ago' : Math.floor(minutesAgo/60) + 'h ago') : '';
-            return `
-              <div class="pirep-card" data-idx="${i}" style="background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;margin-bottom:8px;transition:border-color 0.2s;cursor:default;position:relative;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                  <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:#f4c430;">${p.icaoId || '—'}</div>
-                  <div style="display:flex;align-items:center;gap:8px;position:relative;">
-                    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;">${timeText}</div>
-                    <div class="pirep-analyze" data-idx="${i}" style="position:relative;width:20px;height:20px;display:flex;align-items:center;justify-content:center;opacity:0;cursor:pointer;font-size:14px;transition:opacity 0.2s;">
-                      ✨
-                      <div class="pirep-tooltip" style="position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;">Analyze</div>
-                    </div>
-                  </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
-                  <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">ALT: ${altitude}</div>
-                  <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">A/C: ${p.acType || '—'}</div>
-                </div>
-                <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.5;">${hazardText}</div>
+
+            const wrapper = document.createElement('div');
+            wrapper.style.marginBottom = '8px';
+
+            const pirepBox = document.createElement('div');
+            pirepBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;transition:border-color 0.2s;cursor:default;position:relative;';
+
+            pirepBox.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:#f4c430;">${p.icaoId || '—'}</div>
+                <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;">${timeText}</div>
               </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+                <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">ALT: ${altitude}</div>
+                <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">A/C: ${p.acType || '—'}</div>
+              </div>
+              <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.5;">${hazardText}</div>
             `;
-          }).join('');
-          pirepSec.appendChild(pirepList);
 
-          console.log('[PIREP WIRING] Found', pirepList.querySelectorAll('.pirep-analyze').length, 'analyze icons');
+            // cornerIcon — exact NOTAM pattern
+            const cornerIcon = document.createElement('div');
+            cornerIcon.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+            cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
+            const tooltip = document.createElement('div');
+            tooltip.textContent = 'Analyze';
+            tooltip.style.cssText = "position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;";
+            cornerIcon.appendChild(tooltip);
+            pirepBox.appendChild(cornerIcon);
 
-          pirepList.querySelectorAll('.pirep-card').forEach(card => {
-            const icon = card.querySelector('.pirep-analyze');
-            card.addEventListener('mouseenter', () => { card.style.borderColor = '#f4c430'; if (icon) icon.style.opacity = '1'; });
-            card.addEventListener('mouseleave', () => { card.style.borderColor = '#1a2a3a'; if (icon) icon.style.opacity = '0'; });
-          });
+            const analysisDiv = document.createElement('div');
+            analysisDiv.style.cssText = "display:none;position:relative;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #f4c430;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;";
 
-          pirepList.querySelectorAll('.pirep-analyze').forEach(icon => {
-            const tip = icon.querySelector('.pirep-tooltip');
-            icon.addEventListener('mouseenter', e => { e.stopPropagation(); if (tip) tip.style.opacity = '1'; });
-            icon.addEventListener('mouseleave', e => { e.stopPropagation(); if (tip) tip.style.opacity = '0'; });
-            icon.addEventListener('click', function(e) {
+            pirepBox.onmouseenter = function() { this.style.borderColor = '#f4c430'; cornerIcon.style.opacity = '1'; };
+            pirepBox.onmouseleave = function() {
+              if (analysisDiv.style.display !== 'block') { this.style.borderColor = '#1a2a3a'; cornerIcon.style.opacity = '0'; }
+            };
+            cornerIcon.onmouseenter = function(e) { e.stopPropagation(); tooltip.style.opacity = '1'; };
+            cornerIcon.onmouseleave = function(e) { e.stopPropagation(); tooltip.style.opacity = '0'; };
+
+            cornerIcon.onclick = async function(e) {
               e.stopPropagation();
-              e.preventDefault();
-              const idx = parseInt(this.getAttribute('data-idx'));
-              console.log('[PIREP CLICK] Icon clicked, idx:', idx, 'raw:', pirepRawTexts[idx]);
-              if (typeof analyzePirep === 'function') {
-                analyzePirep(pirepRawTexts[idx]);
-              } else {
-                console.log('[PIREP CLICK] analyzePirep is not a function!');
+              if (analysisDiv.style.display === 'block') {
+                analysisDiv.style.display = 'none';
+                cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
+                cornerIcon.appendChild(tooltip);
+                tooltip.textContent = 'Analyze';
+                pirepBox.style.borderColor = '#1a2a3a';
+                cornerIcon.style.opacity = '0';
+                return;
               }
-            });
+              analysisDiv.style.display = 'block';
+              analysisDiv.innerHTML = '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;display:flex;align-items:center;gap:6px;"><span id="pirepLoadingDots">Analyzing</span></div>';
+              let dots = 0;
+              const dotsInterval = setInterval(() => { dots=(dots+1)%4; const el=analysisDiv.querySelector('#pirepLoadingDots'); if(el) el.textContent='Analyzing'+'.'.repeat(dots); }, 400);
+              cornerIcon.innerHTML = '<span style="font-size:13px;opacity:0.4;">✨</span>';
+              tooltip.textContent = 'Analyzing...';
+              try {
+                const response = await fetch('/api/analyze-notam', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'x-user-id': firebase.auth().currentUser?.uid || '' },
+                  body: JSON.stringify({ notam: rawText, type: 'PIREP', prompt: 'Analyze this Pilot Report (PIREP): ' + rawText + '. Explain: 1) What hazard was reported 2) Severity level 3) Operational impact 4) Pilot recommendation. Keep under 100 words, no markdown.' })
+                });
+                if (response.status === 403) {
+                  clearInterval(dotsInterval);
+                  analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
+                  cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
+                  cornerIcon.appendChild(tooltip);
+                  return;
+                }
+                const data = await response.json();
+                clearInterval(dotsInterval);
+                analysisDiv.innerHTML = '';
+                streamAnalysisText(analysisDiv, data.analysis || 'Unable to analyze.', '#f4c430', function() {
+                  analysisDiv.style.display = 'none';
+                  pirepBox.style.borderColor = '#1a2a3a';
+                  cornerIcon.style.opacity = '0';
+                  cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
+                  cornerIcon.appendChild(tooltip);
+                  tooltip.textContent = 'Analyze';
+                });
+                cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
+                cornerIcon.appendChild(tooltip);
+                tooltip.textContent = 'Hide';
+              } catch(err) {
+                clearInterval(dotsInterval);
+                analysisDiv.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;">Error analyzing. Please try again.</div>';
+                cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
+                cornerIcon.appendChild(tooltip);
+                tooltip.textContent = 'Analyze';
+              }
+            };
+
+            wrapper.appendChild(pirepBox);
+            wrapper.appendChild(analysisDiv);
+            pirepSec.appendChild(wrapper);
           });
         }
       })
