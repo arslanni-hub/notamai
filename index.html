@@ -4876,7 +4876,7 @@ async function openAnalysisPanel(title, data, prompt, color) {
 
 async function analyzePirep(raw) {
   openAnalysisPanel('PIREP ANALYSIS', raw,
-    'Analyze this Pilot Report (PIREP). Explain: 1) Weather conditions reported (turbulence, icing, wind shear) 2) Location and altitude 3) Severity level and operational impact 4) Specific recommendations for pilots on this route. Be concise and practical.',
+    'Analyze this Pilot Report (PIREP): ' + raw + '. Explain: 1) What hazard was reported 2) Severity level 3) Operational impact 4) Pilot recommendation. Keep under 100 words, no markdown.',
     '#f4c430'
   );
 }
@@ -5515,10 +5515,13 @@ async function fetchRawData() {
             const minutesAgo = obsDate ? Math.round((Date.now() - obsDate.getTime()) / 60000) : null;
             const timeText = minutesAgo !== null ? (minutesAgo < 60 ? minutesAgo + ' min ago' : Math.floor(minutesAgo/60) + 'h ago') : '';
             return `
-              <div class="pirep-card" style="background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;margin-bottom:8px;transition:border-color 0.2s;cursor:default;" data-raw="${encodeURIComponent(p.rawOb || p.raw || '')}">
+              <div class="pirep-card" style="background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;margin-bottom:8px;transition:border-color 0.2s;cursor:default;position:relative;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                   <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:#f4c430;">${p.icaoId || '—'}</div>
-                  <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;">${timeText}</div>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;">${timeText}</div>
+                    <span class="pirep-analyze" data-raw="${(p.rawOb || p.raw || '').replace(/"/g, '&quot;')}" style="opacity:0;cursor:pointer;font-size:14px;transition:opacity 0.2s;">✨</span>
+                  </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
                   <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;">ALT: ${altitude}</div>
@@ -5531,8 +5534,17 @@ async function fetchRawData() {
           pirepSec.appendChild(pirepList);
 
           pirepList.querySelectorAll('.pirep-card').forEach(card => {
-            card.onmouseenter = function() { this.style.borderColor = '#f4c430'; };
-            card.onmouseleave = function() { this.style.borderColor = '#1a2a3a'; };
+            const icon = card.querySelector('.pirep-analyze');
+            card.addEventListener('mouseenter', () => { card.style.borderColor = '#f4c430'; if (icon) icon.style.opacity = '1'; });
+            card.addEventListener('mouseleave', () => { card.style.borderColor = '#1a2a3a'; if (icon) icon.style.opacity = '0'; });
+          });
+
+          pirepList.querySelectorAll('.pirep-analyze').forEach(icon => {
+            icon.addEventListener('click', function(e) {
+              e.stopPropagation();
+              const raw = this.getAttribute('data-raw');
+              analyzePirep(raw);
+            });
           });
         }
       })
