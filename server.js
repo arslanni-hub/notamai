@@ -2193,6 +2193,25 @@ MANDATORY:
     return;
   }
 
+  if (req.method === 'GET' && req.url.startsWith('/api/airsigmet/')) {
+    const icao = req.url.split('/api/airsigmet/')[1].toUpperCase();
+    try {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/weather/airsigmet/' + icao, {
+        headers: {
+          'X-RapidAPI-Key': process.env.SKYLINK_KEY,
+          'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
+        }
+      });
+      console.log('[AIRSIGMET]', icao, JSON.stringify(data).slice(0, 300));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch(e) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/raw/')) {
     const urlParams = req.url.replace('/api/raw/', '');
     const [type, icao] = urlParams.split('/');
