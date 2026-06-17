@@ -6589,6 +6589,7 @@ document.addEventListener('click', function(e) {
     <button id="tab-flighttime" onclick="switchToolTab('flighttime')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">FLT TIME</button>
     <button id="tab-flightstatus" onclick="switchToolTab('flightstatus')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">FLT STATUS</button>
     <button id="tab-aircraft" onclick="switchToolTab('aircraft')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">AIRCRAFT</button>
+    <button id="tab-aircraftperf" onclick="switchToolTab('aircraftperf')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">A/C PERF</button>
   </div>
 
   <!-- Tab contents -->
@@ -6725,6 +6726,18 @@ document.addEventListener('click', function(e) {
       <div id="aircraftResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter a tail number to look up aircraft</div>
     </div>
 
+    <!-- AIRCRAFT PERFORMANCE TAB -->
+    <div id="toolTab-aircraftperf" style="display:none;">
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input id="acPerfInput" type="text" placeholder="ICAO type (e.g. B738)"
+          style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;box-sizing:border-box;"
+          oninput="this.value=this.value.toUpperCase()"
+          onkeydown="if(event.key==='Enter')fetchAircraftPerf()">
+        <button onclick="fetchAircraftPerf()" style="background:#2ec4b6;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">LOOKUP</button>
+      </div>
+      <div id="acPerfResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter aircraft ICAO type to see performance specs</div>
+    </div>
+
   </div>
 </div>
 
@@ -6754,8 +6767,8 @@ function closeToolsPanel() {
 }
 
 function switchToolTab(tab) {
-  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff', distance: '#b57bff', navaids: '#a3e635', flighttime: '#f4841a', flightstatus: '#4a9eff', aircraft: '#b57bff' };
-  ['airport','sunmoon','winds','charts','distance','navaids','flighttime','flightstatus','aircraft'].forEach(t => {
+  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff', distance: '#b57bff', navaids: '#a3e635', flighttime: '#f4841a', flightstatus: '#4a9eff', aircraft: '#b57bff', aircraftperf: '#2ec4b6' };
+  ['airport','sunmoon','winds','charts','distance','navaids','flighttime','flightstatus','aircraft','aircraftperf'].forEach(t => {
     const sec = document.getElementById('toolTab-' + t);
     if (sec) sec.style.display = t === tab ? 'block' : 'none';
     const btn = document.getElementById('tab-' + t);
@@ -6834,6 +6847,56 @@ async function fetchAircraft() {
     `;
   } catch(e) {
     result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error looking up aircraft</div>';
+  }
+}
+
+async function fetchAircraftPerf() {
+  const icaoType = document.getElementById('acPerfInput').value.trim().toUpperCase();
+  if (!icaoType) return;
+  const result = document.getElementById('acPerfResult');
+  result.innerHTML = '<div style="color:#2ec4b6;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">LOADING...</div>';
+  try {
+    const res = await fetch('/api/aircraft-performance/' + icaoType);
+    const data = await res.json();
+    if (data.error || data.detail || !data.icao_type) {
+      result.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;text-align:center;padding:20px;">Aircraft type not found</div>';
+      return;
+    }
+    result.innerHTML = `
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:8px;padding:16px;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#2ec4b6;margin-bottom:2px;">${data.icao_type}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;margin-bottom:14px;">${data.name}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:10px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">CRUISE SPEED</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:15px;color:#ffffff;">${data.cruise_speed_ktas} kt</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:10px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">CEILING</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:15px;color:#ffffff;">${data.service_ceiling_ft?.toLocaleString()} ft</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:10px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">RANGE</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:15px;color:#ffffff;">${data.max_range_nm?.toLocaleString()} nm</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:10px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">MAX PAX</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:15px;color:#ffffff;">${data.max_passengers || '—'}</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:10px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">WINGSPAN</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:15px;color:#ffffff;">${data.wing_span_m} m</div>
+          </div>
+          <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;padding:10px;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">MTOW</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:15px;color:#ffffff;">${data.mtow_t} t</div>
+          </div>
+        </div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:12px;letter-spacing:1px;">${data.engine_type} · Wake Cat ${data.wake_category}</div>
+      </div>
+    `;
+  } catch(e) {
+    result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error fetching data</div>';
   }
 }
 
