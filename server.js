@@ -2196,16 +2196,32 @@ MANDATORY:
   if (req.method === 'GET' && req.url.startsWith('/api/airsigmet/')) {
     const icao = req.url.split('/api/airsigmet/')[1].toUpperCase();
     try {
-      const data = await fetchURL('https://skylink-api.p.rapidapi.com/weather/airsigmet?icao=' + icao, {
+      // First get airport coordinates from aviationweather.gov
+      const airportData = await fetchURL('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
+      const airport = Array.isArray(airportData) ? airportData[0] : null;
+
+      if (!airport || !airport.lat || !airport.lon) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify([]));
+        return;
+      }
+
+      const lat = airport.lat;
+      const lon = airport.lon;
+      const buffer = 3; // degrees, roughly 200nm
+      const bbox = (lat - buffer) + ',' + (lon - buffer) + ',' + (lat + buffer) + ',' + (lon + buffer);
+
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/weather/airsigmet?bbox=' + bbox, {
         headers: {
           'X-RapidAPI-Key': process.env.SKYLINK_KEY,
           'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
         }
       });
-      console.log('[AIRSIGMET]', icao, JSON.stringify(data).slice(0, 300));
+      console.log('[AIRSIGMET]', icao, 'bbox:', bbox, JSON.stringify(data).slice(0, 300));
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
     } catch(e) {
+      console.log('[AIRSIGMET ERROR]', e.message);
       res.writeHead(500);
       res.end(JSON.stringify({ error: e.message }));
     }
