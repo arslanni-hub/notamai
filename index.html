@@ -5448,17 +5448,13 @@ async function fetchRawData() {
     sigmetSection.appendChild(airmetContainer);
     sigmetSec.appendChild(sigmetSection);
 
-    // Fetch AIRMETs into sigmet section (US airspace only)
-    if (!icao.startsWith('K') && !icao.startsWith('P')) {
-      const noAirmet = document.createElement('div');
-      noAirmet.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;padding:8px 0;";
-      noAirmet.textContent = 'AIRMETs are only available for US airspace';
-      airmetContainer.appendChild(noAirmet);
-    } else {
-    fetch('/api/airmet/' + icao)
+    // Fetch AIRMET/SIGMET globally via SkyLink bbox
+    fetch('/api/airsigmet/' + icao)
       .then(r => r.json())
       .then(airmetData => {
-        const airmets = Array.isArray(airmetData) ? airmetData : [];
+        const reports = airmetData?.reports || (Array.isArray(airmetData) ? airmetData : []);
+        console.log('[AIRSIGMET DATA]', reports);
+        const airmets = reports.filter(r => r.airSigmetType === 'AIRMET' || r.type === 'AIRMET' || (!r.airSigmetType && !r.type));
         if (airmets.length === 0) {
           const noAirmet = document.createElement('div');
           noAirmet.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;padding:8px 0;";
@@ -5469,15 +5465,15 @@ async function fetchRawData() {
         // Group by validTimeFrom
         const groups = {};
         airmets.forEach(a => {
-          const key = a.validTimeFrom || a.timeFrom || 'UNKNOWN';
+          const key = a.validTimeFrom || a.timeFrom || a.validTime || 'UNKNOWN';
           if (!groups[key]) groups[key] = [];
           groups[key].push(a);
         });
         Object.entries(groups).forEach(([timeKey, group]) => {
           const firstA = group[0];
-          const validFrom = firstA.validTimeFrom || firstA.timeFrom || '';
-          const validTo = firstA.validTimeTo || firstA.timeTo || '';
-          const region = firstA.region || firstA.airSigmetType || '';
+          const validFrom = firstA.validTimeFrom || firstA.timeFrom || firstA.validTime || '';
+          const validTo = firstA.validTimeTo || firstA.timeTo || firstA.expireTime || '';
+          const region = firstA.region || firstA.area || firstA.issuingCenter || '';
           const hazards = group.map(a => hazardDescMap[a.hazard] || a.hazard || 'GENERAL').filter(Boolean);
           const uniqueHazards = [...new Set(hazards)];
 
@@ -5592,7 +5588,6 @@ async function fetchRawData() {
         errDiv.textContent = 'Error fetching AIRMETs';
         airmetContainer.appendChild(errDiv);
       });
-    } // end US airspace check
 
     switchRawTab('notam');
 
