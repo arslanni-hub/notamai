@@ -7507,27 +7507,26 @@ function searchAptFir(query) {
 
   // AIRPORT mode — local database search
   if (aptMode === 'airport' && query.length >= 2) {
-    const results = Object.entries(AIRPORT_DATABASE)
-      .filter(([code, apt]) =>
-        code.toLowerCase().includes(q) ||
-        apt.name.toLowerCase().includes(q) ||
-        apt.city.toLowerCase().includes(q) ||
-        apt.country.toLowerCase().includes(q)
-      )
-      .slice(0, 8);
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">Searching...</div>';
 
-    if (results.length > 0) {
-      resultsDiv.style.display = 'block';
-      resultsDiv.innerHTML = results.map(([code, apt]) => `
-        <div onclick="selectAptFir('${code}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
-          <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${code}</span>
-          <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${apt.name}, ${apt.city}</span>
-        </div>
-      `).join('');
-    } else {
-      resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">No results found</div>';
-      resultsDiv.style.display = 'block';
-    }
+    fetch('/api/airport-search/' + encodeURIComponent(query))
+      .then(r => r.json())
+      .then(data => {
+        if (!data || data.length === 0) {
+          resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">No results found</div>';
+          return;
+        }
+        resultsDiv.innerHTML = data.map(apt => `
+          <div onclick="selectAptFir('${apt.id}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #1a2a3a;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#1a2a3a'" onmouseout="this.style.background='none'">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#4a9eff;">${apt.id}</span>
+            <span style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${apt.name}${apt.city ? ', ' + apt.city : ''}${apt.country ? ', ' + apt.country : ''}</span>
+          </div>
+        `).join('');
+      })
+      .catch(() => {
+        resultsDiv.innerHTML = '<div style="padding:8px 12px;font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">Search failed</div>';
+      });
     return;
   }
 }
