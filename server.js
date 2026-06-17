@@ -2287,6 +2287,19 @@ MANDATORY:
     return;
   }
 
+  if (req.method === 'GET' && req.url.startsWith('/api/routes/')) {
+    const icao = req.url.split('/api/routes/')[1].toUpperCase();
+    try {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/routes/airport/' + icao + '?limit=20&direction=both', {
+        headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' }
+      });
+      console.log('[ROUTES]', icao, JSON.stringify(data).slice(0,300));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch(e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/aircraft/')) {
     const reg = req.url.split('/api/aircraft/')[1].toUpperCase();
     try {
