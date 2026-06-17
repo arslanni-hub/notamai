@@ -2264,6 +2264,29 @@ MANDATORY:
     return;
   }
 
+  if (req.method === 'GET' && req.url.startsWith('/api/live-traffic/')) {
+    const icao = req.url.split('/api/live-traffic/')[1].toUpperCase();
+    try {
+      // Get airport coordinates
+      const airportData = await fetchURL('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
+      const airport = Array.isArray(airportData) ? airportData[0] : null;
+
+      if (!airport || !airport.lat || !airport.lon) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ aircraft: [] }));
+        return;
+      }
+
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/adsb/aircraft?lat=' + airport.lat + '&lon=' + airport.lon + '&radius=50&limit=20&photos=false', {
+        headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' }
+      });
+      console.log('[LIVE TRAFFIC]', icao, JSON.stringify(data).slice(0,300));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+    } catch(e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/aircraft/')) {
     const reg = req.url.split('/api/aircraft/')[1].toUpperCase();
     try {
