@@ -5464,24 +5464,101 @@ async function fetchRawData() {
         }
         ac.innerHTML = '';
         reports.forEach(r => {
+          const rawText = r.raw_text || r.text || r.rawOb || JSON.stringify(r).slice(0, 300);
+
+          const wrapper = document.createElement('div');
+          wrapper.style.marginBottom = '8px';
+
           const card = document.createElement('div');
-          card.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;margin-bottom:8px;position:relative;transition:border-color 0.2s;cursor:default;';
-          card.onmouseenter = function() { this.style.borderColor = '#9b59b6'; };
-          card.onmouseleave = function() {
-            this.style.borderTopColor = '#1a2a3a';
-            this.style.borderRightColor = '#1a2a3a';
-            this.style.borderBottomColor = '#1a2a3a';
-            this.style.borderLeftColor = '#1a2a3a';
-          };
+          card.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;position:relative;transition:border-color 0.2s;cursor:default;';
+
           const header = document.createElement('div');
           header.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:10px;color:#8a9bb0;letter-spacing:1px;margin-bottom:6px;';
           header.textContent = (r.type || r.airSigmetType || 'AIRSIGMET').toUpperCase() + (r.hazard ? ' · ' + r.hazard : '');
+
           const body = document.createElement('div');
           body.style.cssText = 'font-family:Share Tech Mono,monospace;font-size:12px;color:#8a9bb0;line-height:1.6;white-space:pre-wrap;';
-          body.textContent = r.raw_text || r.text || r.rawOb || JSON.stringify(r).slice(0, 300);
+          body.textContent = rawText;
+
           card.appendChild(header);
           card.appendChild(body);
-          ac.appendChild(card);
+
+          // cornerIcon — exact PIREP/NOTAM pattern, purple
+          const cornerIcon = document.createElement('div');
+          cornerIcon.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+          cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
+          const tooltip = document.createElement('div');
+          tooltip.textContent = 'Analyze';
+          tooltip.style.cssText = "position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;";
+          cornerIcon.appendChild(tooltip);
+          card.appendChild(cornerIcon);
+
+          const analysisDiv = document.createElement('div');
+          analysisDiv.style.cssText = "display:none;position:relative;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #9b59b6;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;";
+
+          card.onmouseenter = function() { this.style.borderColor = '#9b59b6'; cornerIcon.style.opacity = '1'; };
+          card.onmouseleave = function() {
+            if (analysisDiv.style.display !== 'block') { this.style.borderColor = '#1a2a3a'; cornerIcon.style.opacity = '0'; }
+          };
+          cornerIcon.onmouseenter = function(e) { e.stopPropagation(); tooltip.style.opacity = '1'; };
+          cornerIcon.onmouseleave = function(e) { e.stopPropagation(); tooltip.style.opacity = '0'; };
+
+          cornerIcon.onclick = async function(e) {
+            e.stopPropagation();
+            if (analysisDiv.style.display === 'block') {
+              analysisDiv.style.display = 'none';
+              cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
+              cornerIcon.appendChild(tooltip);
+              tooltip.textContent = 'Analyze';
+              card.style.borderColor = '#1a2a3a';
+              cornerIcon.style.opacity = '0';
+              return;
+            }
+            analysisDiv.style.display = 'block';
+            analysisDiv.innerHTML = '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;display:flex;align-items:center;gap:6px;"><span id="airsigmetDots">Analyzing</span></div>';
+            let dots = 0;
+            const dotsInterval = setInterval(() => { dots=(dots+1)%4; const el=analysisDiv.querySelector('#airsigmetDots'); if(el) el.textContent='Analyzing'+'.'.repeat(dots); }, 400);
+            cornerIcon.innerHTML = '<span style="font-size:13px;opacity:0.4;">✨</span>';
+            tooltip.textContent = 'Analyzing...';
+            try {
+              const response = await fetch('/api/analyze-notam', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-user-id': firebase.auth().currentUser?.uid || '' },
+                body: JSON.stringify({ notam: rawText, type: 'AIRMET', prompt: 'Analyze this AIRMET/SIGMET report: ' + rawText + '. Explain: 1) Type and severity of hazard 2) Affected area and altitude 3) Operational impact 4) Pilot recommendation (GO/NO-GO guidance). Keep under 100 words, no markdown.' })
+              });
+              if (response.status === 403) {
+                clearInterval(dotsInterval);
+                analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
+                cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
+                cornerIcon.appendChild(tooltip);
+                return;
+              }
+              const data = await response.json();
+              clearInterval(dotsInterval);
+              analysisDiv.innerHTML = '';
+              streamAnalysisText(analysisDiv, data.analysis || 'Unable to analyze.', '#9b59b6', function() {
+                analysisDiv.style.display = 'none';
+                card.style.borderColor = '#1a2a3a';
+                cornerIcon.style.opacity = '0';
+                cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
+                cornerIcon.appendChild(tooltip);
+                tooltip.textContent = 'Analyze';
+              });
+              cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
+              cornerIcon.appendChild(tooltip);
+              tooltip.textContent = 'Hide';
+            } catch(err) {
+              clearInterval(dotsInterval);
+              analysisDiv.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;">Error analyzing. Please try again.</div>';
+              cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
+              cornerIcon.appendChild(tooltip);
+              tooltip.textContent = 'Analyze';
+            }
+          };
+
+          wrapper.appendChild(card);
+          wrapper.appendChild(analysisDiv);
+          ac.appendChild(wrapper);
         });
       })
       .catch(() => {
