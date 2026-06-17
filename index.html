@@ -6495,8 +6495,8 @@ document.addEventListener('click', function(e) {
     <button id="tab-sunmoon" onclick="switchToolTab('sunmoon')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">SUN/MOON</button>
     <button id="tab-winds" onclick="switchToolTab('winds')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">WINDS ALOFT</button>
     <button id="tab-charts" onclick="switchToolTab('charts')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">CHARTS</button>
-    <button id="tab-distance" onclick="switchToolTab('distance')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">DIST/BRG</button>
     <button id="tab-navaids" onclick="switchToolTab('navaids')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">NAVAIDS</button>
+    <button id="tab-distance" onclick="switchToolTab('distance')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">DIST/BRG</button>
     <button id="tab-flighttime" onclick="switchToolTab('flighttime')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">FLIGHT TIME</button>
   </div>
 
@@ -6588,7 +6588,7 @@ document.addEventListener('click', function(e) {
           style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;box-sizing:border-box;"
           oninput="this.value=this.value.toUpperCase()"
           onkeydown="if(event.key==='Enter')fetchNavaids()">
-        <button onclick="fetchNavaids()" style="background:#2ec4b6;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
+        <button onclick="fetchNavaids()" style="background:#a3e635;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
       </div>
       <div id="navaidsResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter an ICAO code to find navigation aids</div>
     </div>
@@ -6639,7 +6639,7 @@ function closeToolsPanel() {
 }
 
 function switchToolTab(tab) {
-  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff', distance: '#b57bff', navaids: '#2ec4b6', flighttime: '#f4841a' };
+  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff', distance: '#b57bff', navaids: '#a3e635', flighttime: '#f4841a' };
   ['airport','sunmoon','winds','charts','distance','navaids','flighttime'].forEach(t => {
     const sec = document.getElementById('toolTab-' + t);
     if (sec) sec.style.display = t === tab ? 'block' : 'none';
@@ -6652,7 +6652,7 @@ async function fetchNavaids() {
   const icao = document.getElementById('navaidsIcaoInput').value.trim().toUpperCase();
   if (!icao || icao.length < 3) return;
   const result = document.getElementById('navaidsResult');
-  result.innerHTML = '<div style="color:#2ec4b6;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">SEARCHING...</div>';
+  result.innerHTML = '<div style="color:#a3e635;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">SEARCHING...</div>';
   try {
     const res = await fetch('/api/navaids/' + icao);
     const data = await res.json();
@@ -6662,9 +6662,9 @@ async function fetchNavaids() {
       return;
     }
     result.innerHTML = navaids.map(n => `
-      <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #2ec4b6;border-radius:4px;padding:12px;margin-bottom:8px;">
+      <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #a3e635;border-radius:4px;padding:12px;margin-bottom:8px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#2ec4b6;">${n.ident}</div>
+          <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#a3e635;">${n.ident}</div>
           <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;">${n.type}</div>
         </div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;margin-bottom:8px;">${n.name}</div>
