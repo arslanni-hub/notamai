@@ -851,6 +851,28 @@ The ! prefix and date format (YYMMDDHHmm) are standard ICAO format - keep them e
 
 NOTAM LIMITS: Show maximum 8 NOTAMs per airport, prioritizing CRITICAL and HIGH severity first. Order NOTAMs by most recently issued first (highest NOTAM number first). For en-route FIRs, show maximum 2 NOTAMs per FIR with brief summaries only — do not include raw NOTAM text blocks for en-route FIRs.`;
 
+const AIRCRAFT_PERF_FALLBACK = {
+  'B747': { icao_type:'B747', name:'BOEING 747-400', engine_type:'Jet', engine_code:'L4J', wake_category:'H', cruise_speed_ktas:490, service_ceiling_ft:45000, max_range_nm:7260, wing_span_m:64.4, length_m:70.7, mtow_t:396.9, max_passengers:524 },
+  'B748': { icao_type:'B748', name:'BOEING 747-8', engine_type:'Jet', engine_code:'L4J', wake_category:'H', cruise_speed_ktas:490, service_ceiling_ft:43100, max_range_nm:7730, wing_span_m:68.4, length_m:76.3, mtow_t:447.7, max_passengers:467 },
+  'B777': { icao_type:'B777', name:'BOEING 777-200', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:490, service_ceiling_ft:43100, max_range_nm:5240, wing_span_m:60.9, length_m:63.7, mtow_t:247.2, max_passengers:440 },
+  'B77W': { icao_type:'B77W', name:'BOEING 777-300ER', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:490, service_ceiling_ft:43100, max_range_nm:7370, wing_span_m:64.8, length_m:73.9, mtow_t:351.5, max_passengers:550 },
+  'B772': { icao_type:'B772', name:'BOEING 777-200', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:490, service_ceiling_ft:43100, max_range_nm:5240, wing_span_m:60.9, length_m:63.7, mtow_t:247.2, max_passengers:440 },
+  'B773': { icao_type:'B773', name:'BOEING 777-300', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:490, service_ceiling_ft:43100, max_range_nm:6030, wing_span_m:60.9, length_m:73.9, mtow_t:299.4, max_passengers:550 },
+  'B787': { icao_type:'B787', name:'BOEING 787-8 Dreamliner', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:488, service_ceiling_ft:43000, max_range_nm:7355, wing_span_m:60.1, length_m:56.7, mtow_t:227.9, max_passengers:359 },
+  'B788': { icao_type:'B788', name:'BOEING 787-8 Dreamliner', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:488, service_ceiling_ft:43000, max_range_nm:7355, wing_span_m:60.1, length_m:56.7, mtow_t:227.9, max_passengers:359 },
+  'B789': { icao_type:'B789', name:'BOEING 787-9 Dreamliner', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:488, service_ceiling_ft:43000, max_range_nm:7635, wing_span_m:60.1, length_m:62.8, mtow_t:254.0, max_passengers:406 },
+  'B78X': { icao_type:'B78X', name:'BOEING 787-10 Dreamliner', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:488, service_ceiling_ft:43000, max_range_nm:6430, wing_span_m:60.1, length_m:68.3, mtow_t:254.0, max_passengers:440 },
+  'A330': { icao_type:'A330', name:'AIRBUS A330-300', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:470, service_ceiling_ft:41450, max_range_nm:6340, wing_span_m:60.3, length_m:63.7, mtow_t:242.0, max_passengers:440 },
+  'A332': { icao_type:'A332', name:'AIRBUS A330-200', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:470, service_ceiling_ft:41450, max_range_nm:7250, wing_span_m:60.3, length_m:58.8, mtow_t:242.0, max_passengers:406 },
+  'A333': { icao_type:'A333', name:'AIRBUS A330-300', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:470, service_ceiling_ft:41450, max_range_nm:6340, wing_span_m:60.3, length_m:63.7, mtow_t:242.0, max_passengers:440 },
+  'A35K': { icao_type:'A35K', name:'AIRBUS A350-1000', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:488, service_ceiling_ft:43100, max_range_nm:8700, wing_span_m:64.75, length_m:73.8, mtow_t:319.0, max_passengers:480 },
+  'A359': { icao_type:'A359', name:'AIRBUS A350-900', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:488, service_ceiling_ft:43100, max_range_nm:8100, wing_span_m:64.75, length_m:66.8, mtow_t:280.0, max_passengers:440 },
+  'A350': { icao_type:'A350', name:'AIRBUS A350-900', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:488, service_ceiling_ft:43100, max_range_nm:8100, wing_span_m:64.75, length_m:66.8, mtow_t:280.0, max_passengers:440 },
+  'A380': { icao_type:'A380', name:'AIRBUS A380-800', engine_type:'Jet', engine_code:'L4J', wake_category:'J', cruise_speed_ktas:488, service_ceiling_ft:43000, max_range_nm:8000, wing_span_m:79.8, length_m:72.7, mtow_t:575.0, max_passengers:853 },
+  'MD11': { icao_type:'MD11', name:'MCDONNELL DOUGLAS MD-11', engine_type:'Jet', engine_code:'L3J', wake_category:'H', cruise_speed_ktas:475, service_ceiling_ft:43100, max_range_nm:6480, wing_span_m:51.7, length_m:61.6, mtow_t:285.99, max_passengers:410 },
+  'B767': { icao_type:'B767', name:'BOEING 767-300', engine_type:'Jet', engine_code:'L2J', wake_category:'H', cruise_speed_ktas:459, service_ceiling_ft:43100, max_range_nm:6385, wing_span_m:47.6, length_m:54.9, mtow_t:186.9, max_passengers:375 },
+};
+
 const server = http.createServer(async (req, res) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
 
@@ -2205,6 +2227,13 @@ MANDATORY:
         headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' }
       });
       console.log('[AIRCRAFT PERF]', icaoType, JSON.stringify(data).slice(0,300));
+      if (data.detail || !data.icao_type) {
+        if (AIRCRAFT_PERF_FALLBACK[icaoType]) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(AIRCRAFT_PERF_FALLBACK[icaoType]));
+          return;
+        }
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
     } catch(e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
