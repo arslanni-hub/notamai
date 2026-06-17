@@ -2188,7 +2188,7 @@ MANDATORY:
   if (req.method === 'GET' && req.url.startsWith('/api/carbon/')) {
     const parts = req.url.split('/api/carbon/')[1].split('/');
     try {
-      const data = await fetchURL('https://skylink-api.p.rapidapi.com/carbon?origin=' + parts[0] + '&destination=' + parts[1], {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/carbon/estimate?departure_icao=' + parts[0] + '&arrival_icao=' + parts[1], {
         headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' }
       });
       console.log('[CARBON]', parts[0], parts[1], JSON.stringify(data).slice(0,300));
