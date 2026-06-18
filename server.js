@@ -2139,8 +2139,19 @@ MANDATORY:
 
   if (req.method === 'GET' && req.url.startsWith('/api/raw/delays/')) {
     const icao = req.url.split('/api/raw/delays/')[1].toUpperCase();
+    if (!icao.startsWith('K') && !icao.startsWith('P')) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ground_delays: [], ground_stops: [], closures: [], airspace_flow_programs: [], total_alerts: 0, not_us_airport: true }));
+      return;
+    }
     try {
-      const data = await fetchURL('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json&taf=true');
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/delays/faa/' + icao, {
+        headers: {
+          'X-RapidAPI-Key': process.env.SKYLINK_KEY,
+          'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
+        }
+      });
+      console.log('[FAA DELAYS]', icao, JSON.stringify(data).slice(0,300));
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
     } catch(e) {
