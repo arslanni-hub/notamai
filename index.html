@@ -5700,134 +5700,48 @@ async function fetchRawData() {
     fetch('/api/raw/delays/' + icao)
       .then(r => r.json())
       .then(data => {
-        const delays = Array.isArray(data) ? data : [];
-        const airport = delays[0];
-        if (!airport) {
-          delaysSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;">No airport data found</div>';
-        } else {
-          delaysSec.innerHTML = '';
-          const delaysSubHeader = document.createElement('div');
-          delaysSubHeader.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#e63946;letter-spacing:1px;margin-top:10px;margin-bottom:10px;";
-          delaysSubHeader.textContent = 'DELAYS';
-          delaysSec.appendChild(delaysSubHeader);
-          const airportJson = JSON.stringify(airport);
-
-          // Build a readable status string from available fields
-          const lines = [];
-          if (airport.name) lines.push('AIRPORT : ' + airport.name);
-          if (airport.icaoId || airport.iataId) lines.push('IDENT   : ' + [airport.icaoId, airport.iataId].filter(Boolean).join(' / '));
-          if (airport.elev != null) lines.push('ELEV    : ' + airport.elev + ' ft');
-          if (airport.rwyCfg) lines.push('RWY CFG : ' + airport.rwyCfg);
-          if (airport.wx) lines.push('WX      : ' + airport.wx);
-          // Delay indicators
-          const hasDelay = airport.avgDelay || airport.delayIndex || airport.arrDelays || airport.depDelays || airport.gtGrnd || airport.delay;
-          if (airport.avgDelay) lines.push('AVG DLY : ' + airport.avgDelay + ' min');
-          if (airport.arrDelays) lines.push('ARR DLY : ' + airport.arrDelays);
-          if (airport.depDelays) lines.push('DEP DLY : ' + airport.depDelays);
-          if (airport.gtGrnd) lines.push('GND STP : ' + airport.gtGrnd);
-          if (!hasDelay) lines.push('DELAYS  : No active delay programs');
-          if (airport.taf) lines.push('\nTAF:\n' + airport.taf);
-          const displayText = lines.length > 1 ? lines.join('\n') : (airport.rawOb || airportJson.slice(0, 300));
-
-          const wrapper = document.createElement('div');
-          wrapper.style.marginBottom = '8px';
-
-          const delayBox = document.createElement('div');
-          delayBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:12px;position:relative;transition:border-color 0.2s;cursor:default;';
-
-          const body = document.createElement('div');
-          body.style.cssText = 'font-family:\'Share Tech Mono\',monospace;font-size:12px;color:#8a9bb0;line-height:1.6;';
-          body.textContent = displayText;
-          delayBox.appendChild(body);
-
-          const cornerIcon = document.createElement('div');
-          cornerIcon.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
-          cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
-
-          const tooltip = document.createElement('div');
-          tooltip.textContent = 'Analyze';
-          tooltip.style.cssText = "position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;";
-          cornerIcon.appendChild(tooltip);
-          delayBox.appendChild(cornerIcon);
-
-          const analysisDiv = document.createElement('div');
-          analysisDiv.style.cssText = "display:none;position:relative;background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #e63946;border-radius:4px;padding:10px 12px;margin-top:4px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;";
-
-          delayBox.onmouseenter = function() {
-            this.style.borderColor = '#e63946';
-            cornerIcon.style.opacity = '1';
-            cornerIcon.style.color = '#e63946';
-          };
-          delayBox.onmouseleave = function() {
-            if (analysisDiv.style.display !== 'block') {
-              this.style.borderColor = '#1a2a3a';
-              cornerIcon.style.opacity = '0';
-              cornerIcon.style.color = '#1a2a3a';
-            }
-          };
-          cornerIcon.onmouseenter = function(e) { e.stopPropagation(); tooltip.style.opacity = '1'; };
-          cornerIcon.onmouseleave = function(e) { e.stopPropagation(); tooltip.style.opacity = '0'; };
-
-          cornerIcon.onclick = async function(e) {
-            e.stopPropagation();
-            if (analysisDiv.style.display === 'block') {
-              analysisDiv.style.display = 'none';
-              cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
-              cornerIcon.appendChild(tooltip);
-              tooltip.textContent = 'Analyze';
-              delayBox.style.borderColor = '#1a2a3a';
-              cornerIcon.style.opacity = '0';
-              return;
-            }
-            analysisDiv.style.display = 'block';
-            analysisDiv.innerHTML = '<div style="font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#4a5f72;display:flex;align-items:center;gap:6px;"><span id="delayLoadingDots">Analyzing</span></div>';
-            let dots = 0;
-            const dotsInterval = setInterval(() => { dots = (dots+1)%4; const el = analysisDiv.querySelector('#delayLoadingDots'); if (el) el.textContent = 'Analyzing' + '.'.repeat(dots); }, 400);
-            cornerIcon.innerHTML = '<span style="font-size:13px;opacity:0.4;">✨</span>';
-            tooltip.textContent = 'Analyzing...';
-            try {
-              const response = await fetch('/api/analyze-notam', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-user-id': firebase.auth().currentUser?.uid || '' },
-                body: JSON.stringify({ notam: airportJson, type: 'AIRPORT STATUS', prompt: 'Based on this airport data, provide: 1) Current operational status 2) Active runway configuration 3) Any weather or traffic delays 4) Pilot recommendations for arrival/departure. Be brief and actionable.' })
-              });
-              if (response.status === 403) {
-                clearInterval(dotsInterval);
-                analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
-                cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
-                cornerIcon.appendChild(tooltip);
-                return;
-              }
-              const data = await response.json();
-              clearInterval(dotsInterval);
-              analysisDiv.innerHTML = '';
-              streamAnalysisText(analysisDiv, data.analysis || 'Unable to analyze.', '#e63946', function() {
-                analysisDiv.style.display = 'none';
-                delayBox.style.borderColor = '#1a2a3a';
-                cornerIcon.style.opacity = '0';
-                cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
-                cornerIcon.appendChild(tooltip);
-                tooltip.textContent = 'Analyze';
-              });
-              cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
-              cornerIcon.appendChild(tooltip);
-              tooltip.textContent = 'Hide';
-            } catch(e2) {
-              clearInterval(dotsInterval);
-              analysisDiv.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;">Error analyzing. Please try again.</div>';
-              cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
-              cornerIcon.appendChild(tooltip);
-              tooltip.textContent = 'Analyze';
-            }
-          };
-
-          wrapper.appendChild(delayBox);
-          wrapper.appendChild(analysisDiv);
-          delaysSec.appendChild(wrapper);
+        if (data.not_us_airport) {
+          delaysSec.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:12px;padding:10px 0;">FAA delay data is only available for US airports</div>';
+          return;
         }
+
+        const allItems = [];
+        (data.ground_delays || []).forEach(d => allItems.push({ type: 'GROUND DELAY', ...d }));
+        (data.ground_stops || []).forEach(d => allItems.push({ type: 'GROUND STOP', ...d }));
+        (data.closures || []).forEach(d => allItems.push({ type: 'CLOSURE', ...d }));
+        (data.airspace_flow_programs || []).forEach(d => allItems.push({ type: 'AIRSPACE FLOW PROGRAM', ...d }));
+
+        if (allItems.length === 0) {
+          delaysSec.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:10px 0;">No active FAA delays, ground stops, or closures</div>';
+          return;
+        }
+
+        delaysSec.innerHTML = '';
+        allItems.forEach(item => {
+          const card = document.createElement('div');
+          card.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #1a2a3a;border-radius:4px;padding:12px;margin-bottom:8px;transition:border-left-color 0.2s;';
+          card.onmouseenter = function() { this.style.borderLeftColor = '#e63946'; };
+          card.onmouseleave = function() { this.style.borderLeftColor = '#1a2a3a'; };
+
+          let detailsHtml = '';
+          if (item.reason) detailsHtml += '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;margin-top:4px;">' + item.reason + '</div>';
+          if (item.avg_delay) detailsHtml += '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;">Avg delay: ' + item.avg_delay + '</div>';
+          if (item.max_delay) detailsHtml += '<div style="font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;">Max delay: ' + item.max_delay + '</div>';
+          if (item.begin) detailsHtml += '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:4px;">From: ' + item.begin + '</div>';
+          if (item.reopen) detailsHtml += '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;">Until: ' + item.reopen + '</div>';
+
+          card.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <div style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:#e63946;">${item.type}</div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;">${item.airport || icao}</div>
+            </div>
+            ${detailsHtml}
+          `;
+          delaysSec.appendChild(card);
+        });
       })
       .catch(() => {
-        delaysSec.innerHTML = '<div style="color:#e63946;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;">Error fetching airport/delay data</div>';
+        delaysSec.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:12px;padding:10px 0;">Error fetching delay data</div>';
       });
 
 
