@@ -126,6 +126,8 @@ async function fetchNotams(icao) {
         'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
       }
     });
+    console.log('[NOTAM fetchNotams TYPE]', typeof data);
+    console.log('[NOTAM fetchNotams SAMPLE]', JSON.stringify(data).slice(0, 500));
     if (data.error || !data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
     const now = new Date();
     const activeNotams = data.notams.filter(n => {
@@ -2372,6 +2374,8 @@ MANDATORY:
             'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
           }
         });
+        console.log('[NOTAM RAW RESPONSE TYPE]', typeof data);
+        console.log('[NOTAM RAW RESPONSE SAMPLE]', JSON.stringify(data).slice(0, 500));
         if (!data || !data.notams || data.notams.length === 0) {
           res.writeHead(200, { 'Content-Type': 'text/plain' });
           res.end('No active NOTAMs for ' + icao);
@@ -3233,6 +3237,8 @@ async function checkNotamAlerts() {
             'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
           }
         });
+        console.log('[NOTAM ALERT RESPONSE TYPE]', typeof data);
+        console.log('[NOTAM ALERT RESPONSE SAMPLE]', JSON.stringify(data).slice(0, 500));
         const notams = data?.notams || data?.data || [];
         console.log('[ALERT CHECK]', icao, 'total NOTAMs from API:', notams.length);
         if (notams.length === 0) continue;
