@@ -142,7 +142,7 @@ async function fetchNotams(icao) {
         parseInt(e.slice(10,12))
       ));
       return expDate > now;
-    });
+    }).filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase());
     console.log('[FILTER]', icao, 'total:', data.notams.length, 'active after filter:', activeNotams.length);
     if (activeNotams.length === 0) return `No active NOTAMs for ${icao}.`;
     return activeNotams.slice(0, 8).map((n, i) => {
@@ -2390,7 +2390,8 @@ MANDATORY:
             parseInt(e.slice(8,10)), parseInt(e.slice(10,12))
           ));
           return expDate > now;
-        }).sort((a, b) => {
+        }).filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase())
+        .sort((a, b) => {
           const dateA = a.effective || '0';
           const dateB = b.effective || '0';
           return dateB.localeCompare(dateA);
@@ -3239,7 +3240,8 @@ async function checkNotamAlerts() {
         });
         console.log('[NOTAM ALERT RESPONSE TYPE]', typeof data);
         console.log('[NOTAM ALERT RESPONSE SAMPLE]', JSON.stringify(data).slice(0, 500));
-        const notams = data?.notams || data?.data || [];
+        const notams = (data?.notams || data?.data || [])
+          .filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase());
         console.log('[ALERT CHECK]', icao, 'total NOTAMs from API:', notams.length);
         if (notams.length === 0) continue;
 
