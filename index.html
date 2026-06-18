@@ -5456,14 +5456,15 @@ async function fetchRawData() {
       .then(r => r.json())
       .then(data => {
         const reports = data?.reports || [];
+        const airmetOnly = reports.filter(r => (r.bulletin_type || r.report_type || r.type || r.airSigmetType || '').toUpperCase().includes('AIRMET'));
         const ac = document.getElementById('airmetContainer');
         if (!ac) return;
-        if (reports.length === 0) {
-          ac.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:10px 0;">No active AIRMET/SIGMET in this region</div>';
+        if (airmetOnly.length === 0) {
+          ac.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:10px 0;">No active AIRMETs in this region</div>';
           return;
         }
         ac.innerHTML = '';
-        reports.forEach(r => {
+        airmetOnly.forEach(r => {
           const rawText = r.raw_text || r.text || r.rawOb || JSON.stringify(r).slice(0, 300);
 
           const wrapper = document.createElement('div');
