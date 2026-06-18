@@ -6583,7 +6583,6 @@ document.addEventListener('click', function(e) {
     <button id="tab-flightstatus" onclick="switchToolTab('flightstatus')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">FLT STATUS</button>
     <button id="tab-aircraft" onclick="switchToolTab('aircraft')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">AIRCRAFT</button>
     <button id="tab-aircraftperf" onclick="switchToolTab('aircraftperf')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">A/C PERF</button>
-    <button id="tab-livetraffic" onclick="switchToolTab('livetraffic')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">LIVE TRAFFIC</button>
   </div>
 
   <!-- Tab contents -->
@@ -6732,16 +6731,6 @@ document.addEventListener('click', function(e) {
       <div id="acPerfResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter aircraft ICAO type to see performance specs</div>
     </div>
 
-    <div id="toolTab-livetraffic" style="display:none;">
-      <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <input id="liveTrafficInput" type="text" placeholder="ICAO (e.g. EGLL)" maxlength="4"
-          style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;box-sizing:border-box;"
-          oninput="this.value=this.value.toUpperCase()"
-          onkeydown="if(event.key==='Enter')fetchLiveTraffic()">
-        <button onclick="fetchLiveTraffic()" style="background:#00e676;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">TRACK</button>
-      </div>
-      <div id="liveTrafficResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter ICAO code to see live aircraft nearby</div>
-    </div>
 
   </div>
 </div>
@@ -6750,10 +6739,7 @@ document.addEventListener('click', function(e) {
 #toolsContent::-webkit-scrollbar { width: 3px; }
 #toolsContent::-webkit-scrollbar-track { background: transparent; }
 #toolsContent::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
+
 </style>
 
 <script>
@@ -6776,8 +6762,8 @@ function closeToolsPanel() {
 }
 
 function switchToolTab(tab) {
-  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff', distance: '#b57bff', navaids: '#a3e635', flighttime: '#f4841a', flightstatus: '#4a9eff', aircraft: '#b57bff', aircraftperf: '#2ec4b6', livetraffic: '#00e676' };
-  ['airport','sunmoon','winds','charts','distance','navaids','flighttime','flightstatus','aircraft','aircraftperf','livetraffic'].forEach(t => {
+  const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff', distance: '#b57bff', navaids: '#a3e635', flighttime: '#f4841a', flightstatus: '#4a9eff', aircraft: '#b57bff', aircraftperf: '#2ec4b6' };
+  ['airport','sunmoon','winds','charts','distance','navaids','flighttime','flightstatus','aircraft','aircraftperf'].forEach(t => {
     const sec = document.getElementById('toolTab-' + t);
     if (sec) sec.style.display = t === tab ? 'block' : 'none';
     const btn = document.getElementById('tab-' + t);
@@ -6906,51 +6892,6 @@ async function fetchAircraftPerf() {
     `;
   } catch(e) {
     result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error fetching data</div>';
-  }
-}
-
-async function fetchLiveTraffic() {
-  const icao = document.getElementById('liveTrafficInput').value.trim().toUpperCase();
-  if (!icao || icao.length < 3) return;
-
-  const result = document.getElementById('liveTrafficResult');
-  result.innerHTML = '<div style="color:#00e676;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">SCANNING AIRSPACE...</div>';
-
-  try {
-    const res = await fetch('/api/live-traffic/' + icao);
-    const data = await res.json();
-    const aircraft = data?.aircraft || [];
-
-    if (aircraft.length === 0) {
-      result.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;text-align:center;padding:20px;line-height:1.6;">No aircraft detected nearby.<br><span style="font-size:11px;color:#3a4a5a;">ADS-B coverage varies by region — Europe & North America have the densest networks.</span></div>';
-      return;
-    }
-
-    const count = data.total_count || aircraft.length;
-    result.innerHTML = `
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#00e676;letter-spacing:2px;margin-bottom:${count < 5 ? '4px' : '10px'};display:flex;align-items:center;gap:6px;">
-        <span style="width:6px;height:6px;background:#00e676;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite;"></span>
-        ${count} AIRCRAFT WITHIN 50NM
-      </div>
-      ${count < 5 ? '<div style="font-family:\'Rajdhani\',sans-serif;font-size:10px;color:#3a4a5a;margin-bottom:10px;">Coverage may be limited in this region</div>' : ''}
-      ${aircraft.map(a => {
-        const alt = a.is_on_ground ? 'On Ground' : (a.altitude ? a.altitude.toLocaleString() + ' ft' : '—');
-        const speed = a.ground_speed ? Math.round(a.ground_speed) + ' kt' : '—';
-        const vRate = a.vertical_rate > 50 ? '↑' : a.vertical_rate < -50 ? '↓' : '→';
-        return `
-          <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #1a2a3a;border-radius:4px;padding:10px 12px;margin-bottom:6px;transition:border-left-color 0.2s;" onmouseenter="this.style.borderLeftColor='#00e676'" onmouseleave="this.style.borderLeftColor='#1a2a3a'">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-              <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:#00e676;">${a.callsign?.trim() || a.registration || '—'}</div>
-              <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;">${vRate} ${alt}</div>
-            </div>
-            <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;">${a.aircraft_type || ''} ${a.airline ? '· ' + a.airline : ''}</div>
-            <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#8a9bb0;margin-top:3px;">${speed} · ${a.registration || ''}</div>
-          </div>
-        `;
-      }).join('')}
-    `;
-  } catch(e) {
-    result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error tracking traffic</div>';
   }
 }
 
