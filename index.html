@@ -5718,7 +5718,7 @@ async function fetchRawData() {
 
         delaysSec.innerHTML = '';
         allItems.forEach(item => {
-          const analyzePrompt = 'Analyze this FAA airport delay/closure notice: ' + JSON.stringify(item) + '. Explain: 1) What type of restriction this is 2) Who is affected (which aircraft/operations) 3) Practical impact for pilots 4) What action to take. Keep under 100 words, no markdown.';
+          const analyzePrompt = 'IMPORTANT: This is FAA delay/closure data, NOT a NOTAM. Do not refer to it as a NOTAM anywhere in your response. Analyze this FAA airport delay/closure notice: ' + JSON.stringify(item) + '. Explain: 1) What type of restriction this is 2) Who is affected (which aircraft/operations) 3) Practical impact for pilots 4) What action to take. Keep under 100 words, no markdown. Start your response with a clear header identifying this as an FAA DELAY/CLOSURE notice, NOT a NOTAM.';
 
           const wrapper = document.createElement('div');
           wrapper.style.marginBottom = '8px';
