@@ -35,6 +35,52 @@ const PLAN_LIMITS = {
   premium: { briefings: 150, chat: 999, analysis: 999  }
 };
 
+const GENERAL_CHAT_LIMITS = {
+  free:    { windowMinutes: 60, limit: 5,  model: 'claude-haiku-4-5' },
+  pro:     { windowMinutes: 60, limit: 30, model: 'claude-haiku-4-5' },
+  premium: { windowMinutes: 60, limit: 60, model: 'claude-haiku-4-5' }
+};
+
+async function getGeneralChatWindowUsage(userId, windowMinutes) {
+  try {
+    const since = new Date(Date.now() - windowMinutes * 60 * 1000);
+    const snap = await adminDb.collection('general_chat_messages')
+      .where('userId', '==', userId)
+      .where('createdAt', '>=', since)
+      .get();
+    return snap.size;
+  } catch(e) {
+    console.log('[GEN CHAT USAGE] Error:', e.message);
+    return 0;
+  }
+}
+
+async function recordGeneralChatMessage(userId) {
+  try {
+    await adminDb.collection('general_chat_messages').add({ userId, createdAt: new Date() });
+  } catch(e) {
+    console.log('[GEN CHAT RECORD] Error:', e.message);
+  }
+}
+
+async function minutesUntilWindowReset(userId, windowMinutes) {
+  try {
+    const since = new Date(Date.now() - windowMinutes * 60 * 1000);
+    const snap = await adminDb.collection('general_chat_messages')
+      .where('userId', '==', userId)
+      .where('createdAt', '>=', since)
+      .orderBy('createdAt', 'asc')
+      .limit(1)
+      .get();
+    if (snap.empty) return 0;
+    const oldest = snap.docs[0].data().createdAt.toDate();
+    const resetAt = new Date(oldest.getTime() + windowMinutes * 60 * 1000);
+    return Math.max(0, (resetAt - Date.now()) / 60000);
+  } catch(e) {
+    return windowMinutes;
+  }
+}
+
 async function getUserPlan(userId) {
   try {
     const userRecord = await admin.auth().getUser(userId);
@@ -2990,6 +3036,94 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         console.error('[CHAT ERROR]', e.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ answer: 'Error processing request.' }));
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/api/general-chat') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { message, history = [] } = JSON.parse(body);
+        if (!message) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'No message provided.' }));
+          return;
+        }
+
+        // Verify auth
+        const authHeader = req.headers['authorization'] || '';
+        const idToken = authHeader.replace('Bearer ', '').trim();
+        let userId = null;
+        if (idToken) {
+          try {
+            const decoded = await admin.auth().verifyIdToken(idToken);
+            userId = decoded.uid;
+          } catch(e) { /* not authenticated */ }
+        }
+        if (!userId) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Please sign in to use GA Expert chat.' }));
+          return;
+        }
+
+        const plan = await getUserPlan(userId);
+        const limits = GENERAL_CHAT_LIMITS[plan] || GENERAL_CHAT_LIMITS.free;
+        const { windowMinutes, limit, model } = limits;
+
+        const used = await getGeneralChatWindowUsage(userId, windowMinutes);
+        if (used >= limit) {
+          const resetIn = await minutesUntilWindowReset(userId, windowMinutes);
+          res.writeHead(429, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: `GA Expert limit reached (${limit} messages per ${windowMinutes} min). Resets in ${Math.ceil(resetIn)} min.`,
+            usage: { used, limit, windowMinutes, resetIn }
+          }));
+          return;
+        }
+
+        const safeHistory = (history || []).slice(-8).filter(m => m.role && m.content);
+        const messages = [
+          ...safeHistory.map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: message }
+        ];
+
+        const systemPrompt = `You are a General Aviation Expert with deep knowledge of aviation regulations, aircraft systems, meteorology, navigation, flight planning, air traffic control, and pilot training. You assist pilots (student through ATP), flight dispatchers, and aviation enthusiasts worldwide. Answer clearly and professionally. Use ICAO standards and terminology. When discussing regulations, clarify which jurisdiction applies (FAA, EASA, ICAO, etc.). Format lists with line breaks. Keep responses concise but thorough. Never provide guidance that could compromise safety — always recommend consulting official sources for regulatory or safety-critical matters.`;
+
+        const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_KEY,
+            'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'prompt-caching-2024-07-31'
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: 1024,
+            system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+            messages
+          })
+        });
+
+        const aiData = await aiResp.json();
+        const answer = aiData?.content?.[0]?.text || 'No response.';
+        console.log('[GEN CHAT]', userId, 'plan:', plan, 'used:', used + 1 + '/' + limit);
+
+        await recordGeneralChatMessage(userId);
+        const resetIn = await minutesUntilWindowReset(userId, windowMinutes);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          answer,
+          usage: { used: used + 1, limit, windowMinutes, resetIn }
+        }));
+      } catch(e) {
+        console.error('[GEN CHAT ERROR]', e.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Server error. Please try again.' }));
       }
     });
     return;
