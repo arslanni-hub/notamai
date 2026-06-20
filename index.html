@@ -1680,6 +1680,7 @@ function restartAnimation() {
 function selectModePill(pillId) {
   document.querySelectorAll('.mode-pill').forEach(p => p.classList.remove('active'));
   document.getElementById(pillId).classList.add('active');
+  if (typeof resetPlaceholderAnimation === 'function') resetPlaceholderAnimation();
 }
 
 /* ═══ HUD ═══ */
@@ -1752,6 +1753,17 @@ function removeFile() {
 async function handleSend(silent = false) {
   const val = document.getElementById('mainInput').value.trim();
   if (!val && !attachedFile) return;
+
+  const activeMode = getActivePillMode();
+  if (activeMode === 'video') {
+    openVideoBriefing();
+    return;
+  }
+  if (activeMode === 'chat') {
+    // General Aviation Expert Chat is not implemented yet — placeholder until built.
+    showToast ? showToast('Aviation Chat is coming soon — switch to the Briefing mode for now.') : alert('Aviation Chat is coming soon.');
+    return;
+  }
 
   const parts = val.trim().toUpperCase().split(/\s+/);
   const dep = parts[0] || '';
@@ -2741,25 +2753,63 @@ function stopMainVoice() {
   document.getElementById('mainInput').placeholder = 'Enter ICAO codes or speak naturally...';
 }
 
-/* ═══ PLACEHOLDER ANIMATION ═══ */
-const placeholders = [
-  "Enter ICAO codes or speak naturally...",
-  "KJFK",
-  "KJFK EGLL",
-  "LFPG EHAM",
-  "paste a raw NOTAM text...",
-  "paste a METAR text...",
-  "paste a TAF text...",
-  "paste a SIGMET text..."
-];
+/* ═══ PLACEHOLDER ANIMATION (mode-aware) ═══ */
+const placeholderSets = {
+  briefing: [
+    "Enter ICAO codes or speak naturally...",
+    "KJFK",
+    "KJFK EGLL",
+    "LFPG EHAM",
+    "paste a raw NOTAM text...",
+    "paste a METAR text...",
+    "paste a TAF text...",
+    "paste a SIGMET text..."
+  ],
+  video: [
+    "Enter ICAO codes or speak naturally...",
+    "KJFK",
+    "KJFK EGLL",
+    "LFPG EHAM",
+    "paste a raw NOTAM text...",
+    "paste a METAR text...",
+    "paste a TAF text...",
+    "paste a SIGMET text..."
+  ],
+  chat: [
+    "Ask anything aviation related...",
+    "What's the difference between CAT I and CAT III ILS?",
+    "Explain wake turbulence categories",
+    "How does a SIGMET differ from an AIRMET?",
+    "What are the ETOPS requirements for twin engines?",
+    "Walk me through a stabilized approach criteria"
+  ]
+};
 let pIdx = 0, pChar = 0, pDeleting = false;
+let activePlaceholderMode = 'briefing';
 const mainInput = document.getElementById('mainInput');
+
+function getActivePillMode() {
+  if (document.getElementById('pillVideo')?.classList.contains('active')) return 'video';
+  if (document.getElementById('pillChat')?.classList.contains('active')) return 'chat';
+  return 'briefing';
+}
+
+function resetPlaceholderAnimation() {
+  const newMode = getActivePillMode();
+  if (newMode === activePlaceholderMode) return;
+  activePlaceholderMode = newMode;
+  pIdx = 0;
+  pChar = 0;
+  pDeleting = false;
+}
+
 function animatePlaceholder() {
   if (document.activeElement === mainInput || mainInput.value.length > 0) {
     setTimeout(animatePlaceholder, 500);
     return;
   }
-  const current = placeholders[pIdx];
+  const list = placeholderSets[activePlaceholderMode] || placeholderSets.briefing;
+  const current = list[pIdx % list.length];
   if (!pDeleting && pChar <= current.length) {
     mainInput.placeholder = current.slice(0, pChar);
     pChar++;
@@ -2774,7 +2824,7 @@ function animatePlaceholder() {
   } else {
     pDeleting = false;
     pChar = 0;
-    pIdx = (pIdx + 1) % placeholders.length;
+    pIdx = (pIdx + 1) % list.length;
     setTimeout(animatePlaceholder, 400);
   }
 }
