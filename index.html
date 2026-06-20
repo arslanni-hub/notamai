@@ -428,6 +428,45 @@ canvas#sky {
   padding: 0;
 }
 
+/* ═══ MODE SELECTOR PILLS ═══ */
+.mode-pills-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+  pointer-events: auto;
+}
+.mode-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(74,90,110,0.4);
+  background: none;
+  cursor: pointer;
+  transition: all 0.18s;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #8a9bb0;
+}
+.mode-pill svg { flex-shrink: 0; stroke: #5a6a7a; transition: stroke 0.18s; }
+.mode-pill:hover {
+  border-color: rgba(181,123,255,0.5);
+  color: #b57bff;
+}
+.mode-pill:hover svg { stroke: #b57bff; }
+.mode-pill.active {
+  background: rgba(181,123,255,0.1);
+  border-color: #b57bff;
+  color: #b57bff;
+}
+.mode-pill.active svg { stroke: #b57bff; }
+.mode-pill.active svg .pill-spark { fill: #b57bff; }
+.mode-pill svg .pill-spark { fill: #5a6a7a; transition: fill 0.18s; }
+.mode-pill:hover svg .pill-spark { fill: #b57bff; }
+
 /* ═══ RESULT OVERLAY ═══ */
 .result-overlay {
   position: fixed;
@@ -1048,6 +1087,34 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
       </button>
     </div>
   </div>
+
+  <!-- MODE SELECTOR PILLS -->
+  <div class="mode-pills-row" id="modePillsRow">
+    <button class="mode-pill active" id="pillBriefing" data-tooltip="Generate AI Briefing" onclick="selectModePill('pillBriefing')">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 2 L14.5 5.5 L6 14 L2 15.5 L3.5 11.5 Z"/>
+        <line x1="9" y1="4" x2="12" y2="7"/>
+        <circle class="pill-spark" cx="1.5" cy="16.5" r="0.5" stroke="none"/>
+        <path class="pill-spark" d="M15 0.5 L15.5 2 L17 2.5 L15.5 3 L15 4.5 L14.5 3 L13 2.5 L14.5 2 Z" stroke="none"/>
+      </svg>
+      AI Briefing
+    </button>
+    <button class="mode-pill" id="pillVideo" data-tooltip="AI Video Briefing" onclick="selectModePill('pillVideo')">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 4 L16 7 L12 10 Z"/>
+        <rect x="1" y="4" width="11" height="10" rx="1.5"/>
+      </svg>
+      Video
+    </button>
+    <button class="mode-pill" id="pillChat" data-tooltip="Ask anything aviation" onclick="selectModePill('pillChat')">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 2 h16 a4 4 0 0 1 4 4 v9 a4 4 0 0 1 -4 4 h-9 l-4.5 4.5 v-4.5 h-2.5 a4 4 0 0 1 -4 -4 v-9 a4 4 0 0 1 4 -4 z" transform="scale(0.72)"/>
+        <path class="pill-spark" d="M14 9 L15 11.5 L17.5 12.5 L15 13.5 L14 16 L13 13.5 L10.5 12.5 L13 11.5 Z" stroke="none" transform="scale(0.72)"/>
+      </svg>
+      Chat
+    </button>
+  </div>
+
 </div>
 
 <!-- RESULT OVERLAY -->
@@ -1622,6 +1689,11 @@ function restartAnimation() {
     H = canvas.height;
   }
   animate();
+}
+
+function selectModePill(pillId) {
+  document.querySelectorAll('.mode-pill').forEach(p => p.classList.remove('active'));
+  document.getElementById(pillId).classList.add('active');
 }
 
 /* ═══ HUD ═══ */
