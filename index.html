@@ -428,42 +428,6 @@ canvas#sky {
   padding: 0;
 }
 
-/* ═══ GA EXPERT CHAT ═══ */
-#genChatBanner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px;
-  margin-top: 14px;
-  background: rgba(181,123,255,0.06);
-  border: 1px solid rgba(181,123,255,0.2);
-  border-radius: 8px;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 12px;
-  color: #b57bff;
-  cursor: pointer;
-  transition: all 0.2s;
-  letter-spacing: 0.5px;
-  max-width: 480px;
-  width: 100%;
-  box-sizing: border-box;
-}
-#genChatBanner:hover { background: rgba(181,123,255,0.12); border-color: rgba(181,123,255,0.45); }
-#genChatContainer {
-  display: none;
-  position: fixed;
-  top: 0; right: 0;
-  width: 380px; height: 100vh;
-  background: #0a0f18;
-  border-left: 1px solid #1a2a3a;
-  z-index: 610;
-  flex-direction: column;
-  transition: transform 0.3s ease;
-  transform: translateX(100%);
-}
-#genChatContainer.open { display: flex; transform: translateX(0); }
-
 /* ═══ RESULT OVERLAY ═══ */
 .result-overlay {
   position: fixed;
@@ -1034,16 +998,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
   <div class="greeting" id="greeting">Good evening, Captain</div>
   <div class="greeting-sub">Enter an ICAO code, a route, or paste your aviation data</div>
 
-  <!-- GA EXPERT BANNER -->
-  <div id="genChatBanner" onclick="openGenChat()">
-    <div style="display:flex;align-items:center;gap:8px;">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      <span style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;">GENERAL AVIATION EXPERT</span>
-    </div>
-    <span style="font-size:11px;opacity:0.6;">Ask any aviation question →</span>
-  </div>
-
-  <div class="input-card" id="inputCard">
+  <div class="input-card">
     <textarea
       class="input-field"
       id="mainInput"
@@ -1188,33 +1143,6 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     </div>
   </div>
 
-</div>
-
-<!-- GA EXPERT CHAT PANEL -->
-<div id="genChatContainer">
-  <!-- Header -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
-    <div style="display:flex;align-items:center;gap:8px;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#b57bff;letter-spacing:2px;">GA EXPERT</span>
-    </div>
-    <button onclick="closeGenChat()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;display:flex;align-items:center;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-  </div>
-  <!-- Usage banner -->
-  <div id="genChatUsageBanner" style="display:none;padding:8px 16px;border-bottom:1px solid #1a2a3a;flex-shrink:0;"></div>
-  <!-- Messages -->
-  <div id="genChatMessages" style="flex:1;overflow-y:auto;padding:16px;"></div>
-  <!-- Input -->
-  <div style="padding:12px 16px;border-top:1px solid #1a2a3a;flex-shrink:0;">
-    <div style="display:flex;gap:8px;align-items:center;">
-      <input id="genChatInput" type="text" placeholder="Ask anything aviation…" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter')sendGenChat()">
-      <button onclick="sendGenChat()" style="background:#b57bff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-      </button>
-    </div>
-  </div>
 </div>
 
 <!-- UPGRADE MODAL -->
@@ -1767,16 +1695,6 @@ async function handleSend(silent = false) {
   const val = document.getElementById('mainInput').value.trim();
   if (!val && !attachedFile) return;
 
-  // Route natural-language queries to GA Expert (not ICAO codes or file attachments)
-  if (!attachedFile && !silent) {
-    const firstToken = val.trim().toUpperCase().split(/\s+/)[0];
-    if (!/^[A-Z]{3,4}$/.test(firstToken)) {
-      document.getElementById('mainInput').value = '';
-      openGenChat(val);
-      return;
-    }
-  }
-
   const parts = val.trim().toUpperCase().split(/\s+/);
   const dep = parts[0] || '';
   const arr = parts[1] || '';
@@ -2100,126 +2018,6 @@ function retryBriefing() {
     handleSend();
   }
 }
-
-// ─── GENERAL AVIATION EXPERT CHAT ─────────────────────────────────────────
-let genChatHistory = [];
-let genChatOpen = false;
-
-function openGenChat(initialMsg) {
-  genChatOpen = true;
-  const container = document.getElementById('genChatContainer');
-  container.style.display = 'flex';
-  setTimeout(() => container.classList.add('open'), 10);
-  if (!genChatHistory.length) {
-    addGenChatMessage('assistant', "Hello! I'm your General Aviation Expert. Ask me anything about aviation — regulations, aircraft systems, weather, navigation, flight planning, and more.");
-  }
-  if (initialMsg) {
-    document.getElementById('genChatInput').value = initialMsg;
-    sendGenChat();
-  } else {
-    setTimeout(() => document.getElementById('genChatInput').focus(), 320);
-  }
-  renderGenChatUsageBanner();
-}
-
-function closeGenChat() {
-  genChatOpen = false;
-  const container = document.getElementById('genChatContainer');
-  container.classList.remove('open');
-  setTimeout(() => { container.style.display = 'none'; }, 300);
-}
-
-function addGenChatMessage(role, text) {
-  const msgs = document.getElementById('genChatMessages');
-  const isUser = role === 'user';
-  const div = document.createElement('div');
-  div.style.cssText = 'display:flex;justify-content:' + (isUser ? 'flex-end' : 'flex-start') + ';margin-bottom:12px;';
-  div.innerHTML = '<div style="max-width:85%;padding:10px 14px;border-radius:10px;font-family:\'Rajdhani\',sans-serif;font-size:13px;line-height:1.55;' +
-    (isUser
-      ? 'background:rgba(181,123,255,0.12);border:1px solid rgba(181,123,255,0.3);color:#e8d5ff;'
-      : 'background:#0f1923;border:1px solid #1a2a3a;color:#cdd9e5;') +
-    '">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>';
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-  genChatHistory.push({ role, content: text });
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-async function sendGenChat() {
-  const input = document.getElementById('genChatInput');
-  const text = input.value.trim();
-  if (!text) return;
-  input.value = '';
-
-  const user = firebase.auth().currentUser;
-  if (!user) {
-    addGenChatMessage('assistant', 'Please sign in to use the GA Expert chat.');
-    return;
-  }
-
-  addGenChatMessage('user', text);
-
-  // Typing indicator
-  const msgs = document.getElementById('genChatMessages');
-  const typing = document.createElement('div');
-  typing.id = 'genTyping';
-  typing.style.cssText = 'display:flex;justify-content:flex-start;margin-bottom:12px;';
-  typing.innerHTML = '<div style="padding:10px 14px;border-radius:10px;background:#0f1923;border:1px solid #1a2a3a;color:#4a5f72;font-family:\'Rajdhani\',sans-serif;font-size:13px;">Thinking…</div>';
-  msgs.appendChild(typing);
-  msgs.scrollTop = msgs.scrollHeight;
-
-  try {
-    const idToken = await user.getIdToken();
-    const resp = await fetch('/api/general-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-      body: JSON.stringify({ message: text, history: genChatHistory.slice(-10) })
-    });
-    const data = await resp.json();
-    const el = document.getElementById('genTyping');
-    if (el) el.remove();
-    if (data.error) {
-      addGenChatMessage('assistant', data.error);
-    } else {
-      addGenChatMessage('assistant', data.answer || 'No response.');
-    }
-    if (data.usage) renderGenChatUsageBanner(data.usage);
-  } catch(e) {
-    const el = document.getElementById('genTyping');
-    if (el) el.remove();
-    addGenChatMessage('assistant', 'Connection error. Please try again.');
-  }
-}
-
-function renderGenChatUsageBanner(usage) {
-  const banner = document.getElementById('genChatUsageBanner');
-  if (!usage) { banner.style.display = 'none'; return; }
-  const { used, limit, windowMinutes, resetIn } = usage;
-  const remaining = Math.max(0, limit - used);
-  const pct = Math.min(100, Math.round((used / limit) * 100));
-  const barColor = pct > 80 ? '#e63946' : pct > 50 ? '#f4841a' : '#b57bff';
-  banner.style.display = 'block';
-  banner.innerHTML =
-    '<div style="font-family:\'Rajdhani\',sans-serif;font-size:11px;color:#8a9bb0;display:flex;align-items:center;justify-content:space-between;">' +
-    '<span>' + remaining + ' msg' + (remaining !== 1 ? 's' : '') + ' left · resets in ' + formatResetTime(resetIn) + '</span>' +
-    '<div style="width:72px;height:3px;background:#1a2a3a;border-radius:2px;overflow:hidden;">' +
-    '<div style="height:100%;width:' + pct + '%;background:' + barColor + ';border-radius:2px;transition:width 0.3s;"></div>' +
-    '</div></div>';
-}
-
-function formatResetTime(minutes) {
-  if (!minutes || minutes <= 0) return 'soon';
-  if (minutes < 60) return Math.ceil(minutes) + 'm';
-  return Math.floor(minutes / 60) + 'h ' + Math.round(minutes % 60) + 'm';
-}
-// ──────────────────────────────────────────────────────────────────────────────
 
 function openShareModal() {
   console.log('currentBriefingId:', window.currentBriefingId);
