@@ -39,10 +39,15 @@ const PLAN_LIMITS = {
 // Uses a 3-hour rolling window, mirroring Claude's own usage-limit UX: soft limits that
 // downgrade the model rather than hard-block (except Free, which hard-stops since it's
 // already a thin "taste" tier with no Firestore persistence).
+// Free: simple message-count limit (low volume, no need for token tracking).
+// Pro/Premium: token-budget limit over a 5-hour rolling window, matching Claude's
+// own usage-limit window. Budgets are calibrated to stay within the cost model:
+// Pro ~12,000 tokens/window (worst-case ~$6.91/mo), Premium ~24,000 tokens/window
+// (worst-case ~$13.82/mo), assuming ~3.2 windows/day of active use.
 const GENERAL_CHAT_LIMITS = {
-  free:    { windowMinutes: 180, limit: 4,   model: 'claude-haiku-4-5-20251001' },
-  pro:     { windowMinutes: 180, limit: 30,  model: 'claude-sonnet-4-6' },
-  premium: { windowMinutes: 180, limit: 100, model: 'claude-sonnet-4-6' }
+  free:    { windowMinutes: 300, limit: 4,     mode: 'messages', model: 'claude-haiku-4-5-20251001' },
+  pro:     { windowMinutes: 300, limit: 12000, mode: 'tokens',   model: 'claude-sonnet-4-6' },
+  premium: { windowMinutes: 300, limit: 24000, mode: 'tokens',   model: 'claude-sonnet-4-6' }
 };
 const GENERAL_CHAT_FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
 
@@ -54,21 +59,25 @@ async function getGeneralChatWindowUsage(userId, windowMinutes) {
       .where('createdAt', '>', cutoff)
       .get();
     let oldestTimestamp = null;
+    let tokenTotal = 0;
     snapshot.forEach(doc => {
-      const ts = doc.data().createdAt;
+      const data = doc.data();
+      const ts = data.createdAt;
       if (!oldestTimestamp || ts.toMillis() < oldestTimestamp.toMillis()) oldestTimestamp = ts;
+      tokenTotal += (data.tokens || 0);
     });
-    return { count: snapshot.size, oldestTimestamp };
+    return { count: snapshot.size, tokenTotal, oldestTimestamp };
   } catch(e) {
     console.error('[GENERAL CHAT RATE LIMIT] Usage check error:', e.message);
-    return { count: 0, oldestTimestamp: null };
+    return { count: 0, tokenTotal: 0, oldestTimestamp: null };
   }
 }
 
-async function recordGeneralChatRateLimitEntry(userId) {
+async function recordGeneralChatRateLimitEntry(userId, tokens) {
   try {
     await adminDb.collection('general_chat_rate_limit').add({
       userId,
+      tokens: tokens || 0,
       createdAt: new Date()
     });
   } catch(e) {
@@ -522,6 +531,7 @@ async function fetchTaf(icao) {
 }
 
 function streamClaude(requestBody, onChunk, onDone, onError) {
+  let usageInfo = { input_tokens: 0, output_tokens: 0 };
   const req = https.request({
     hostname: 'api.anthropic.com',
     path: '/v1/messages',
@@ -547,6 +557,9 @@ function streamClaude(requestBody, onChunk, onDone, onError) {
           const evt = JSON.parse(raw);
           if (evt.type === 'message_start' && evt.message?.usage) {
             const u = evt.message.usage;
+            usageInfo.input_tokens = u.input_tokens || 0;
+            usageInfo.cache_created = u.cache_creation_input_tokens || 0;
+            usageInfo.cache_read = u.cache_read_input_tokens || 0;
             console.log('[CACHE /briefing]', {
               input: u.input_tokens,
               output: u.output_tokens,
@@ -555,13 +568,15 @@ function streamClaude(requestBody, onChunk, onDone, onError) {
             });
           } else if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
             onChunk(evt.delta.text);
+          } else if (evt.type === 'message_delta' && evt.usage?.output_tokens) {
+            usageInfo.output_tokens = evt.usage.output_tokens;
           } else if (evt.type === 'message_stop') {
-            onDone();
+            onDone(usageInfo);
           }
         } catch (_) {}
       }
     });
-    claudeRes.on('end', onDone);
+    claudeRes.on('end', () => onDone(usageInfo));
     claudeRes.on('error', onError);
   });
   req.on('error', onError);
@@ -3162,10 +3177,13 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
 
         const plan = await getUserPlan(userId);
         const cfg = GENERAL_CHAT_LIMITS[plan] || GENERAL_CHAT_LIMITS.free;
-        const { count, oldestTimestamp } = await getGeneralChatWindowUsage(userId, cfg.windowMinutes);
+        const { count, tokenTotal, oldestTimestamp } = await getGeneralChatWindowUsage(userId, cfg.windowMinutes);
         const resetInMinutes = minutesUntilWindowReset(oldestTimestamp, cfg.windowMinutes);
 
-        if (plan === 'free' && count >= cfg.limit) {
+        const currentUsage = cfg.mode === 'tokens' ? tokenTotal : count;
+        const overLimit = currentUsage >= cfg.limit;
+
+        if (plan === 'free' && overLimit) {
           res.writeHead(403, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             error: 'limit_reached',
@@ -3176,8 +3194,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
           return;
         }
 
-        const modelToUse = (count >= cfg.limit) ? GENERAL_CHAT_FALLBACK_MODEL : cfg.model;
-        await recordGeneralChatRateLimitEntry(userId);
+        const modelToUse = overLimit ? GENERAL_CHAT_FALLBACK_MODEL : cfg.model;
 
         const { question, history } = JSON.parse(body);
         if (!question || typeof question !== 'string') {
@@ -3224,15 +3241,28 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
-        const usagePercent = Math.min(100, Math.round(((count + 1) / cfg.limit) * 100));
-        res.write(`data: ${JSON.stringify({ type: 'init', usagePercent, resetInMinutes })}\n\n`);
+        // For tokens mode we don't know the real usagePercent until the response completes,
+        // so send a pre-estimate now (based on current usage only) and let the frontend
+        // treat the post-response value (sent in a later step if needed) as authoritative.
+        const preEstimatePercent = Math.min(100, Math.round((currentUsage / cfg.limit) * 100));
+        res.write(`data: ${JSON.stringify({ type: 'init', usagePercent: preEstimatePercent, resetInMinutes })}\n\n`);
 
         let doneSent = false;
-        console.log('[GENERAL CHAT]', { userId, plan, model: modelToUse, windowCount: count + 1, limit: cfg.limit });
+        console.log('[GENERAL CHAT]', { userId, plan, model: modelToUse, mode: cfg.mode, currentUsage, limit: cfg.limit });
 
         streamClaude(requestBody,
           (text) => { res.write(`data: ${JSON.stringify({ type: 'chunk', text })}\n\n`); },
-          () => { if (!doneSent) { doneSent = true; res.write('data: {"type":"done"}\n\n'); res.end(); } },
+          (usageInfo) => {
+            if (doneSent) return;
+            doneSent = true;
+            const totalTokens = (usageInfo?.input_tokens || 0) + (usageInfo?.output_tokens || 0);
+            recordGeneralChatRateLimitEntry(userId, cfg.mode === 'tokens' ? totalTokens : 1)
+              .catch(e => console.error('[GENERAL CHAT] Post-response record error:', e.message));
+            const newUsage = currentUsage + (cfg.mode === 'tokens' ? totalTokens : 1);
+            const finalUsagePercent = Math.min(100, Math.round((newUsage / cfg.limit) * 100));
+            res.write(`data: ${JSON.stringify({ type: 'done', usagePercent: finalUsagePercent })}\n\n`);
+            res.end();
+          },
           (err) => {
             console.error('[GENERAL CHAT] Stream error:', err.message);
             if (!doneSent) { doneSent = true; res.write(`data: ${JSON.stringify({ type: 'error', message: 'Stream interrupted' })}\n\n`); res.end(); }

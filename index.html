@@ -2296,8 +2296,9 @@ async function mockChatResponse(question) {
             messagesArea.scrollTop = messagesArea.scrollHeight;
           } else if (evt.type === 'error') {
             throw new Error(evt.message || 'Stream error');
+          } else if (evt.type === 'done' && typeof evt.usagePercent === 'number') {
+            usagePercent = evt.usagePercent;
           }
-          // 'done' needs no action — loop ends naturally when reader is done
         } catch(parseErr) {
           // ignore malformed partial JSON line, will complete on next chunk
         }
