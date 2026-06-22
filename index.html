@@ -5081,8 +5081,14 @@ document.querySelectorAll('[data-tooltip]').forEach(el => {
     <div id="videoArchiveList" style="padding:8px;"></div>
   </div>
   <!-- Chats section -->
-  <div id="archiveSection-chats" style="display:none;flex:1;overflow-y:auto;">
-    <div id="chatArchiveList" style="padding:8px;"></div>
+  <div id="archiveSection-chats" style="display:none;flex-direction:column;overflow:hidden;min-height:0;">
+    <div style="padding:12px 16px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:8px;background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:7px 10px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a5f72" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="chatArchiveSearch" placeholder="Search chats..." oninput="filterChatArchive(this.value)" style="background:none;border:none;outline:none;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:13px;width:100%;">
+      </div>
+    </div>
+    <div id="chatArchiveList" style="padding:8px;overflow-y:auto;flex:1;"></div>
   </div>
 </div>
 
@@ -6793,6 +6799,8 @@ function switchArchiveTab(tab) {
     chatsSection.style.display = 'flex';
     chatsSection.style.flexDirection = 'column';
     chatsSection.style.flex = '1';
+    const chatSearchInput = document.getElementById('chatArchiveSearch');
+    if (chatSearchInput) chatSearchInput.value = '';
     loadChatArchive();
   }
 }
@@ -6874,6 +6882,7 @@ async function loadChatArchive() {
           <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;margin-top:2px;">${date}</div>
         </div>
       `;
+      div.dataset.label = label.toLowerCase();
       div.onclick = function() {
         closeArchivePanel();
         resumeChatSession(doc.id);
@@ -6884,6 +6893,16 @@ async function loadChatArchive() {
     console.error('Chat archive load error:', e);
     list.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;padding:20px;text-align:center;">Could not load chat archive.</div>';
   }
+}
+
+function filterChatArchive(searchText) {
+  const query = searchText.trim().toLowerCase();
+  const list = document.getElementById('chatArchiveList');
+  if (!list) return;
+  Array.from(list.children).forEach(item => {
+    if (!item.dataset || !item.dataset.label) return; // skip non-item nodes like loading/empty states
+    item.style.display = item.dataset.label.includes(query) ? 'flex' : 'none';
+  });
 }
 
 function playArchivedVideo(videoUrl, script) {
