@@ -4878,18 +4878,20 @@ function hideSidebarTooltip() {
   document.getElementById('sidebarFloatingTooltip').style.display = 'none';
 }
 
-document.querySelectorAll('[data-tooltip]').forEach(el => {
-  el.addEventListener('mouseenter', function() {
-    const tooltip = document.getElementById('sidebarFloatingTooltip');
-    tooltip.textContent = this.dataset.tooltip;
-    tooltip.style.display = 'block';
-    const rect = this.getBoundingClientRect();
-    tooltip.style.left = (rect.left + rect.width / 2 - tooltip.offsetWidth / 2) + 'px';
-    tooltip.style.top = (rect.bottom + 8) + 'px';
-  });
-  el.addEventListener('mouseleave', function() {
-    document.getElementById('sidebarFloatingTooltip').style.display = 'none';
-  });
+document.addEventListener('mouseover', function(e) {
+  const el = e.target.closest('[data-tooltip]');
+  if (!el) return;
+  const tooltip = document.getElementById('sidebarFloatingTooltip');
+  tooltip.textContent = el.dataset.tooltip;
+  tooltip.style.display = 'block';
+  const rect = el.getBoundingClientRect();
+  tooltip.style.left = (rect.left + rect.width / 2 - tooltip.offsetWidth / 2) + 'px';
+  tooltip.style.top = (rect.bottom + 8) + 'px';
+});
+document.addEventListener('mouseout', function(e) {
+  const el = e.target.closest('[data-tooltip]');
+  if (!el) return;
+  document.getElementById('sidebarFloatingTooltip').style.display = 'none';
 });
 </script>
 
