@@ -35,6 +35,54 @@ const PLAN_LIMITS = {
   premium: { briefings: 150, chat: 999, analysis: 999  }
 };
 
+// General Aviation Expert Chat — separate from the briefing-specific "Ask NOTAM AI" above.
+// Uses a 3-hour rolling window, mirroring Claude's own usage-limit UX: soft limits that
+// downgrade the model rather than hard-block (except Free, which hard-stops since it's
+// already a thin "taste" tier with no Firestore persistence).
+const GENERAL_CHAT_LIMITS = {
+  free:    { windowMinutes: 180, limit: 4,   model: 'claude-haiku-4-5-20251001' },
+  pro:     { windowMinutes: 180, limit: 30,  model: 'claude-sonnet-4-6' },
+  premium: { windowMinutes: 180, limit: 100, model: 'claude-sonnet-4-6' }
+};
+const GENERAL_CHAT_FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
+
+async function getGeneralChatWindowUsage(userId, windowMinutes) {
+  try {
+    const cutoff = new Date(Date.now() - windowMinutes * 60 * 1000);
+    const snapshot = await adminDb.collection('general_chat_rate_limit')
+      .where('userId', '==', userId)
+      .where('createdAt', '>', cutoff)
+      .get();
+    let oldestTimestamp = null;
+    snapshot.forEach(doc => {
+      const ts = doc.data().createdAt;
+      if (!oldestTimestamp || ts.toMillis() < oldestTimestamp.toMillis()) oldestTimestamp = ts;
+    });
+    return { count: snapshot.size, oldestTimestamp };
+  } catch(e) {
+    console.error('[GENERAL CHAT RATE LIMIT] Usage check error:', e.message);
+    return { count: 0, oldestTimestamp: null };
+  }
+}
+
+async function recordGeneralChatRateLimitEntry(userId) {
+  try {
+    await adminDb.collection('general_chat_rate_limit').add({
+      userId,
+      createdAt: new Date()
+    });
+  } catch(e) {
+    console.error('[GENERAL CHAT RATE LIMIT] Record error:', e.message);
+  }
+}
+
+function minutesUntilWindowReset(oldestTimestamp, windowMinutes) {
+  if (!oldestTimestamp) return 0;
+  const oldestMs = oldestTimestamp.toDate ? oldestTimestamp.toDate().getTime() : new Date(oldestTimestamp).getTime();
+  const resetAt = oldestMs + windowMinutes * 60 * 1000;
+  return Math.max(0, Math.ceil((resetAt - Date.now()) / 60000));
+}
+
 async function getUserPlan(userId) {
   try {
     const userRecord = await admin.auth().getUser(userId);
@@ -3093,6 +3141,112 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
 
       } catch(e) {
         console.error('[CHAT ERROR]', e.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ answer: 'Error processing request.' }));
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/api/general-chat') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const userId = req.headers['x-user-id'];
+        if (!userId) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'auth_required' }));
+          return;
+        }
+
+        const plan = await getUserPlan(userId);
+        const cfg = GENERAL_CHAT_LIMITS[plan] || GENERAL_CHAT_LIMITS.free;
+        const { count, oldestTimestamp } = await getGeneralChatWindowUsage(userId, cfg.windowMinutes);
+        const resetInMinutes = minutesUntilWindowReset(oldestTimestamp, cfg.windowMinutes);
+
+        if (plan === 'free' && count >= cfg.limit) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: 'limit_reached',
+            usagePercent: 100,
+            resetInMinutes,
+            message: "You've reached your chat limit for this window. Upgrade to Pro for much higher limits, or try again once it resets."
+          }));
+          return;
+        }
+
+        const modelToUse = (count >= cfg.limit) ? GENERAL_CHAT_FALLBACK_MODEL : cfg.model;
+        await recordGeneralChatRateLimitEntry(userId);
+
+        const { question, history } = JSON.parse(body);
+        if (!question || typeof question !== 'string') {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ answer: 'No question provided.' }));
+          return;
+        }
+
+        const systemPrompt = `You are a world-class aviation expert assistant embedded in NOTAM Intelligence, a professional pre-flight briefing platform used by pilots and flight dispatchers. You have the depth of knowledge of a senior airline captain, a flight dispatcher, and an aviation safety instructor combined.
+
+LANGUAGE: Always respond in the same language the user writes in, regardless of what language that is. Match their language fluently and naturally — do not default to English unless they write in English.
+
+DEPTH AND QUALITY:
+- Give genuinely expert-level answers, not superficial summaries. Treat every question as if asked by a professional who deserves a real, substantive answer — explain mechanisms, regulatory context (ICAO Annexes, FAA/EASA/national CAA rules where relevant), and practical operational implications, not just dictionary definitions.
+- Use correct aviation terminology and be precise about numbers, categories, and procedures (e.g. ILS categories, RVR minima, ETOPS rules, weight and balance principles, MEL/CDL logic, NOTAM classification, airspace classes, weather phenomena, human factors, aircraft systems).
+- When a topic has nuance or regional variation (e.g. a rule that differs between FAA and EASA), say so explicitly rather than flattening it into one oversimplified answer.
+- It's fine to write a longer, structured answer (with brief paragraphs or a short list) when the question warrants depth. Don't pad simple questions with unnecessary length, but don't shorten complex ones either.
+
+SCOPE BOUNDARY — these are paid platform features you cannot do conversationally, and must NOT fabricate or guess at:
+- Live/current NOTAM, METAR, TAF, or SIGMET data for any specific airport, route, or FIR — you have no live data feed. Never invent or guess current conditions.
+- Generating an actual pre-flight briefing (Go/No-Go assessment, risk scoring) for a specific route or airport.
+- AI Video Briefing generation.
+- NOTAM Alerts, Saved Routes, Archive access, or PDF export — these are platform features, not something you can do conversationally.
+
+When a question clearly needs one of these, do not attempt to answer from memory or estimate current data. Instead, briefly and warmly redirect them — for example, mention they can type the ICAO code or route directly in the main input box (using the Briefing or Video mode) to get real, live data. Keep this redirect short (1-2 sentences), then stop — don't follow it with a guessed answer anyway.
+
+For everything else — explaining concepts, regulations, procedures, aircraft systems, weather theory, navigation, human factors, career guidance, aviation history — answer fully, accurately, and with real expertise.`;
+
+        const messages = [
+          ...(history || []).slice(-10).map(h => ({ role: h.role, content: h.content })),
+          { role: 'user', content: question }
+        ];
+
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_KEY,
+            'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'prompt-caching-2024-07-31'
+          },
+          body: JSON.stringify({
+            model: modelToUse,
+            max_tokens: 1200,
+            system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+            messages
+          })
+        });
+
+        const claudeData = await claudeRes.json();
+        if (claudeData.error) {
+          console.error('[GENERAL CHAT] Anthropic API error:', claudeData.error);
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ answer: 'The aviation expert assistant is temporarily unavailable. Please try again.' }));
+          return;
+        }
+        const answer = claudeData.content?.[0]?.text || 'Sorry, I could not process that question.';
+
+        console.log('[GENERAL CHAT]', { userId, plan, model: modelToUse, windowCount: count + 1, limit: cfg.limit });
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          answer,
+          usagePercent: Math.min(100, Math.round(((count + 1) / cfg.limit) * 100)),
+          resetInMinutes
+        }));
+
+      } catch(e) {
+        console.error('[GENERAL CHAT ERROR]', e.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ answer: 'Error processing request.' }));
       }
