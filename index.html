@@ -1814,10 +1814,65 @@ async function appendChatMessageToFirestore(role, text) {
   }
 }
 
-function enterChatMode() {
+async function resumeChatSession(sessionId) {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  try {
+    const doc = await db.collection('general_chats').doc(sessionId).get();
+    if (!doc.exists) { showToast('Chat session not found'); return; }
+    const data = doc.data();
+
+    selectModePill('pillChat');
+    enterChatMode(true);
+    currentChatSessionId = sessionId;
+    currentChatMessages = (data.messages || []).slice();
+
+    document.getElementById('chatMessagesArea').innerHTML = '';
+    currentChatMessages.forEach(m => {
+      const area = document.getElementById('chatMessagesArea');
+      const row = document.createElement('div');
+      row.className = 'chat-msg-row ' + (m.role === 'ai' ? 'ai' : 'user');
+      const iconSvg = m.role === 'ai'
+        ? '<svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 h16 a4 4 0 0 1 4 4 v9 a4 4 0 0 1 -4 4 h-9 l-4.5 4.5 v-4.5 h-2.5 a4 4 0 0 1 -4 -4 v-9 a4 4 0 0 1 4 -4 z" transform="scale(0.72)"/><path d="M14 9 L15 11.5 L17.5 12.5 L15 13.5 L14 16 L13 13.5 L10.5 12.5 L13 11.5 Z" fill="#4a9eff" stroke="none" transform="scale(0.72)"/></svg>'
+        : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>';
+      if (m.role === 'ai') {
+        row.innerHTML = `
+          <div class="chat-msg-content">
+            <div class="chat-msg-icon">${iconSvg}</div>
+            <div class="chat-msg-bubble"></div>
+          </div>
+          <div class="chat-bubble-actions">
+            <button class="chat-action-btn" data-tooltip="Copy" onclick="copyChatBubble(this)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+            <button class="chat-action-btn" data-tooltip="Good response" onclick="toggleChatLike(this, 'like')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+            </button>
+            <button class="chat-action-btn" data-tooltip="Bad response" onclick="toggleChatLike(this, 'dislike')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"/></svg>
+            </button>
+            <button class="chat-action-btn" data-tooltip="Retry" onclick="pulseChatButton(this)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            </button>
+          </div>
+        `;
+      } else {
+        row.innerHTML = '<div class="chat-msg-icon">' + iconSvg + '</div><div class="chat-msg-bubble"></div>';
+      }
+      row.querySelector('.chat-msg-bubble').textContent = m.text;
+      area.appendChild(row);
+    });
+    document.getElementById('chatMessagesArea').scrollTop = document.getElementById('chatMessagesArea').scrollHeight;
+  } catch(e) {
+    console.error('Resume chat session error:', e);
+    showToast('Could not load this chat');
+  }
+}
+
+function enterChatMode(skipNewSession) {
   if (chatModeActive) return;
   chatModeActive = true;
-  startChatFirestoreSession();
+  if (!skipNewSession) startChatFirestoreSession();
   document.getElementById('mainContent').classList.add('chat-active');
   document.querySelector('.logo').style.display = 'none';
   document.querySelector('.logo-line').style.display = 'none';
@@ -3316,11 +3371,37 @@ async function loadBriefingHistory() {
       briefingCache[doc.id] = data.html;
       recents.push({
         id: doc.id,
+        type: 'briefing',
         route: data.route,
         riskLevel: data.riskLevel,
         timestamp: data.createdAt?.toDate()?.toISOString() || new Date().toISOString()
       });
     });
+
+    // Also load General Aviation Expert Chat sessions (Pro/Premium only — Free never creates these documents)
+    try {
+      const chatSnapshot = await db.collection('general_chats')
+        .where('userId', '==', user.uid)
+        .orderBy('createdAt', 'desc')
+        .limit(50)
+        .get();
+      chatSnapshot.forEach(doc => {
+        const data = doc.data();
+        const firstUserMsg = (data.messages || []).find(m => m.role === 'user');
+        const label = firstUserMsg ? firstUserMsg.text.slice(0, 60) : 'Aviation Chat';
+        recents.push({
+          id: doc.id,
+          type: 'chat',
+          route: label,
+          riskLevel: null,
+          timestamp: data.createdAt?.toDate()?.toISOString() || new Date().toISOString()
+        });
+      });
+    } catch(chatErr) {
+      console.error('Chat history load error:', chatErr);
+    }
+
+    recents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     localStorage.setItem('notamai_recents', JSON.stringify(recents));
     console.log('Recents saved:', recents.length);
     renderSidebarHistory();
@@ -3334,13 +3415,22 @@ function renderSidebarItem(item, isStarred) {
   div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;position:relative;';
   div.onmouseover = function() { this.style.background = 'rgba(255,255,255,0.06)'; this.querySelector('.item-menu-btn').style.opacity = '1'; };
   div.onmouseout  = function() { this.style.background = 'none'; this.querySelector('.item-menu-btn').style.opacity = '0'; };
+  const isChat = item.type === 'chat';
   const colors = { CRITICAL: '#e63946', HIGH: '#f4841a', MEDIUM: '#f2c641', LOW: '#2ec4b6' };
-  const dot = `<div style="width:6px;height:6px;border-radius:50%;background:${colors[item.riskLevel] || '#4a5f72'};flex-shrink:0;"></div>`;
+  const dot = isChat
+    ? `<svg width="11" height="11" viewBox="0 0 18 18" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M2 2 h16 a4 4 0 0 1 4 4 v9 a4 4 0 0 1 -4 4 h-9 l-4.5 4.5 v-4.5 h-2.5 a4 4 0 0 1 -4 -4 v-9 a4 4 0 0 1 4 -4 z" transform="scale(0.72)"/><path d="M14 9 L15 11.5 L17.5 12.5 L15 13.5 L14 16 L13 13.5 L10.5 12.5 L13 11.5 Z" fill="#4a9eff" stroke="none" transform="scale(0.72)"/></svg>`
+    : `<div style="width:6px;height:6px;border-radius:50%;background:${colors[item.riskLevel] || '#4a5f72'};flex-shrink:0;"></div>`;
   const text = `<span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.route}</span>`;
   const menuBtn = `<button class="item-menu-btn" onclick="event.stopPropagation(); toggleItemMenu(event,'${item.id}',${isStarred})" style="background:none;border:none;cursor:pointer;color:#4a5f72;padding:2px 4px;opacity:0;transition:opacity 0.15s;font-size:16px;line-height:1;border-radius:4px;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">···</button>`;
   div.innerHTML = dot + text + menuBtn;
   div.addEventListener('click', function(e) {
     if (e.target.closest('button') || e.target.closest('.item-menu-btn')) return;
+
+    if (isChat) {
+      resumeChatSession(item.id);
+      return;
+    }
+
     const cachedHtml = briefingCache[item.id];
     if (cachedHtml) {
       window.currentBriefingId = item.id;
