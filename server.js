@@ -3211,44 +3211,41 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           { role: 'user', content: question }
         ];
 
-        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': ANTHROPIC_KEY,
-            'anthropic-version': '2023-06-01',
-            'anthropic-beta': 'prompt-caching-2024-07-31'
-          },
-          body: JSON.stringify({
-            model: modelToUse,
-            max_tokens: 1200,
-            system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
-            messages
-          })
+        const requestBody = JSON.stringify({
+          model: modelToUse,
+          max_tokens: 1200,
+          stream: true,
+          system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+          messages
         });
 
-        const claudeData = await claudeRes.json();
-        if (claudeData.error) {
-          console.error('[GENERAL CHAT] Anthropic API error:', claudeData.error);
-          res.writeHead(502, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ answer: 'The aviation expert assistant is temporarily unavailable. Please try again.' }));
-          return;
-        }
-        const answer = claudeData.content?.[0]?.text || 'Sorry, I could not process that question.';
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
 
+        const usagePercent = Math.min(100, Math.round(((count + 1) / cfg.limit) * 100));
+        res.write(`data: ${JSON.stringify({ type: 'init', usagePercent, resetInMinutes })}\n\n`);
+
+        let doneSent = false;
         console.log('[GENERAL CHAT]', { userId, plan, model: modelToUse, windowCount: count + 1, limit: cfg.limit });
 
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          answer,
-          usagePercent: Math.min(100, Math.round(((count + 1) / cfg.limit) * 100)),
-          resetInMinutes
-        }));
+        streamClaude(requestBody,
+          (text) => { res.write(`data: ${JSON.stringify({ type: 'chunk', text })}\n\n`); },
+          () => { if (!doneSent) { doneSent = true; res.write('data: {"type":"done"}\n\n'); res.end(); } },
+          (err) => {
+            console.error('[GENERAL CHAT] Stream error:', err.message);
+            if (!doneSent) { doneSent = true; res.write(`data: ${JSON.stringify({ type: 'error', message: 'Stream interrupted' })}\n\n`); res.end(); }
+          }
+        );
 
       } catch(e) {
         console.error('[GENERAL CHAT ERROR]', e.message);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ answer: 'Error processing request.' }));
+        if (res.headersSent) {
+          res.end();
+        } else {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ answer: 'Error processing request.' }));
+        }
       }
     });
     return;
