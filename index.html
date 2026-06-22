@@ -540,6 +540,25 @@ canvas#sky {
   white-space: nowrap;
 }
 .chat-usage-banner .upgrade-pill:hover { background: rgba(74,158,255,0.2); }
+.chat-md-h2, .chat-md-h3, .chat-md-h4 {
+  font-family: 'Orbitron', sans-serif;
+  color: #ffffff;
+  margin: 14px 0 8px;
+  letter-spacing: 0.5px;
+}
+.chat-md-h2 { font-size: 17px; }
+.chat-md-h3 { font-size: 15px; color: #4a9eff; }
+.chat-md-h4 { font-size: 14px; color: #8a9bb0; }
+.chat-md-hr { border: none; border-top: 1px solid rgba(74,158,255,0.15); margin: 14px 0; }
+.chat-md-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13.5px; }
+.chat-md-table th, .chat-md-table td { border: 1px solid rgba(74,158,255,0.15); padding: 6px 10px; text-align: left; }
+.chat-md-table th { background: rgba(74,158,255,0.08); color: #4a9eff; font-weight: 600; }
+.chat-md-list { margin: 6px 0 6px 18px; }
+.chat-md-list li { margin: 3px 0; }
+.chat-md-quote { border-left: 2px solid rgba(74,158,255,0.4); padding-left: 12px; margin: 8px 0; color: #8a9bb0; font-style: italic; }
+.chat-md-code { background: rgba(74,158,255,0.1); padding: 1px 6px; border-radius: 4px; font-family: 'Share Tech Mono', monospace; font-size: 12.5px; }
+.chat-msg-bubble p { margin: 0 0 8px; }
+.chat-msg-bubble p:last-child { margin-bottom: 0; }
 .chat-close-btn {
   display: none;
   position: absolute;
@@ -2165,8 +2184,63 @@ function pulseChatButton(btn) {
   setTimeout(() => btn.classList.remove('pulse'), 300);
 }
 
+function renderChatMarkdown(text) {
+  let html = text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // Tables (simple GFM-style)
+  html = html.replace(/((?:^\|.*\|\s*\n)+)/gm, (tableBlock) => {
+    const rows = tableBlock.trim().split('\n').filter(r => r.trim());
+    if (rows.length < 2) return tableBlock;
+    const isSeparator = /^\|?[\s:|-]+\|?$/.test(rows[1]);
+    if (!isSeparator) return tableBlock;
+    const headerCells = rows[0].split('|').map(c => c.trim()).filter(c => c !== '');
+    let out = '<table class="chat-md-table"><thead><tr>' + headerCells.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+    for (let i = 2; i < rows.length; i++) {
+      const cells = rows[i].split('|').map(c => c.trim()).filter((c, idx, arr) => !(idx === 0 && c === '') && !(idx === arr.length - 1 && c === ''));
+      out += '<tr>' + cells.map(c => '<td>' + c + '</td>').join('') + '</tr>';
+    }
+    out += '</tbody></table>';
+    return out;
+  });
+
+  // Headers
+  html = html.replace(/^### (.*$)/gm, '<h4 class="chat-md-h4">$1</h4>');
+  html = html.replace(/^## (.*$)/gm, '<h3 class="chat-md-h3">$1</h3>');
+  html = html.replace(/^# (.*$)/gm, '<h2 class="chat-md-h2">$1</h2>');
+
+  // Horizontal rule
+  html = html.replace(/^---$/gm, '<hr class="chat-md-hr">');
+
+  // Bold and italic
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>');
+
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code class="chat-md-code">$1</code>');
+
+  // Bullet lists
+  html = html.replace(/^(?:- |\* )(.*$)/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, (m) => '<ul class="chat-md-list">' + m + '</ul>');
+
+  // Blockquote
+  html = html.replace(/^> (.*$)/gm, '<blockquote class="chat-md-quote">$1</blockquote>');
+
+  // Paragraphs: wrap remaining bare lines, preserve existing block tags
+  html = html.split(/\n{2,}/).map(block => {
+    if (/^\s*<(h2|h3|h4|table|ul|blockquote|hr)/.test(block.trim())) return block;
+    if (!block.trim()) return '';
+    return '<p>' + block.replace(/\n/g, '<br>') + '</p>';
+  }).join('');
+
+  return html;
+}
+
 async function mockChatResponse(question) {
   const row = addChatBubble('ai', 'Thinking...');
+  const bubble = row.querySelector('.chat-msg-bubble');
+  const messagesArea = document.getElementById('chatMessagesArea');
+
   try {
     const historyForApi = currentChatMessages.slice(0, -1).map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
     const response = await fetch('/api/general-chat', {
@@ -2177,26 +2251,70 @@ async function mockChatResponse(question) {
       },
       body: JSON.stringify({ question, history: historyForApi })
     });
-    const data = await response.json();
 
+    // Limit-reached responses are still plain JSON (returned before streaming starts server-side)
     if (response.status === 403) {
-      row.querySelector('.chat-msg-bubble').textContent = data.message || "You've reached your chat limit for this window.";
+      const data = await response.json();
+      const msg = data.message || "You've reached your chat limit for this window.";
+      bubble.textContent = msg;
       renderChatUsageBanner(100, true, data.resetInMinutes);
-      finalizeChatBubbleText(row, data.message || "You've reached your chat limit for this window.");
+      finalizeChatBubbleText(row, msg);
       return;
     }
 
-    const finalText = data.answer || 'Sorry, I could not process that question.';
-    row.querySelector('.chat-msg-bubble').textContent = finalText;
+    if (!response.ok || !response.body) {
+      throw new Error('Server error ' + response.status);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let sseBuffer = '';
+    let accumulated = '';
+    let usagePercent = null;
+    let resetInMinutes = null;
+    bubble.textContent = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      sseBuffer += decoder.decode(value, { stream: true });
+      const lines = sseBuffer.split('\n');
+      sseBuffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (!raw) continue;
+        try {
+          const evt = JSON.parse(raw);
+          if (evt.type === 'init') {
+            usagePercent = evt.usagePercent;
+            resetInMinutes = evt.resetInMinutes;
+          } else if (evt.type === 'chunk') {
+            accumulated += evt.text;
+            bubble.innerHTML = renderChatMarkdown(accumulated);
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+          } else if (evt.type === 'error') {
+            throw new Error(evt.message || 'Stream error');
+          }
+          // 'done' needs no action — loop ends naturally when reader is done
+        } catch(parseErr) {
+          // ignore malformed partial JSON line, will complete on next chunk
+        }
+      }
+    }
+
+    const finalText = accumulated || 'Sorry, I could not process that question.';
+    bubble.innerHTML = renderChatMarkdown(finalText);
     finalizeChatBubbleText(row, finalText);
 
-    if (typeof data.usagePercent === 'number') {
-      renderChatUsageBanner(data.usagePercent, false, data.resetInMinutes);
+    if (typeof usagePercent === 'number') {
+      renderChatUsageBanner(usagePercent, false, resetInMinutes);
     }
   } catch(e) {
     console.error('General chat API error:', e);
     const errText = 'Something went wrong reaching the aviation expert assistant. Please try again.';
-    row.querySelector('.chat-msg-bubble').textContent = errText;
+    bubble.textContent = errText;
     finalizeChatBubbleText(row, errText);
   }
 }
