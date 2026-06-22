@@ -2577,6 +2577,7 @@ function openChatShareModal() {
     return;
   }
   const modal = document.getElementById('shareModal');
+  document.getElementById('shareModalTitle').textContent = 'SHARE CHAT';
   modal.style.display = 'flex';
   const shareUrl = window.location.origin + '/c/' + currentChatSessionId;
   document.getElementById('shareLinkInput').value = shareUrl;
@@ -2586,6 +2587,7 @@ function openChatShareModal() {
 function openShareModal() {
   console.log('currentBriefingId:', window.currentBriefingId);
   const modal = document.getElementById('shareModal');
+  document.getElementById('shareModalTitle').textContent = 'SHARE BRIEFING';
   modal.style.display = 'flex';
   const briefingId = window.currentBriefingId || '';
   console.log('briefingId used:', briefingId);
@@ -4939,7 +4941,7 @@ document.addEventListener('mouseout', function(e) {
 <div id="shareModal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(6,10,15,0.7);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
   <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:12px;padding:28px;width:420px;max-width:90vw;position:relative;">
     <button onclick="closeShareModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;color:#4a5f72;font-size:18px;cursor:pointer;">✕</button>
-    <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#ffffff;letter-spacing:2px;margin-bottom:20px;">SHARE BRIEFING</div>
+    <div id="shareModalTitle" style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#ffffff;letter-spacing:2px;margin-bottom:20px;">SHARE BRIEFING</div>
     <!-- SHARE LINK -->
     <div style="margin-bottom:20px;">
       <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">SHARE LINK</div>
