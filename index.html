@@ -461,6 +461,67 @@ canvas#sky {
 .mode-pill svg .pill-spark { fill: #8a9bb0; transition: fill 0.2s; }
 .mode-pill:hover svg .pill-spark { fill: #c8daf0; }
 
+/* ═══ GENERAL AVIATION CHAT (Claude-style layout) ═══ */
+.ui.chat-active {
+  justify-content: flex-end;
+  padding-bottom: 24px;
+}
+.chat-messages-area {
+  display: none;
+  width: 100%;
+  max-width: 680px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 4px 16px;
+  flex-direction: column;
+  gap: 16px;
+  pointer-events: auto;
+}
+.chat-messages-area.visible { display: flex; }
+.chat-msg-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  max-width: 100%;
+}
+.chat-msg-row.user { flex-direction: row-reverse; }
+.chat-msg-icon {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.chat-msg-row.ai .chat-msg-icon { background: rgba(74,158,255,0.12); border: 1px solid rgba(74,158,255,0.3); }
+.chat-msg-row.user .chat-msg-icon { background: rgba(255,255,255,0.06); }
+.chat-msg-bubble {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #c8daf0;
+  white-space: pre-wrap;
+  max-width: 540px;
+  padding-top: 2px;
+}
+.chat-msg-row.user .chat-msg-bubble { color: rgba(255,255,255,0.82); text-align: right; }
+.chat-close-btn {
+  display: none;
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: none;
+  border: none;
+  color: #4a5f72;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  z-index: 20;
+  pointer-events: auto;
+  transition: color 0.15s;
+}
+.chat-close-btn:hover { color: #c8daf0; }
+.chat-close-btn.visible { display: flex; }
+
 /* ═══ RESULT OVERLAY ═══ */
 .result-overlay {
   position: fixed;
@@ -1025,6 +1086,10 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
 
 <!-- MAIN UI -->
 <div class="ui" id="mainContent">
+  <button class="chat-close-btn" id="chatCloseBtn" onclick="exitChatMode()" data-tooltip="Exit chat">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div class="chat-messages-area" id="chatMessagesArea"></div>
   <div class="logo" onclick="window.location.reload()" style="cursor:pointer">NOTAM <em>INTELLIGENCE</em></div>
   <div class="logo-line">AI-POWERED PRE-FLIGHT BRIEFING SYSTEM</div>
 
@@ -1677,6 +1742,57 @@ function restartAnimation() {
   animate();
 }
 
+let chatModeActive = false;
+
+function enterChatMode() {
+  if (chatModeActive) return;
+  chatModeActive = true;
+  document.getElementById('mainContent').classList.add('chat-active');
+  document.querySelector('.logo').style.display = 'none';
+  document.querySelector('.logo-line').style.display = 'none';
+  document.getElementById('greeting').style.display = 'none';
+  document.querySelector('.greeting-sub').style.display = 'none';
+  document.getElementById('modePillsRow').style.display = 'none';
+  document.getElementById('chatMessagesArea').classList.add('visible');
+  document.getElementById('chatCloseBtn').classList.add('visible');
+}
+
+function exitChatMode() {
+  chatModeActive = false;
+  document.getElementById('mainContent').classList.remove('chat-active');
+  document.querySelector('.logo').style.display = '';
+  document.querySelector('.logo-line').style.display = '';
+  document.getElementById('greeting').style.display = '';
+  document.querySelector('.greeting-sub').style.display = '';
+  document.getElementById('modePillsRow').style.display = '';
+  document.getElementById('chatMessagesArea').classList.remove('visible');
+  document.getElementById('chatMessagesArea').innerHTML = '';
+  document.getElementById('chatCloseBtn').classList.remove('visible');
+  selectModePill('pillBriefing');
+}
+
+function addChatBubble(role, text) {
+  const area = document.getElementById('chatMessagesArea');
+  const row = document.createElement('div');
+  row.className = 'chat-msg-row ' + (role === 'ai' ? 'ai' : 'user');
+  const iconSvg = role === 'ai'
+    ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>'
+    : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>';
+  row.innerHTML = '<div class="chat-msg-icon">' + iconSvg + '</div><div class="chat-msg-bubble"></div>';
+  row.querySelector('.chat-msg-bubble').textContent = text;
+  area.appendChild(row);
+  area.scrollTop = area.scrollHeight;
+  return row;
+}
+
+// TEMPORARY mock responder — will be replaced with a real /api/general-chat call in a later step.
+function mockChatResponse(question) {
+  const row = addChatBubble('ai', 'Thinking...');
+  setTimeout(() => {
+    row.querySelector('.chat-msg-bubble').textContent = "This is a placeholder response. The real Aviation Expert Chat backend isn't connected yet — your question was: \"" + question + "\"";
+  }, 700);
+}
+
 function selectModePill(pillId) {
   document.querySelectorAll('.mode-pill').forEach(p => p.classList.remove('active'));
   document.getElementById(pillId).classList.add('active');
@@ -1767,8 +1883,14 @@ async function handleSend(silent = false) {
     return;
   }
   if (activeMode === 'chat') {
-    // General Aviation Expert Chat is not implemented yet — placeholder until built.
-    showToast ? showToast('Aviation Chat is coming soon — switch to the Briefing mode for now.') : alert('Aviation Chat is coming soon.');
+    if (!chatModeActive) enterChatMode();
+    const chatInput = document.getElementById('mainInput');
+    const question = chatInput.value.trim();
+    if (!question) return;
+    chatInput.value = '';
+    autoResize(chatInput);
+    addChatBubble('user', question);
+    mockChatResponse(question);
     return;
   }
 
