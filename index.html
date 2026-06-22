@@ -557,6 +557,55 @@ canvas#sky {
   100% { transform: scale(1); }
 }
 
+.chat-user-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 6px;
+  justify-content: flex-end;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+.chat-msg-row.user:hover .chat-user-actions { opacity: 1; }
+.chat-user-timestamp {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #4a5f72;
+  margin-right: 4px;
+}
+.chat-edit-textarea {
+  width: 100%;
+  background: rgba(74,158,255,0.06);
+  border: 1px solid rgba(74,158,255,0.3);
+  border-radius: 8px;
+  color: #c8daf0;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  resize: none;
+  outline: none;
+}
+.chat-edit-save-row {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+.chat-edit-btn {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid rgba(74,158,255,0.3);
+  background: transparent;
+  color: #8a9bb0;
+}
+.chat-edit-btn:hover { color: #c8daf0; border-color: rgba(74,158,255,0.6); }
+.chat-edit-btn.primary { background: rgba(74,158,255,0.12); color: #4a9eff; border-color: rgba(74,158,255,0.4); }
+
 /* ═══ RESULT OVERLAY ═══ */
 .result-overlay {
   position: fixed;
@@ -1930,7 +1979,24 @@ function addChatBubble(role, text) {
     `;
     row.querySelector('.chat-msg-bubble').textContent = text;
   } else {
-    row.innerHTML = '<div class="chat-msg-icon">' + iconSvg + '</div><div class="chat-msg-bubble"></div>';
+    const msgIndex = currentChatMessages.length; // index this message WILL have once appendChatMessageToFirestore pushes it below
+    const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    row.dataset.msgIndex = msgIndex;
+    row.innerHTML = `
+      <div class="chat-msg-icon">${iconSvg}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;">
+        <div class="chat-msg-bubble"></div>
+        <div class="chat-user-actions">
+          <span class="chat-user-timestamp">${timeLabel}</span>
+          <button class="chat-action-btn" data-tooltip="Copy" onclick="copyChatBubble(this)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button class="chat-action-btn" data-tooltip="Edit" onclick="startEditChatMessage(this)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+        </div>
+      </div>
+    `;
     row.querySelector('.chat-msg-bubble').textContent = text;
   }
 
@@ -1946,6 +2012,74 @@ function copyChatBubble(btn) {
     btn.classList.add('copied');
     setTimeout(() => btn.classList.remove('copied'), 1500);
   });
+}
+
+function startEditChatMessage(btn) {
+  const row = btn.closest('.chat-msg-row');
+  const bubble = row.querySelector('.chat-msg-bubble');
+  const actionsRow = row.querySelector('.chat-user-actions');
+  const originalText = bubble.textContent;
+  const msgIndex = parseInt(row.dataset.msgIndex, 10);
+
+  bubble.style.display = 'none';
+  actionsRow.style.display = 'none';
+
+  const editWrap = document.createElement('div');
+  editWrap.style.width = '100%';
+  editWrap.innerHTML = `
+    <textarea class="chat-edit-textarea" rows="2">${originalText}</textarea>
+    <div class="chat-edit-save-row">
+      <button class="chat-edit-btn" onclick="cancelEditChatMessage(this)">Cancel</button>
+      <button class="chat-edit-btn primary" onclick="saveEditChatMessage(this, ${msgIndex})">Save</button>
+    </div>
+  `;
+  row.querySelector('div[style*="flex-direction:column"]').insertBefore(editWrap, bubble);
+  const ta = editWrap.querySelector('textarea');
+  ta.focus();
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
+}
+
+function cancelEditChatMessage(btn) {
+  const row = btn.closest('.chat-msg-row');
+  const editWrap = btn.closest('div[style*="width:100%"]');
+  row.querySelector('.chat-msg-bubble').style.display = '';
+  row.querySelector('.chat-user-actions').style.display = '';
+  editWrap.remove();
+}
+
+async function saveEditChatMessage(btn, msgIndex) {
+  const row = btn.closest('.chat-msg-row');
+  const editWrap = btn.closest('div[style*="width:100%"]');
+  const newText = editWrap.querySelector('textarea').value.trim();
+  if (!newText) return;
+
+  // Remove this message and everything after it from the DOM
+  const area = document.getElementById('chatMessagesArea');
+  let node = row;
+  const toRemove = [];
+  while (node) {
+    toRemove.push(node);
+    node = node.nextElementSibling;
+  }
+  toRemove.forEach(n => n.remove());
+
+  // Truncate stored history to before this message
+  currentChatMessages = currentChatMessages.slice(0, msgIndex);
+  if (currentChatSessionId) {
+    try {
+      await db.collection('general_chats').doc(currentChatSessionId).update({
+        messages: currentChatMessages,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch(e) {
+      console.error('Edit truncate save error:', e);
+    }
+  }
+
+  // Re-add the edited message and get a fresh mock response
+  addChatBubble('user', newText);
+  mockChatResponse(newText);
 }
 
 function toggleChatLike(btn, type) {
