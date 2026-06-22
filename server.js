@@ -1084,6 +1084,111 @@ if (getAccessBtn) {
     return;
   }
 
+  if (req.method === 'GET' && req.url.startsWith('/c/')) {
+    const chatId = req.url.split('/c/')[1].split('?')[0];
+    const shareHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOTAM Intelligence — Aviation Chat</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif; min-height: 100vh; }
+#loadingScreen { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 16px; }
+#loadingText { font-family: 'Share Tech Mono', monospace; font-size: 14px; letter-spacing: 3px; color: #4a9eff; }
+#chatContent { max-width: 680px; margin: 40px auto; padding: 0 24px 80px; }
+@keyframes blinkDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+.msg-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 18px; }
+.msg-row.user { flex-direction: row-reverse; }
+.msg-icon { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+.msg-row.ai .msg-icon { background: rgba(74,158,255,0.12); border: 1px solid rgba(74,158,255,0.3); }
+.msg-row.user .msg-icon { background: rgba(255,255,255,0.06); }
+.msg-bubble { font-size: 15px; line-height: 1.55; color: #c8daf0; white-space: pre-wrap; max-width: 540px; padding-top: 2px; }
+.msg-row.user .msg-bubble { color: rgba(255,255,255,0.82); text-align: right; }
+</style>
+</head>
+<body>
+<div id="loadingScreen">
+  <div id="loadingText">LOADING CHAT...</div>
+</div>
+<div id="chatContent" style="display:none;">
+  <div style="position:sticky;top:0;z-index:100;background:rgba(6,10,15,0.95);border-bottom:1px solid #1a2a3a;padding:0 24px;height:48px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(8px);">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <a href="https://notamai.onrender.com" style="text-decoration:none;display:flex;align-items:center;gap:4px;">
+        <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#ffffff;">NOTAM</span>
+        <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#4a9eff;">INTELLIGENCE</span>
+      </a>
+      <span style="color:#1a2a3a;">|</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#2ec4b6;display:inline-block;animation:blinkDot 1.5s ease-in-out infinite;flex-shrink:0;"></span>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">SHARED AVIATION CHAT</span>
+      </div>
+    </div>
+    <a href="https://notamai.onrender.com/?signup=true" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#ffffff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;text-decoration:none;">
+      <span style="font-size:12px;">✨</span>
+      GET FULL ACCESS
+    </a>
+  </div>
+  <div style="max-width:680px;margin:16px auto 0;padding:0 24px;">
+    <div style="background:rgba(244,132,26,0.07);border:1px solid rgba(244,132,26,0.25);border-radius:8px;padding:10px 14px;font-family:'Rajdhani',sans-serif;font-size:12.5px;color:rgba(244,180,120,0.9);">
+      This is a shared conversation. Anyone with this link can view it — avoid sharing chats containing personal or sensitive information.
+    </div>
+  </div>
+  <div id="chatBody" style="padding-top:24px;max-width:680px;margin:0 auto;padding-left:24px;padding-right:24px;"></div>
+</div>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCH8bj9-775vmXU1HnqRFjf09g1yUXvnpo",
+  authDomain: "notamai-a9d57.firebaseapp.com",
+  projectId: "notamai-a9d57",
+  storageBucket: "notamai-a9d57.firebasestorage.app",
+  messagingSenderId: "793570221190",
+  appId: "1:793570221190:web:aab696c96dbde26d9f4507"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+db.collection('general_chats').doc('${chatId}').get().then(doc => {
+  if (doc.exists) {
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('chatContent').style.display = 'block';
+    const messages = doc.data().messages || [];
+    const body = document.getElementById('chatBody');
+    messages.forEach(m => {
+      const row = document.createElement('div');
+      row.className = 'msg-row ' + (m.role === 'ai' ? 'ai' : 'user');
+      const iconSvg = m.role === 'ai'
+        ? '<svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 h16 a4 4 0 0 1 4 4 v9 a4 4 0 0 1 -4 4 h-9 l-4.5 4.5 v-4.5 h-2.5 a4 4 0 0 1 -4 -4 v-9 a4 4 0 0 1 4 -4 z" transform="scale(0.72)"/><path d="M14 9 L15 11.5 L17.5 12.5 L15 13.5 L14 16 L13 13.5 L10.5 12.5 L13 11.5 Z" fill="#4a9eff" stroke="none" transform="scale(0.72)"/></svg>'
+        : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>';
+      row.innerHTML = '<div class="msg-icon">' + iconSvg + '</div><div class="msg-bubble"></div>';
+      row.querySelector('.msg-bubble').textContent = m.text;
+      body.appendChild(row);
+    });
+    document.title = 'NOTAM Intelligence — Aviation Chat';
+  } else {
+    document.getElementById('loadingText').textContent = 'CHAT NOT FOUND';
+  }
+}).catch(() => {
+  document.getElementById('loadingText').textContent = 'ERROR LOADING CHAT';
+});
+</script>
+</body>
+</html>`;
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(shareHtml);
+    return;
+  }
+
   // ── HEYGEN TEST ──────────────────────────────────────────────
   if (req.method === 'GET' && req.url === '/api/test-heygen') {
     try {
