@@ -504,6 +504,42 @@ canvas#sky {
   padding-top: 2px;
 }
 .chat-msg-row.user .chat-msg-bubble { color: rgba(255,255,255,0.82); text-align: right; }
+.chat-usage-banner {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto 10px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: rgba(244,132,26,0.07);
+  border: 1px solid rgba(244,132,26,0.25);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  color: rgba(244,180,120,0.9);
+  pointer-events: auto;
+}
+.chat-usage-banner.show { display: flex; }
+.chat-usage-banner.limit-reached {
+  background: rgba(230,57,70,0.08);
+  border-color: rgba(230,57,70,0.3);
+  color: rgba(255,150,150,0.95);
+}
+.chat-usage-banner .upgrade-pill {
+  margin-left: auto;
+  background: rgba(74,158,255,0.12);
+  border: 1px solid rgba(74,158,255,0.35);
+  color: #4a9eff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chat-usage-banner .upgrade-pill:hover { background: rgba(74,158,255,0.2); }
 .chat-close-btn {
   display: none;
   position: absolute;
@@ -1193,6 +1229,11 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
   <button class="chat-close-btn" id="chatCloseBtn" onclick="exitChatMode()" data-tooltip="Exit chat">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
   </button>
+  <div class="chat-usage-banner" id="chatUsageBanner">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span id="chatUsageBannerText"></span>
+    <button class="upgrade-pill" id="chatUpgradePill" style="display:none;" onclick="window.location.href='/pricing-upgrade'">Upgrade</button>
+  </div>
   <div class="chat-messages-area" id="chatMessagesArea"></div>
   <div class="logo" onclick="window.location.reload()" style="cursor:pointer">NOTAM <em>INTELLIGENCE</em></div>
   <div class="logo-line">AI-POWERED PRE-FLIGHT BRIEFING SYSTEM</div>
@@ -1967,6 +2008,8 @@ function exitChatMode() {
   document.getElementById('chatMessagesArea').innerHTML = '';
   document.getElementById('chatCloseBtn').classList.remove('visible');
   document.getElementById('chatShareBtn').classList.remove('visible');
+  const usageBanner = document.getElementById('chatUsageBanner');
+  if (usageBanner) { usageBanner.classList.remove('show'); usageBanner.classList.remove('limit-reached'); }
   selectModePill('pillBriefing');
 }
 
@@ -2122,22 +2165,85 @@ function pulseChatButton(btn) {
   setTimeout(() => btn.classList.remove('pulse'), 300);
 }
 
-// TEMPORARY mock responder — will be replaced with a real /api/general-chat call in a later step.
-function mockChatResponse(question) {
+async function mockChatResponse(question) {
   const row = addChatBubble('ai', 'Thinking...');
-  setTimeout(() => {
-    const finalText = "This is a placeholder response. The real Aviation Expert Chat backend isn't connected yet — your question was: \"" + question + "\"";
-    row.querySelector('.chat-msg-bubble').textContent = finalText;
-    if (currentChatMessages.length > 0) {
-      currentChatMessages[currentChatMessages.length - 1].text = finalText;
-      if (currentChatSessionId) {
-        db.collection('general_chats').doc(currentChatSessionId).update({
-          messages: currentChatMessages,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(e => console.error('Chat correction save error:', e));
-      }
+  try {
+    const historyForApi = currentChatMessages.slice(0, -1).map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
+    const response = await fetch('/api/general-chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': firebase.auth().currentUser?.uid || ''
+      },
+      body: JSON.stringify({ question, history: historyForApi })
+    });
+    const data = await response.json();
+
+    if (response.status === 403) {
+      row.querySelector('.chat-msg-bubble').textContent = data.message || "You've reached your chat limit for this window.";
+      renderChatUsageBanner(100, true, data.resetInMinutes);
+      finalizeChatBubbleText(row, data.message || "You've reached your chat limit for this window.");
+      return;
     }
-  }, 700);
+
+    const finalText = data.answer || 'Sorry, I could not process that question.';
+    row.querySelector('.chat-msg-bubble').textContent = finalText;
+    finalizeChatBubbleText(row, finalText);
+
+    if (typeof data.usagePercent === 'number') {
+      renderChatUsageBanner(data.usagePercent, false, data.resetInMinutes);
+    }
+  } catch(e) {
+    console.error('General chat API error:', e);
+    const errText = 'Something went wrong reaching the aviation expert assistant. Please try again.';
+    row.querySelector('.chat-msg-bubble').textContent = errText;
+    finalizeChatBubbleText(row, errText);
+  }
+}
+
+function finalizeChatBubbleText(row, finalText) {
+  if (currentChatMessages.length > 0) {
+    currentChatMessages[currentChatMessages.length - 1].text = finalText;
+    if (currentChatSessionId) {
+      db.collection('general_chats').doc(currentChatSessionId).update({
+        messages: currentChatMessages,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(e => console.error('Chat correction save error:', e));
+    }
+  }
+}
+
+function renderChatUsageBanner(usagePercent, limitReached, resetInMinutes) {
+  const banner = document.getElementById('chatUsageBanner');
+  const textEl = document.getElementById('chatUsageBannerText');
+  const pill = document.getElementById('chatUpgradePill');
+  if (!banner || !textEl || !pill) return;
+
+  if (limitReached) {
+    const resetText = formatChatResetTime(resetInMinutes);
+    textEl.textContent = "You've reached your chat limit for this window. " + resetText;
+    banner.classList.add('limit-reached');
+    banner.classList.add('show');
+    pill.style.display = 'inline-block';
+    return;
+  }
+
+  if (usagePercent >= 80) {
+    textEl.textContent = "You've used " + Math.round(usagePercent) + "% of your chat limit for this window.";
+    banner.classList.remove('limit-reached');
+    banner.classList.add('show');
+    pill.style.display = usagePercent >= 95 ? 'inline-block' : 'none';
+  } else {
+    banner.classList.remove('show');
+    banner.classList.remove('limit-reached');
+  }
+}
+
+function formatChatResetTime(resetInMinutes) {
+  if (!resetInMinutes || resetInMinutes <= 0) return 'You can try again shortly.';
+  if (resetInMinutes < 60) return 'You can try again in about ' + resetInMinutes + ' minutes.';
+  const hours = Math.round(resetInMinutes / 60);
+  return 'You can try again in about ' + hours + ' hour' + (hours === 1 ? '' : 's') + '.';
 }
 
 function selectModePill(pillId) {
@@ -2864,7 +2970,7 @@ function startRecording() {
   recognition = new SpeechRecognition();
   recognition.continuous = false;
   recognition.interimResults = false;
-  recognition.lang = 'tr-TR,en-US';
+  recognition.lang = navigator.language || 'en-US';
 
   recognition.onstart = function() {
     isRecording = true;
@@ -3195,7 +3301,7 @@ function startMainVoice() {
   mainRecognition = new SpeechRecognition();
   mainRecognition.continuous = false;
   mainRecognition.interimResults = false;
-  mainRecognition.lang = 'tr-TR,en-US';
+  mainRecognition.lang = navigator.language || 'en-US';
 
   mainRecognition.onstart = function() {
     isMainRecording = true;
