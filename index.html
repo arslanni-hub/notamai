@@ -2933,6 +2933,11 @@ function resetPlaceholderAnimation() {
 }
 
 function animatePlaceholder() {
+  if (typeof chatModeActive !== 'undefined' && chatModeActive) {
+    mainInput.placeholder = 'Reply to NOTAM Intelligence...';
+    setTimeout(animatePlaceholder, 500);
+    return;
+  }
   if (document.activeElement === mainInput || mainInput.value.length > 0) {
     setTimeout(animatePlaceholder, 500);
     return;
