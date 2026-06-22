@@ -1779,9 +1779,45 @@ function restartAnimation() {
 
 let chatModeActive = false;
 
+let currentChatSessionId = null;
+let currentChatMessages = [];
+
+async function startChatFirestoreSession() {
+  currentChatSessionId = null;
+  currentChatMessages = [];
+  const user = firebase.auth().currentUser;
+  const plan = window.currentUserPlan || 'free';
+  if (!user || plan === 'free') return; // Free plan: no chat history persistence, matches Archive being Free-locked
+  try {
+    const docRef = await db.collection('general_chats').add({
+      userId: user.uid,
+      messages: [],
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    currentChatSessionId = docRef.id;
+  } catch(e) {
+    console.error('Chat session create error:', e);
+  }
+}
+
+async function appendChatMessageToFirestore(role, text) {
+  currentChatMessages.push({ role, text, ts: Date.now() });
+  if (!currentChatSessionId) return; // not persisting (free plan or save failed)
+  try {
+    await db.collection('general_chats').doc(currentChatSessionId).update({
+      messages: currentChatMessages,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) {
+    console.error('Chat message append error:', e);
+  }
+}
+
 function enterChatMode() {
   if (chatModeActive) return;
   chatModeActive = true;
+  startChatFirestoreSession();
   document.getElementById('mainContent').classList.add('chat-active');
   document.querySelector('.logo').style.display = 'none';
   document.querySelector('.logo-line').style.display = 'none';
@@ -1794,6 +1830,8 @@ function enterChatMode() {
 
 function exitChatMode() {
   chatModeActive = false;
+  currentChatSessionId = null;
+  currentChatMessages = [];
   document.getElementById('mainContent').classList.remove('chat-active');
   document.querySelector('.logo').style.display = '';
   document.querySelector('.logo-line').style.display = '';
@@ -1843,6 +1881,7 @@ function addChatBubble(role, text) {
 
   area.appendChild(row);
   area.scrollTop = area.scrollHeight;
+  appendChatMessageToFirestore(role, text);
   return row;
 }
 
@@ -1876,7 +1915,17 @@ function pulseChatButton(btn) {
 function mockChatResponse(question) {
   const row = addChatBubble('ai', 'Thinking...');
   setTimeout(() => {
-    row.querySelector('.chat-msg-bubble').textContent = "This is a placeholder response. The real Aviation Expert Chat backend isn't connected yet — your question was: \"" + question + "\"";
+    const finalText = "This is a placeholder response. The real Aviation Expert Chat backend isn't connected yet — your question was: \"" + question + "\"";
+    row.querySelector('.chat-msg-bubble').textContent = finalText;
+    if (currentChatMessages.length > 0) {
+      currentChatMessages[currentChatMessages.length - 1].text = finalText;
+      if (currentChatSessionId) {
+        db.collection('general_chats').doc(currentChatSessionId).update({
+          messages: currentChatMessages,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(e => console.error('Chat correction save error:', e));
+      }
+    }
   }, 700);
 }
 
