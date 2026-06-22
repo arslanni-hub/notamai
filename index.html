@@ -522,6 +522,41 @@ canvas#sky {
 .chat-close-btn:hover { color: #c8daf0; }
 .chat-close-btn.visible { display: flex; }
 
+/* ═══ CHAT BUBBLE ACTIONS ═══ */
+.chat-msg-row.ai { flex-direction: column; }
+.chat-msg-row.ai .chat-msg-content { display: flex; gap: 10px; align-items: flex-start; }
+.chat-bubble-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: 36px;
+  margin-top: 6px;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+.chat-msg-row.ai:hover .chat-bubble-actions { opacity: 1; }
+.chat-action-btn {
+  background: none;
+  border: none;
+  color: #5a6a7a;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+.chat-action-btn:hover { color: #c8daf0; background: rgba(74,158,255,0.08); }
+.chat-action-btn.liked { color: #4a9eff; }
+.chat-action-btn.disliked { color: #e63946; }
+.chat-action-btn.copied { color: #2ec4b6; }
+.chat-action-btn.pulse { animation: chatActionPulse 0.3s ease; }
+@keyframes chatActionPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
 /* ═══ RESULT OVERLAY ═══ */
 .result-overlay {
   position: fixed;
@@ -1778,11 +1813,63 @@ function addChatBubble(role, text) {
   const iconSvg = role === 'ai'
     ? '<svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 h16 a4 4 0 0 1 4 4 v9 a4 4 0 0 1 -4 4 h-9 l-4.5 4.5 v-4.5 h-2.5 a4 4 0 0 1 -4 -4 v-9 a4 4 0 0 1 4 -4 z" transform="scale(0.72)"/><path d="M14 9 L15 11.5 L17.5 12.5 L15 13.5 L14 16 L13 13.5 L10.5 12.5 L13 11.5 Z" fill="#4a9eff" stroke="none" transform="scale(0.72)"/></svg>'
     : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>';
-  row.innerHTML = '<div class="chat-msg-icon">' + iconSvg + '</div><div class="chat-msg-bubble"></div>';
-  row.querySelector('.chat-msg-bubble').textContent = text;
+
+  if (role === 'ai') {
+    row.innerHTML = `
+      <div class="chat-msg-content">
+        <div class="chat-msg-icon">${iconSvg}</div>
+        <div class="chat-msg-bubble"></div>
+      </div>
+      <div class="chat-bubble-actions">
+        <button class="chat-action-btn" data-tooltip="Copy" onclick="copyChatBubble(this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button class="chat-action-btn" data-tooltip="Good response" onclick="toggleChatLike(this, 'like')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+        </button>
+        <button class="chat-action-btn" data-tooltip="Bad response" onclick="toggleChatLike(this, 'dislike')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"/></svg>
+        </button>
+        <button class="chat-action-btn" data-tooltip="Retry" onclick="pulseChatButton(this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </button>
+      </div>
+    `;
+    row.querySelector('.chat-msg-bubble').textContent = text;
+  } else {
+    row.innerHTML = '<div class="chat-msg-icon">' + iconSvg + '</div><div class="chat-msg-bubble"></div>';
+    row.querySelector('.chat-msg-bubble').textContent = text;
+  }
+
   area.appendChild(row);
   area.scrollTop = area.scrollHeight;
   return row;
+}
+
+function copyChatBubble(btn) {
+  const bubble = btn.closest('.chat-msg-row').querySelector('.chat-msg-bubble');
+  navigator.clipboard.writeText(bubble.textContent).then(() => {
+    btn.classList.add('copied');
+    setTimeout(() => btn.classList.remove('copied'), 1500);
+  });
+}
+
+function toggleChatLike(btn, type) {
+  const row = btn.closest('.chat-bubble-actions');
+  const likeBtn = row.children[1];
+  const dislikeBtn = row.children[2];
+  if (type === 'like') {
+    likeBtn.classList.toggle('liked');
+    dislikeBtn.classList.remove('disliked');
+  } else {
+    dislikeBtn.classList.toggle('disliked');
+    likeBtn.classList.remove('liked');
+  }
+}
+
+function pulseChatButton(btn) {
+  btn.classList.add('pulse');
+  setTimeout(() => btn.classList.remove('pulse'), 300);
 }
 
 // TEMPORARY mock responder — will be replaced with a real /api/general-chat call in a later step.
