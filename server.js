@@ -31,8 +31,8 @@ if (!fs.existsSync(PILOT_IMAGE_PATH)) {
 
 const PLAN_LIMITS = {
   free:    { briefings: 3,   chat: 0,   analysis: 0   },
-  pro:     { briefings: 100, chat: 200, analysis: 300  },
-  premium: { briefings: 150, chat: 999, analysis: 999  }
+  pro:     { briefings: 100, chat: 150, analysis: 200  },
+  premium: { briefings: 150, chat: 400, analysis: 300  }
 };
 
 // General Aviation Expert Chat — separate from the briefing-specific "Ask NOTAM AI" above.
@@ -58,6 +58,12 @@ const GENERAL_CHAT_FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
 // per-search fee. max_uses is a hard ceiling on searches per question, for cost/latency control.
 const GENERAL_CHAT_WEB_SEARCH_PLANS = ['pro', 'premium'];
 const GENERAL_CHAT_WEB_SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses: 3 };
+// Hard ceiling on searches per 5-hour window, independent of the token budget above. The
+// flat $0.01/search fee isn't proportional to tokens, so a token-only gate doesn't bound it.
+// Once reached — OR once the user is already past the token soft-limit threshold (the same
+// signal that downgrades Sonnet to Haiku) — search silently turns off for the rest of that
+// window; chat keeps answering normally, just without search. Never blocks the user.
+const GENERAL_CHAT_WEB_SEARCH_CAP = { pro: 3, premium: 6 };
 
 async function getGeneralChatWindowUsage(userId, windowMinutes) {
   try {
@@ -68,16 +74,18 @@ async function getGeneralChatWindowUsage(userId, windowMinutes) {
       .get();
     let oldestTimestamp = null;
     let tokenTotal = 0;
+    let searchTotal = 0;
     snapshot.forEach(doc => {
       const data = doc.data();
       const ts = data.createdAt;
       if (!oldestTimestamp || ts.toMillis() < oldestTimestamp.toMillis()) oldestTimestamp = ts;
       tokenTotal += (data.tokens || 0);
+      searchTotal += (data.searchCount || 0);
     });
-    return { count: snapshot.size, tokenTotal, oldestTimestamp };
+    return { count: snapshot.size, tokenTotal, searchTotal, oldestTimestamp };
   } catch(e) {
     console.error('[GENERAL CHAT RATE LIMIT] Usage check error:', e.message);
-    return { count: 0, tokenTotal: 0, oldestTimestamp: null };
+    return { count: 0, tokenTotal: 0, searchTotal: 0, oldestTimestamp: null };
   }
 }
 
@@ -3218,7 +3226,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
 
         const plan = await getUserPlan(userId);
         const cfg = GENERAL_CHAT_LIMITS[plan] || GENERAL_CHAT_LIMITS.free;
-        const { count, tokenTotal, oldestTimestamp } = await getGeneralChatWindowUsage(userId, cfg.windowMinutes);
+        const { count, tokenTotal, searchTotal, oldestTimestamp } = await getGeneralChatWindowUsage(userId, cfg.windowMinutes);
         const resetInMinutes = minutesUntilWindowReset(oldestTimestamp, cfg.windowMinutes);
 
         const currentUsage = tokenTotal; // all plans are token-based now
@@ -3240,7 +3248,8 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         }
 
         const modelToUse = pastSoftLimit ? GENERAL_CHAT_FALLBACK_MODEL : cfg.model;
-        const webSearchEnabled = GENERAL_CHAT_WEB_SEARCH_PLANS.includes(plan);
+        const searchCapForPlan = GENERAL_CHAT_WEB_SEARCH_CAP[plan] || 0;
+        const webSearchEnabled = GENERAL_CHAT_WEB_SEARCH_PLANS.includes(plan) && !pastSoftLimit && searchTotal < searchCapForPlan;
 
         const { question, history } = JSON.parse(body);
         if (!question || typeof question !== 'string') {
@@ -3300,7 +3309,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         res.write(`data: ${JSON.stringify({ type: 'init', usagePercent: preEstimatePercent, resetInMinutes })}\n\n`);
 
         let doneSent = false;
-        console.log('[GENERAL CHAT]', { userId, plan, model: modelToUse, pastSoftLimit, webSearchEnabled, currentUsage, limit: cfg.limit });
+        console.log('[GENERAL CHAT]', { userId, plan, model: modelToUse, pastSoftLimit, webSearchEnabled, searchTotal, searchCap: searchCapForPlan, currentUsage, limit: cfg.limit });
 
         streamClaude(requestBody,
           (text) => { res.write(`data: ${JSON.stringify({ type: 'chunk', text })}\n\n`); },
@@ -3417,7 +3426,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
 
         const claudeBody = JSON.stringify({
           model: 'claude-sonnet-4-6',
-          max_tokens: 16000,
+          max_tokens: 8000,
           stream: true,
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: contentBlocks }]
