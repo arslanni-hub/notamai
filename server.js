@@ -189,8 +189,24 @@ function fetchURL(url, options = {}) {
   });
 }
 
+function classifyNotamSeverity(raw) {
+  const t = (raw || '').toUpperCase();
+  if (/RWY.*CLSD|CLSD.*RWY|U\/S|UNSERVICEABLE|JAMM|EMERG ONLY|PROHIBITED|TRIGGER/.test(t)) return 'CRITICAL';
+  if (/TWY.*CLSD|ILS|VOR|NDB|GNSS|GPS|MILITARY|TFR|RESTRICTED|DANGER/.test(t)) return 'HIGH';
+  if (/LGT.*U\/S|PAPI|VASI|OBST|CRANE|TOWER|TAXIWAY/.test(t)) return 'MEDIUM';
+  return 'LOW';
+}
+
+function notamRecencyKey(n) {
+  const src = n.notam_id || n.id || n.raw || n.body || '';
+  const m = src.match(/[A-Z](\d+)\/(\d{2,4})/);
+  if (!m) return 0;
+  const yr = m[2].length === 2 ? 2000 + parseInt(m[2]) : parseInt(m[2]);
+  return yr * 100000 + parseInt(m[1]);
+}
+
 async function fetchNotams(icao) {
-  if (!icao) return '';
+  if (!icao) return { text: '', total: 0, shown: 0 };
   try {
     const url = `https://skylink-api.p.rapidapi.com/notams/${icao}`;
     const data = await fetchURL(url, {
@@ -202,7 +218,7 @@ async function fetchNotams(icao) {
     });
     console.log('[NOTAM fetchNotams TYPE]', typeof data);
     console.log('[NOTAM fetchNotams SAMPLE]', JSON.stringify(data).slice(0, 500));
-    if (data.error || !data.notams || data.notams.length === 0) return `No active NOTAMs for ${icao}.`;
+    if (data.error || !data.notams || data.notams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0 };
     const now = new Date();
     const activeNotams = data.notams.filter(n => {
       if (!n.expiration) return true;
@@ -218,12 +234,22 @@ async function fetchNotams(icao) {
       return expDate > now;
     }).filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase());
     console.log('[FILTER]', icao, 'total:', data.notams.length, 'active after filter:', activeNotams.length);
-    if (activeNotams.length === 0) return `No active NOTAMs for ${icao}.`;
-    return activeNotams.slice(0, 8).map((n, i) => {
+    if (activeNotams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0 };
+    const SORD = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+    const classified = activeNotams.map(n => ({
+      n, sev: classifyNotamSeverity(n.raw || n.body || ''), key: notamRecencyKey(n)
+    }));
+    classified.sort((a, b) => {
+      if (SORD[a.sev] !== SORD[b.sev]) return SORD[a.sev] - SORD[b.sev];
+      return b.key - a.key;
+    });
+    const shown = Math.min(classified.length, 8);
+    const text = classified.slice(0, shown).map(({ n, sev }, i) => {
       const raw = (n.raw || n.body || '').trim().slice(0, 500);
-      return `[${icao} NOTAM ${i+1}] ${n.notam_id || ''}:\n${raw}`;
+      return `[${icao} NOTAM ${i+1}] [${sev}] ${n.notam_id || ''}:\n${raw}`;
     }).join('\n\n---\n\n');
-  } catch (e) { return `Could not fetch NOTAMs for ${icao}: ${e.message}`; }
+    return { text, total: activeNotams.length, shown };
+  } catch (e) { return { text: `Could not fetch NOTAMs for ${icao}: ${e.message}`, total: 0, shown: 0 }; }
 }
 
 // Oceanic FIRs that use SkyLink fallback messaging
@@ -479,12 +505,12 @@ async function getEnrouteNotams(dep, arr) {
           const expDate = new Date(Date.UTC(parseInt(e.slice(0,4)), parseInt(e.slice(4,6))-1, parseInt(e.slice(6,8)), parseInt(e.slice(8,10)), parseInt(e.slice(10,12))));
           return expDate > now;
         });
-        const critical = active.filter(n => /RWY.*CLSD|CLSD.*RWY|U\/S|UNSERVICEABLE|JAMM|EMERG|PROHIBITED|TRIGGER/i.test(n.raw || n.body || ''));
-        const high = active.filter(n => /TWY.*CLSD|ILS|VOR|NDB|GNSS|GPS|MILITARY|TFR|RESTRICTED|DANGER/i.test(n.raw || n.body || ''));
-        const other = active.filter(n => !critical.includes(n) && !high.includes(n));
-        const sorted = [...critical, ...high, ...other];
-        const summary = sorted.slice(0, 3).map(n => (n.raw || n.body || '').slice(0, 150)).join('\n');
-        results.push(`FIR ${fir}: ${active.length} active NOTAMs\n${summary || 'No active restrictions'}`);
+        const SORD = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+        const classified = active.map(n => ({ n, sev: classifyNotamSeverity(n.raw || n.body || ''), key: notamRecencyKey(n) }))
+          .sort((a, b) => SORD[a.sev] !== SORD[b.sev] ? SORD[a.sev] - SORD[b.sev] : b.key - a.key);
+        const summary = classified.slice(0, 3).map(({ n, sev }) => `[${sev}] ${(n.raw || n.body || '').slice(0, 150)}`).join('\n');
+        const overflowNote = active.length > 3 ? ` (+${active.length - 3} more — check NOTAMs & MET panel)` : '';
+        results.push(`FIR ${fir}: ${active.length} active NOTAMs${overflowNote}\n${summary || 'No active restrictions'}`);
       } catch(e) {
         results.push(`FIR ${fir}: Oceanic FIR — verify current NAT tracks and oceanic NOTAM status via official sources`);
       }
@@ -509,12 +535,12 @@ async function getEnrouteNotams(dep, arr) {
           return expDate > now;
         });
         if (active.length > 0) {
-          const critical = active.filter(n => /RWY.*CLSD|CLSD.*RWY|U\/S|UNSERVICEABLE|JAMM|EMERG|PROHIBITED|TRIGGER/i.test(n.raw || n.body || ''));
-          const high = active.filter(n => /TWY.*CLSD|ILS|VOR|NDB|GNSS|GPS|MILITARY|TFR|RESTRICTED|DANGER/i.test(n.raw || n.body || ''));
-          const other = active.filter(n => !critical.includes(n) && !high.includes(n));
-          const sorted = [...critical, ...high, ...other];
-          const summary = sorted.slice(0, 3).map(n => (n.raw || n.body || '').slice(0, 150)).join('\n');
-          results.push(`FIR ${fir}: ${active.length} active NOTAMs\n${summary}`);
+          const SORD = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+          const classified = active.map(n => ({ n, sev: classifyNotamSeverity(n.raw || n.body || ''), key: notamRecencyKey(n) }))
+            .sort((a, b) => SORD[a.sev] !== SORD[b.sev] ? SORD[a.sev] - SORD[b.sev] : b.key - a.key);
+          const summary = classified.slice(0, 3).map(({ n, sev }) => `[${sev}] ${(n.raw || n.body || '').slice(0, 150)}`).join('\n');
+          const overflowNote = active.length > 3 ? ` (+${active.length - 3} more — check NOTAMs & MET panel)` : '';
+          results.push(`FIR ${fir}: ${active.length} active NOTAMs${overflowNote}\n${summary}`);
         } else {
           results.push(`FIR ${fir}: No active NOTAMs`);
         }
@@ -684,6 +710,14 @@ const HTML_HEAD = `<!DOCTYPE html>
   .notam-card.high{border-left-color:var(--orange)}
   .notam-card.med{border-left-color:var(--yellow)}
   .notam-card.low{border-left-color:var(--green)}
+  .notam-compact{display:flex;align-items:baseline;gap:8px;padding:7px 12px;border-left:3px solid transparent;background:var(--panel);font-size:13px;line-height:1.5}
+  .notam-compact.med{border-left-color:var(--yellow)}
+  .notam-compact.low{border-left-color:var(--green)}
+  .notam-compact-sev{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--text3);white-space:nowrap;flex-shrink:0}
+  .notam-compact-id{font-family:var(--mono);font-size:11px;color:var(--blue);white-space:nowrap;flex-shrink:0}
+  .notam-compact-text{color:var(--text2);font-weight:500}
+  .notam-overflow-note{padding:10px 14px;background:rgba(74,158,255,0.05);border:1px solid rgba(74,158,255,0.15);border-left:3px solid var(--blue);font-size:13px;color:var(--text2);line-height:1.5}
+  .notam-overflow-note .chat-panel-link{background:none;border:none;color:var(--blue);cursor:pointer;font-family:inherit;font-size:inherit;font-weight:600;padding:0;text-decoration:underline}
   .notam-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
   .notam-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px}
   .crit .notam-dot{background:var(--red);box-shadow:0 0 8px var(--red)}
@@ -778,7 +812,7 @@ const HTML_HEAD = `<!DOCTYPE html>
 const HTML_FOOT = `</div></body></html>`;
 
 const systemPrompt = `MANDATORY RULES:
-- Show ALL NOTAMs provided in the data - never skip or summarize any NOTAM
+- Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them using the appropriate format (full card for CRITICAL/HIGH, compact for MEDIUM/LOW)
 - Each NOTAM card must have correct risk color class: crit (red) for runway closures/GNSS/safety critical, high (orange) for navigation aids/UAS/obstacles, med (yellow) for taxiway/procedures, low (green) for administrative
 - Show the airport ICAO code for each NOTAM in the notam-id field
 - CRITICAL NOTAMs include: runway closures, GNSS jamming, dual runway closures, emergency-only airports
@@ -849,26 +883,36 @@ REQUIRED SECTIONS IN ORDER:
 4. NOTAM ANALYSIS:
 <div class="section-header"><span class="icon">📋</span><span class="title">NOTAM Analysis — Priority Order</span></div>
 <div class="notam-list">
-  [For EACH NOTAM in the provided data use this EXACT structure — process every NOTAM, never skip or summarise:]
-  <div class="notam-card [crit|high|med|low]">
+  [For EACH NOTAM tagged [CRITICAL] or [HIGH] use the full card format:]
+  <div class="notam-card [crit|high]">
     <div class="notam-head">
       <div class="notam-dot"></div>
       <div>
-        <div class="notam-id">[🔴/🟠/🟡/🟢] [EXACT NOTAM ID from data] | TYPE: [TYPE]</div>
-        <div class="notam-title">[Descriptive title derived from the NOTAM text]</div>
+        <div class="notam-id">[🔴/🟠] [EXACT NOTAM ID from data] | TYPE: [TYPE]</div>
+        <div class="notam-title">[Descriptive title]</div>
       </div>
     </div>
     <div class="notam-grid">
-      <div class="notam-field"><div class="notam-field-label">📍 Location</div><div class="notam-field-value">[exact location from NOTAM]</div></div>
-      <div class="notam-field"><div class="notam-field-label">⏰ Time Window UTC</div><div class="notam-field-value">[exact B/C times from NOTAM]</div></div>
-      <div class="notam-field"><div class="notam-field-label">✈️ Affected Operations</div><div class="notam-field-value">[what operations are affected]</div></div>
-      <div class="notam-field"><div class="notam-field-label">📐 Operational Impact</div><div class="notam-field-value">[specific impact on the flight]</div></div>
+      <div class="notam-field"><div class="notam-field-label">📍 Location</div><div class="notam-field-value">[location]</div></div>
+      <div class="notam-field"><div class="notam-field-label">⏰ Time Window UTC</div><div class="notam-field-value">[B/C times]</div></div>
+      <div class="notam-field"><div class="notam-field-label">✈️ Affected Operations</div><div class="notam-field-value">[operations affected]</div></div>
+      <div class="notam-field"><div class="notam-field-label">📐 Operational Impact</div><div class="notam-field-value">[impact on flight]</div></div>
     </div>
-    <div class="notam-field" style="margin:10px 0 6px"><div class="notam-field-label">📄 RAW NOTAM TEXT</div><div class="notam-field-value" style="font-family:monospace;font-size:12px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-all">[verbatim raw NOTAM text exactly as received from the data]</div></div>
-    <div class="notam-field" style="margin:0 0 10px"><div class="notam-field-label">💬 DECODED PLAIN ENGLISH</div><div class="notam-field-value">[clear plain-English explanation of what this NOTAM means for crew — no jargon, full sentences]</div></div>
-    <div class="notam-action"><span class="action-label">⚠️ REQUIRED CREW ACTION</span>[specific action the crew must take because of this NOTAM]</div>
+    <div class="notam-field" style="margin:10px 0 6px"><div class="notam-field-label">📄 RAW NOTAM TEXT</div><div class="notam-field-value" style="font-family:monospace;font-size:12px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-all">[verbatim raw NOTAM text]</div></div>
+    <div class="notam-field" style="margin:0 0 10px"><div class="notam-field-label">💬 DECODED PLAIN ENGLISH</div><div class="notam-field-value">[plain-English explanation — no jargon, full sentences]</div></div>
+    <div class="notam-action"><span class="action-label">⚠️ REQUIRED CREW ACTION</span>[specific action crew must take]</div>
     [Optional: <div class="warning-banner">COMPOUNDS WITH: [detail]</div>]
   </div>
+
+  [For EACH NOTAM tagged [MEDIUM] or [LOW] use the compact line format:]
+  <div class="notam-compact [med|low]">
+    <span class="notam-compact-sev">[🟡 MEDIUM | 🟢 LOW]</span>
+    <span class="notam-compact-id">[NOTAM ID]</span>
+    <span class="notam-compact-text">[one-sentence plain-English summary — what it affects and when]</span>
+  </div>
+
+  [If the user message includes an overflow note ("[N additional NOTAMs not shown...]"), emit it at the end of the NOTAM list as:]
+  <div class="notam-overflow-note">+N NOTAMs not shown. Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list, or use Single NOTAM Analysis to examine any in detail.</div>
 </div>
 
 5. AIRSPACE AND RESTRICTIONS:
@@ -964,7 +1008,7 @@ IMPORTANT: Never use markdown backticks or code blocks. For RAW NOTAM TEXT field
 <pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>NOTAM TEXT</pre>
 The ! prefix and date format (YYMMDDHHmm) are standard ICAO format - keep them exactly as received.
 
-NOTAM LIMITS: Show maximum 8 NOTAMs per airport, prioritizing CRITICAL and HIGH severity first. Order NOTAMs by most recently issued first (highest NOTAM number first). For en-route FIRs, show maximum 2 NOTAMs per FIR with brief summaries only — do not include raw NOTAM text blocks for en-route FIRs.`;
+NOTAM LIMITS: Render every NOTAM provided in the data — they are already pre-sorted and capped by the server. Use the full card for CRITICAL/HIGH; the compact format for MEDIUM/LOW. For en-route FIRs, use brief summaries only — no raw NOTAM text blocks.`;
 
 const AIRCRAFT_PERF_FALLBACK = {
   'B747': { icao_type:'B747', name:'BOEING 747-400', engine_type:'Jet', engine_code:'L4J', wake_category:'H', cruise_speed_ktas:490, service_ceiling_ft:45000, max_range_nm:7260, wing_span_m:64.4, length_m:70.7, mtow_t:396.9, max_passengers:524 },
@@ -1978,16 +2022,15 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
           arrMetar = arrMetarData?.[0]?.rawOb || '';
         } catch(e) {}
 
-        // Sort by most recent (highest NOTAM number) and take top 8
+        // Sort by severity then recency (year-aware) and take top 8
         function getCriticalNotams(notams) {
-          return notams
+          const SORD = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+          return [...notams]
             .sort((a, b) => {
-              const getNum = (n) => {
-                const raw = n.raw || '';
-                const match = raw.match(/[A-Z](\d+)\/\d{4}/);
-                return match ? parseInt(match[1]) : 0;
-              };
-              return getNum(b) - getNum(a);
+              const aSev = SORD[classifyNotamSeverity(a.raw || a.body || '')];
+              const bSev = SORD[classifyNotamSeverity(b.raw || b.body || '')];
+              if (aSev !== bSev) return aSev - bSev;
+              return notamRecencyKey(b) - notamRecencyKey(a);
             })
             .slice(0, 8)
             .map(n => n.raw || n.text || '')
@@ -3375,9 +3418,9 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
 
         const { icao_dep, icao_arr, notam_text, image_base64, image_type, pdf_base64 } = JSON.parse(body);
 
-        const notamDep = await fetchNotams(icao_dep);
+        const notamDepResult = await fetchNotams(icao_dep);
         await new Promise(r => setTimeout(r, 500));
-        const notamArr = await fetchNotams(icao_arr);
+        const notamArrResult = await fetchNotams(icao_arr);
 
         // Fetch en-route FIR NOTAMs
         const enrouteNotamData = await getEnrouteNotams(icao_dep, icao_arr);
@@ -3390,17 +3433,24 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         const now = new Date();
         const utcDate = now.toUTCString().slice(5, 16).toUpperCase();
 
-        const userMessage = `CRITICAL: Show ALL CRITICAL and HIGH priority NOTAMs for both departure and arrival airports. After critical and high, include medium priority NOTAMs in order of operational importance. Never limit the number of NOTAMs shown. Be concise in each section. Must complete ALL sections including Weather, Pilot Actions, Dispatch Notes, Go/No-Go and Footer.
+        const depOverflow = notamDepResult.total > notamDepResult.shown
+          ? `\n[${notamDepResult.total - notamDepResult.shown} additional NOTAMs not shown — open the NOTAMs & MET panel or use Single NOTAM Analysis for details]`
+          : '';
+        const arrOverflow = notamArrResult.total > notamArrResult.shown
+          ? `\n[${notamArrResult.total - notamArrResult.shown} additional NOTAMs not shown — open the NOTAMs & MET panel or use Single NOTAM Analysis for details]`
+          : '';
+
+        const userMessage = `Must complete ALL sections including Weather, Pilot Actions, Dispatch Notes, Go/No-Go and Footer. Be concise in each section.
 
 TODAY'S DATE: ${utcDate}
 DEPARTURE: ${icao_dep || 'NOT PROVIDED'} — ${airportName(icao_dep)}
 ARRIVAL: ${icao_arr || 'NOT PROVIDED'} — ${airportName(icao_arr)}
 
-LIVE NOTAMs - DEPARTURE (${icao_dep} / ${airportName(icao_dep)}):
-${notamDep || 'No active NOTAMs retrieved'}
+LIVE NOTAMs - DEPARTURE (${icao_dep} / ${airportName(icao_dep)}) — top ${notamDepResult.shown} of ${notamDepResult.total} active, sorted CRITICAL first then most recent:
+${notamDepResult.text || 'No active NOTAMs retrieved'}${depOverflow}
 
-LIVE NOTAMs - ARRIVAL (${icao_arr} / ${airportName(icao_arr)}):
-${notamArr || 'No active NOTAMs retrieved'}
+LIVE NOTAMs - ARRIVAL (${icao_arr} / ${airportName(icao_arr)}) — top ${notamArrResult.shown} of ${notamArrResult.total} active, sorted CRITICAL first then most recent:
+${notamArrResult.text || 'No active NOTAMs retrieved'}${arrOverflow}
 
 METAR DEPARTURE: ${metarDep || 'Not available'}
 METAR ARRIVAL: ${metarArr || 'Not available'}
@@ -3602,23 +3652,8 @@ async function checkNotamAlerts() {
         });
         console.log('[ALERT CHECK]', icao, 'sample IDs:', sampleIds.join(', '));
 
-        // Sort NOTAMs to find the most recently issued one
-        // NOTAM IDs like A227/2026, B1234/26 - higher number = newer
-        const sortedNotams = [...notams].sort((a, b) => {
-          const getId = n => {
-            const id = n.id || n.notam_id || n.notamNumber || '';
-            if (id) {
-              const match = id.match(/[A-Z](\d+)\/\d+/);
-              return match ? parseInt(match[1]) : 0;
-            }
-            if (n.raw) {
-              const match = n.raw.match(/[A-Z](\d+)\/\d{4}/);
-              return match ? parseInt(match[1]) : 0;
-            }
-            return 0;
-          };
-          return getId(b) - getId(a); // descending - highest number first
-        });
+        // Sort NOTAMs to find the most recently issued one (year-aware: A1234/26 > B9999/25)
+        const sortedNotams = [...notams].sort((a, b) => notamRecencyKey(b) - notamRecencyKey(a));
 
         const latestNotam = sortedNotams[0];
         if (!latestNotam) continue;

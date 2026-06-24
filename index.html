@@ -5975,8 +5975,8 @@ async function fetchRawData() {
     const notamBlocks = notamText.trim().split('\n===NOTAM===\n').filter(n => n.trim());
     // Sort newest NOTAM first by NOTAM sequence number (e.g. B1234/26 → 1234)
     notamBlocks.sort((a, b) => {
-      const getNum = s => { const m = s.match(/[A-Z](\d+)\/\d+/); return m ? parseInt(m[1]) : 0; };
-      return getNum(b) - getNum(a);
+      const getKey = s => { const m = s.match(/[A-Z](\d+)\/(\d{2,4})/); if (!m) return 0; const yr = m[2].length === 2 ? 2000 + parseInt(m[2]) : parseInt(m[2]); return yr * 100000 + parseInt(m[1]); };
+      return getKey(b) - getKey(a);
     });
     if (notamBlocks.length === 0 || notamText.includes('No active')) {
       const empty = document.createElement('div');
