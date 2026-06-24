@@ -604,6 +604,7 @@ function streamClaude(requestBody, onChunk, onDone, onError, onSearchStart) {
             delete searchBlocks[evt.index];
           } else if (evt.type === 'message_delta' && evt.usage?.output_tokens) {
             usageInfo.output_tokens = evt.usage.output_tokens;
+            if (evt.delta?.stop_reason) usageInfo.stop_reason = evt.delta.stop_reason;
             if (evt.usage.server_tool_use?.web_search_requests) {
               usageInfo.web_search_requests = evt.usage.server_tool_use.web_search_requests;
             }
@@ -3426,7 +3427,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
 
         const claudeBody = JSON.stringify({
           model: 'claude-sonnet-4-6',
-          max_tokens: 8000,
+          max_tokens: 16000,
           stream: true,
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: contentBlocks }]
@@ -3444,7 +3445,13 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         let doneSent = false;
         streamClaude(claudeBody,
           (text) => { res.write(`data: ${JSON.stringify({ type: 'chunk', text })}\n\n`); },
-          () => { if (!doneSent) { doneSent = true; res.write('data: {"type":"done"}\n\n'); res.end(); } },
+          (usageInfo) => {
+            if (doneSent) return;
+            doneSent = true;
+            console.log('[BRIEFING STOP REASON]', { stop_reason: usageInfo?.stop_reason || 'unknown', output_tokens: usageInfo?.output_tokens || 0 });
+            res.write('data: {"type":"done"}\n\n');
+            res.end();
+          },
           (err) => { if (!doneSent) { doneSent = true; res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`); res.end(); } }
         );
 
