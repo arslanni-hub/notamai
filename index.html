@@ -564,6 +564,20 @@ canvas#sky {
 .chat-md-code { background: rgba(74,158,255,0.1); padding: 1px 6px; border-radius: 4px; font-family: 'Share Tech Mono', monospace; font-size: 12.5px; }
 .chat-msg-bubble p { margin: 0 0 8px; }
 .chat-msg-bubble p:last-child { margin-bottom: 0; }
+.chat-ai-disclaimer {
+  display: none;
+  width: 100%;
+  max-width: 720px;
+  margin: 10px auto 0;
+  text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  font-size: 11.5px;
+  color: #4a5f72;
+  pointer-events: auto;
+}
+.chat-ai-disclaimer.show { display: block; }
+.chat-ai-disclaimer a { color: #4a5f72; text-decoration: underline; }
+.chat-ai-disclaimer a:hover { color: #8a9bb0; }
 .chat-close-btn {
   display: none;
   position: absolute;
@@ -1308,6 +1322,10 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     </div>
   </div>
 
+  <div class="chat-ai-disclaimer" id="chatAiDisclaimer">
+    NOTAM Intelligence's Aviation Expert Chat is AI and can make mistakes. <a href="/terms" target="_blank">Please verify important information</a> before relying on it operationally.
+  </div>
+
   <!-- MODE SELECTOR PILLS -->
   <div class="mode-pills-row" id="modePillsRow">
     <button class="mode-pill active" id="pillBriefing" data-tooltip="Generate AI Briefing" onclick="selectModePill('pillBriefing')">
@@ -2016,6 +2034,7 @@ function enterChatMode(skipNewSession) {
   document.getElementById('chatMessagesArea').classList.add('visible');
   document.getElementById('chatCloseBtn').classList.add('visible');
   document.getElementById('chatShareBtn').classList.add('visible');
+  document.getElementById('chatAiDisclaimer').classList.add('show');
 }
 
 function exitChatMode() {
@@ -2032,6 +2051,7 @@ function exitChatMode() {
   document.getElementById('chatMessagesArea').innerHTML = '';
   document.getElementById('chatCloseBtn').classList.remove('visible');
   document.getElementById('chatShareBtn').classList.remove('visible');
+  document.getElementById('chatAiDisclaimer').classList.remove('show');
   const usageBanner = document.getElementById('chatUsageBanner');
   if (usageBanner) { usageBanner.classList.remove('show'); usageBanner.classList.remove('limit-reached'); }
   selectModePill('pillBriefing');
