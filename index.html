@@ -2344,22 +2344,23 @@ async function mockChatResponse(question) {
         if (!line.startsWith('data: ')) continue;
         const raw = line.slice(6).trim();
         if (!raw) continue;
+        let evt;
         try {
-          const evt = JSON.parse(raw);
-          if (evt.type === 'init') {
-            usagePercent = evt.usagePercent;
-            resetInMinutes = evt.resetInMinutes;
-          } else if (evt.type === 'chunk') {
-            accumulated += evt.text;
-            bubble.innerHTML = renderChatMarkdown(accumulated);
-            messagesArea.scrollTop = messagesArea.scrollHeight;
-          } else if (evt.type === 'error') {
-            throw new Error(evt.message || 'Stream error');
-          } else if (evt.type === 'done' && typeof evt.usagePercent === 'number') {
-            usagePercent = evt.usagePercent;
-          }
-        } catch(parseErr) {
-          // ignore malformed partial JSON line, will complete on next chunk
+          evt = JSON.parse(raw);
+        } catch (parseErr) {
+          continue; // ignore malformed partial JSON line, will complete on next chunk
+        }
+        if (evt.type === 'init') {
+          usagePercent = evt.usagePercent;
+          resetInMinutes = evt.resetInMinutes;
+        } else if (evt.type === 'chunk') {
+          accumulated += evt.text;
+          bubble.innerHTML = renderChatMarkdown(accumulated);
+          messagesArea.scrollTop = messagesArea.scrollHeight;
+        } else if (evt.type === 'error') {
+          throw new Error(evt.message || 'Stream error');
+        } else if (evt.type === 'done' && typeof evt.usagePercent === 'number') {
+          usagePercent = evt.usagePercent;
         }
       }
     }

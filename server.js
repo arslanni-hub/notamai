@@ -553,8 +553,14 @@ function streamClaude(requestBody, onChunk, onDone, onError) {
       'Content-Length': Buffer.byteLength(requestBody)
     }
   }, (claudeRes) => {
+    const isErrorStatus = claudeRes.statusCode < 200 || claudeRes.statusCode >= 300;
     let buf = '';
+    let errorBuf = '';
     claudeRes.on('data', chunk => {
+      if (isErrorStatus) {
+        errorBuf += chunk.toString();
+        return;
+      }
       buf += chunk.toString();
       const lines = buf.split('\n');
       buf = lines.pop();
@@ -588,7 +594,19 @@ function streamClaude(requestBody, onChunk, onDone, onError) {
         } catch (_) {}
       }
     });
-    claudeRes.on('end', () => onDone(usageInfo));
+    claudeRes.on('end', () => {
+      if (isErrorStatus) {
+        let message = `Claude API returned status ${claudeRes.statusCode}`;
+        try {
+          const parsed = JSON.parse(errorBuf);
+          if (parsed?.error?.message) message = parsed.error.message;
+        } catch (_) {}
+        console.error('[CLAUDE API ERROR]', { status: claudeRes.statusCode, message });
+        onError(new Error(message));
+        return;
+      }
+      onDone(usageInfo);
+    });
     claudeRes.on('error', onError);
   });
   req.on('error', onError);
