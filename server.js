@@ -48,7 +48,7 @@ const PLAN_LIMITS = {
 const GENERAL_CHAT_LIMITS = {
   free:    { windowMinutes: 300, limit: 470,   mode: 'tokens', model: 'claude-haiku-4-5-20251001' },
   pro:     { windowMinutes: 300, limit: 12000, mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 },
-  premium: { windowMinutes: 300, limit: 24000, mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 }
+  premium: { windowMinutes: 300, limit: 600, mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 } // TEMP: testing usage banner, revert to 24000 after
 };
 const GENERAL_CHAT_FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
 
