@@ -310,7 +310,10 @@ canvas#sky {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 0 0 1px rgba(74,158,255,0.06), 0 24px 60px rgba(0,0,0,0.6);
-  transition: border-color 0.3s;
+  transition: border-color 0.3s, max-width 0.3s ease;
+}
+.ui.chat-active .input-card {
+  max-width: 720px;
 }
 .input-card:focus-within {
   border-color: var(--border-bright);
@@ -469,7 +472,7 @@ canvas#sky {
 .chat-messages-area {
   display: none;
   width: 100%;
-  max-width: 680px;
+  max-width: 720px;
   flex: 1;
   overflow-y: auto;
   padding: 24px 4px 16px;
@@ -509,7 +512,7 @@ canvas#sky {
   align-items: center;
   gap: 8px;
   width: 100%;
-  max-width: 680px;
+  max-width: 720px;
   margin: 10px auto 0;
   padding: 9px 14px;
   border-radius: 10px;
@@ -2362,9 +2365,9 @@ function renderChatUsageBanner(usagePercent, limitReached, resetInMinutes) {
 
 function formatChatResetTime(resetInMinutes) {
   if (!resetInMinutes || resetInMinutes <= 0) return 'You can try again shortly.';
-  if (resetInMinutes < 60) return 'You can try again in about ' + resetInMinutes + ' minutes.';
-  const hours = Math.round(resetInMinutes / 60);
-  return 'You can try again in about ' + hours + ' hour' + (hours === 1 ? '' : 's') + '.';
+  const resetDate = new Date(Date.now() + resetInMinutes * 60 * 1000);
+  const timeStr = resetDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return 'You can retry at ' + timeStr + '.';
 }
 
 function selectModePill(pillId) {
