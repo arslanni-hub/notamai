@@ -539,8 +539,9 @@ async function fetchTaf(icao) {
   } catch { return ''; }
 }
 
-function streamClaude(requestBody, onChunk, onDone, onError) {
+function streamClaude(requestBody, onChunk, onDone, onError, onSearchStart) {
   let usageInfo = { input_tokens: 0, output_tokens: 0 };
+  const searchBlocks = {};
   const req = https.request({
     hostname: 'api.anthropic.com',
     path: '/v1/messages',
@@ -581,8 +582,18 @@ function streamClaude(requestBody, onChunk, onDone, onError) {
               cache_created: u.cache_creation_input_tokens || 0,
               cache_read: u.cache_read_input_tokens || 0
             });
+          } else if (evt.type === 'content_block_start' && evt.content_block?.type === 'server_tool_use' && evt.content_block?.name === 'web_search') {
+            searchBlocks[evt.index] = '';
+          } else if (evt.type === 'content_block_delta' && evt.delta?.type === 'input_json_delta' && searchBlocks[evt.index] !== undefined) {
+            searchBlocks[evt.index] += evt.delta.partial_json || '';
           } else if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
             onChunk(evt.delta.text);
+          } else if (evt.type === 'content_block_stop' && searchBlocks[evt.index] !== undefined) {
+            try {
+              const query = JSON.parse(searchBlocks[evt.index]).query;
+              if (query && onSearchStart) onSearchStart(query);
+            } catch (_) {}
+            delete searchBlocks[evt.index];
           } else if (evt.type === 'message_delta' && evt.usage?.output_tokens) {
             usageInfo.output_tokens = evt.usage.output_tokens;
             if (evt.usage.server_tool_use?.web_search_requests) {
@@ -3311,7 +3322,8 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           (err) => {
             console.error('[GENERAL CHAT] Stream error:', err.message);
             if (!doneSent) { doneSent = true; res.write(`data: ${JSON.stringify({ type: 'error', message: 'Stream interrupted' })}\n\n`); res.end(); }
-          }
+          },
+          (query) => { res.write(`data: ${JSON.stringify({ type: 'search', query })}\n\n`); }
         );
 
       } catch(e) {
