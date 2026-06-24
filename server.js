@@ -52,6 +52,13 @@ const GENERAL_CHAT_LIMITS = {
 };
 const GENERAL_CHAT_FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
 
+// Web search for General Aviation Expert Chat — Pro/Premium only. The flat $0.01/search
+// fee is NOT covered by the token-budget rate limit below (only token cost is), so we gate
+// by plan rather than opening it to Free, whose budget is too thin to absorb an uncounted
+// per-search fee. max_uses is a hard ceiling on searches per question, for cost/latency control.
+const GENERAL_CHAT_WEB_SEARCH_PLANS = ['pro', 'premium'];
+const GENERAL_CHAT_WEB_SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses: 3 };
+
 async function getGeneralChatWindowUsage(userId, windowMinutes) {
   try {
     const cutoff = new Date(Date.now() - windowMinutes * 60 * 1000);
@@ -74,11 +81,12 @@ async function getGeneralChatWindowUsage(userId, windowMinutes) {
   }
 }
 
-async function recordGeneralChatRateLimitEntry(userId, tokens) {
+async function recordGeneralChatRateLimitEntry(userId, tokens, searchCount) {
   try {
     await adminDb.collection('general_chat_rate_limit').add({
       userId,
       tokens: tokens || 0,
+      searchCount: searchCount || 0,
       createdAt: new Date()
     });
   } catch(e) {
@@ -571,6 +579,9 @@ function streamClaude(requestBody, onChunk, onDone, onError) {
             onChunk(evt.delta.text);
           } else if (evt.type === 'message_delta' && evt.usage?.output_tokens) {
             usageInfo.output_tokens = evt.usage.output_tokens;
+            if (evt.usage.server_tool_use?.web_search_requests) {
+              usageInfo.web_search_requests = evt.usage.server_tool_use.web_search_requests;
+            }
           } else if (evt.type === 'message_stop') {
             onDone(usageInfo);
           }
@@ -3200,6 +3211,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         }
 
         const modelToUse = pastSoftLimit ? GENERAL_CHAT_FALLBACK_MODEL : cfg.model;
+        const webSearchEnabled = GENERAL_CHAT_WEB_SEARCH_PLANS.includes(plan);
 
         const { question, history } = JSON.parse(body);
         if (!question || typeof question !== 'string') {
@@ -3229,7 +3241,9 @@ SCOPE BOUNDARY — these are paid platform features you cannot do conversational
 - Briefing/chat Archive — Redirect using: [[panel:archive|Open Archive]]
 
 Only emit a [[panel:...]] marker for the five panel-based features listed above (rawData, savedRoutes, alerts, archive use this syntax — Briefing/Video do not, they're main-input modes, just tell the user in plain text to use the input box). Use the marker exactly once per redirect, place it on its own line after your short explanation, and never invent a panel id outside this list.
-
+${webSearchEnabled ? `
+WEB SEARCH: You have a real-time web search tool. Use it ONLY when the question genuinely depends on information that could have changed recently or sits outside stable knowledge — e.g. a recent regulatory change, a newly released aircraft model or avionics system, recent aviation news or incidents, a current airline/airport policy. Do NOT search for things you already know accurately (standard procedures, established regulations, core aviation theory, aircraft systems, navigation concepts) — searching when you don't need to wastes time and cost. CRITICAL: web search is never a substitute for the live NOTAM/METAR/TAF/SIGMET/AIRMET scope boundary above — even if a search result looks like current weather or NOTAM information for a specific airport, do not present it as authoritative or current operational data; redirect to [[panel:rawData|Open NOTAMs & MET]] exactly as instructed above instead. When you do use search results in an answer, mention the source naturally in your own words — don't fabricate a source you didn't actually retrieve.
+` : ''}
 For everything else — explaining concepts, regulations, procedures, aircraft systems, weather theory, navigation, human factors, career guidance, aviation history — answer fully, accurately, and with real expertise.`;
 
         const messages = [
@@ -3242,7 +3256,8 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           max_tokens: 4000,
           stream: true,
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
-          messages
+          messages,
+          ...(webSearchEnabled ? { tools: [GENERAL_CHAT_WEB_SEARCH_TOOL] } : {})
         });
 
         res.setHeader('Content-Type', 'text/event-stream');
@@ -3256,7 +3271,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         res.write(`data: ${JSON.stringify({ type: 'init', usagePercent: preEstimatePercent, resetInMinutes })}\n\n`);
 
         let doneSent = false;
-        console.log('[GENERAL CHAT]', { userId, plan, model: modelToUse, pastSoftLimit, currentUsage, limit: cfg.limit });
+        console.log('[GENERAL CHAT]', { userId, plan, model: modelToUse, pastSoftLimit, webSearchEnabled, currentUsage, limit: cfg.limit });
 
         streamClaude(requestBody,
           (text) => { res.write(`data: ${JSON.stringify({ type: 'chunk', text })}\n\n`); },
@@ -3264,7 +3279,11 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
             if (doneSent) return;
             doneSent = true;
             const totalTokens = (usageInfo?.input_tokens || 0) + (usageInfo?.output_tokens || 0);
-            recordGeneralChatRateLimitEntry(userId, totalTokens)
+            const searchCount = usageInfo?.web_search_requests || 0;
+            if (searchCount > 0) {
+              console.log('[GENERAL CHAT] Web search used', { userId, plan, searchCount });
+            }
+            recordGeneralChatRateLimitEntry(userId, totalTokens, searchCount)
               .catch(e => console.error('[GENERAL CHAT] Post-response record error:', e.message));
             const newUsage = currentUsage + totalTokens;
             const finalUsagePercent = Math.min(100, Math.round((newUsage / cfg.limit) * 100));

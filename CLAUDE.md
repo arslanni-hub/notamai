@@ -97,15 +97,14 @@ Credit-based system was discussed and explicitly abandoned (June 2026). Current 
 
 In code: `PLAN_LIMITS` in server.js currently uses `{briefings, chat, analysis}` numeric caps (free: 3/0/0, pro: 100/200/300, premium: 150/999/999) as the enforcement mechanism for the table above — these numbers implement the table, they are not a separate source of truth. Don't change PLAN_LIMITS values without first confirming against this table.
 
-## General Aviation Expert Chat — IN PROGRESS, not yet implemented
-Separate from "Ask NOTAM AI" (which stays briefing-specific, never touch it for this feature). Design in progress as of June 2026:
-- Reached via the same main input box — hybrid detection: 1-2 ICAO-shaped tokens → briefing flow (unchanged); natural language → general chat
-- Panel replaces the input-card in place (NOT a slide-in-from-right panel) — cockpit/HUD background stays fully visible behind it
-- Accent color: blue (#4a9eff), matching existing design — no new colors
-- 3-hour rolling window limits, modeled on Claude's own usage UX: Free (Haiku only, low limit, hard stop), Pro (Sonnet, 30 msgs/window, soft-downgrades to Haiku past limit), Premium (Sonnet, 100 msgs/window, soft-downgrades past limit)
-- User-facing usage indicator shows percentage only (e.g. "90% of your limit used"), never raw message counts — appears only when approaching/at the limit, otherwise invisible
-- System prompt must gracefully redirect (not fabricate data) when a question needs a paid platform feature (live NOTAM data, briefing generation, video briefing)
-- Confirm current implementation status with the user before continuing — this section reflects the design plan as of June 20 2026, not necessarily what's in code yet
+## General Aviation Expert Chat — LIVE
+Separate from "Ask NOTAM AI" (which stays briefing-specific, never touched by this feature). Built and shipped June 2026.
+- Reached via 3 mode-selector pills below the main input (Briefing/Video/Chat) — explicit user selection, no auto-detection.
+- Accent color: blue (#4a9eff), matching existing design. No new colors.
+- Token-budget rate limiting over a 5-hour rolling window (GENERAL_CHAT_LIMITS in server.js): Free (Haiku, 470 tokens, hard stop), Pro (Sonnet, 12000 tokens, soft-downgrades to Haiku at 70%), Premium (Sonnet, 24000 tokens, soft-downgrades at 70%). Hard stop at 100% for all plans.
+- Web search (web_search_20250305, max_uses: 3) enabled for Pro/Premium only — see GENERAL_CHAT_WEB_SEARCH_PLANS/GENERAL_CHAT_WEB_SEARCH_TOOL. Steered via system prompt to search only for genuinely current info, never as a substitute for the live NOTAM/MET scope boundary. Search-request counts are logged and stored (general_chat_rate_limit.searchCount) for cost visibility but not yet used for gating.
+- System prompt redirects (not fabricates) when a question needs a paid platform feature — see the SCOPE BOUNDARY block in server.js for the exact panel markers.
+- Persistence: general_chats Firestore collection (Pro/Premium only), sidebar/Archive integration, sharing via /c/:id — all live.
 
 ## Coding Rules
 - ALWAYS push to GitHub after changes
@@ -119,7 +118,7 @@ Separate from "Ask NOTAM AI" (which stays briefing-specific, never touch it for 
 ## Known Issues / TODO
 - Free/Pro/Premium content restrictions: implemented for briefings/chat/analysis caps; video hard limit (5/mo) enforcement should be double-checked
 - AI Video Briefing: working end-to-end (Haiku script → ElevenLabs TTS → WaveSpeed infinitetalk-fast), still being quality-tuned (NOTAM relevance/recency, captain greeting consistency)
-- General Aviation Expert Chat: designed, not yet implemented (see section above)
+- General Aviation Expert Chat: live. Citation links and a dedicated "searching the web..." UI indicator are not yet built (deferred, not forgotten).
 - Admin panel: Free-tier conversion tracking/funnel metrics planned, not yet built
 - NOTAM Alerts email notifications: UI ready, needs Resend.com integration
 - SkyLink plan usage should be monitored — was previously flagged near/over free-tier limits
