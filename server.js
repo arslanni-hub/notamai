@@ -243,8 +243,9 @@ async function fetchNotams(icao) {
       if (SORD[a.sev] !== SORD[b.sev]) return SORD[a.sev] - SORD[b.sev];
       return b.key - a.key;
     });
-    const shown = Math.min(classified.length, 8);
-    const text = classified.slice(0, shown).map(({ n, sev }, i) => {
+    const eligible = classified.filter(c => c.sev !== 'LOW');
+    const shown = Math.min(eligible.length, 8);
+    const text = eligible.slice(0, shown).map(({ n, sev }, i) => {
       const raw = (n.raw || n.body || '').trim().slice(0, 500);
       return `[${icao} NOTAM ${i+1}] [${sev}] ${n.notam_id || ''}:\n${raw}`;
     }).join('\n\n---\n\n');
@@ -885,7 +886,8 @@ REQUIRED SECTIONS IN ORDER:
 4. NOTAM ANALYSIS:
 <div class="section-header"><span class="icon">📋</span><span class="title">NOTAM Analysis — Priority Order</span></div>
 <div class="notam-list">
-  [Use the full card format ONLY for the first 5 NOTAMs in the data for this airport (by the order they appear — already priority-sorted), regardless of their [CRITICAL]/[HIGH]/[MEDIUM]/[LOW] tag. This is a hard ceiling so output length stays bounded even when an airport has unusually many Critical/High NOTAMs (e.g. a busy hub like JFK):]
+  [The DEPARTURE and ARRIVAL airport NOTAM lists are two SEPARATE, INDEPENDENT counters — a busy departure airport (e.g. a mega-hub) must NEVER reduce the arrival airport's detail allowance, and vice versa. For EACH airport independently: the first 5 NOTAMs in that airport's own list (by the order given — already priority-sorted; LOW-tier is already excluded from the data) get the full card format below; any 6th NOTAM onward for that SAME airport gets the compact line format, regardless of [CRITICAL]/[HIGH]/[MEDIUM] tag:]
+
   <div class="notam-card [crit|high]">
     <div class="notam-head">
       <div class="notam-dot"></div>
@@ -901,20 +903,19 @@ REQUIRED SECTIONS IN ORDER:
       <div class="notam-field"><div class="notam-field-label">📐 Operational Impact</div><div class="notam-field-value">[impact on flight]</div></div>
     </div>
     <div class="notam-field" style="margin:10px 0 6px"><div class="notam-field-label">📄 RAW NOTAM TEXT</div><div class="notam-field-value" style="font-family:monospace;font-size:12px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-all">[verbatim raw NOTAM text]</div></div>
-    <div class="notam-field" style="margin:0 0 10px"><div class="notam-field-label">💬 DECODED PLAIN ENGLISH</div><div class="notam-field-value">[plain-English explanation — no jargon, full sentences]</div></div>
+    <div class="notam-field-label" style="margin-top:10px">🤖 AI Analysis</div>
     <div class="notam-action"><span class="action-label">⚠️ REQUIRED CREW ACTION</span>[specific action crew must take]</div>
     [Optional: <div class="warning-banner">COMPOUNDS WITH: [detail]</div>]
   </div>
 
-  [For the 6th NOTAM onward for this airport (regardless of tag), OR any NOTAM tagged [MEDIUM]/[LOW] among the first 5, use the compact line format instead. Keep the correct severity icon even for a 6th-onward Critical/High item — it's still flagged as critical, just shown compactly to control length:]
-  <div class="notam-compact [crit|high|med|low]">
-    <span class="notam-compact-sev">[🔴 CRITICAL | 🟠 HIGH | 🟡 MEDIUM | 🟢 LOW]</span>
+  <div class="notam-compact [crit|high|med]">
+    <span class="notam-compact-sev">[🔴 CRITICAL | 🟠 HIGH | 🟡 MEDIUM]</span>
     <span class="notam-compact-id">[NOTAM ID]</span>
     <span class="notam-compact-text">[one-sentence plain-English summary — what it affects and when]</span>
   </div>
 
   [If the user message includes an overflow note ("[N additional NOTAMs not shown...]"), emit it at the end of the NOTAM list as:]
-  <div class="notam-overflow-note">+N NOTAMs not shown. Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list, or use Single NOTAM Analysis to examine any in detail.</div>
+  <div class="notam-overflow-note">+N NOTAMs not shown (includes lower-priority administrative items). Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list, or use Single NOTAM Analysis to examine any in detail.</div>
 </div>
 
 5. AIRSPACE AND RESTRICTIONS:
