@@ -682,19 +682,34 @@ const HTML_HEAD = `<!DOCTYPE html>
   body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.55;min-height:100vh}
   body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:9999}
   .page{max-width:900px;margin:0 auto;padding:28px 24px 60px}
-  .master-header{border:1px solid var(--border2);border-top:3px solid var(--red);background:var(--panel);padding:24px 28px 20px;margin-bottom:20px;position:relative;overflow:hidden}
-  .master-header::after{content:'';position:absolute;top:0;right:0;width:200px;height:100%;background:linear-gradient(135deg,transparent 60%,rgba(230,57,70,0.04))}
+  .master-header{border:1px solid var(--border2);border-top:3px solid var(--border2);background:var(--panel);padding:24px 28px 20px;margin-bottom:20px;position:relative;overflow:hidden}
+  .master-header::after{content:'';position:absolute;top:0;right:0;width:200px;height:100%;background:linear-gradient(135deg,transparent 60%,rgba(255,255,255,0.03))}
+  .master-header.low{border-top-color:var(--green)}
+  .master-header.low::after{background:linear-gradient(135deg,transparent 60%,rgba(74,222,128,0.05))}
+  .master-header.med{border-top-color:var(--yellow)}
+  .master-header.med::after{background:linear-gradient(135deg,transparent 60%,rgba(234,179,8,0.05))}
+  .master-header.high{border-top-color:var(--orange)}
+  .master-header.high::after{background:linear-gradient(135deg,transparent 60%,rgba(249,115,22,0.05))}
+  .master-header.crit{border-top-color:var(--red)}
+  .master-header.crit::after{background:linear-gradient(135deg,transparent 60%,rgba(230,57,70,0.05))}
   .header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap}
   .route-id{font-family:var(--head);font-size:28px;font-weight:900;letter-spacing:4px;color:#fff;text-shadow:0 0 24px rgba(74,158,255,0.3)}
   .route-sub{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:2px;margin-top:4px}
   .risk-badge{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-  .risk-label{font-family:var(--head);font-size:22px;font-weight:900;color:var(--red);letter-spacing:3px;text-shadow:0 0 16px rgba(230,57,70,0.5);animation:pulse-red 2s ease-in-out infinite}
+  .risk-label{font-family:var(--head);font-size:22px;font-weight:900;letter-spacing:3px}
   @keyframes pulse-red{0%,100%{text-shadow:0 0 16px rgba(230,57,70,0.5)}50%{text-shadow:0 0 28px rgba(230,57,70,0.9)}}
-  .risk-score{font-family:var(--mono);font-size:13px;color:var(--orange);letter-spacing:2px}
+  .risk-score{font-family:var(--mono);font-size:13px;letter-spacing:2px}
+  .master-header.low .risk-label,.master-header.low .risk-score{color:var(--green)}
+  .master-header.med .risk-label,.master-header.med .risk-score{color:var(--yellow)}
+  .master-header.high .risk-label,.master-header.high .risk-score{color:var(--orange)}
+  .master-header.crit .risk-label,.master-header.crit .risk-score{color:var(--red)}
+  .master-header.crit .risk-label{text-shadow:0 0 16px rgba(230,57,70,0.5);animation:pulse-red 2s ease-in-out infinite}
   .score-bar{display:flex;gap:3px;margin-top:2px}
   .score-pip{width:16px;height:6px;border-radius:2px;background:var(--border2);transition:background 0.3s}
-  .score-pip.active{background:var(--red);box-shadow:0 0 6px var(--red)}
-  .score-pip.active.med{background:var(--orange);box-shadow:0 0 6px var(--orange)}
+  .master-header.low .score-pip.active{background:var(--green);box-shadow:0 0 6px var(--green)}
+  .master-header.med .score-pip.active{background:var(--yellow);box-shadow:0 0 6px var(--yellow)}
+  .master-header.high .score-pip.active{background:var(--orange);box-shadow:0 0 6px var(--orange)}
+  .master-header.crit .score-pip.active{background:var(--red);box-shadow:0 0 6px var(--red)}
   .header-meta{display:flex;gap:24px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);flex-wrap:wrap}
   .meta-item{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:1px}
   .meta-item span{color:var(--blue)}
@@ -830,7 +845,7 @@ If an image or PDF is provided, analyze it as aviation documentation (NOTAM, cha
 CRITICAL INSTRUCTIONS:
 1. Output ONLY the HTML body content — everything that goes INSIDE <div class="page">...</div>
 2. Do NOT include <!DOCTYPE>, <html>, <head>, <style>, <body> or outer <div class="page"> tags
-3. Start directly with <div class="master-header"> and end with </div> for briefing-footer
+3. Start directly with <div class="master-header [low|med|high|crit]"> and end with </div> for briefing-footer
 4. Use EXACTLY these CSS classes — they are already loaded
 5. NEVER write "Content Under Review", "Under Review", or any placeholder text. Always use the actual NOTAM data provided.
 6. AIRPORT NAMES — use correct official names:
@@ -847,17 +862,17 @@ CRITICAL INSTRUCTIONS:
 REQUIRED SECTIONS IN ORDER:
 
 1. MASTER HEADER:
-<div class="master-header">
+<div class="master-header [low|med|high|crit — pick exactly ONE based on the score you assign below: 0-2=low, 3-5=med, 6-8=high, 9-10=crit. This single class controls every color in this header — label, score number, border, and pips — so they can never disagree with each other or with the score]">
   <div class="header-top">
     <div>
       <div class="route-id">[DEP] → [ARR]</div>
       <div class="route-sub">[DEP FULL NAME] → [ARR FULL NAME] | PRE-FLIGHT OPERATIONAL INTELLIGENCE BRIEFING</div>
     </div>
     <div class="risk-badge">
-      <div class="risk-label">[🔴/🟠/🟡/🟢] [CRITICAL/HIGH/MEDIUM/LOW]</div>
+      <div class="risk-label">[🟢 LOW | 🟡 MEDIUM | 🟠 HIGH | 🔴 CRITICAL — must match the master-header class above]</div>
       <div class="risk-score">📊 RISK SCORE [X] / 10</div>
       <div class="score-bar">
-        [10 score-pip divs — add class="active" for filled pips, class="active med" for orange pips]
+        [10 score-pip divs total — add class="active" to exactly the first X pips, where X is the score (0-10). Leave the rest with no extra class. Do not add any color class to individual pips — the master-header class above already controls their color.]
       </div>
     </div>
   </div>
