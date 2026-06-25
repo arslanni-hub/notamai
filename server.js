@@ -835,7 +835,7 @@ const systemPrompt = `MANDATORY RULES:
 - Show the airport ICAO code for each NOTAM in the notam-id field
 - CRITICAL NOTAMs include: runway closures, GNSS jamming, dual runway closures, emergency-only airports
 - Never downgrade GNSS jamming or runway closures to medium or low risk
-- TOKEN BUDGET PRIORITY: on an unusually complex route (many NOTAMs, multiple compounding hazards), compress NOTAM Analysis and the Compounding Risk Matrix further rather than risk running out of room later. Sections 9-11 (Pilot Action Items, Dispatch Notes, Go/No-Go) are the decision-critical core of this briefing and must ALWAYS be completed in full — never cut short, never omitted, regardless of how much detail that costs earlier sections. A pilot can always pull more NOTAM detail from the panel; they cannot get a missing Go/No-Go from anywhere.
+- TOKEN BUDGET PRIORITY: on an unusually complex route (many NOTAMs, multiple compounding hazards), compress NOTAM Analysis, the Compounding Risk Matrix, and ALL table rows (Airspace, Aerodrome Status, Navigation Aids) further rather than risk running out of room later — every row and compact line in this briefing has a hard length cap specified below for exactly this reason. Sections 9-11 (Pilot Action Items, Dispatch Notes, Go/No-Go) are the decision-critical core of this briefing. Go/No-Go and the Footer in particular are NON-NEGOTIABLE — if you are running low on room by the time you reach Dispatch Notes, shorten Dispatch Notes itself rather than skip ahead without writing Go/No-Go. A briefing that ends without a verdict is worse than one with a slightly thinner Dispatch Notes section. A pilot can always pull more NOTAM detail from the panel; they cannot get a missing Go/No-Go from anywhere.
 
 You are a senior Aeronautical Information Management (AIM) specialist with 20+ years of operational experience. Expert in ICAO Annex 15, PANS-AIM Doc 10066, PANS-OPS Doc 8168, DOC 4444 PANS-ATM.
 
@@ -927,7 +927,7 @@ REQUIRED SECTIONS IN ORDER:
   <div class="notam-compact [crit|high|med]">
     <span class="notam-compact-sev">[🔴 CRITICAL | 🟠 HIGH | 🟡 MEDIUM]</span>
     <span class="notam-compact-id">[NOTAM ID]</span>
-    <span class="notam-compact-text">[one-sentence plain-English summary — what it affects and when]</span>
+    <span class="notam-compact-text">[ONE short sentence, under 20 words — what it affects and when. No semicolons or compound clauses.]</span>
   </div>
 
   [If the user message includes an overflow note ("[N additional NOTAMs not shown...]"), emit it at the end of the NOTAM list as:]
@@ -938,7 +938,7 @@ REQUIRED SECTIONS IN ORDER:
 <div class="section-header"><span class="icon">🚫</span><span class="title">Airspace and Restrictions</span></div>
 <div class="airspace-grid">
   <div class="airspace-row header"><span>NOTAM / REF</span><span>DESCRIPTION</span><span>VERTICAL LIMITS</span><span>ACTIVE (UTC)</span></div>
-  [airspace-row divs with ar-id, ar-desc, ar-fl, ar-time spans]
+  [airspace-row divs with ar-id, ar-desc, ar-fl, ar-time spans — ar-desc is ONE concise sentence, under 25 words, not 2-3 sentences. If this item already has a full NOTAM card or appears elsewhere, this row is just the at-a-glance reference, not a second full explanation.]
 </div>
 
 6. AERODROME STATUS:
@@ -947,12 +947,12 @@ REQUIRED SECTIONS IN ORDER:
   <div class="status-panel dep">
     <div class="status-airport">[DEP]</div>
     <div class="status-sub">[DEP CORRECT FULL NAME] — DEPARTURE</div>
-    [status-row divs with status-key and status-val (ok/warn/bad) spans — runway, taxiway, lighting, and closure status ONLY. Do NOT include navaid (VOR/NDB/ILS/GNSS) rows here — those belong exclusively in Navigation Aids Status below, so the same fact is never stated in both places.]
+    [status-row divs with status-key and status-val (ok/warn/bad) spans — runway, taxiway, lighting, and closure status ONLY. Do NOT include navaid (VOR/NDB/ILS/GNSS) rows here — those belong exclusively in Navigation Aids Status below, so the same fact is never stated in both places. status-val: a short phrase, under 12 words, not a full sentence.]
   </div>
   <div class="status-panel arr">
     <div class="status-airport">[ARR]</div>
     <div class="status-sub">[ARR CORRECT FULL NAME] — ARRIVAL</div>
-    [status-row divs, same scope — runway/taxiway/lighting/closures only, no navaid rows]
+    [status-row divs, same scope — runway/taxiway/lighting/closures only, no navaid rows. Same brevity: status-val under 12 words.]
   </div>
 </div>
 
@@ -960,7 +960,7 @@ REQUIRED SECTIONS IN ORDER:
 <div class="section-header"><span class="icon">📡</span><span class="title">Navigation Aids Status</span></div>
 <div class="navaid-grid">
   <div class="navaid-row header"><span>NAVAID / TYPE</span><span>LOCATION</span><span>STATUS</span><span>NOTES</span></div>
-  [navaid-row divs with navaid-name, navaid-loc, navaid-status (ok/ux/deg), navaid-note spans — this is the SINGLE authoritative table for every navaid: aerodrome ILS/VOR/NDB AND en-route VOR/NDB/GNSS. These facts must not be repeated in Aerodrome Status above.]
+  [navaid-row divs with navaid-name, navaid-loc, navaid-status (ok/ux/deg), navaid-note spans — this is the SINGLE authoritative table for every navaid: aerodrome ILS/VOR/NDB AND en-route VOR/NDB/GNSS. These facts must not be repeated in Aerodrome Status above. navaid-note: one short phrase, under 15 words, not a full sentence with NOTAM cross-references — that detail already lives in the NOTAM card.]
 </div>
 
 8. WEATHER ASSESSMENT:
