@@ -711,6 +711,8 @@ const HTML_HEAD = `<!DOCTYPE html>
   .notam-card.med{border-left-color:var(--yellow)}
   .notam-card.low{border-left-color:var(--green)}
   .notam-compact{display:flex;align-items:baseline;gap:8px;padding:7px 12px;border-left:3px solid transparent;background:var(--panel);font-size:13px;line-height:1.5}
+  .notam-compact.crit{border-left-color:var(--red)}
+  .notam-compact.high{border-left-color:var(--orange)}
   .notam-compact.med{border-left-color:var(--yellow)}
   .notam-compact.low{border-left-color:var(--green)}
   .notam-compact-sev{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--text3);white-space:nowrap;flex-shrink:0}
@@ -883,7 +885,7 @@ REQUIRED SECTIONS IN ORDER:
 4. NOTAM ANALYSIS:
 <div class="section-header"><span class="icon">📋</span><span class="title">NOTAM Analysis — Priority Order</span></div>
 <div class="notam-list">
-  [For EACH NOTAM tagged [CRITICAL] or [HIGH] use the full card format:]
+  [Use the full card format ONLY for the first 5 NOTAMs in the data for this airport (by the order they appear — already priority-sorted), regardless of their [CRITICAL]/[HIGH]/[MEDIUM]/[LOW] tag. This is a hard ceiling so output length stays bounded even when an airport has unusually many Critical/High NOTAMs (e.g. a busy hub like JFK):]
   <div class="notam-card [crit|high]">
     <div class="notam-head">
       <div class="notam-dot"></div>
@@ -904,9 +906,9 @@ REQUIRED SECTIONS IN ORDER:
     [Optional: <div class="warning-banner">COMPOUNDS WITH: [detail]</div>]
   </div>
 
-  [For EACH NOTAM tagged [MEDIUM] or [LOW] use the compact line format:]
-  <div class="notam-compact [med|low]">
-    <span class="notam-compact-sev">[🟡 MEDIUM | 🟢 LOW]</span>
+  [For the 6th NOTAM onward for this airport (regardless of tag), OR any NOTAM tagged [MEDIUM]/[LOW] among the first 5, use the compact line format instead. Keep the correct severity icon even for a 6th-onward Critical/High item — it's still flagged as critical, just shown compactly to control length:]
+  <div class="notam-compact [crit|high|med|low]">
+    <span class="notam-compact-sev">[🔴 CRITICAL | 🟠 HIGH | 🟡 MEDIUM | 🟢 LOW]</span>
     <span class="notam-compact-id">[NOTAM ID]</span>
     <span class="notam-compact-text">[one-sentence plain-English summary — what it affects and when]</span>
   </div>
