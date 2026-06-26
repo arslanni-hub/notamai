@@ -3519,12 +3519,11 @@ function startMainVoice() {
 
     document.getElementById('mainInput').value = transcript;
 
-    // Chat mode: this is a conversational question, not a route — send it as-is,
-    // exactly like the Ask NOTAM AI chat's own voice input already does. Running
-    // it through extract-route here would try to find two airports in an ordinary
-    // question, fail almost every time, and silently discard what the user said.
+    // Chat mode: this is a conversational question, not a route — fill it in and
+    // let the user review/send it themselves, same as typed input. No auto-send,
+    // so a misheard word can be caught and corrected before anything is sent.
     if (getActivePillMode() === 'chat') {
-      handleSend();
+      document.getElementById('mainInput').focus();
       return;
     }
 
@@ -3541,7 +3540,11 @@ function startMainVoice() {
       if (data.route) {
         document.getElementById('mainInput').value = data.route;
         document.getElementById('mainInput').placeholder = 'Enter ICAO codes or speak naturally...';
-        setTimeout(() => handleSend(), 500);
+        document.getElementById('mainInput').focus();
+        // No auto-send here on purpose — review the extracted code(s) and press
+        // Enter/Send yourself. Voice recognition or extraction can occasionally
+        // drop a second airport; this gives a chance to catch and fix that before
+        // a briefing actually gets generated, which has a real cost.
       } else {
         document.getElementById('mainInput').placeholder = 'Could not extract route. Try again.';
         setTimeout(() => {
