@@ -545,6 +545,38 @@ canvas#sky {
   white-space: nowrap;
 }
 .chat-usage-banner .upgrade-pill:hover { background: rgba(74,158,255,0.2); }
+.mode-mismatch-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 720px;
+  margin: 10px auto 0;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: rgba(74,158,255,0.06);
+  border: 1px solid rgba(74,158,255,0.2);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: #8a9bb0;
+  flex-wrap: wrap;
+}
+.mode-mismatch-banner .mismatch-actions { margin-left: auto; display: flex; gap: 8px; flex-shrink: 0; }
+.mode-mismatch-banner button {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid rgba(74,158,255,0.35);
+  background: rgba(74,158,255,0.12);
+  color: #4a9eff;
+}
+.mode-mismatch-banner button:hover { background: rgba(74,158,255,0.2); }
+.mode-mismatch-banner button.dismiss { border-color: rgba(138,155,187,0.3); background: none; color: #8a9bb0; }
 .chat-search-status {
   display: flex;
   align-items: center;
@@ -2532,8 +2564,16 @@ async function handleSend(silent = false) {
     return;
   }
 
+  document.getElementById('modeMismatchBanner')?.remove();
+
   const activeMode = getActivePillMode();
+
   if (activeMode === 'video') {
+    if (!attachedFile && val && !looksLikeCleanIcaoInput(val)) {
+      const route = await extractRouteOrNull(val);
+      if (route === null) { showMainInputMismatchWarning(); return; }
+      if (route !== 'SKIP_CHECK') document.getElementById('mainInput').value = route;
+    }
     openVideoBriefing();
     return;
   }
@@ -2542,6 +2582,8 @@ async function handleSend(silent = false) {
     const chatInput = document.getElementById('mainInput');
     const question = chatInput.value.trim();
     if (!question) return;
+    const suggestedMode = looksLikeBriefingOrVideoRequest(question);
+    if (suggestedMode) { showChatModeMismatchBubble(question, suggestedMode); return; }
     chatInput.value = '';
     autoResize(chatInput);
     addChatBubble('user', question);
@@ -2549,7 +2591,13 @@ async function handleSend(silent = false) {
     return;
   }
 
-  const parts = val.trim().toUpperCase().split(/\s+/);
+  if (!attachedFile && val && !looksLikeCleanIcaoInput(val)) {
+    const route = await extractRouteOrNull(val);
+    if (route === null) { showMainInputMismatchWarning(); return; }
+    if (route !== 'SKIP_CHECK') document.getElementById('mainInput').value = route;
+  }
+
+  const parts = document.getElementById('mainInput').value.trim().toUpperCase().split(/\s+/);
   const dep = parts[0] || '';
   const arr = parts[1] || '';
 
@@ -3604,6 +3652,71 @@ const placeholderSets = {
 let pIdx = 0, pChar = 0, pDeleting = false;
 let activePlaceholderMode = 'briefing';
 const mainInput = document.getElementById('mainInput');
+
+function looksLikeCleanIcaoInput(text) {
+  return /^[A-Z]{4}(\s+[A-Z]{4})?$/.test(text.trim().toUpperCase());
+}
+
+async function extractRouteOrNull(text) {
+  try {
+    const response = await fetch('/api/extract-route', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await response.json();
+    return data.route || null;
+  } catch (e) {
+    return 'SKIP_CHECK'; // network/API error — fail open, don't block the user over an unrelated hiccup
+  }
+}
+
+function looksLikeBriefingOrVideoRequest(text) {
+  const lower = text.toLowerCase();
+  const hasAction = /\b(oluştur|oluşturabilir|olusturabilir|yap|yapar|hazırla|hazirla|create|generate|make|prepare)\b/.test(lower);
+  if (!hasAction) return null;
+  if (/\bvideo\b/.test(lower)) return 'video';
+  if (/\b(brifing|briefing|brief)\b/.test(lower)) return 'briefing';
+  return null;
+}
+
+function showMainInputMismatchWarning() {
+  document.getElementById('modeMismatchBanner')?.remove();
+  const banner = document.createElement('div');
+  banner.id = 'modeMismatchBanner';
+  banner.className = 'mode-mismatch-banner';
+  banner.innerHTML = `<span>This looks like a question, not a route or airport — want to switch to Chat?</span>
+    <div class="mismatch-actions">
+      <button onclick="selectModePill('pillChat'); document.getElementById('modeMismatchBanner').remove(); document.getElementById('mainInput').focus();">Switch to Chat</button>
+      <button class="dismiss" onclick="document.getElementById('modeMismatchBanner').remove();">Dismiss</button>
+    </div>`;
+  const inputEl = document.getElementById('mainInput');
+  inputEl.parentElement.insertAdjacentElement('afterend', banner);
+}
+
+function showChatModeMismatchBubble(question, suggestedMode) {
+  const area = document.getElementById('chatMessagesArea');
+  const modeLabel = suggestedMode === 'video' ? 'Video Briefing' : 'Briefing';
+  const pillId = suggestedMode === 'video' ? 'pillVideo' : 'pillBriefing';
+  const row = document.createElement('div');
+  row.className = 'mode-mismatch-banner';
+  row.style.margin = '10px 16px';
+  row.innerHTML = `<span>This looks like a ${modeLabel} request, not a chat question — want to switch?</span>
+    <div class="mismatch-actions">
+      <button onclick="selectModePill('${pillId}'); this.closest('.mode-mismatch-banner').remove(); document.getElementById('mainInput').value = ${JSON.stringify(question)}; document.getElementById('mainInput').focus();">Switch to ${modeLabel}</button>
+      <button class="dismiss" onclick="this.closest('.mode-mismatch-banner').remove(); sendChatAnyway(${JSON.stringify(question)});">No, continue chatting</button>
+    </div>`;
+  area.appendChild(row);
+  area.scrollTop = area.scrollHeight;
+}
+
+function sendChatAnyway(question) {
+  const chatInput = document.getElementById('mainInput');
+  chatInput.value = '';
+  autoResize(chatInput);
+  addChatBubble('user', question);
+  mockChatResponse(question);
+}
 
 function getActivePillMode() {
   if (document.getElementById('pillVideo')?.classList.contains('active')) return 'video';
