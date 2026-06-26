@@ -3518,6 +3518,16 @@ function startMainVoice() {
     stopMainVoice();
 
     document.getElementById('mainInput').value = transcript;
+
+    // Chat mode: this is a conversational question, not a route — send it as-is,
+    // exactly like the Ask NOTAM AI chat's own voice input already does. Running
+    // it through extract-route here would try to find two airports in an ordinary
+    // question, fail almost every time, and silently discard what the user said.
+    if (getActivePillMode() === 'chat') {
+      handleSend();
+      return;
+    }
+
     document.getElementById('mainInput').placeholder = 'Extracting route...';
 
     try {

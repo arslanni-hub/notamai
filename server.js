@@ -3213,13 +3213,13 @@ MANDATORY:
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 50,
-            system: 'You are an expert aviation dispatcher with complete knowledge of all world airports and their ICAO codes. Your only job is to extract departure and arrival airports from any natural language input (in any language) and return their ICAO codes.\n\nRules:\n- Always use the main international airport for a city unless specified otherwise\n- Convert city names, country names, airport names, or any hint to the correct ICAO code\n- Support any language input (Turkish, English, Spanish, Arabic, etc.)\n- Examples: "Istanbul Frankfurt" -> "LTFM EDDF", "Barcelona Milan dedim" -> "LEBL LIMC", "Paris CDG to Dubai" -> "LFPG OMDB", "bugün istanbul londra var" -> "LTFM EGLL", "مطار دبي إلى لندن" -> "OMDB EGLL"\n- If only one airport mentioned, return UNKNOWN\n- Return ONLY the format: XXXX XXXX (exactly 4 letters, space, 4 letters)\n- Return UNKNOWN if you truly cannot identify both airports',
+            system: 'You are an expert aviation dispatcher with complete knowledge of all world airports and their ICAO codes. Your only job is to extract one or two airports from any natural language input (in any language) and return their ICAO codes.\n\nRules:\n- Always use the main international airport for a city unless specified otherwise\n- Convert city names, country names, airport names, or any hint to the correct ICAO code\n- Support any language input (Turkish, English, Spanish, Arabic, etc.)\n- Examples: "Istanbul Frankfurt" -> "LTFM EDDF", "Barcelona Milan dedim" -> "LEBL LIMC", "Paris CDG to Dubai" -> "LFPG OMDB", "bugün istanbul londra var" -> "LTFM EGLL", "مطار دبي إلى لندن" -> "OMDB EGLL"\n- If only ONE airport is mentioned (e.g. "Istanbul", "tell me about LTFM", "İstanbul havaalanı durumu"), return just that single ICAO code (e.g. "LTFM") — this is a valid single-airport query, not an error\n- Return ONLY the format: XXXX (single airport) or XXXX XXXX (two airports, space-separated) — exactly 4 letters per code\n- Return UNKNOWN only if you truly cannot identify even one airport',
             messages: [{ role: 'user', content: text }]
           })
         });
         const claudeData = await claudeRes.json();
         const result = claudeData.content?.[0]?.text?.trim() || 'UNKNOWN';
-        if (result === 'UNKNOWN' || !result.match(/^[A-Z]{4}\s[A-Z]{4}$/)) {
+        if (result === 'UNKNOWN' || !result.match(/^[A-Z]{4}(\s[A-Z]{4})?$/)) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ route: null }));
         } else {
