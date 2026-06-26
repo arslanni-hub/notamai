@@ -695,7 +695,7 @@ const HTML_HEAD = `<!DOCTYPE html>
   .header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap}
   .route-id{font-family:var(--head);font-size:28px;font-weight:900;letter-spacing:4px;color:#fff;text-shadow:0 0 24px rgba(74,158,255,0.3)}
   .route-sub{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:2px;margin-top:4px}
-  .risk-badge{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+  .risk-badge{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-top:18px}
   .risk-label{font-family:var(--head);font-size:22px;font-weight:900;letter-spacing:3px}
   @keyframes pulse-red{0%,100%{text-shadow:0 0 16px rgba(230,57,70,0.5)}50%{text-shadow:0 0 28px rgba(230,57,70,0.9)}}
   .risk-score{font-family:var(--mono);font-size:13px;letter-spacing:2px}
@@ -864,17 +864,13 @@ REQUIRED SECTIONS IN ORDER:
 
 1. MASTER HEADER:
 <div class="master-header [low|med|high|crit — pick exactly ONE based on the score you assign below: 0-2=low, 3-5=med, 6-8=high, 9-10=crit. This single class controls every color in this header — label, score number, border, and pips — so they can never disagree with each other or with the score]">
-  <div class="header-top">
-    <div>
-      <div class="route-id">[DEP] → [ARR]</div>
-      <div class="route-sub">[DEP FULL NAME] → [ARR FULL NAME] | PRE-FLIGHT OPERATIONAL INTELLIGENCE BRIEFING</div>
-    </div>
-    <div class="risk-badge">
-      <div class="risk-label">[🟢 LOW | 🟡 MEDIUM | 🟠 HIGH | 🔴 CRITICAL — must match the master-header class above]</div>
-      <div class="risk-score">📊 RISK SCORE [X] / 10</div>
-      <div class="score-bar">
-        [10 score-pip divs total — add class="active" to exactly the first X pips, where X is the score (0-10). Leave the rest with no extra class. Do not add any color class to individual pips — the master-header class above already controls their color.]
-      </div>
+  <div class="route-id">[DEP] → [ARR]</div>
+  <div class="route-sub">[DEP FULL NAME] → [ARR FULL NAME] | PRE-FLIGHT OPERATIONAL INTELLIGENCE BRIEFING</div>
+  <div class="risk-badge">
+    <div class="risk-label">[🟢 LOW | 🟡 MEDIUM | 🟠 HIGH | 🔴 CRITICAL — must match the master-header class above]</div>
+    <div class="risk-score">📊 RISK SCORE [X] / 10</div>
+    <div class="score-bar">
+      [10 score-pip divs total — add class="active" to exactly the first X pips, where X is the score (0-10). Leave the rest with no extra class. Do not add any color class to individual pips — the master-header class above already controls their color.]
     </div>
   </div>
   <div class="header-meta">
@@ -1067,17 +1063,13 @@ REQUIRED SECTIONS IN ORDER:
 
 1. MASTER HEADER:
 <div class="master-header [low|med|high|crit — pick exactly ONE based on the score you assign below: 0-2=low, 3-5=med, 6-8=high, 9-10=crit. This single class controls every color in this header — label, score number, border, and pips — so they can never disagree with each other or with the score]">
-  <div class="header-top">
-    <div>
-      <div class="route-id">[ICAO]</div>
-      <div class="route-sub">[FULL AIRPORT NAME] | AIRPORT OPERATIONAL INTELLIGENCE BRIEFING</div>
-    </div>
-    <div class="risk-badge">
-      <div class="risk-label">[🟢 LOW | 🟡 MEDIUM | 🟠 HIGH | 🔴 CRITICAL — must match the master-header class above]</div>
-      <div class="risk-score">📊 RISK SCORE [X] / 10</div>
-      <div class="score-bar">
-        [10 score-pip divs total — add class="active" to exactly the first X pips, where X is the score (0-10). Leave the rest with no extra class.]
-      </div>
+  <div class="route-id">[ICAO]</div>
+  <div class="route-sub">[FULL AIRPORT NAME] | AIRPORT OPERATIONAL INTELLIGENCE BRIEFING</div>
+  <div class="risk-badge">
+    <div class="risk-label">[🟢 LOW | 🟡 MEDIUM | 🟠 HIGH | 🔴 CRITICAL — must match the master-header class above]</div>
+    <div class="risk-score">📊 RISK SCORE [X] / 10</div>
+    <div class="score-bar">
+      [10 score-pip divs total — add class="active" to exactly the first X pips, where X is the score (0-10). Leave the rest with no extra class.]
     </div>
   </div>
   <div class="header-meta">
@@ -1134,7 +1126,7 @@ REQUIRED SECTIONS IN ORDER:
   </div>
 
   [If the data includes a NOTE about additional NOTAMs not shown, include exactly one of these at the end, using the exact numbers given:]
-  <div class="notam-overflow-note"><strong>+[N] more active NOTAMs</strong> not shown above (lower priority by severity/recency) — [total] total active. <span class="nf-link" onclick="openRawDataPanel()">Open NOTAMs & MET panel</span> to view all, with one-tap AI analysis available for each.</div>
+  <div class="notam-overflow-note">+[N] more active NOTAMs not shown (lower priority by severity/recency) — [total] total active. Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list, or use Single NOTAM Analysis to examine any in detail.</div>
 </div>
 
 5. AIRSPACE AND RESTRICTIONS (scoped to the FIR this airport sits in — not a multi-FIR route table):
@@ -1146,7 +1138,7 @@ REQUIRED SECTIONS IN ORDER:
 
 6. AERODROME STATUS (single panel — no second airport):
 <div class="section-header"><span class="icon">🛬</span><span class="title">Aerodrome Status</span></div>
-<div class="status-panel dep" style="max-width:480px">
+<div class="status-panel dep">
   <div class="status-airport">[ICAO]</div>
   <div class="status-sub">[FULL NAME]</div>
   [status-row divs with status-key and status-val (ok/warn/bad) spans — runway, taxiway, lighting, and closure status ONLY. Do NOT include navaid rows here — those belong in Navigation Aids Status below. status-val: a short phrase, under 12 words.]
@@ -1161,8 +1153,8 @@ REQUIRED SECTIONS IN ORDER:
 
 8. WEATHER ASSESSMENT (single airport — no dual dep/arr/alternate cards):
 <div class="section-header"><span class="icon">🌤️</span><span class="title">Weather Assessment</span></div>
-<div class="wx-grid">
-  <div class="wx-card"><div class="wx-icao">[ICAO]</div><div class="wx-role">CURRENT CONDITIONS</div><div class="wx-raw">[METAR]</div>[wx-tags]</div>
+<div class="wx-card">
+  <div class="wx-icao">[ICAO]</div><div class="wx-role">CURRENT CONDITIONS</div><div class="wx-raw">[METAR]</div>[wx-tags]
 </div>
 <div class="wx-analysis">
   [2-3 sentences max. Do not re-narrate the raw METAR already shown above — focus on TAF trend, a deteriorating window, or anything that actually changes what someone using this airport right now should plan for.]
@@ -1178,8 +1170,7 @@ REQUIRED SECTIONS IN ORDER:
 10. GROUND & ATC NOTES:
 <div class="section-header"><span class="icon">📦</span><span class="title">Ground & ATC Notes</span></div>
 <div class="dispatch-grid">
-  <div class="dispatch-card"><span class="dispatch-icon">🛻</span><div class="dispatch-label">GROUND OPERATIONS</div><div class="dispatch-value">[ramp/taxi/stand considerations relevant to active NOTAMs]</div></div>
-  <div class="dispatch-card"><span class="dispatch-icon">🕐</span><div class="dispatch-label">SLOT / CTOT</div><div class="dispatch-value">[slot details if this airport is slot-controlled, otherwise state not applicable]</div></div>
+  <div class="dispatch-card"><span class="dispatch-icon">🛻</span><div class="dispatch-label">GROUND OPERATIONS</div><div class="dispatch-value">[ramp/taxi/stand considerations relevant to active NOTAMs. If this airport is slot-coordinated, fold the slot/CTOT note into this same card — only mention it when actually relevant, don't pad with "not applicable".]</div></div>
   <div class="dispatch-card"><span class="dispatch-icon">📻</span><div class="dispatch-label">ATC COORDINATION</div><div class="dispatch-value">[ATC details with hl spans]</div></div>
 </div>
 
