@@ -561,6 +561,9 @@ canvas#sky {
   font-weight: 400;
   color: #8a9bb0;
   flex-wrap: wrap;
+  pointer-events: auto;
+  position: relative;
+  z-index: 50;
 }
 .mode-mismatch-banner .mismatch-actions { margin-left: auto; display: flex; gap: 8px; flex-shrink: 0; }
 .mode-mismatch-banner button {
@@ -3672,6 +3675,7 @@ async function extractRouteOrNull(text) {
 }
 
 function looksLikeBriefingOrVideoRequest(text) {
+  if (looksLikeCleanIcaoInput(text)) return 'briefing'; // bare ICAO code(s), no question at all — almost certainly meant Briefing mode
   const lower = text.toLowerCase();
   const hasAction = /\b(oluştur|oluşturabilir|olusturabilir|yap|yapar|hazırla|hazirla|create|generate|make|prepare)\b/.test(lower);
   if (!hasAction) return null;
@@ -3687,9 +3691,15 @@ function showMainInputMismatchWarning() {
   banner.className = 'mode-mismatch-banner';
   banner.innerHTML = `<span>This looks like a question, not a route or airport — want to switch to Chat?</span>
     <div class="mismatch-actions">
-      <button onclick="selectModePill('pillChat'); document.getElementById('modeMismatchBanner').remove(); document.getElementById('mainInput').focus();">Switch to Chat</button>
-      <button class="dismiss" onclick="document.getElementById('modeMismatchBanner').remove();">Dismiss</button>
+      <button class="mm-switch">Switch to Chat</button>
+      <button class="dismiss mm-dismiss">Dismiss</button>
     </div>`;
+  banner.querySelector('.mm-switch').addEventListener('click', () => {
+    selectModePill('pillChat');
+    banner.remove();
+    document.getElementById('mainInput').focus();
+  });
+  banner.querySelector('.mm-dismiss').addEventListener('click', () => banner.remove());
   const inputEl = document.getElementById('mainInput');
   inputEl.parentElement.insertAdjacentElement('afterend', banner);
 }
@@ -3703,9 +3713,19 @@ function showChatModeMismatchBubble(question, suggestedMode) {
   row.style.margin = '10px 16px';
   row.innerHTML = `<span>This looks like a ${modeLabel} request, not a chat question — want to switch?</span>
     <div class="mismatch-actions">
-      <button onclick="selectModePill('${pillId}'); this.closest('.mode-mismatch-banner').remove(); document.getElementById('mainInput').value = ${JSON.stringify(question)}; document.getElementById('mainInput').focus();">Switch to ${modeLabel}</button>
-      <button class="dismiss" onclick="this.closest('.mode-mismatch-banner').remove(); sendChatAnyway(${JSON.stringify(question)});">No, continue chatting</button>
+      <button class="mm-switch">Switch to ${modeLabel}</button>
+      <button class="dismiss mm-dismiss">No, continue chatting</button>
     </div>`;
+  row.querySelector('.mm-switch').addEventListener('click', () => {
+    selectModePill(pillId);
+    row.remove();
+    document.getElementById('mainInput').value = question;
+    document.getElementById('mainInput').focus();
+  });
+  row.querySelector('.mm-dismiss').addEventListener('click', () => {
+    row.remove();
+    sendChatAnyway(question);
+  });
   area.appendChild(row);
   area.scrollTop = area.scrollHeight;
 }
