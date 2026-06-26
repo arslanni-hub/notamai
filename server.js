@@ -3757,7 +3757,7 @@ TAF ARRIVAL: ${tafArr || 'Not available'}
 ${enrouteNotamData ? '\nEN-ROUTE FIR NOTAMs:\n' + enrouteNotamData : '\nEN-ROUTE FIR NOTAMs: No FIR data available — advise crew to check current FIR NOTAMs via official sources.'}
 ${notam_text ? `\nADDITIONAL USER DATA:\n${notam_text}` : ''}
 
-Generate the complete pre-flight operational intelligence briefing HTML content.`);
+Generate the complete pre-flight operational intelligence briefing HTML content.`;
 
         const contentBlocks = [{ type: 'text', text: userMessage }];
         if (image_base64) {
