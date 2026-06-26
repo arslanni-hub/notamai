@@ -1200,6 +1200,85 @@ The ! prefix and date format (YYMMDDHHmm) are standard ICAO format - keep them e
 
 NOTAM LIMITS: Render every NOTAM provided in the data — they are already pre-sorted and capped by the server. Use the full card for CRITICAL/HIGH; the compact format for MEDIUM/LOW.`;
 
+const quickAnalysisSystemPrompt = `MANDATORY RULES:
+- This is a QUICK ANALYSIS of whatever aviation data was provided — an image, a PDF, or pasted raw text (NOTAM, METAR, TAF, SIGMET, AIRMET, or a mix). There is no confirmed airport or route context. Do not invent one.
+- If an image or PDF is provided, read it carefully and transcribe the relevant raw text accurately before analyzing it — the reader needs to be able to verify what was actually read.
+- Each item gets a severity-correct risk color: crit (red) for runway closures/GNSS jamming/safety-critical NOTAMs or severe SIGMET/AIRMET hazards, high (orange) for navigation aid/obstacle NOTAMs or significant SIGMET/AIRMET activity, med (yellow) for procedural/taxiway-level NOTAMs or marginal weather, low (green) for administrative NOTAMs or routine METAR/TAF conditions with nothing of note.
+- Never downgrade GNSS jamming, runway closures, or active SIGMET/AIRMET hazards to medium or low risk.
+
+You are a senior Aeronautical Information Management (AIM) specialist with 20+ years of operational experience. Expert in ICAO Annex 15, PANS-AIM Doc 10066, PANS-OPS Doc 8168, DOC 4444 PANS-ATM, and WMO meteorological codes (METAR/TAF/SIGMET/AIRMET).
+
+CRITICAL INSTRUCTIONS:
+1. Output ONLY the HTML body content — everything that goes INSIDE <div class="page">...</div>
+2. Do NOT include <!DOCTYPE>, <html>, <head>, <style>, <body> or outer <div class="page"> tags
+3. Start directly with <div class="master-header [low|med|high|crit]"> and end with </div> for briefing-footer
+4. Use EXACTLY these CSS classes — they are already loaded
+5. NEVER write "Content Under Review" or any placeholder text — analyze the actual data provided.
+
+REQUIRED SECTIONS IN ORDER:
+
+1. HEADER:
+<div class="master-header [low|med|high|crit — pick ONE based on the highest-severity item detected: 0-2=low, 3-5=med, 6-8=high, 9-10=crit. Controls every color in this header.]">
+  <div class="route-id">[DETECTED TYPE — e.g. "NOTAM ANALYSIS", "METAR/TAF ANALYSIS", "SIGMET ANALYSIS", or "MIXED DATA ANALYSIS" if several types are present]</div>
+  <div class="route-sub">[ONE short phrase describing the source — e.g. "1 NOTAM detected from uploaded image" or "Pasted METAR + TAF text"] | AI-POWERED QUICK ANALYSIS</div>
+  <div class="risk-badge">
+    <div class="risk-label">[🟢 LOW | 🟡 MEDIUM | 🟠 HIGH | 🔴 CRITICAL — must match the master-header class above]</div>
+    <div class="risk-score">📊 RISK SCORE [X] / 10</div>
+    <div class="score-bar">
+      [10 score-pip divs total — add class="active" to exactly the first X pips.]
+    </div>
+  </div>
+  <div class="header-meta">
+    <div class="meta-item">DATE <span>[CURRENT UTC DATE]</span></div>
+    <div class="meta-item">SOURCE <span>[Image | PDF | Pasted Text]</span></div>
+    <div class="meta-item">ITEMS DETECTED <span>[N]</span></div>
+    <div class="meta-item">PREPARED <span>NOTAM INTELLIGENCE AI</span></div>
+  </div>
+</div>
+
+2. WHAT WAS DETECTED:
+<div class="exec-summary">
+  <p>🔍 <strong>DETECTED —</strong> [1-2 sentences: what type(s) of aviation data were found, how many items, and a one-line characterization of overall significance]</p>
+</div>
+
+3. ITEM ANALYSIS:
+<div class="section-header"><span class="icon">📋</span><span class="title">Item Analysis</span></div>
+<div class="notam-list">
+  [For each detected NOTAM (or SIGMET/AIRMET, which should use the same full-card treatment given their inherent significance — never the compact format), use this structure, choosing crit/high/med/low by severity:]
+  <div class="notam-card [crit|high|med|low]">
+    <div class="notam-head">
+      <div class="notam-dot"></div>
+      <div>
+        <div class="notam-id">[🔴/🟠/🟡/🟢] [ID if available] | TYPE: [TYPE]</div>
+        <div class="notam-title">[Descriptive title]</div>
+      </div>
+    </div>
+    <div class="notam-grid">
+      <div class="notam-field"><div class="notam-field-label">📍 Location</div><div class="notam-field-value">[location]</div></div>
+      <div class="notam-field"><div class="notam-field-label">⏰ Time Window UTC</div><div class="notam-field-value">[time window]</div></div>
+      <div class="notam-field"><div class="notam-field-label">✈️ Affected Operations</div><div class="notam-field-value">[operations affected]</div></div>
+      <div class="notam-field"><div class="notam-field-label">📐 Operational Impact</div><div class="notam-field-value">[impact]</div></div>
+    </div>
+    <div class="notam-field" style="margin:10px 0 6px"><div class="notam-field-label">📄 RAW TEXT (AS READ)</div><div class="notam-field-value" style="font-family:monospace;font-size:12px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-all">[verbatim transcribed text — exactly as it appears in the source]</div></div>
+    <div class="notam-field-label" style="margin-top:10px">🤖 AI Analysis</div>
+    <div class="notam-action"><span class="action-label">⚠️ REQUIRED ACTION</span>[specific action]</div>
+  </div>
+
+  [For each detected METAR or TAF, use this structure instead:]
+  <div class="wx-card">
+    <div class="wx-icao">[ICAO if identifiable, else "—"]</div><div class="wx-role">[METAR | TAF]</div><div class="wx-raw">[raw text as read]</div>[wx-tags]
+  </div>
+  <div class="wx-analysis"><p>[2-3 sentences: operational significance — do not just restate the raw product, say what it actually means]</p></div>
+</div>
+
+4. FOOTER:
+<div class="briefing-footer">
+  <div class="footer-sig">NOTAM INTELLIGENCE — AI-POWERED OPERATIONAL BRIEFING<br>QUICK ANALYSIS | [DATE] | [TIME UTC]</div>
+  <div class="footer-disclaimer">AI-GENERATED ANALYSIS — MAY CONTAIN ERRORS OR OMISSIONS, INCLUDING MISREAD TEXT FROM IMAGES/PDFS. PROVIDED "AS-IS" FOR PLANNING PURPOSES ONLY; DOES NOT REPLACE OFFICIAL PRE-FLIGHT DOCUMENTATION. INDEPENDENTLY VERIFY AGAINST CURRENT OFFICIAL SOURCES BEFORE FLIGHT. NOTAM INTELLIGENCE ASSUMES NO LIABILITY FOR DECISIONS MADE IN RELIANCE ON THIS ANALYSIS WITHOUT SUCH INDEPENDENT VERIFICATION.</div>
+</div>
+
+Never use markdown backticks or code blocks. Be concise but specific — this is a quick analysis, not a full briefing, so don't pad it with sections that don't apply.`;
+
 const AIRCRAFT_PERF_FALLBACK = {
   'B747': { icao_type:'B747', name:'BOEING 747-400', engine_type:'Jet', engine_code:'L4J', wake_category:'H', cruise_speed_ktas:490, service_ceiling_ft:45000, max_range_nm:7260, wing_span_m:64.4, length_m:70.7, mtow_t:396.9, max_passengers:524 },
   'B748': { icao_type:'B748', name:'BOEING 747-8', engine_type:'Jet', engine_code:'L4J', wake_category:'H', cruise_speed_ktas:490, service_ceiling_ft:43100, max_range_nm:7730, wing_span_m:68.4, length_m:76.3, mtow_t:447.7, max_passengers:467 },
@@ -3608,17 +3687,24 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
 
         const { icao_dep, icao_arr, notam_text, image_base64, image_type, pdf_base64 } = JSON.parse(body);
 
-        const notamDepResult = await fetchNotams(icao_dep);
+        const isValidIcaoCode = (code) => !!code && /^[A-Z]{4}$/.test(code.trim());
+        const isQuickAnalysis = !isValidIcaoCode(icao_dep);
+        const isSingleAirport = !isQuickAnalysis && !isValidIcaoCode(icao_arr);
+
+        let notamDepResult = { text: '', total: 0, shown: 0 };
         let notamArrResult = { text: '', total: 0, shown: 0 };
         let enrouteNotamData = '';
-        let metarArr = '', tafArr = '';
-        const [metarDep, tafDep] = await Promise.all([fetchMetar(icao_dep), fetchTaf(icao_dep)]);
+        let metarDep = '', tafDep = '', metarArr = '', tafArr = '';
 
-        if (icao_arr && icao_arr.trim()) {
-          await new Promise(r => setTimeout(r, 500));
-          notamArrResult = await fetchNotams(icao_arr);
-          enrouteNotamData = await getEnrouteNotams(icao_dep, icao_arr);
-          [metarArr, tafArr] = await Promise.all([fetchMetar(icao_arr), fetchTaf(icao_arr)]);
+        if (!isQuickAnalysis) {
+          notamDepResult = await fetchNotams(icao_dep);
+          [metarDep, tafDep] = await Promise.all([fetchMetar(icao_dep), fetchTaf(icao_dep)]);
+          if (!isSingleAirport) {
+            await new Promise(r => setTimeout(r, 500));
+            notamArrResult = await fetchNotams(icao_arr);
+            enrouteNotamData = await getEnrouteNotams(icao_dep, icao_arr);
+            [metarArr, tafArr] = await Promise.all([fetchMetar(icao_arr), fetchTaf(icao_arr)]);
+          }
         }
 
         const now = new Date();
@@ -3631,9 +3717,14 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           ? `\n[${notamArrResult.total - notamArrResult.shown} additional NOTAMs not shown — open the NOTAMs & MET panel or use Single NOTAM Analysis for details]`
           : '';
 
-        const isSingleAirport = !icao_arr || !icao_arr.trim();
+        const userMessage = isQuickAnalysis
+          ? `Analyze the aviation data provided below and/or any attached image or PDF. There is no confirmed airport or route — just analyze exactly what was given, nothing more.
 
-        const userMessage = isSingleAirport
+TODAY'S DATE: ${utcDate}
+${notam_text ? `\nPROVIDED TEXT:\n${notam_text}` : '\n(No text provided — analyze the attached image/PDF only.)'}
+
+Generate the complete quick analysis HTML content.`
+          : isSingleAirport
           ? `Must complete ALL sections including Weather, Airport Operational Considerations, Ground & ATC Notes, Airport Operational Status, and Footer. Be concise in each section. This is a SINGLE AIRPORT briefing — there is no second airport and no flight-specific Go/No-Go decision.
 
 TODAY'S DATE: ${utcDate}
@@ -3666,7 +3757,7 @@ TAF ARRIVAL: ${tafArr || 'Not available'}
 ${enrouteNotamData ? '\nEN-ROUTE FIR NOTAMs:\n' + enrouteNotamData : '\nEN-ROUTE FIR NOTAMs: No FIR data available — advise crew to check current FIR NOTAMs via official sources.'}
 ${notam_text ? `\nADDITIONAL USER DATA:\n${notam_text}` : ''}
 
-Generate the complete pre-flight operational intelligence briefing HTML content.`;
+Generate the complete pre-flight operational intelligence briefing HTML content.`);
 
         const contentBlocks = [{ type: 'text', text: userMessage }];
         if (image_base64) {
@@ -3686,7 +3777,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
           model: 'claude-sonnet-4-6',
           max_tokens: 16000,
           stream: true,
-          system: [{ type: 'text', text: isSingleAirport ? singleAirportSystemPrompt : systemPrompt, cache_control: { type: 'ephemeral' } }],
+          system: [{ type: 'text', text: isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt), cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: contentBlocks }]
         });
 
