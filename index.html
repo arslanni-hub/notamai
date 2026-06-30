@@ -4697,6 +4697,38 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
   #about-section .mission-right { grid-template-columns: 1fr; }
 }
 
+/* ═══ MORE WAYS TO BRIEF ═══ */
+#more-ways-section { max-width: 1140px; margin: 0 auto 80px; }
+#more-ways-section .section-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 3px;
+  color: var(--blue); text-transform: uppercase; margin-bottom: 14px; text-align: center;
+}
+#more-ways-section .mission-title {
+  font-family: var(--head); font-size: 28px; font-weight: 700; color: #ffffff;
+  letter-spacing: 1px; line-height: 1.3; margin-bottom: 14px; text-align: center;
+}
+#more-ways-section .mission-body {
+  font-family: var(--body); font-size: 16px; color: var(--text-dim); line-height: 1.8;
+  max-width: 640px; margin: 0 auto 40px; text-align: center;
+}
+#more-ways-section .more-ways-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+}
+#more-ways-section .feature-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 22px;
+}
+#more-ways-section .feature-icon { font-size: 22px; margin-bottom: 10px; }
+#more-ways-section .feature-title {
+  font-family: var(--body); font-size: 15px; font-weight: 700;
+  color: var(--text); letter-spacing: 1px; margin-bottom: 6px;
+}
+#more-ways-section .feature-desc {
+  font-family: var(--body); font-size: 13px; color: var(--text-dim); line-height: 1.6;
+}
+@media (max-width: 700px) {
+  #more-ways-section .more-ways-grid { grid-template-columns: 1fr; }
+}
+
 /* ═══ HOW IT WORKS: STEPS ═══ */
 #how-it-works-section .steps {
   max-width: 900px; margin: 0 auto 80px; display: flex; flex-direction: column; gap: 0;
@@ -5046,6 +5078,21 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
       </div>
       <div style="text-align:center;margin-top:24px;">
         <a href="#pricing-section" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a9eff;text-decoration:none;letter-spacing:1px;">This is what you get with Pro →</a>
+      </div>
+    </div>
+
+    <!-- MORE WAYS TO BRIEF -->
+    <div id="more-ways-section">
+      <div class="section-label">Beyond Route Briefings</div>
+      <h2 class="mission-title">One platform, every way you need to brief.</h2>
+      <p class="mission-body">Route briefings are just the start. Ask a question, generate a video, check a single airport, or drop in a photo of a NOTAM — NOTAM Intelligence adapts to how you actually work.</p>
+      <div class="more-ways-grid">
+        <div class="feature-card"><div class="feature-icon">💬</div><div class="feature-title">Ask NOTAM AI</div><div class="feature-desc">A real aviation expert chat — ask anything from regulations to procedures, with live web search for anything that's changed recently.</div></div>
+        <div class="feature-card"><div class="feature-icon">🎬</div><div class="feature-title">Video Briefing</div><div class="feature-desc">Turn any route into a narrated video briefing — built for crews who'd rather watch than read.</div></div>
+        <div class="feature-card"><div class="feature-icon">🛬</div><div class="feature-title">Single Airport Briefing</div><div class="feature-desc">No route yet? Get a full operational picture of any single airport — NOTAMs, weather, and status in one view.</div></div>
+        <div class="feature-card"><div class="feature-icon">📎</div><div class="feature-title">Photo &amp; Document Analysis</div><div class="feature-desc">Snap a photo of a NOTAM or paste raw METAR/TAF/SIGMET text — get an instant AI-decoded analysis, no typing required.</div></div>
+        <div class="feature-card"><div class="feature-icon">🎙️</div><div class="feature-title">Voice Input</div><div class="feature-desc">Speak your route or question naturally, in your own language — NOTAM Intelligence understands and fills it in for you.</div></div>
+        <div class="feature-card"><div class="feature-icon">📡</div><div class="feature-title">NOTAMs &amp; MET Panel</div><div class="feature-desc">Browse the full raw NOTAM, METAR, TAF, SIGMET and PIREP feed for any airport, with one-tap AI analysis on any item.</div></div>
       </div>
     </div>
 
