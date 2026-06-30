@@ -2558,7 +2558,16 @@ function removeFile() {
 
 async function handleSend(silent = false) {
   const val = document.getElementById('mainInput').value.trim();
-  if (!val && !attachedFile) return;
+  if (!val && !attachedFile) {
+    const mode = getActivePillMode();
+    const emptyMessages = {
+      chat: 'Type a question first',
+      video: 'Please enter a route first (e.g. KJFK EGLL)',
+      briefing: 'Please enter an ICAO code or route first'
+    };
+    showToast(emptyMessages[mode] || 'Please enter something first');
+    return;
+  }
 
   const user = firebase.auth().currentUser;
   if (!user) {
