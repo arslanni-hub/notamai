@@ -1544,7 +1544,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         <div id="um_toggleDot" style="width:22px;height:22px;background:#4a9eff;border-radius:50%;position:absolute;top:2px;left:2px;transition:left 0.3s;"></div>
       </div>
       <span id="um_yearlyLabel" style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:2px;color:#4a5f72;">YEARLY</span>
-      <span id="um_saveBadge" style="display:none;background:rgba(46,196,182,0.15);color:#2ec4b6;border:1px solid #0e5a54;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:2px;">SAVE 15%</span>
+      <span id="um_saveBadge" style="display:none;background:rgba(46,196,182,0.15);color:#2ec4b6;border:1px solid #0e5a54;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:2px;">SAVE 10%</span>
     </div>
 
     <!-- PRICING CARDS -->
@@ -4414,13 +4414,13 @@ function copyInviteLink() {
 }
 
 function inviteViaWhatsApp() {
-  const text = '🛫 Check out NOTAM Intelligence - AI-powered pre-flight briefing tool. Use my referral link to get 15% off: ' + window.currentInviteUrl;
+  const text = '🛫 Check out NOTAM Intelligence - AI-powered pre-flight briefing tool. Use my referral link to get 10% off: ' + window.currentInviteUrl;
   window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
 function inviteViaEmail() {
   const subject = 'Join me on NOTAM Intelligence';
-  const body = 'Hi,\n\nI\'ve been using NOTAM Intelligence for AI-powered pre-flight briefings and thought you\'d find it useful.\n\nUse my referral link to sign up and get 15% off your first month:\n' + window.currentInviteUrl + '\n\nBest regards';
+  const body = 'Hi,\n\nI\'ve been using NOTAM Intelligence for AI-powered pre-flight briefings and thought you\'d find it useful.\n\nUse my referral link to sign up and get 10% off your first month:\n' + window.currentInviteUrl + '\n\nBest regards';
   window.location.href = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
 }
 
@@ -5031,7 +5031,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
       <a href="#" onclick="openSignupModal();return false;" class="hero-cta">Try It Free →</a>
     </section>
     <div class="stats">
-      <div><div class="stat-number">&lt; 45s</div><div class="stat-label">Briefing Generation Time</div></div>
+      <div><div class="stat-number">Seconds</div><div class="stat-label">From Query to Streaming Briefing</div></div>
       <div><div class="stat-number">100%</div><div class="stat-label">Live NOTAM Coverage</div></div>
       <div><div class="stat-number">ICAO</div><div class="stat-label">Annex 15 Compliant</div></div>
     </div>
@@ -5278,7 +5278,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
         <div id="pricing_toggleDot" style="width:22px;height:22px;background:#4a9eff;border-radius:50%;position:absolute;top:2px;left:2px;transition:left 0.3s;"></div>
       </div>
       <span id="pricing_yearlyLabel" style="font-family:'Rajdhani',sans-serif;font-size:14px;letter-spacing:2px;color:#4a5f72;">YEARLY</span>
-      <span id="pricing_saveBadge" style="display:none;background:rgba(46,196,182,0.15);color:#2ec4b6;border:1px solid #0e5a54;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:2px;">SAVE 15%</span>
+      <span id="pricing_saveBadge" style="display:none;background:rgba(46,196,182,0.15);color:#2ec4b6;border:1px solid #0e5a54;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:2px;">SAVE 10%</span>
     </div>
     <!-- PRICING CARDS -->
     <div class="pricing-grid" style="padding-top:14px;">
@@ -5369,10 +5369,10 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
     <div style="max-width:700px;margin:60px auto;text-align:center;">
       <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:3px;margin-bottom:16px;">REFERRAL PROGRAM</div>
       <div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#ffffff;margin-bottom:12px;">Fly together, save together.</div>
-      <div style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;line-height:1.8;margin-bottom:32px;">Every member gets a unique referral code. Share it with your crew — they get 15% off their first month, and you get 15% off your next bill.</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;line-height:1.8;margin-bottom:32px;">Every member gets a unique referral code. Share it with your crew — they get 10% off their first month, and you get 10% off your next bill.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:500px;margin:0 auto;">
-        <div style="background:rgba(13,21,32,0.82);border:1px solid #1a2a3a;padding:24px;border-radius:4px;"><div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#4a9eff;margin-bottom:8px;">15%</div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">YOUR FRIEND SAVES</div><div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-top:8px;">On their first month when they sign up with your code</div></div>
-        <div style="background:rgba(13,21,32,0.82);border:1px solid #1a2a3a;padding:24px;border-radius:4px;"><div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#2ec4b6;margin-bottom:8px;">15%</div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">YOU SAVE</div><div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-top:8px;">On your next bill for every successful referral</div></div>
+        <div style="background:rgba(13,21,32,0.82);border:1px solid #1a2a3a;padding:24px;border-radius:4px;"><div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#4a9eff;margin-bottom:8px;">10%</div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">YOUR FRIEND SAVES</div><div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-top:8px;">On their first month when they sign up with your code</div></div>
+        <div style="background:rgba(13,21,32,0.82);border:1px solid #1a2a3a;padding:24px;border-radius:4px;"><div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#2ec4b6;margin-bottom:8px;">10%</div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">YOU SAVE</div><div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-top:8px;">On your next bill for every successful referral</div></div>
       </div>
       <div style="margin-top:24px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;">Your referral code is available in your dashboard after signing up.</div>
     </div>
@@ -5812,7 +5812,7 @@ document.addEventListener('mouseout', function(e) {
   <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:12px;padding:28px;width:380px;max-width:90vw;position:relative;">
     <button onclick="closeInviteModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;color:#4a5f72;font-size:18px;cursor:pointer;">✕</button>
     <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#fff;letter-spacing:2px;margin-bottom:6px;">INVITE A COLLEAGUE</div>
-    <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:20px;">Share your referral link and both get 15% off</div>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:20px;">Share your referral link and both get 10% off</div>
     <div style="margin-bottom:16px;">
       <div style="display:flex;gap:8px;">
         <input id="inviteLinkInput" readonly style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#8a9bb0;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:11px;outline:none;">
@@ -5830,7 +5830,7 @@ document.addEventListener('mouseout', function(e) {
       </button>
     </div>
     <div style="margin-top:16px;padding:10px;background:rgba(46,196,182,0.06);border:1px solid rgba(46,196,182,0.15);border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;color:#2ec4b6;text-align:center;">
-      🎁 Your colleague gets 15% off · You get 15% off your next bill
+      🎁 Your colleague gets 10% off · You get 10% off your next bill
     </div>
   </div>
 </div>
