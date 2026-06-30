@@ -4789,6 +4789,49 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
   #video-feature-section { flex-direction: column; gap: 32px; }
 }
 
+/* ═══ CHAT FEATURE ═══ */
+#chat-feature-section { max-width: 1140px; margin: 0 auto 90px; display: flex; gap: 56px; align-items: center; flex-direction: row-reverse; }
+#chat-feature-section .chat-feature-left { flex: 1; }
+#chat-feature-section .chat-feature-badge {
+  display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+  color: #4a9eff; text-transform: uppercase; background: rgba(74,158,255,0.08);
+  border: 1px solid rgba(74,158,255,0.25); border-radius: 20px; padding: 5px 12px; margin-bottom: 16px;
+}
+#chat-feature-section .chat-feature-title {
+  font-family: var(--head); font-size: 26px; font-weight: 700; color: #ffffff;
+  letter-spacing: 1px; line-height: 1.3; margin-bottom: 14px;
+}
+#chat-feature-section .chat-feature-body {
+  font-family: var(--body); font-size: 15px; color: var(--text-dim); line-height: 1.8; margin-bottom: 18px;
+}
+#chat-feature-section .chat-feature-points { display: flex; flex-direction: column; gap: 9px; }
+#chat-feature-section .chat-feature-point {
+  display: flex; align-items: flex-start; gap: 10px; font-family: var(--body);
+  font-size: 13px; color: var(--text); line-height: 1.5;
+}
+#chat-feature-section .chat-feature-point .cp-icon { color: #4a9eff; flex-shrink: 0; margin-top: 1px; }
+#chat-feature-section .chat-feature-right { flex: 1; display: flex; justify-content: center; }
+#chat-feature-section .chat-mockup {
+  width: 100%; max-width: 420px; background: #060a0f; border: 1px solid #1a2a3a;
+  border-radius: 12px; padding: 22px 20px; box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column; gap: 16px;
+}
+#chat-feature-section .cm-row { display: flex; gap: 10px; align-items: flex-start; }
+#chat-feature-section .cm-row.user { flex-direction: row-reverse; }
+#chat-feature-section .cm-icon {
+  width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0; margin-top: 2px;
+}
+#chat-feature-section .cm-row.ai .cm-icon { background: rgba(74,158,255,0.12); border: 1px solid rgba(74,158,255,0.3); }
+#chat-feature-section .cm-row.user .cm-icon { background: rgba(255,255,255,0.06); }
+#chat-feature-section .cm-bubble {
+  font-family: 'Rajdhani', sans-serif; font-size: 14px; line-height: 1.5; color: #c8daf0; max-width: 300px;
+}
+#chat-feature-section .cm-row.user .cm-bubble { color: rgba(255,255,255,0.82); text-align: right; }
+@media (max-width: 800px) {
+  #chat-feature-section { flex-direction: column; gap: 32px; }
+}
+
 /* ═══ HOW IT WORKS: STEPS ═══ */
 #how-it-works-section .steps {
   max-width: 900px; margin: 0 auto 80px; display: flex; flex-direction: column; gap: 0;
@@ -5165,13 +5208,38 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
       </div>
     </div>
 
+    <!-- CHAT FEATURE -->
+    <div id="chat-feature-section">
+      <div class="chat-feature-left">
+        <div class="chat-feature-badge">Real Aviation Expertise</div>
+        <h2 class="chat-feature-title">An aviation expert, on call.</h2>
+        <p class="chat-feature-body">Skip the manuals. NOTAM Intelligence Chat answers real operational questions — regulations, procedures, aircraft systems, navigation — with the depth of a senior dispatcher, backed by live web search whenever something might have changed recently.</p>
+        <div class="chat-feature-points">
+          <div class="chat-feature-point"><span class="cp-icon">●</span>Ask in your own language, by typing or speaking — it responds the same way</div>
+          <div class="chat-feature-point"><span class="cp-icon">●</span>Live web search for current regulations, recent changes, and anything time-sensitive</div>
+          <div class="chat-feature-point"><span class="cp-icon">●</span>Included on every plan, with higher usage on Pro and Premium</div>
+        </div>
+      </div>
+      <div class="chat-feature-right">
+        <div class="chat-mockup">
+          <div class="cm-row user">
+            <div class="cm-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg></div>
+            <div class="cm-bubble">What's the RVR minimum for a CAT IIIB approach?</div>
+          </div>
+          <div class="cm-row ai">
+            <div class="cm-icon"><svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 h16 a4 4 0 0 1 4 4 v9 a4 4 0 0 1 -4 4 h-9 l-4.5 4.5 v-4.5 h-2.5 a4 4 0 0 1 -4 -4 v-9 a4 4 0 0 1 4 -4 z" transform="scale(0.72)"/><path d="M14 9 L15 11.5 L17.5 12.5 L15 13.5 L14 16 L13 13.5 L10.5 12.5 L13 11.5 Z" fill="#4a9eff" stroke="none" transform="scale(0.72)"/></svg></div>
+            <div class="cm-bubble">CAT IIIB typically requires an RVR as low as 50m (175ft), down to 0m depending on operator approval and rollout guidance system...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- MORE WAYS TO BRIEF -->
     <div id="more-ways-section">
       <div class="section-label">Beyond Route Briefings</div>
       <h2 class="mission-title">More ways to get what you need.</h2>
-      <p class="mission-body">Ask a question, check a single airport, or drop in a photo of a NOTAM — NOTAM Intelligence adapts to how you actually work.</p>
+      <p class="mission-body">Check a single airport, or drop in a photo of a NOTAM — NOTAM Intelligence adapts to how you actually work.</p>
       <div class="more-ways-grid">
-        <div class="feature-card"><div class="feature-icon">💬</div><div class="feature-title">NOTAM Intelligence Chat</div><div class="feature-desc">Your aviation expert chat — ask anything from regulations to procedures, with live web search for anything that's changed recently.</div></div>
         <div class="feature-card"><div class="feature-icon">🛬</div><div class="feature-title">Single Airport Briefing</div><div class="feature-desc">No route yet? Get a full operational picture of any single airport — NOTAMs, weather, and status in one view.</div></div>
         <div class="feature-card"><div class="feature-icon">📎</div><div class="feature-title">Photo &amp; Document Analysis</div><div class="feature-desc">Snap a photo of a NOTAM or paste raw METAR/TAF/SIGMET text — get an instant AI-decoded analysis, no typing required.</div></div>
         <div class="feature-card"><div class="feature-icon">🎙️</div><div class="feature-title">Voice Input</div><div class="feature-desc">Speak your route or question naturally, in your own language — NOTAM Intelligence understands and fills it in for you.</div></div>
