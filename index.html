@@ -3422,9 +3422,19 @@ async function initiateCheckout(plan) {
 
 function showToast(message) {
   const toast = document.createElement('div');
-  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(244,132,26,0.1);border:1px solid rgba(244,132,26,0.3);color:#f4a04a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-size:13px;font-weight:500;padding:10px 18px;border-radius:10px;z-index:9999;white-space:nowrap;pointer-events:auto;';
-  toast.textContent = message;
+  toast.style.cssText = 'position:fixed;bottom:80px;background:rgba(244,132,26,0.1);border:1px solid rgba(244,132,26,0.3);color:#f4a04a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-size:13px;font-weight:500;padding:10px 18px;border-radius:10px;z-index:9999;white-space:nowrap;pointer-events:auto;';
   document.body.appendChild(toast);
+  toast.textContent = message;
+
+  // Center against the actual content area (#mainContent), not the raw viewport —
+  // #mainContent already shifts correctly when the sidebar is open/closed, so anchoring
+  // to its real bounding box keeps the toast visually centered under the input/pill row
+  // in every sidebar state, without needing separate sidebar-open/closed logic.
+  const anchor = document.getElementById('mainContent') || document.body;
+  const rect = anchor.getBoundingClientRect();
+  const toastWidth = toast.getBoundingClientRect().width;
+  toast.style.left = (rect.left + rect.width / 2 - toastWidth / 2) + 'px';
+
   setTimeout(() => toast.remove(), 4000);
 }
 
