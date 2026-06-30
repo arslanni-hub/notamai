@@ -2572,10 +2572,22 @@ async function handleSend(silent = false) {
   const activeMode = getActivePillMode();
 
   if (activeMode === 'video') {
-    if (!attachedFile && val && !looksLikeCleanIcaoInput(val)) {
-      const route = await extractRouteOrNull(val);
-      if (route === null) { showMainInputMismatchWarning(); return; }
-      if (route !== 'SKIP_CHECK') document.getElementById('mainInput').value = route;
+    let videoInputVal = val;
+    if (!looksLikeTwoAirportRoute(videoInputVal)) {
+      const route = await extractRouteOrNull(videoInputVal);
+      if (route === 'SKIP_CHECK') {
+        // extract-route API call failed — fail open rather than block the user over an unrelated hiccup
+      } else if (!route || !looksLikeTwoAirportRoute(route)) {
+        // Either nothing was extracted, or only a single airport was found — Video
+        // Briefing has no real single-airport mode (confirmed in the backend: a missing
+        // arrival ICAO silently produces a broken, dataless script rather than a proper
+        // single-airport video), so this must stop here rather than proceed and fail later.
+        showMainInputMismatchWarning('Video Briefing needs a full route — two airports (e.g. KJFK EGLL), not a single airport or a question.');
+        return;
+      } else {
+        videoInputVal = route;
+        document.getElementById('mainInput').value = route;
+      }
     }
     openVideoBriefing();
     return;
@@ -3660,6 +3672,10 @@ function looksLikeCleanIcaoInput(text) {
   return /^[A-Z]{4}(\s+[A-Z]{4})?$/.test(text.trim().toUpperCase());
 }
 
+function looksLikeTwoAirportRoute(text) {
+  return /^[A-Z]{4}\s+[A-Z]{4}$/.test(text.trim().toUpperCase());
+}
+
 async function extractRouteOrNull(text) {
   try {
     const response = await fetch('/api/extract-route', {
@@ -3688,21 +3704,25 @@ function looksLikeBriefingOrVideoRequest(text) {
   return null;
 }
 
-function showMainInputMismatchWarning() {
+function showMainInputMismatchWarning(customMessage) {
   document.getElementById('modeMismatchBanner')?.remove();
   const banner = document.createElement('div');
   banner.id = 'modeMismatchBanner';
   banner.className = 'mode-mismatch-banner';
-  banner.innerHTML = `<span>This looks like a question, not a route or airport — want to switch to Chat?</span>
+  const message = customMessage || 'This looks like a question, not a route or airport — want to switch to Chat?';
+  const showSwitchToChat = !customMessage; // the generic message offers Chat; a custom (e.g. video-specific) message doesn't assume that's the right destination
+  banner.innerHTML = `<span>${message}</span>
     <div class="mismatch-actions">
-      <button class="mm-switch">Switch to Chat</button>
+      ${showSwitchToChat ? '<button class="mm-switch">Switch to Chat</button>' : ''}
       <button class="dismiss mm-dismiss">Dismiss</button>
     </div>`;
-  banner.querySelector('.mm-switch').addEventListener('click', () => {
-    selectModePill('pillChat');
-    banner.remove();
-    document.getElementById('mainInput').focus();
-  });
+  if (showSwitchToChat) {
+    banner.querySelector('.mm-switch').addEventListener('click', () => {
+      selectModePill('pillChat');
+      banner.remove();
+      document.getElementById('mainInput').focus();
+    });
+  }
   banner.querySelector('.mm-dismiss').addEventListener('click', () => banner.remove());
   const inputEl = document.getElementById('mainInput');
   inputEl.parentElement.insertAdjacentElement('afterend', banner);
