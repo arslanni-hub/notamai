@@ -3677,7 +3677,11 @@ async function extractRouteOrNull(text) {
 function looksLikeBriefingOrVideoRequest(text) {
   if (looksLikeCleanIcaoInput(text)) return 'briefing'; // bare ICAO code(s), no question at all — almost certainly meant Briefing mode
   const lower = text.toLowerCase();
-  const hasAction = /\b(oluştur|oluşturabilir|olusturabilir|yap|yapar|hazırla|hazirla|create|generate|make|prepare)\b/.test(lower);
+  // Broad verb stem match (oluştur/hazırla/yap and their Turkish conjugations, plus
+  // English equivalents) — uses partial stems with \w* rather than exact word-boundary
+  // forms, so "oluşturabilir misin", "hazırlayabilir misin", "could you generate" etc.
+  // all match without needing to enumerate every conjugation.
+  const hasAction = /\b(oluştur\w*|olustur\w*|hazırla\w*|hazirla\w*|yap\w*|haz[ıi]r\w*|create\w*|generate\w*|make\w*|prepare\w*|can you|could you|would you|misin|musun|m[iı]s[iı]n)\b/.test(lower);
   if (!hasAction) return null;
   if (/\bvideo\b/.test(lower)) return 'video';
   if (/\b(brifing|briefing|brief)\b/.test(lower)) return 'briefing';
@@ -3717,8 +3721,9 @@ function showChatModeMismatchBubble(question, suggestedMode) {
       <button class="dismiss mm-dismiss">No, continue chatting</button>
     </div>`;
   row.querySelector('.mm-switch').addEventListener('click', () => {
-    selectModePill(pillId);
     row.remove();
+    exitChatMode();
+    selectModePill(pillId);
     document.getElementById('mainInput').value = question;
     document.getElementById('mainInput').focus();
   });
