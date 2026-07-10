@@ -779,6 +779,12 @@ canvas#sky {
   backdrop-filter: blur(8px);
 }
 .result-overlay.open { display: flex; }
+.ui {
+  transition: margin-right 0.3s ease;
+}
+body.panel-open .ui {
+  margin-right: 420px;
+}
 body.sidebar-open #resultOverlay {
   left: 260px !important;
   width: calc(100vw - 260px) !important;
@@ -5937,7 +5943,7 @@ document.addEventListener('mouseout', function(e) {
 </div>
 
 <!-- ARCHIVE PANEL -->
-<div id="archivePanel" style="display:none;position:fixed;top:0;right:0;width:360px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
+<div id="archivePanel" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
     <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">ARCHIVE</div>
     <button onclick="closeArchivePanel()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;display:flex;align-items:center;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
@@ -5999,7 +6005,7 @@ document.addEventListener('mouseout', function(e) {
 </div>
 
 <!-- SETTINGS PANEL -->
-<div id="settingsPanel" style="display:none;position:fixed;top:0;right:0;width:340px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
+<div id="settingsPanel" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
     <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">SETTINGS</div>
     <button onclick="closeSettingsPanel()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;display:flex;align-items:center;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
@@ -6114,7 +6120,7 @@ document.addEventListener('mouseout', function(e) {
 </div>
 
 <!-- NOTAM ALERTS PANEL -->
-<div id="alertsPanel" style="display:none;position:fixed;top:0;right:0;width:320px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
+<div id="alertsPanel" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
     <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">NOTAM ALERTS</div>
     <button onclick="closeAlertsPanel()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;display:flex;align-items:center;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
@@ -6134,7 +6140,7 @@ document.addEventListener('mouseout', function(e) {
 </div>
 
 <!-- SAVED ROUTES PANEL -->
-<div id="savedRoutesPanel" style="display:none;position:fixed;top:0;right:0;width:320px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
+<div id="savedRoutesPanel" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
     <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">SAVED ROUTES</div>
     <button onclick="closeSavedRoutesPanel()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;display:flex;align-items:center;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
@@ -6287,6 +6293,9 @@ function openRawDataPanel() {
   if (openPanel === 'rawData') { closeRawDataPanel(); return; }
   closeAllPanels();
   openPanel = 'rawData';
+  document.body.classList.add('sidebar-collapsed');
+  document.body.classList.remove('sidebar-open');
+  document.body.classList.add('panel-open');
   const panel = document.getElementById('rawDataPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -6295,6 +6304,7 @@ function openRawDataPanel() {
 
 function closeRawDataPanel() {
   openPanel = null;
+  document.body.classList.remove('panel-open');
   const panel = document.getElementById('rawDataPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -7208,6 +7218,9 @@ function openSavedRoutesPanel() {
   if (openPanel === 'savedRoutes') { closeSavedRoutesPanel(); return; }
   closeAllPanels();
   openPanel = 'savedRoutes';
+  document.body.classList.add('sidebar-collapsed');
+  document.body.classList.remove('sidebar-open');
+  document.body.classList.add('panel-open');
   const panel = document.getElementById('savedRoutesPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -7217,6 +7230,7 @@ function openSavedRoutesPanel() {
 
 function closeSavedRoutesPanel() {
   openPanel = null;
+  document.body.classList.remove('panel-open');
   const panel = document.getElementById('savedRoutesPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -7301,6 +7315,9 @@ async function openAlertsPanel() {
   if (openPanel === 'alerts') { closeAlertsPanel(); return; }
   closeAllPanels();
   openPanel = 'alerts';
+  document.body.classList.add('sidebar-collapsed');
+  document.body.classList.remove('sidebar-open');
+  document.body.classList.add('panel-open');
   const panel = document.getElementById('alertsPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -7323,6 +7340,7 @@ async function openAlertsPanel() {
 
 function closeAlertsPanel() {
   openPanel = null;
+  document.body.classList.remove('panel-open');
   const panel = document.getElementById('alertsPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -7504,6 +7522,9 @@ function openSettingsPanel() {
   if (openPanel === 'settings') { closeSettingsPanel(); return; }
   closeAllPanels();
   openPanel = 'settings';
+  document.body.classList.add('sidebar-collapsed');
+  document.body.classList.remove('sidebar-open');
+  document.body.classList.add('panel-open');
   const panel = document.getElementById('settingsPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -7513,6 +7534,7 @@ function openSettingsPanel() {
 
 function closeSettingsPanel() {
   openPanel = null;
+  document.body.classList.remove('panel-open');
   const panel = document.getElementById('settingsPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -7635,6 +7657,9 @@ function openArchivePanel() {
   if (openPanel === 'archive') { closeArchivePanel(); return; }
   closeAllPanels();
   openPanel = 'archive';
+  document.body.classList.add('sidebar-collapsed');
+  document.body.classList.remove('sidebar-open');
+  document.body.classList.add('panel-open');
   const panel = document.getElementById('archivePanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -7657,6 +7682,7 @@ function openArchivePanel() {
 
 function closeArchivePanel() {
   openPanel = null;
+  document.body.classList.remove('panel-open');
   const panel = document.getElementById('archivePanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -8004,7 +8030,7 @@ document.addEventListener('click', function(e) {
 </script>
 
 <!-- TOOLS PANEL -->
-<div id="toolsPanel" style="display:none;position:fixed;top:0;right:0;width:360px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
+<div id="toolsPanel" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:400;flex-direction:column;overflow:hidden;transition:transform 0.3s ease;transform:translateX(100%);">
 
   <!-- Header -->
   <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
@@ -8190,6 +8216,9 @@ function openToolsPanel() {
   if (openPanel === 'tools') { closeToolsPanel(); return; }
   closeAllPanels();
   openPanel = 'tools';
+  document.body.classList.add('sidebar-collapsed');
+  document.body.classList.remove('sidebar-open');
+  document.body.classList.add('panel-open');
   const panel = document.getElementById('toolsPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -8199,6 +8228,7 @@ function openToolsPanel() {
 
 function closeToolsPanel() {
   openPanel = null;
+  document.body.classList.remove('panel-open');
   const panel = document.getElementById('toolsPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
