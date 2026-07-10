@@ -6288,18 +6288,16 @@ function analyzeAirmet(hazard, region, validFrom, validTo) {
 }
 
 function resizeOverlay() {
+  const overlay = document.getElementById('resultOverlay');
+  if (!overlay) return;
   const panelOpen = document.body.classList.contains('panel-open');
   const sidebarW = document.body.classList.contains('sidebar-open') ? 260 : 52;
-  const left = panelOpen ? 52 : sidebarW;
+  const left = sidebarW;
   const width = panelOpen
     ? window.innerWidth - 52 - 420
     : window.innerWidth - sidebarW;
-  ['resultOverlay', 'videoBriefingOverlay'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.style.left = left + 'px';
-    el.style.width = width + 'px';
-  });
+  overlay.style.left = left + 'px';
+  overlay.style.width = width + 'px';
 }
 
 function applyPanelOpen() {
@@ -7876,7 +7874,6 @@ function playArchivedVideo(videoUrl, script) {
     const backdrop = document.getElementById('videoBriefingBackdrop');
     overlay.style.display = 'flex';
     backdrop.style.display = 'block';
-    resizeOverlay();
     // Skip waiting video, go directly to result
     const waitingVideo = document.getElementById('waitingVideo');
     const resultVideo = document.getElementById('resultVideo');
@@ -9328,7 +9325,6 @@ function openVideoBriefing() {
   document.getElementById('videoBriefingBackdrop').style.display = 'block';
   const overlay = document.getElementById('videoBriefingOverlay');
   overlay.style.display = 'flex';
-  resizeOverlay();
 
   // Start waiting video
   const waitingVideo = document.getElementById('waitingVideo');
