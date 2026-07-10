@@ -770,8 +770,8 @@ canvas#sky {
 /* ═══ RESULT OVERLAY ═══ */
 .result-overlay {
   position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
+  top: 0;
+  height: 100vh;
   z-index: 50;
   background: rgba(0,5,16,0.92);
   display: none;
@@ -2638,6 +2638,7 @@ async function handleSend(silent = false) {
   if (!silent) {
     resizeOverlay();
     overlay.classList.add('open');
+    resizeOverlay();
     document.getElementById('mainNavbar').style.display = 'none';
     document.getElementById('askNotamAiBtn').style.display = 'flex';
     loading.style.display = 'flex';
@@ -6292,7 +6293,8 @@ function resizeOverlay() {
   const overlay = document.getElementById('resultOverlay');
   if (!overlay) return;
   const panelOpen = document.body.classList.contains('panel-open');
-  const sidebarW = document.body.classList.contains('sidebar-open') ? 260 : 52;
+  const sidebarOpen = document.body.classList.contains('sidebar-open');
+  const sidebarW = sidebarOpen ? 260 : 52;
   const left = sidebarW;
   const width = panelOpen
     ? window.innerWidth - 52 - 420
