@@ -6287,26 +6287,38 @@ function analyzeAirmet(hazard, region, validFrom, validTo) {
 }
 
 function applyPanelOpen() {
+  // If sidebar is open, close it visually first
+  if (document.body.classList.contains('sidebar-open')) {
+    const sidebar = document.getElementById('appSidebar');
+    const scrollSection = document.getElementById('sidebarScrollSection');
+    if (sidebar) { sidebar.style.width = '52px'; sidebar.style.overflow = 'visible'; sidebar.classList.add('collapsed'); }
+    document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = 'none');
+    const fullLogo = document.getElementById('sidebarLogoFull');
+    const collapsedLogo = document.getElementById('sidebarLogoCollapsed');
+    if (fullLogo) fullLogo.style.display = 'none';
+    if (collapsedLogo) collapsedLogo.style.display = 'flex';
+    if (scrollSection) scrollSection.style.overflowY = 'hidden';
+    document.body.classList.add('sidebar-collapsed');
+    document.body.classList.remove('sidebar-open');
+    sidebarOpen = false;
+    localStorage.setItem('sidebarOpen', 'false');
+  }
   const mc = document.getElementById('mainContent');
   const scene = document.getElementById('scene');
-  const sidebarOpen = document.body.classList.contains('sidebar-open');
-  const leftOffset = sidebarOpen ? 260 : 52;
-  const newWidth = window.innerWidth - leftOffset - 420;
-  if (mc) { mc.style.width = newWidth + 'px'; }
-  if (scene) { scene.style.width = newWidth + 'px'; }
-  document.body.classList.add('sidebar-collapsed');
-  document.body.classList.remove('sidebar-open');
-  if (mc) mc.style.left = '52px';
-  if (scene) scene.style.left = '52px';
-  if (mc) mc.style.width = (window.innerWidth - 52 - 420) + 'px';
-  if (scene) scene.style.width = (window.innerWidth - 52 - 420) + 'px';
+  const ui = document.querySelector('.ui');
+  const w = (window.innerWidth - 52 - 420) + 'px';
+  if (mc) { mc.style.left = '52px'; mc.style.width = w; }
+  if (scene) { scene.style.left = '52px'; scene.style.width = w; }
+  if (ui) { ui.style.left = '52px'; ui.style.width = w; }
 }
 
 function applyPanelClose() {
   const mc = document.getElementById('mainContent');
   const scene = document.getElementById('scene');
+  const ui = document.querySelector('.ui');
   if (mc) mc.style.width = '';
   if (scene) scene.style.width = '';
+  if (ui) ui.style.width = '';
 }
 
 function openRawDataPanel() {
