@@ -780,10 +780,18 @@ canvas#sky {
 }
 .result-overlay.open { display: flex; }
 .ui {
-  transition: margin-right 0.3s ease;
+  transition: width 0.3s ease, left 0.3s ease;
 }
 body.panel-open .ui {
-  margin-right: 420px;
+  width: calc(100vw - 420px);
+}
+body.sidebar-open.panel-open .ui {
+  left: 260px;
+  width: calc(100vw - 260px - 420px);
+}
+body.sidebar-collapsed.panel-open .ui {
+  left: 52px;
+  width: calc(100vw - 52px - 420px);
 }
 body.sidebar-open #resultOverlay {
   left: 260px !important;
