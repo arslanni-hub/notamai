@@ -6321,22 +6321,28 @@ function applyPanelOpen() {
     sidebarOpen = false;
     localStorage.setItem('sidebarOpen', 'false');
   }
+  document.body.classList.add('panel-open');
   const mc = document.getElementById('mainContent');
   const scene = document.getElementById('scene');
   const ui = document.querySelector('.ui');
+  const overlay = document.getElementById('resultOverlay');
   const w = (window.innerWidth - 52 - 420) + 'px';
   if (mc) { mc.style.left = '52px'; mc.style.width = w; }
   if (scene) { scene.style.left = '52px'; scene.style.width = w; }
   if (ui) { ui.style.left = '52px'; ui.style.width = w; }
+  if (overlay) { overlay.style.left = '52px'; overlay.style.width = w; }
 }
 
 function applyPanelClose() {
+  document.body.classList.remove('panel-open');
   const mc = document.getElementById('mainContent');
   const scene = document.getElementById('scene');
   const ui = document.querySelector('.ui');
+  const overlay = document.getElementById('resultOverlay');
   if (mc) mc.style.width = '';
   if (scene) scene.style.width = '';
   if (ui) ui.style.width = '';
+  if (overlay) { overlay.style.left = ''; overlay.style.width = ''; }
 }
 
 function openRawDataPanel() {
