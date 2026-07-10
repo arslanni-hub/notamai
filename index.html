@@ -6299,8 +6299,8 @@ function resizeOverlay() {
   const width = panelOpen
     ? window.innerWidth - 52 - 420
     : window.innerWidth - sidebarW;
-  overlay.style.left = left + 'px';
-  overlay.style.width = width + 'px';
+  overlay.style.setProperty('left', left + 'px', 'important');
+  overlay.style.setProperty('width', width + 'px', 'important');
 }
 
 function applyPanelOpen() {
