@@ -2636,8 +2636,8 @@ async function handleSend(silent = false) {
   const content = document.getElementById('resultContent');
 
   if (!silent) {
+    resizeOverlay();
     overlay.classList.add('open');
-    setTimeout(() => resizeOverlay(), 0);
     document.getElementById('mainNavbar').style.display = 'none';
     document.getElementById('askNotamAiBtn').style.display = 'flex';
     loading.style.display = 'flex';
