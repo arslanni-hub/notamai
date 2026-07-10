@@ -790,6 +790,17 @@ body.sidebar-collapsed #resultOverlay {
   left: 52px !important;
   width: calc(100vw - 52px) !important;
 }
+body.sidebar-open.panel-open #resultOverlay {
+  left: 52px !important;
+  width: calc(100vw - 52px - 420px) !important;
+}
+body.sidebar-collapsed.panel-open #resultOverlay {
+  left: 52px !important;
+  width: calc(100vw - 52px - 420px) !important;
+}
+body.panel-open #resultOverlay {
+  width: calc(100vw - 52px - 420px) !important;
+}
 
 .result-topbar {
   display: flex;
@@ -1478,7 +1489,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
   Ask NOTAM AI
 </button>
 
-<div id="aiChatContainer" style="display:none;position:fixed;top:0;right:0;width:380px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:600;flex-direction:column;transition:transform 0.3s ease;transform:translateX(100%);">
+<div id="aiChatContainer" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:600;flex-direction:column;transition:transform 0.3s ease;transform:translateX(100%);">
 
   <!-- Header -->
   <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
@@ -3060,6 +3071,9 @@ let currentChatBriefingId = null;
 let knownBriefingIcaos = new Set();
 
 async function openAIChat() {
+  closeAllPanels();
+  applyPanelOpen();
+  document.body.classList.add('panel-open');
   const panel = document.getElementById('aiChatContainer');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -3133,6 +3147,8 @@ function closeAIChat() {
   setTimeout(() => panel.style.display = 'none', 300);
   aiChatOpen = false;
   if (isRecording) stopRecording();
+  document.body.classList.remove('panel-open');
+  applyPanelClose();
 }
 
 function processClickableText(text, knownIcaos) {
