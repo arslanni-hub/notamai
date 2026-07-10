@@ -782,27 +782,6 @@ canvas#sky {
 .ui {
   transition: width 0.3s ease, left 0.3s ease;
 }
-body.sidebar-open #resultOverlay {
-  left: 260px !important;
-  width: calc(100vw - 260px) !important;
-}
-body.sidebar-collapsed #resultOverlay {
-  left: 52px !important;
-  width: calc(100vw - 52px) !important;
-}
-body.sidebar-open.panel-open #resultOverlay {
-  left: 52px !important;
-  width: calc(100vw - 52px - 420px) !important;
-}
-body.sidebar-collapsed.panel-open #resultOverlay {
-  left: 52px !important;
-  width: calc(100vw - 52px - 420px) !important;
-}
-body.panel-open #resultOverlay {
-  left: 52px !important;
-  width: calc(100vw - 52px - 420px) !important;
-}
-
 .result-topbar {
   display: flex;
   align-items: center;
@@ -2658,11 +2637,7 @@ async function handleSend(silent = false) {
 
   if (!silent) {
     overlay.classList.add('open');
-    if (document.body.classList.contains('panel-open')) {
-      const w = (window.innerWidth - 52 - 420) + 'px';
-      overlay.style.left = '52px';
-      overlay.style.width = w;
-    }
+    resizeOverlay();
     document.getElementById('mainNavbar').style.display = 'none';
     document.getElementById('askNotamAiBtn').style.display = 'flex';
     loading.style.display = 'flex';
@@ -3984,6 +3959,7 @@ function toggleSidebar() {
     document.querySelector('.ui').style.left = '260px';
     document.querySelector('.ui').style.width = 'calc(100vw - 260px)';
     document.querySelector('.ui').style.marginLeft = '0';
+    resizeOverlay();
     const scrollSection = document.getElementById('sidebarScrollSection');
     if (scrollSection) scrollSection.style.overflowY = 'auto';
     const planeEl = document.getElementById('sidebarLogoCollapsed');
@@ -4015,6 +3991,7 @@ function toggleSidebar() {
     document.querySelector('.ui').style.left = '52px';
     document.querySelector('.ui').style.width = 'calc(100vw - 52px)';
     document.querySelector('.ui').style.marginLeft = '0';
+    resizeOverlay();
     const scrollSection = document.getElementById('sidebarScrollSection');
     if (scrollSection) scrollSection.style.overflowY = 'hidden';
   }
@@ -6310,6 +6287,19 @@ function analyzeAirmet(hazard, region, validFrom, validTo) {
   );
 }
 
+function resizeOverlay() {
+  const overlay = document.getElementById('resultOverlay');
+  if (!overlay) return;
+  const panelOpen = document.body.classList.contains('panel-open');
+  const sidebarW = document.body.classList.contains('sidebar-open') ? 260 : 52;
+  const left = sidebarW;
+  const width = panelOpen
+    ? window.innerWidth - 52 - 420
+    : window.innerWidth - sidebarW;
+  overlay.style.left = left + 'px';
+  overlay.style.width = width + 'px';
+}
+
 function applyPanelOpen() {
   // If sidebar is open, close it visually first
   if (document.body.classList.contains('sidebar-open')) {
@@ -6336,7 +6326,7 @@ function applyPanelOpen() {
   if (mc) { mc.style.left = '52px'; mc.style.width = w; }
   if (scene) { scene.style.left = '52px'; scene.style.width = w; }
   if (ui) { ui.style.left = '52px'; ui.style.width = w; }
-  if (overlay) { overlay.style.left = '52px'; overlay.style.width = w; }
+  resizeOverlay();
 }
 
 function applyPanelClose() {
@@ -6348,7 +6338,7 @@ function applyPanelClose() {
   if (mc) mc.style.width = '';
   if (scene) scene.style.width = '';
   if (ui) ui.style.width = '';
-  if (overlay) { overlay.style.left = ''; overlay.style.width = ''; }
+  resizeOverlay();
 }
 
 function openRawDataPanel() {
