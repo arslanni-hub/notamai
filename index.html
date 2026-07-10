@@ -782,17 +782,6 @@ canvas#sky {
 .ui {
   transition: width 0.3s ease, left 0.3s ease;
 }
-body.panel-open .ui {
-  width: calc(100vw - 420px);
-}
-body.sidebar-open.panel-open .ui {
-  left: 260px;
-  width: calc(100vw - 260px - 420px);
-}
-body.sidebar-collapsed.panel-open .ui {
-  left: 52px;
-  width: calc(100vw - 52px - 420px);
-}
 body.sidebar-open #resultOverlay {
   left: 260px !important;
   width: calc(100vw - 260px) !important;
@@ -6297,13 +6286,34 @@ function analyzeAirmet(hazard, region, validFrom, validTo) {
   );
 }
 
+function applyPanelOpen() {
+  const mc = document.getElementById('mainContent');
+  const scene = document.getElementById('scene');
+  const sidebarOpen = document.body.classList.contains('sidebar-open');
+  const leftOffset = sidebarOpen ? 260 : 52;
+  const newWidth = window.innerWidth - leftOffset - 420;
+  if (mc) { mc.style.width = newWidth + 'px'; }
+  if (scene) { scene.style.width = newWidth + 'px'; }
+  document.body.classList.add('sidebar-collapsed');
+  document.body.classList.remove('sidebar-open');
+  if (mc) mc.style.left = '52px';
+  if (scene) scene.style.left = '52px';
+  if (mc) mc.style.width = (window.innerWidth - 52 - 420) + 'px';
+  if (scene) scene.style.width = (window.innerWidth - 52 - 420) + 'px';
+}
+
+function applyPanelClose() {
+  const mc = document.getElementById('mainContent');
+  const scene = document.getElementById('scene');
+  if (mc) mc.style.width = '';
+  if (scene) scene.style.width = '';
+}
+
 function openRawDataPanel() {
   if (openPanel === 'rawData') { closeRawDataPanel(); return; }
   closeAllPanels();
   openPanel = 'rawData';
-  document.body.classList.add('sidebar-collapsed');
-  document.body.classList.remove('sidebar-open');
-  document.body.classList.add('panel-open');
+  applyPanelOpen();
   const panel = document.getElementById('rawDataPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -6312,7 +6322,7 @@ function openRawDataPanel() {
 
 function closeRawDataPanel() {
   openPanel = null;
-  document.body.classList.remove('panel-open');
+  applyPanelClose();
   const panel = document.getElementById('rawDataPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -7226,9 +7236,7 @@ function openSavedRoutesPanel() {
   if (openPanel === 'savedRoutes') { closeSavedRoutesPanel(); return; }
   closeAllPanels();
   openPanel = 'savedRoutes';
-  document.body.classList.add('sidebar-collapsed');
-  document.body.classList.remove('sidebar-open');
-  document.body.classList.add('panel-open');
+  applyPanelOpen();
   const panel = document.getElementById('savedRoutesPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -7238,7 +7246,7 @@ function openSavedRoutesPanel() {
 
 function closeSavedRoutesPanel() {
   openPanel = null;
-  document.body.classList.remove('panel-open');
+  applyPanelClose();
   const panel = document.getElementById('savedRoutesPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -7323,9 +7331,7 @@ async function openAlertsPanel() {
   if (openPanel === 'alerts') { closeAlertsPanel(); return; }
   closeAllPanels();
   openPanel = 'alerts';
-  document.body.classList.add('sidebar-collapsed');
-  document.body.classList.remove('sidebar-open');
-  document.body.classList.add('panel-open');
+  applyPanelOpen();
   const panel = document.getElementById('alertsPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -7348,7 +7354,7 @@ async function openAlertsPanel() {
 
 function closeAlertsPanel() {
   openPanel = null;
-  document.body.classList.remove('panel-open');
+  applyPanelClose();
   const panel = document.getElementById('alertsPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -7530,9 +7536,7 @@ function openSettingsPanel() {
   if (openPanel === 'settings') { closeSettingsPanel(); return; }
   closeAllPanels();
   openPanel = 'settings';
-  document.body.classList.add('sidebar-collapsed');
-  document.body.classList.remove('sidebar-open');
-  document.body.classList.add('panel-open');
+  applyPanelOpen();
   const panel = document.getElementById('settingsPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -7542,7 +7546,7 @@ function openSettingsPanel() {
 
 function closeSettingsPanel() {
   openPanel = null;
-  document.body.classList.remove('panel-open');
+  applyPanelClose();
   const panel = document.getElementById('settingsPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -7665,9 +7669,7 @@ function openArchivePanel() {
   if (openPanel === 'archive') { closeArchivePanel(); return; }
   closeAllPanels();
   openPanel = 'archive';
-  document.body.classList.add('sidebar-collapsed');
-  document.body.classList.remove('sidebar-open');
-  document.body.classList.add('panel-open');
+  applyPanelOpen();
   const panel = document.getElementById('archivePanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -7690,7 +7692,7 @@ function openArchivePanel() {
 
 function closeArchivePanel() {
   openPanel = null;
-  document.body.classList.remove('panel-open');
+  applyPanelClose();
   const panel = document.getElementById('archivePanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
@@ -8224,9 +8226,7 @@ function openToolsPanel() {
   if (openPanel === 'tools') { closeToolsPanel(); return; }
   closeAllPanels();
   openPanel = 'tools';
-  document.body.classList.add('sidebar-collapsed');
-  document.body.classList.remove('sidebar-open');
-  document.body.classList.add('panel-open');
+  applyPanelOpen();
   const panel = document.getElementById('toolsPanel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
@@ -8236,7 +8236,7 @@ function openToolsPanel() {
 
 function closeToolsPanel() {
   openPanel = null;
-  document.body.classList.remove('panel-open');
+  applyPanelClose();
   const panel = document.getElementById('toolsPanel');
   panel.style.transform = 'translateX(100%)';
   setTimeout(() => panel.style.display = 'none', 300);
