@@ -2656,6 +2656,7 @@ async function handleSend(silent = false) {
   const content = document.getElementById('resultContent');
 
   if (!silent) {
+    closeAllPanels();
     overlay.classList.add('open');
     document.getElementById('mainNavbar').style.display = 'none';
     document.getElementById('askNotamAiBtn').style.display = 'flex';
@@ -4141,6 +4142,7 @@ function renderSidebarItem(item, isStarred) {
       const content = document.getElementById('resultContent');
       const loading = document.getElementById('loadingState');
       const status  = document.getElementById('resultStatus');
+      closeAllPanels();
       overlay.classList.add('open');
       loading.style.display = 'none';
       content.style.display = 'block';
@@ -6208,7 +6210,7 @@ document.addEventListener('mouseout', function(e) {
 let openPanel = null;
 
 function closeAllPanels() {
-  ['rawDataPanel','savedRoutesPanel','alertsPanel','settingsPanel','archivePanel','toolsPanel'].forEach(id => {
+  ['rawDataPanel','savedRoutesPanel','alertsPanel','settingsPanel','archivePanel','toolsPanel','aiChatContainer'].forEach(id => {
     const panel = document.getElementById(id);
     if (panel && panel.style.display !== 'none') {
       panel.style.transform = 'translateX(100%)';
@@ -6216,6 +6218,7 @@ function closeAllPanels() {
     }
   });
   openPanel = null;
+  aiChatOpen = false;
   applyPanelClose();
 }
 
@@ -8013,6 +8016,7 @@ function renderArchive(briefings) {
           const content = document.getElementById('resultContent');
           const loading = document.getElementById('loadingState');
           const status = document.getElementById('resultStatus');
+          closeAllPanels();
           overlay.classList.add('open');
           if (loading) loading.style.display = 'none';
           if (content) { content.style.display = 'block'; content.innerHTML = briefingCache[briefing.id]; }
