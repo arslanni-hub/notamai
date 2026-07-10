@@ -3052,6 +3052,7 @@ let currentChatBriefingId = null;
 let knownBriefingIcaos = new Set();
 
 async function openAIChat() {
+  closeAllPanels();
   applyPanelOpen();
   document.body.classList.add('panel-open');
   const panel = document.getElementById('aiChatContainer');
