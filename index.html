@@ -2657,6 +2657,11 @@ async function handleSend(silent = false) {
 
   if (!silent) {
     overlay.classList.add('open');
+    if (document.body.classList.contains('panel-open')) {
+      const w = (window.innerWidth - 52 - 420) + 'px';
+      overlay.style.left = '52px';
+      overlay.style.width = w;
+    }
     document.getElementById('mainNavbar').style.display = 'none';
     document.getElementById('askNotamAiBtn').style.display = 'flex';
     loading.style.display = 'flex';
