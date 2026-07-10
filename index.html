@@ -3955,6 +3955,7 @@ function toggleSidebar() {
     sidebar.style.overflow = 'hidden';
     sidebar.classList.remove('collapsed');
     document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = '');
+    closeAllPanels();
     if (scene) scene.style.left = '260px';
     if (mainContent) mainContent.style.left = '260px';
     document.body.classList.add('sidebar-open');
@@ -6199,6 +6200,7 @@ function closeAllPanels() {
     }
   });
   openPanel = null;
+  applyPanelClose();
 }
 
 function switchRawTab(tab) {
