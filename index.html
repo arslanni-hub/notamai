@@ -4503,27 +4503,37 @@ async function pmLoadUsage() {
     const d = await res.json();
     const pct = (used, limit) => limit > 0 ? Math.min(100, Math.round(used / limit * 100)) : 0;
     const barColor = (p) => p >= 90 ? '#e63946' : p >= 70 ? '#f2c641' : '#4a9eff';
-    const row = (label, used, limit, subtitle) => {
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const resetDate = nextMonth.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const resetH = Math.floor(d.chat.resetInMinutes / 60);
+    const resetM = d.chat.resetInMinutes % 60;
+    const chatResetStr = d.chat.resetInMinutes > 0 ? `resets in ${resetH}h ${resetM}m` : 'window reset';
+    const row = (label, subtitle, used, limit) => {
       const p = pct(used, limit);
       const c = barColor(p);
-      return `<div style="margin-bottom:20px;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-          <span style="font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;">${label}</span>
+      return `<div style="margin-bottom:22px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">
+          <span style="font-family:Rajdhani,sans-serif;font-size:14px;font-weight:600;color:#cdd9e5;">${label}</span>
           <span style="font-family:Share Tech Mono,monospace;font-size:11px;color:${c};">${p}%</span>
         </div>
         <div class="pm-usage-bar"><div class="pm-usage-fill" style="width:${p}%;background:${c};"></div></div>
-        <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:4px;">${subtitle}</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:5px;">${subtitle}</div>
       </div>`;
     };
-    const chatPct = pct(d.chat.tokens, d.chat.limit);
-    const chatColor = barColor(chatPct);
-    const resetH = Math.floor(d.chat.resetInMinutes / 60);
-    const resetM = d.chat.resetInMinutes % 60;
-    const resetStr = d.chat.resetInMinutes > 0 ? `resets in ${resetH}h ${resetM}m` : 'window reset';
-    let html = row('AI Briefings', d.briefings.used, d.briefings.limit, `resets in ${d.monthlyResetDays} days`);
-    html += row('NOTAM Intelligence Chat', d.chat.tokens, d.chat.limit, resetStr + ' · 5-hour window');
-    html += row('AI Analysis', d.analysis.used, d.analysis.limit, `resets in ${d.monthlyResetDays} days`);
-    if (d.plan === 'premium') html += row('AI Video Briefings', d.video.used, d.video.limit, `resets in ${d.monthlyResetDays} days`);
+    let html = row('AI Briefings', `resets ${resetDate}`, d.briefings.used, d.briefings.limit);
+    html += `<div style="margin-bottom:22px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">
+        <span style="font-family:Rajdhani,sans-serif;font-size:14px;font-weight:600;color:#cdd9e5;">NOTAM Intelligence Chat</span>
+        <span style="font-family:Share Tech Mono,monospace;font-size:11px;color:${barColor(pct(d.chat.tokens, d.chat.limit))};">${pct(d.chat.tokens, d.chat.limit)}%</span>
+      </div>
+      <div class="pm-usage-bar"><div class="pm-usage-fill" style="width:${pct(d.chat.tokens, d.chat.limit)}%;background:${barColor(pct(d.chat.tokens, d.chat.limit))};"></div></div>
+      <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:5px;">current session · ${chatResetStr}</div>
+    </div>`;
+    html += row('AI Analysis', `resets ${resetDate}`, d.analysis.used, d.analysis.limit);
+    if (d.plan === 'premium' || d.plan === 'admin') {
+      html += row('AI Video Briefings', `resets ${resetDate}`, d.video.used, d.video.limit);
+    }
     el.innerHTML = html;
   } catch(e) {
     el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Could not load usage data.</div>';
