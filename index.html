@@ -4456,6 +4456,8 @@ function openProfileModal() {
   document.getElementById('pmAvatar').textContent = (user.displayName || user.email || '?')[0].toUpperCase();
   document.getElementById('pmName').textContent = user.displayName || user.email || 'User';
   document.getElementById('pmEmail').textContent = user.email || '';
+  const emailInput = document.getElementById('profileEmail');
+  if (emailInput) emailInput.value = user.email || '';
   firebase.auth().currentUser.getIdToken().then(token =>
     fetch('/api/usage', { headers: { 'Authorization': 'Bearer ' + token } })
   ).then(r => r.json()).then(d => {
@@ -4505,7 +4507,8 @@ async function pmLoadUsage() {
     const barColor = (p) => p >= 90 ? '#e63946' : p >= 70 ? '#f2c641' : '#4a9eff';
     const now = new Date();
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    const resetDate = nextMonth.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const daysLeft = Math.ceil((nextMonth - now) / (1000 * 60 * 60 * 24));
+    const resetStr = `resets in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
     const resetH = Math.floor(d.chat.resetInMinutes / 60);
     const resetM = d.chat.resetInMinutes % 60;
     const chatResetStr = d.chat.resetInMinutes > 0 ? `resets in ${resetH}h ${resetM}m` : 'window reset';
@@ -4521,18 +4524,20 @@ async function pmLoadUsage() {
         <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:5px;">${subtitle}</div>
       </div>`;
     };
-    let html = row('AI Briefings', `resets ${resetDate}`, d.briefings.used, d.briefings.limit);
+    let html = row('AI Briefings', resetStr, d.briefings.used, d.briefings.limit);
+    html += row('AI Analysis', resetStr, d.analysis.used, d.analysis.limit);
+    const cp = pct(d.chat.tokens, d.chat.limit);
+    const cc = barColor(cp);
     html += `<div style="margin-bottom:22px;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">
         <span style="font-family:Rajdhani,sans-serif;font-size:14px;font-weight:600;color:#cdd9e5;">NOTAM Intelligence Chat</span>
-        <span style="font-family:Share Tech Mono,monospace;font-size:11px;color:${barColor(pct(d.chat.tokens, d.chat.limit))};">${pct(d.chat.tokens, d.chat.limit)}%</span>
+        <span style="font-family:Share Tech Mono,monospace;font-size:11px;color:${cc};">${cp}%</span>
       </div>
-      <div class="pm-usage-bar"><div class="pm-usage-fill" style="width:${pct(d.chat.tokens, d.chat.limit)}%;background:${barColor(pct(d.chat.tokens, d.chat.limit))};"></div></div>
+      <div class="pm-usage-bar"><div class="pm-usage-fill" style="width:${cp}%;background:${cc};"></div></div>
       <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:5px;">current session · ${chatResetStr}</div>
     </div>`;
-    html += row('AI Analysis', `resets ${resetDate}`, d.analysis.used, d.analysis.limit);
     if (d.plan === 'premium' || d.plan === 'admin') {
-      html += row('AI Video Briefings', `resets ${resetDate}`, d.video.used, d.video.limit);
+      html += row('AI Video Briefings', resetStr, d.video.used, d.video.limit);
     }
     el.innerHTML = html;
   } catch(e) {
@@ -4541,9 +4546,31 @@ async function pmLoadUsage() {
 }
 
 function pmLoadArchive() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
   const el = document.getElementById('pmArchiveContent');
-  el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Loading archive...</div>';
-  loadArchivePanel();
+  el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Loading...</div>';
+  db.collection('briefings').where('userId','==',user.uid).orderBy('createdAt','desc').limit(30).get().then(snap => {
+    if (snap.empty) { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">No briefings yet.</div>'; return; }
+    el.innerHTML = snap.docs.map(doc => {
+      const d = doc.data();
+      const date = d.createdAt ? new Date(d.createdAt.toDate()).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '';
+      return `<div onclick="closeProfileModal();openArchivedBriefing('${doc.id}')" style="padding:10px 12px;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:8px;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.borderColor='#1a2a3a'">
+        <div style="font-family:Rajdhani,sans-serif;font-size:13px;font-weight:600;color:#cdd9e5;">${d.route || 'Unknown Route'}</div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:3px;">${date}</div>
+      </div>`;
+    }).join('');
+  }).catch(() => { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Could not load archive.</div>'; });
+}
+
+function pmChangePassword() {
+  const user = firebase.auth().currentUser;
+  if (!user || !user.email) return;
+  firebase.auth().sendPasswordResetEmail(user.email).then(() => {
+    showToast('Password reset email sent to ' + user.email);
+  }).catch(e => {
+    showToast('Error: ' + e.message);
+  });
 }
 
 function closeProfileModal() {
@@ -5964,6 +5991,13 @@ document.addEventListener('mouseout', function(e) {
       <!-- PROFILE TAB -->
       <div id="pmTab-profile" class="pm-content" style="padding:28px 28px 24px;">
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:20px;">PROFILE SETTINGS</div>
+        <div style="margin-bottom:14px;">
+          <label style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#8a9bb0;letter-spacing:1px;display:block;margin-bottom:5px;">EMAIL</label>
+          <div style="display:flex;gap:8px;">
+            <input id="profileEmail" type="email" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#4a5f72;padding:10px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box;" readonly>
+            <button onclick="pmChangePassword()" style="white-space:nowrap;padding:10px 14px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:500;letter-spacing:1px;border-radius:6px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">CHANGE PASSWORD</button>
+          </div>
+        </div>
         <div style="margin-bottom:14px;">
           <label style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#8a9bb0;letter-spacing:1px;display:block;margin-bottom:5px;">DISPLAY NAME</label>
           <input id="profileDisplayName" type="text" placeholder="e.g. Cpt. İsmail Arslan" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:10px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='rgba(74,158,255,0.4)'" onblur="this.style.borderColor='#1a2a3a'">
