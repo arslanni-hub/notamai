@@ -3197,6 +3197,41 @@ MANDATORY:
     return;
   }
 
+  if (req.method === 'GET' && req.url === '/api/usage') {
+    if (!userId) { res.writeHead(401); res.end('Unauthorized'); return; }
+    try {
+      const plan = await getUserPlan(userId);
+      const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+      const now = new Date();
+      const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      const usageDoc = await adminDb.collection('usage').doc(userId + '_' + monthKey).get();
+      const usageData = usageDoc.exists ? usageDoc.data() : {};
+      const briefingsUsed = usageData.briefings || 0;
+      const analysisUsed = usageData.analysis || 0;
+      const videoUsed = usageData.video || 0;
+      const { count: chatCount, tokenTotal: chatTokens, oldestTimestamp } = await getGeneralChatWindowUsage(userId, 300);
+      const chatCfg = GENERAL_CHAT_LIMITS[plan] || GENERAL_CHAT_LIMITS.free;
+      const resetInMinutes = minutesUntilWindowReset(oldestTimestamp, 300);
+      const userDoc = await adminDb.collection('users').doc(userId).get();
+      const userData = userDoc.exists ? userDoc.data() : {};
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const daysUntilReset = Math.ceil((nextMonth - now) / (1000 * 60 * 60 * 24));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        plan,
+        briefings: { used: briefingsUsed, limit: limits.briefings },
+        analysis: { used: analysisUsed, limit: limits.analysis },
+        video: { used: videoUsed, limit: plan === 'premium' ? 5 : 0 },
+        chat: { tokens: chatTokens, limit: chatCfg.limit, resetInMinutes },
+        monthlyResetDays: daysUntilReset,
+        memberSince: userData.createdAt ? userData.createdAt.toDate().toISOString() : null
+      }));
+    } catch(e) {
+      res.writeHead(500); res.end('Error');
+    }
+    return;
+  }
+
   if (req.method === 'POST' && req.url === '/api/extract-route') {
     let body = '';
     req.on('data', chunk => body += chunk);
