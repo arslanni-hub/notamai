@@ -112,7 +112,8 @@ function minutesUntilWindowReset(oldestTimestamp, windowMinutes) {
 async function getUserPlan(userId) {
   try {
     const userRecord = await admin.auth().getUser(userId);
-    if (userRecord.email === 'arslanni@gmail.com') return 'premium';
+    const ADMIN_EMAILS = ['arslanni@gmail.com', 'admin@notamai.com'];
+    if (ADMIN_EMAILS.includes(userRecord.email)) return 'admin';
     const doc = await adminDb.collection('users').doc(userId).get();
     const plan = doc.exists ? (doc.data().plan || 'free') : 'free';
     console.log('[PLAN CHECK]', userId, 'plan:', plan);
@@ -3198,10 +3199,20 @@ MANDATORY:
   }
 
   if (req.method === 'GET' && req.url === '/api/usage') {
-    if (!userId) { res.writeHead(401); res.end('Unauthorized'); return; }
+    const authHeader = req.headers['authorization'] || '';
+    let usageUserId = req.headers['x-user-id'];
+    if (!usageUserId && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = await admin.auth().verifyIdToken(authHeader.slice(7));
+        usageUserId = decoded.uid;
+      } catch(e) {}
+    }
+    if (!usageUserId) { res.writeHead(401); res.end('Unauthorized'); return; }
+    const userId = usageUserId;
     try {
       const plan = await getUserPlan(userId);
-      const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+      const effectivePlan = plan === 'admin' ? 'premium' : plan;
+      const limits = PLAN_LIMITS[effectivePlan] || PLAN_LIMITS.free;
       const now = new Date();
       const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
       const usageDoc = await adminDb.collection('usage').doc(userId + '_' + monthKey).get();
@@ -3210,7 +3221,7 @@ MANDATORY:
       const analysisUsed = usageData.analysis || 0;
       const videoUsed = usageData.video || 0;
       const { count: chatCount, tokenTotal: chatTokens, oldestTimestamp } = await getGeneralChatWindowUsage(userId, 300);
-      const chatCfg = GENERAL_CHAT_LIMITS[plan] || GENERAL_CHAT_LIMITS.free;
+      const chatCfg = GENERAL_CHAT_LIMITS[effectivePlan] || GENERAL_CHAT_LIMITS.free;
       const resetInMinutes = minutesUntilWindowReset(oldestTimestamp, 300);
       const userDoc = await adminDb.collection('users').doc(userId).get();
       const userData = userDoc.exists ? userDoc.data() : {};
@@ -3221,7 +3232,7 @@ MANDATORY:
         plan,
         briefings: { used: briefingsUsed, limit: limits.briefings },
         analysis: { used: analysisUsed, limit: limits.analysis },
-        video: { used: videoUsed, limit: plan === 'premium' ? 5 : 0 },
+        video: { used: videoUsed, limit: (plan === 'premium' || plan === 'admin') ? 5 : 0 },
         chat: { tokens: chatTokens, limit: chatCfg.limit, resetInMinutes },
         monthlyResetDays: daysUntilReset,
         memberSince: userData.createdAt ? userData.createdAt.toDate().toISOString() : null
