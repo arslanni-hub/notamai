@@ -4587,7 +4587,7 @@ function pmLoadArchive(tab) {
         const date = d.createdAt?.toDate ? d.createdAt.toDate().toLocaleDateString('en-GB') : '';
         const scriptPreview = (d.script || '').replace(/\n/g,' ').slice(0,70);
         const safeUrl = (d.videoUrl || '').replace(/'/g,'%27');
-        const safeScript = (d.script || '').replace(/'/g,'’').replace(/\n/g,' ').replace(/`/g,'');
+        const safeScript = (d.script || '').replace(/'/g,'\u2019').replace(/\n/g,' ').replace(/`/g,'');
         const card = document.createElement('div');
         card.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;';
         card.onmouseover = function(){ this.style.borderColor='rgba(74,158,255,0.4)'; };
@@ -8000,41 +8000,41 @@ function switchArchiveTab(tab) {
 async function loadVideoArchive() {
   const user = firebase.auth().currentUser;
   if (!user) return;
-  const list = document.getElementById(‘videoArchiveList’);
-  list.innerHTML = ‘<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;letter-spacing:1px;">LOADING...</div>’;
+  const list = document.getElementById('videoArchiveList');
+  list.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;padding:20px;text-align:center;letter-spacing:1px;">LOADING...</div>';
   try {
-    const snapshot = await db.collection(‘videos’)
-      .where(‘userId’, ‘==’, user.uid)
-      .where(‘status’, ‘==’, ‘completed’)
-      .orderBy(‘createdAt’, ‘desc’)
+    const snapshot = await db.collection('videos')
+      .where('userId', '==', user.uid)
+      .where('status', '==', 'completed')
+      .orderBy('createdAt', 'desc')
       .limit(20)
       .get();
     if (snapshot.empty) {
-      list.innerHTML = ‘<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;padding:30px 20px;text-align:center;">No video briefings yet.<br><span style="font-size:11px;opacity:0.6;">Generate your first video briefing from the main screen.</span></div>’;
+      list.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;padding:30px 20px;text-align:center;">No video briefings yet.<br><span style="font-size:11px;opacity:0.6;">Generate your first video briefing from the main screen.</span></div>';
       return;
     }
-    list.innerHTML = ‘’;
+    list.innerHTML = '';
     snapshot.forEach(doc => {
       const data = doc.data();
-      const date = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate().toLocaleDateString(‘en-GB’) : ‘’;
-      const scriptPreview = (data.script || ‘’).replace(/’/g, ‘’’).replace(/\n/g, ‘ ‘).slice(0, 80);
-      const safeUrl = (data.videoUrl || ‘’).replace(/’/g, ‘%27’);
-      const safeScript = (data.script || ‘’).replace(/’/g, ‘’’).replace(/\n/g, ‘ ‘).replace(/`/g, ‘’);
-      const card = document.createElement(‘div’);
-      card.style.cssText = ‘background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px;margin-bottom:8px;transition:border-color 0.2s;’;
-      card.onmouseover = function() { this.style.borderColor = ‘rgba(74,158,255,0.4)’; };
-      card.onmouseout = function() { this.style.borderColor = ‘#1a2a3a’; };
-      const header = document.createElement(‘div’);
-      header.style.cssText = ‘display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;’;
-      header.innerHTML = ‘<div style="font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;">’ + (data.route || ‘Video Briefing’) + ‘</div><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;">’ + date + ‘</div>’;
-      const preview = document.createElement(‘div’);
-      preview.style.cssText = ‘font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;line-height:1.4;margin-bottom:8px;’;
-      preview.textContent = scriptPreview + (scriptPreview.length >= 80 ? ‘...’ : ‘’);
-      const btn = document.createElement(‘button’);
-      btn.style.cssText = ‘display:flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:500;letter-spacing:2px;padding:5px 12px;border-radius:4px;cursor:pointer;transition:color 0.2s,border-color 0.2s;’;
-      btn.innerHTML = ‘<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4v16l13-8z"/></svg> PLAY’;
-      btn.onmouseover = function() { this.style.color = ‘#c8daf0’; this.style.borderColor = ‘rgba(74,158,255,0.6)’; };
-      btn.onmouseout = function() { this.style.color = ‘#8a9bb0’; this.style.borderColor = ‘rgba(74,158,255,0.3)’; };
+      const date = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate().toLocaleDateString('en-GB') : '';
+      const scriptPreview = (data.script || '').replace(/'/g, '\u2019').replace(/\n/g, ' ').slice(0, 80);
+      const safeUrl = (data.videoUrl || '').replace(/'/g, '%27');
+      const safeScript = (data.script || '').replace(/'/g, '\u2019').replace(/\n/g, ' ').replace(/`/g, '');
+      const card = document.createElement('div');
+      card.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px;margin-bottom:8px;transition:border-color 0.2s;';
+      card.onmouseover = function() { this.style.borderColor = 'rgba(74,158,255,0.4)'; };
+      card.onmouseout = function() { this.style.borderColor = '#1a2a3a'; };
+      const header = document.createElement('div');
+      header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
+      header.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;">' + (data.route || 'Video Briefing') + '</div><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;">' + date + '</div>';
+      const preview = document.createElement('div');
+      preview.style.cssText = 'font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;line-height:1.4;margin-bottom:8px;';
+      preview.textContent = scriptPreview + (scriptPreview.length >= 80 ? '...' : '');
+      const btn = document.createElement('button');
+      btn.style.cssText = 'display:flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:500;letter-spacing:2px;padding:5px 12px;border-radius:4px;cursor:pointer;transition:color 0.2s,border-color 0.2s;';
+      btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4v16l13-8z"/></svg> PLAY';
+      btn.onmouseover = function() { this.style.color = '#c8daf0'; this.style.borderColor = 'rgba(74,158,255,0.6)'; };
+      btn.onmouseout = function() { this.style.color = '#8a9bb0'; this.style.borderColor = 'rgba(74,158,255,0.3)'; };
       btn.onclick = function() { playArchivedVideo(safeUrl, safeScript); };
       card.appendChild(header);
       card.appendChild(preview);
@@ -8042,7 +8042,7 @@ async function loadVideoArchive() {
       list.appendChild(card);
     });
   } catch(e) {
-    list.innerHTML = ‘<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;padding:20px;">Error loading videos: ‘ + e.message + ‘</div>’;
+    list.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;padding:20px;">Error loading videos: ' + e.message + '</div>';
   }
 }
 
