@@ -1435,7 +1435,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     <div class="result-status" id="resultStatus">GENERATING BRIEFING...</div>
     <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
       <button onclick="window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:400;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#4a9eff';this.style.borderColor='rgba(74,158,255,0.4)';this.style.background='rgba(74,158,255,0.08)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='rgba(255,255,255,0.04)'">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg>
         Upgrade
       </button>
       <button onclick="openShareModal()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:400;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='#4a9eff';this.style.borderColor='rgba(74,158,255,0.4)';this.style.background='rgba(74,158,255,0.08)';this.querySelector('svg').style.stroke='#4a9eff'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a';this.style.background='rgba(255,255,255,0.04)';this.querySelector('svg').style.stroke='#8a9bb0'">
@@ -3485,7 +3485,7 @@ function showUpgradeBanner(contentAreaId, message) {
   banner.className = 'upgrade-banner';
   banner.style.cssText = 'background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:10px 12px;margin:8px 0;font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;';
   const formattedMessage = message.replace('Pro or Premium plan', '<span style="color:#b57bff;font-weight:700;">Pro or Premium plan</span>');
-  banner.innerHTML = `<div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="window.location.href='/pricing-upgrade'"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none" style="flex-shrink:0;"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span>${formattedMessage}</span></div>`;
+  banner.innerHTML = `<div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="window.location.href='/pricing-upgrade'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span>${formattedMessage}</span></div>`;
   area.insertBefore(banner, area.firstChild);
   setTimeout(() => banner.remove(), 6000);
 }
@@ -6036,7 +6036,7 @@ document.addEventListener('mouseout', function(e) {
             <div id="settingsPlan" style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#cdd9e5;"></div>
           </div>
           <button onclick="closeSettingsPanel();window.location.href='/pricing-upgrade'" style="background:rgba(181,123,255,0.1);border:1px solid rgba(181,123,255,0.3);color:#b57bff;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:400;letter-spacing:1px;padding:6px 12px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg> Upgrade
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg> Upgrade
           </button>
         </div>
         <div style="border-top:1px solid #1a2a3a;padding-top:10px;">
@@ -6521,7 +6521,7 @@ async function fetchRawData() {
             });
             if (response.status === 403) {
               clearInterval(dotsInterval);
-              analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
+              analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
               cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(180deg) saturate(3) brightness(1.5);">✨</span>';
               cornerIcon.appendChild(tooltip);
               return;
@@ -6632,7 +6632,7 @@ async function fetchRawData() {
             });
             if (response.status === 403) {
               clearInterval(dotsInterval);
-              metarAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
+              metarAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
               mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
               mCorner.appendChild(mTooltip);
               return;
@@ -6738,7 +6738,7 @@ async function fetchRawData() {
           });
           if (response.status === 403) {
             clearInterval(dotsInterval);
-            tafAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
+            tafAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
             tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
             tCorner.appendChild(tTooltip);
             return;
@@ -6838,7 +6838,7 @@ async function fetchRawData() {
             });
             if (resp.status === 403) {
               clearInterval(dotsInterval);
-              sAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
+              sAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
               sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;text-shadow:0 0 6px #f4841a;">✨</span>';
               sCorner.appendChild(sTooltip);
               return;
@@ -6957,7 +6957,7 @@ async function fetchRawData() {
               });
               if (response.status === 403) {
                 clearInterval(dotsInterval);
-                analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
+                analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
                 cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
                 cornerIcon.appendChild(tooltip);
                 return;
@@ -7086,7 +7086,7 @@ async function fetchRawData() {
                 });
                 if (response.status === 403) {
                   clearInterval(dotsInterval);
-                  analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
+                  analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
                   cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
                   cornerIcon.appendChild(tooltip);
                   return;
@@ -7213,7 +7213,7 @@ async function fetchRawData() {
               });
               if (response.status === 403) {
                 clearInterval(dotsInterval);
-                analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#b57bff" stroke="none"><path d="M13 2L4.09 12.97H11L10 22L20.91 11.03H14L13 2Z"/></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
+                analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#b57bff;text-decoration:none;font-weight:700;">Pro or Premium plan</a>.</span></div>';
                 cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
                 cornerIcon.appendChild(tooltip);
                 return;
