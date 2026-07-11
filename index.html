@@ -777,6 +777,7 @@ canvas#sky {
   display: none;
   flex-direction: column;
   backdrop-filter: blur(8px);
+  transition: left 0.3s ease, width 0.3s ease;
 }
 .result-overlay.open { display: flex; }
 .ui {
@@ -2636,9 +2637,7 @@ async function handleSend(silent = false) {
   const content = document.getElementById('resultContent');
 
   if (!silent) {
-    resizeOverlay();
     overlay.classList.add('open');
-    resizeOverlay();
     document.getElementById('mainNavbar').style.display = 'none';
     document.getElementById('askNotamAiBtn').style.display = 'flex';
     loading.style.display = 'flex';
@@ -3961,7 +3960,8 @@ function toggleSidebar() {
     document.querySelector('.ui').style.left = '260px';
     document.querySelector('.ui').style.width = 'calc(100vw - 260px)';
     document.querySelector('.ui').style.marginLeft = '0';
-    resizeOverlay();
+    const roOpen = document.getElementById('resultOverlay');
+    if (roOpen) { roOpen.style.left = '260px'; roOpen.style.width = 'calc(100vw - 260px)'; }
     const scrollSection = document.getElementById('sidebarScrollSection');
     if (scrollSection) scrollSection.style.overflowY = 'auto';
     const planeEl = document.getElementById('sidebarLogoCollapsed');
@@ -3993,7 +3993,8 @@ function toggleSidebar() {
     document.querySelector('.ui').style.left = '52px';
     document.querySelector('.ui').style.width = 'calc(100vw - 52px)';
     document.querySelector('.ui').style.marginLeft = '0';
-    resizeOverlay();
+    const roClose = document.getElementById('resultOverlay');
+    if (roClose) { roClose.style.left = '52px'; roClose.style.width = 'calc(100vw - 52px)'; }
     const scrollSection = document.getElementById('sidebarScrollSection');
     if (scrollSection) scrollSection.style.overflowY = 'hidden';
   }
@@ -6289,20 +6290,6 @@ function analyzeAirmet(hazard, region, validFrom, validTo) {
   );
 }
 
-function resizeOverlay() {
-  const overlay = document.getElementById('resultOverlay');
-  if (!overlay) return;
-  const panelOpen = document.body.classList.contains('panel-open');
-  const sidebarOpen = document.body.classList.contains('sidebar-open');
-  const sidebarW = sidebarOpen ? 260 : 52;
-  const left = sidebarW;
-  const width = panelOpen
-    ? window.innerWidth - 52 - 420
-    : window.innerWidth - sidebarW;
-  overlay.style.setProperty('left', left + 'px', 'important');
-  overlay.style.setProperty('width', width + 'px', 'important');
-}
-
 function applyPanelOpen() {
   // If sidebar is open, close it visually first
   if (document.body.classList.contains('sidebar-open')) {
@@ -6329,7 +6316,8 @@ function applyPanelOpen() {
   if (mc) { mc.style.left = '52px'; mc.style.width = w; }
   if (scene) { scene.style.left = '52px'; scene.style.width = w; }
   if (ui) { ui.style.left = '52px'; ui.style.width = w; }
-  resizeOverlay();
+  const ro = document.getElementById('resultOverlay');
+  if (ro) { ro.style.left = '52px'; ro.style.width = w; }
 }
 
 function applyPanelClose() {
@@ -6341,7 +6329,10 @@ function applyPanelClose() {
   if (mc) mc.style.width = '';
   if (scene) scene.style.width = '';
   if (ui) ui.style.width = '';
-  resizeOverlay();
+  const sidebarOpen = document.body.classList.contains('sidebar-open');
+  const sidebarW = sidebarOpen ? 260 : 52;
+  const ro = document.getElementById('resultOverlay');
+  if (ro) { ro.style.left = sidebarW + 'px'; ro.style.width = (window.innerWidth - sidebarW) + 'px'; }
 }
 
 function openRawDataPanel() {
