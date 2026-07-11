@@ -10,11 +10,13 @@ if (!admin.apps.length) {
       projectId: 'notamai-a9d57',
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-    })
+    }),
+    storageBucket: 'notamai-a9d57.firebasestorage.app'
   });
 }
 
 const adminDb = admin.firestore();
+const adminStorage = admin.storage().bucket();
 
 const PILOT_IMAGE_PATH = './pilot_image.jpg';
 let heygenTestLock = false;
@@ -2534,9 +2536,25 @@ MANDATORY:
           script = videoQuery.docs[0].data().script || null;
           // Update Firestore when completed
           if (status === 'completed' && videoUrl) {
+            let storageUrl = videoUrl;
+            try {
+              const videoResponse = await fetch(videoUrl);
+              if (videoResponse.ok) {
+                const buffer = Buffer.from(await videoResponse.arrayBuffer());
+                const fileName = 'videos/' + userId + '/' + predId + '.mp4';
+                const file = adminStorage.file(fileName);
+                await file.save(buffer, { metadata: { contentType: 'video/mp4' } });
+                await file.makePublic();
+                storageUrl = 'https://storage.googleapis.com/notamai-a9d57.firebasestorage.app/' + fileName;
+                console.log('[VIDEO STORAGE] Uploaded to Firebase:', fileName);
+              }
+            } catch(uploadErr) {
+              console.log('[VIDEO STORAGE] Upload failed, using Wavespeed URL:', uploadErr.message);
+            }
             await videoQuery.docs[0].ref.update({
               status: 'completed',
-              videoUrl,
+              videoUrl: storageUrl,
+              wavespeedUrl: videoUrl,
               completedAt: admin.firestore.FieldValue.serverTimestamp()
             });
             console.log('[VIDEO ARCHIVE] Saved:', predId);
