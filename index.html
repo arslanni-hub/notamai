@@ -4456,28 +4456,32 @@ function openProfileModal() {
   document.getElementById('pmAvatar').textContent = (user.displayName || user.email || '?')[0].toUpperCase();
   document.getElementById('pmName').textContent = user.displayName || user.email || 'User';
   document.getElementById('pmEmail').textContent = user.email || '';
-  db.collection('users').doc(user.uid).get().then(doc => {
-    const data = doc.exists ? doc.data() : {};
-    const plan = data.plan || 'free';
+  firebase.auth().currentUser.getIdToken().then(token =>
+    fetch('/api/usage', { headers: { 'Authorization': 'Bearer ' + token } })
+  ).then(r => r.json()).then(d => {
+    const plan = d.plan || 'free';
     const planColors = { free: '#4a5f72', pro: '#4a9eff', premium: '#b57bff', admin: '#f2c641' };
     const planBg = { free: 'rgba(74,95,114,0.15)', pro: 'rgba(74,158,255,0.1)', premium: 'rgba(181,123,255,0.1)', admin: 'rgba(242,198,65,0.1)' };
-    const planBorder = { free: 'rgba(74,95,114,0.3)', pro: 'rgba(74,158,255,0.2)', premium: 'rgba(181,123,255,0.2)', admin: 'rgba(242,198,65,0.2)' };
+    const planBorder = { free: 'rgba(74,95,114,0.3)', pro: 'rgba(74,158,255,0.2)', premium: 'rgba(181,123,255,0.2)', admin: 'rgba(242,198,65,0.25)' };
     const planLabels = { free: 'FREE', pro: 'PRO', premium: 'PREMIUM', admin: 'ADMIN' };
     const planDescs = { free: 'Basic access — 3 briefings/month', pro: 'Unlimited briefings · Chat · Analysis', premium: 'Everything in Pro + Video Briefings', admin: 'Full access — all features enabled' };
     const planPrices = { free: '$0 / month', pro: '$49 / month', premium: '$99 / month', admin: '—' };
     const badge = document.getElementById('pmPlanBadge');
-    badge.textContent = plan.toUpperCase();
+    badge.textContent = planLabels[plan] || plan.toUpperCase();
     badge.style.color = planColors[plan] || planColors.free;
     badge.style.background = planBg[plan] || planBg.free;
     badge.style.border = '1px solid ' + (planBorder[plan] || planBorder.free);
-    document.getElementById('profileDisplayName').value = data.displayName || user.displayName || '';
-    document.getElementById('profileRole').value = data.role || '';
-    document.getElementById('profileOrg').value = data.org || '';
     document.getElementById('pmBillingPlan').textContent = planLabels[plan] || 'FREE';
     document.getElementById('pmBillingPlan').style.color = planColors[plan] || planColors.free;
     document.getElementById('pmBillingDesc').textContent = planDescs[plan] || planDescs.free;
     document.getElementById('pmBillingPrice').textContent = planPrices[plan] || planPrices.free;
-  });
+    db.collection('users').doc(user.uid).get().then(doc => {
+      const data = doc.exists ? doc.data() : {};
+      document.getElementById('profileDisplayName').value = data.displayName || user.displayName || '';
+      document.getElementById('profileRole').value = data.role || '';
+      document.getElementById('profileOrg').value = data.org || '';
+    });
+  }).catch(() => {});
   pmSwitchTab('profile');
 }
 
