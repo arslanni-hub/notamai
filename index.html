@@ -3887,11 +3887,29 @@ async function updateUserPlan(plan) {
 
 async function loadUserPlan(uid) {
   try {
-    const doc = await db.collection('users').doc(uid).get();
-    const plan = doc.exists ? (doc.data().plan || 'free') : 'free';
+    const token = await firebase.auth().currentUser.getIdToken();
+    const res = await fetch('/api/usage', { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await res.json();
+    const plan = d.plan || 'free';
     const planEl = document.getElementById('sidebarPlan');
-    if (planEl) planEl.textContent = plan.toUpperCase();
+    const planColors = { free: '#4a5f72', pro: '#4a9eff', premium: '#b57bff', admin: '#f2c641' };
+    const planLabels = { free: 'FREE', pro: 'PRO', premium: 'PREMIUM', admin: 'ADMIN' };
+    if (planEl) {
+      planEl.textContent = planLabels[plan] || plan.toUpperCase();
+      planEl.style.color = planColors[plan] || '#4a9eff';
+    }
     window.currentUserPlan = plan;
+    const manageBtn = document.getElementById('popupManageBtn');
+    const upgradeBtn = document.getElementById('popupUpgradeBtn');
+    if (manageBtn && upgradeBtn) {
+      if (plan === 'admin' || plan === 'free') {
+        manageBtn.style.display = 'none';
+        upgradeBtn.style.display = plan === 'free' ? 'flex' : 'none';
+      } else {
+        manageBtn.style.display = 'flex';
+        upgradeBtn.style.display = 'flex';
+      }
+    }
     return plan;
   } catch(e) {
     return 'free';
@@ -5789,7 +5807,11 @@ function pricing_toggleBilling() {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
         Invite a Colleague
       </div>
-      <div class="popup-item" onclick="window.location.href='/pricing-upgrade'">
+      <div id="popupUpgradeBtn" class="popup-item" onclick="closeProfileModal();window.location.href='/pricing-upgrade'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg>
+        Upgrade Plan
+      </div>
+      <div id="popupManageBtn" class="popup-item" onclick="window.open('https://app.lemonsqueezy.com/my-orders','_blank')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         Manage Subscription
       </div>
