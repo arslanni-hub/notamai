@@ -4579,33 +4579,41 @@ function pmLoadArchive(tab) {
     }).catch(() => { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Could not load archive.</div>'; });
   } else if (tab === 'videos') {
     el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Loading...</div>';
-    db.collection('video_briefings').where('userId','==',user.uid).orderBy('createdAt','desc').limit(20).get().then(snap => {
+    db.collection('videos').where('userId','==',user.uid).where('status','==','completed').orderBy('createdAt','desc').limit(20).get().then(snap => {
       if (snap.empty) { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">No video briefings yet.</div>'; return; }
-      el.innerHTML = snap.docs.map(doc => {
+      el.innerHTML = '';
+      snap.forEach(doc => {
         const d = doc.data();
-        const date = d.createdAt ? new Date(d.createdAt.toDate()).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '';
-        return `<div onclick="pmPlayVideo('${doc.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:6px;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.borderColor='#1a2a3a'">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5f72" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.276a1 1 0 0 1 1.447.894v6.764a1 1 0 0 1-1.447.894L15 14v-4z"/><rect x="2" y="6" width="13" height="12" rx="2"/></svg>
-          <div style="flex:1;overflow:hidden;">
-            <div style="font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.route || 'Unknown'}</div>
-            <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:2px;">${date}</div>
-          </div>
-        </div>`;
-      }).join('');
-    }).catch(() => { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Could not load videos.</div>'; });
+        const date = d.createdAt?.toDate ? d.createdAt.toDate().toLocaleDateString('en-GB') : '';
+        const scriptPreview = (d.script || '').replace(/\n/g,' ').slice(0,70);
+        const safeUrl = (d.videoUrl || '').replace(/'/g,'%27');
+        const safeScript = (d.script || '').replace(/'/g,'’').replace(/\n/g,' ').replace(/`/g,'');
+        const card = document.createElement('div');
+        card.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;';
+        card.onmouseover = function(){ this.style.borderColor='rgba(181,123,255,0.4)'; };
+        card.onmouseout = function(){ this.style.borderColor='#1a2a3a'; };
+        card.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;"><div style="font-family:Orbitron,sans-serif;font-size:12px;color:#b57bff;">${d.route || 'Video Briefing'}</div><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;">${date}</div></div><div style="font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;line-height:1.4;margin-bottom:8px;">${scriptPreview}${scriptPreview.length>=70?'...':''}</div><button onclick="closeProfileModal();setTimeout(()=>playArchivedVideo('${safeUrl}',\`${safeScript}\`),200)" style="background:transparent;border:1px solid rgba(181,123,255,0.4);color:#b57bff;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;padding:4px 12px;border-radius:4px;cursor:pointer;letter-spacing:1px;">▶ PLAY</button>`;
+        el.appendChild(card);
+      });
+    }).catch(e => { el.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error: ' + e.message + '</div>'; });
   } else if (tab === 'chats') {
     el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Loading...</div>';
-    db.collection('general_chats').where('userId','==',user.uid).orderBy('createdAt','desc').limit(20).get().then(snap => {
+    db.collection('general_chats').where('userId','==',user.uid).orderBy('createdAt','desc').limit(30).get().then(snap => {
       if (snap.empty) { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">No chats yet.</div>'; return; }
-      el.innerHTML = snap.docs.map(doc => {
+      el.innerHTML = '';
+      snap.forEach(doc => {
         const d = doc.data();
-        const date = d.createdAt ? new Date(d.createdAt.toDate()).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '';
-        const preview = d.lastMessage || d.title || 'Chat session';
-        return `<div style="padding:10px 12px;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:6px;">
-          <div style="font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${preview}</div>
-          <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:3px;">${date}</div>
-        </div>`;
-      }).join('');
+        const date = d.createdAt?.toDate ? d.createdAt.toDate().toLocaleDateString('en-GB') : '';
+        const firstUserMsg = (d.messages || []).find(m => m.role === 'user');
+        const label = firstUserMsg ? firstUserMsg.text.slice(0,70) : 'Aviation Chat';
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:6px;cursor:pointer;margin-bottom:4px;transition:background 0.15s;';
+        div.onmouseover = function(){ this.style.background='rgba(255,255,255,0.06)'; };
+        div.onmouseout = function(){ this.style.background='none'; };
+        div.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M8 9h8"/><path d="M8 13h4.5"/><path d="M10.325 19.605l-2.325 1.395v-3h-2a3 3 0 0 1-3-3v-8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4.5"/><path d="M19 22.5a4.75 4.75 0 0 1 3.5-3.5a4.75 4.75 0 0 1-3.5-3.5a4.75 4.75 0 0 1-3.5 3.5a4.75 4.75 0 0 1 3.5 3.5"/></svg><div style="flex:1;overflow:hidden;"><div style="font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${label}</div><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:2px;">${date}</div></div>`;
+        div.onclick = function(){ closeProfileModal(); setTimeout(() => resumeChatSession(doc.id), 200); };
+        el.appendChild(div);
+      });
     }).catch(() => { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Could not load chats.</div>'; });
   }
 }
@@ -4653,15 +4661,6 @@ async function pmOpenBriefing(id, route) {
   }
 }
 
-async function pmPlayVideo(id) {
-  closeProfileModal();
-  try {
-    const doc = await db.collection('video_briefings').doc(id).get();
-    if (doc.exists && doc.data().videoUrl) {
-      playArchivedVideo(doc.data().videoUrl, doc.data().script || '');
-    }
-  } catch(e) {}
-}
 
 function pmChangePassword() {
   const user = firebase.auth().currentUser;
