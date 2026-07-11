@@ -4449,50 +4449,87 @@ function inviteViaEmail() {
 }
 
 function openProfileModal() {
+  const modal = document.getElementById('profileModal');
+  modal.style.display = 'flex';
   const user = firebase.auth().currentUser;
   if (!user) return;
-  toggleUserPopup();
-  const initials = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
-  document.getElementById('profileAvatar').textContent = initials;
-  document.getElementById('profileName').textContent = user.displayName || user.email.split('@')[0];
-  document.getElementById('profileEmail').textContent = user.email;
-  document.getElementById('profilePlan').textContent = (window.currentUserPlan || 'free').toUpperCase();
-  const plan = window.currentUserPlan || 'free';
-  const planLabels = {
-    free: { label: 'Free Plan', desc: 'Limited to 1 full AI briefing' },
-    pro: { label: 'Pro Plan', desc: 'Unlimited briefings + live NOTAM data' },
-    premium: { label: 'Premium Plan', desc: 'Pro + Video briefing + PDF export' },
-    enterprise: { label: 'Enterprise Plan', desc: 'Full API access + multi-user' }
-  };
-  const planInfo = planLabels[plan] || planLabels.free;
-  document.getElementById('profilePlanLabel').textContent = planInfo.label;
-  document.getElementById('profilePlanDesc').textContent = planInfo.desc;
-  const upgradeBtn = document.querySelector('#profileModal button[onclick*="pricing-upgrade"]');
-  if (upgradeBtn) upgradeBtn.style.display = plan === 'enterprise' ? 'none' : 'flex';
-  const createdAt = user.metadata.creationTime;
-  const memberDate = new Date(createdAt);
-  document.getElementById('profileMemberSince').textContent = 'Member since ' + memberDate.toLocaleDateString('en-US', {month:'short', year:'numeric'});
+  document.getElementById('pmAvatar').textContent = (user.displayName || user.email || '?')[0].toUpperCase();
+  document.getElementById('pmName').textContent = user.displayName || user.email || 'User';
+  document.getElementById('pmEmail').textContent = user.email || '';
   db.collection('users').doc(user.uid).get().then(doc => {
-    if (doc.exists) {
-      const data = doc.data();
-      if (data.displayName) document.getElementById('profileDisplayName').value = data.displayName;
-      if (data.role) document.getElementById('profileRole').value = data.role;
-      if (data.organization) document.getElementById('profileOrg').value = data.organization;
-    }
+    const data = doc.exists ? doc.data() : {};
+    const plan = data.plan || 'free';
+    const planColors = { free: '#4a5f72', pro: '#4a9eff', premium: '#b57bff' };
+    const planBg = { free: 'rgba(74,95,114,0.15)', pro: 'rgba(74,158,255,0.1)', premium: 'rgba(181,123,255,0.1)' };
+    const planBorder = { free: 'rgba(74,95,114,0.3)', pro: 'rgba(74,158,255,0.2)', premium: 'rgba(181,123,255,0.2)' };
+    const badge = document.getElementById('pmPlanBadge');
+    badge.textContent = plan.toUpperCase();
+    badge.style.color = planColors[plan] || planColors.free;
+    badge.style.background = planBg[plan] || planBg.free;
+    badge.style.border = '1px solid ' + (planBorder[plan] || planBorder.free);
+    document.getElementById('profileDisplayName').value = data.displayName || user.displayName || '';
+    document.getElementById('profileRole').value = data.role || '';
+    document.getElementById('profileOrg').value = data.org || '';
+    const planLabels = { free: 'FREE', pro: 'PRO', premium: 'PREMIUM' };
+    const planDescs = { free: 'Basic access — 3 briefings/month', pro: 'Unlimited briefings · Chat · Analysis', premium: 'Everything in Pro + Video Briefings' };
+    const planPrices = { free: '$0 / month', pro: '$49 / month', premium: '$99 / month' };
+    document.getElementById('pmBillingPlan').textContent = planLabels[plan] || 'FREE';
+    document.getElementById('pmBillingPlan').style.color = planColors[plan] || planColors.free;
+    document.getElementById('pmBillingDesc').textContent = planDescs[plan] || planDescs.free;
+    document.getElementById('pmBillingPrice').textContent = planPrices[plan] || planPrices.free;
   });
-  const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  db.collection('briefings').where('userId','==',user.uid).get().then(snapshot => {
-    document.getElementById('statTotal').textContent = snapshot.size;
-    const thisMonth = snapshot.docs.filter(d => {
-      const t = d.data().createdAt?.toDate();
-      return t && t >= firstOfMonth;
-    }).length;
-    document.getElementById('statThisMonth').textContent = thisMonth;
-  });
-  const days = Math.floor((now - new Date(createdAt)) / (1000*60*60*24));
-  document.getElementById('statDays').textContent = days;
-  document.getElementById('profileModal').style.display = 'flex';
+  pmSwitchTab('profile');
+}
+
+function pmSwitchTab(tab) {
+  document.querySelectorAll('.pm-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.pm-content').forEach(c => c.style.display = 'none');
+  document.querySelector('.pm-tab[data-tab="' + tab + '"]').classList.add('active');
+  document.getElementById('pmTab-' + tab).style.display = 'block';
+  if (tab === 'usage') pmLoadUsage();
+  if (tab === 'archive') pmLoadArchive();
+}
+
+async function pmLoadUsage() {
+  const el = document.getElementById('pmUsageContent');
+  el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Loading...</div>';
+  try {
+    const token = await firebase.auth().currentUser.getIdToken();
+    const res = await fetch('/api/usage', { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await res.json();
+    const pct = (used, limit) => limit > 0 ? Math.min(100, Math.round(used / limit * 100)) : 0;
+    const barColor = (p) => p >= 90 ? '#e63946' : p >= 70 ? '#f2c641' : '#4a9eff';
+    const row = (label, used, limit, subtitle) => {
+      const p = pct(used, limit);
+      const c = barColor(p);
+      return `<div style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+          <span style="font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;">${label}</span>
+          <span style="font-family:Share Tech Mono,monospace;font-size:11px;color:${c};">${p}%</span>
+        </div>
+        <div class="pm-usage-bar"><div class="pm-usage-fill" style="width:${p}%;background:${c};"></div></div>
+        <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:4px;">${subtitle}</div>
+      </div>`;
+    };
+    const chatPct = pct(d.chat.tokens, d.chat.limit);
+    const chatColor = barColor(chatPct);
+    const resetH = Math.floor(d.chat.resetInMinutes / 60);
+    const resetM = d.chat.resetInMinutes % 60;
+    const resetStr = d.chat.resetInMinutes > 0 ? `resets in ${resetH}h ${resetM}m` : 'window reset';
+    let html = row('AI Briefings', d.briefings.used, d.briefings.limit, `resets in ${d.monthlyResetDays} days`);
+    html += row('NOTAM Intelligence Chat', d.chat.tokens, d.chat.limit, resetStr + ' · 5-hour window');
+    html += row('AI Analysis', d.analysis.used, d.analysis.limit, `resets in ${d.monthlyResetDays} days`);
+    if (d.plan === 'premium') html += row('AI Video Briefings', d.video.used, d.video.limit, `resets in ${d.monthlyResetDays} days`);
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Could not load usage data.</div>';
+  }
+}
+
+function pmLoadArchive() {
+  const el = document.getElementById('pmArchiveContent');
+  el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Loading archive...</div>';
+  loadArchivePanel();
 }
 
 function closeProfileModal() {
