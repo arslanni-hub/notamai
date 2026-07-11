@@ -4477,6 +4477,22 @@ function openProfileModal() {
     document.getElementById('pmBillingPlan').style.color = planColors[plan] || planColors.free;
     document.getElementById('pmBillingDesc').textContent = planDescs[plan] || planDescs.free;
     document.getElementById('pmBillingPrice').textContent = planPrices[plan] || planPrices.free;
+    const upgradeBtn = document.getElementById('pmUpgradeBtn');
+    const manageBtn = document.getElementById('pmManageBtn');
+    const adminNote = document.getElementById('pmAdminNote');
+    if (plan === 'admin') {
+      upgradeBtn.style.display = 'none';
+      manageBtn.style.display = 'none';
+      adminNote.style.display = 'block';
+    } else if (plan === 'free') {
+      upgradeBtn.style.display = 'flex';
+      manageBtn.style.display = 'none';
+      adminNote.style.display = 'none';
+    } else {
+      upgradeBtn.style.display = 'flex';
+      manageBtn.style.display = 'flex';
+      adminNote.style.display = 'none';
+    }
     db.collection('users').doc(user.uid).get().then(doc => {
       const data = doc.exists ? doc.data() : {};
       document.getElementById('profileDisplayName').value = data.displayName || user.displayName || '';
@@ -6140,14 +6156,15 @@ document.addEventListener('mouseout', function(e) {
           <div id="pmBillingDesc" style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;"></div>
         </div>
         <div style="display:flex;flex-direction:column;gap:10px;">
-          <button onclick="closeProfileModal();window.location.href='/pricing-upgrade'" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">
+          <button id="pmUpgradeBtn" onclick="closeProfileModal();window.location.href='/pricing-upgrade'" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg>
             UPGRADE PLAN
           </button>
-          <button onclick="window.open('https://app.lemonsqueezy.com/my-orders','_blank')" style="width:100%;padding:10px;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.color='#4a5f72';this.style.borderColor='#1a2a3a'">
+          <button id="pmManageBtn" onclick="window.open('https://app.lemonsqueezy.com/my-orders','_blank')" style="display:none;width:100%;padding:10px;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.color='#4a5f72';this.style.borderColor='#1a2a3a'">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l6-6"/><path d="M15 14v-6h-6"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
             MANAGE SUBSCRIPTION
           </button>
+          <div id="pmAdminNote" style="display:none;font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;text-align:center;padding:8px;background:rgba(242,198,65,0.06);border:1px solid rgba(242,198,65,0.15);border-radius:6px;letter-spacing:1px;">ADMIN ACCOUNT — FULL ACCESS</div>
         </div>
       </div>
 
