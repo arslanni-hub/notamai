@@ -3901,12 +3901,10 @@ async function loadUserPlan(uid) {
     window.currentUserPlan = plan;
     const popupName = document.getElementById('popupName');
     const popupBadge = document.getElementById('popupPlanBadge');
-    const planColors = { free: '#4a5f72', pro: '#4a9eff', premium: '#b57bff', admin: '#f2c641' };
     const planBg = { free: 'rgba(74,95,114,0.15)', pro: 'rgba(74,158,255,0.1)', premium: 'rgba(181,123,255,0.1)', admin: 'rgba(242,198,65,0.1)' };
     const planBorder = { free: 'rgba(74,95,114,0.3)', pro: 'rgba(74,158,255,0.2)', premium: 'rgba(181,123,255,0.2)', admin: 'rgba(242,198,65,0.2)' };
-    const planLabels2 = { free: 'FREE', pro: 'PRO', premium: 'PREMIUM', admin: 'ADMIN' };
     if (popupBadge) {
-      popupBadge.textContent = planLabels2[plan] || plan.toUpperCase();
+      popupBadge.textContent = planLabels[plan] || plan.toUpperCase();
       popupBadge.style.color = planColors[plan] || planColors.free;
       popupBadge.style.background = planBg[plan] || planBg.free;
       popupBadge.style.border = '1px solid ' + (planBorder[plan] || planBorder.free);
