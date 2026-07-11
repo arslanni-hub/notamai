@@ -3128,8 +3128,10 @@ function closeAIChat() {
   setTimeout(() => panel.style.display = 'none', 300);
   aiChatOpen = false;
   if (isRecording) stopRecording();
-  document.body.classList.remove('panel-open');
-  applyPanelClose();
+  if (!openPanel) {
+    document.body.classList.remove('panel-open');
+    applyPanelClose();
+  }
 }
 
 function processClickableText(text, knownIcaos) {
