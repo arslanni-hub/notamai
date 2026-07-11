@@ -4493,7 +4493,7 @@ function pmSwitchTab(tab) {
   document.querySelector('.pm-tab[data-tab="' + tab + '"]').classList.add('active');
   document.getElementById('pmTab-' + tab).style.display = 'block';
   if (tab === 'usage') pmLoadUsage();
-  if (tab === 'archive') pmLoadArchive();
+  if (tab === 'archive') pmLoadArchive('briefings');
 }
 
 async function pmLoadUsage() {
@@ -4545,22 +4545,122 @@ async function pmLoadUsage() {
   }
 }
 
-function pmLoadArchive() {
+function pmLoadArchive(tab) {
+  tab = tab || 'briefings';
+  ['briefings','videos','chats'].forEach(t => {
+    const btn = document.getElementById('pmATab-' + t);
+    if (btn) {
+      const active = t === tab;
+      btn.style.background = active ? 'rgba(74,158,255,0.1)' : 'transparent';
+      btn.style.borderColor = active ? 'rgba(74,158,255,0.3)' : '#1a2a3a';
+      btn.style.color = active ? '#4a9eff' : '#4a5f72';
+    }
+  });
+  const el = document.getElementById('pmArchiveContent');
   const user = firebase.auth().currentUser;
   if (!user) return;
-  const el = document.getElementById('pmArchiveContent');
-  el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Loading...</div>';
-  db.collection('briefings').where('userId','==',user.uid).orderBy('createdAt','desc').limit(30).get().then(snap => {
-    if (snap.empty) { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">No briefings yet.</div>'; return; }
-    el.innerHTML = snap.docs.map(doc => {
-      const d = doc.data();
-      const date = d.createdAt ? new Date(d.createdAt.toDate()).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '';
-      return `<div onclick="closeProfileModal();openArchivedBriefing('${doc.id}')" style="padding:10px 12px;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:8px;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.borderColor='#1a2a3a'">
-        <div style="font-family:Rajdhani,sans-serif;font-size:13px;font-weight:600;color:#cdd9e5;">${d.route || 'Unknown Route'}</div>
-        <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:3px;">${date}</div>
-      </div>`;
-    }).join('');
-  }).catch(() => { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Could not load archive.</div>'; });
+  if (tab === 'briefings') {
+    el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Loading...</div>';
+    db.collection('briefings').where('userId','==',user.uid).orderBy('createdAt','desc').limit(30).get().then(snap => {
+      if (snap.empty) { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">No briefings yet.</div>'; return; }
+      const riskColors = { CRITICAL:'#e63946', HIGH:'#f4841a', MEDIUM:'#f2c641', LOW:'#2ec4b6' };
+      el.innerHTML = snap.docs.map(doc => {
+        const d = doc.data();
+        const date = d.createdAt ? new Date(d.createdAt.toDate()).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '';
+        const color = riskColors[d.riskLevel] || '#4a5f72';
+        return `<div onclick="pmOpenBriefing('${doc.id}','${(d.route||'').replace(/'/g,'')}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:6px;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.borderColor='#1a2a3a'">
+          <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;"></div>
+          <div style="flex:1;overflow:hidden;">
+            <div style="font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.route || 'Unknown'}</div>
+            <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:2px;">${date} · ${d.riskLevel || ''}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }).catch(() => { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Could not load archive.</div>'; });
+  } else if (tab === 'videos') {
+    el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Loading...</div>';
+    db.collection('video_briefings').where('userId','==',user.uid).orderBy('createdAt','desc').limit(20).get().then(snap => {
+      if (snap.empty) { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">No video briefings yet.</div>'; return; }
+      el.innerHTML = snap.docs.map(doc => {
+        const d = doc.data();
+        const date = d.createdAt ? new Date(d.createdAt.toDate()).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '';
+        return `<div onclick="pmPlayVideo('${doc.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:6px;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.borderColor='#1a2a3a'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5f72" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.276a1 1 0 0 1 1.447.894v6.764a1 1 0 0 1-1.447.894L15 14v-4z"/><rect x="2" y="6" width="13" height="12" rx="2"/></svg>
+          <div style="flex:1;overflow:hidden;">
+            <div style="font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.route || 'Unknown'}</div>
+            <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:2px;">${date}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }).catch(() => { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Could not load videos.</div>'; });
+  } else if (tab === 'chats') {
+    el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Loading...</div>';
+    db.collection('general_chats').where('userId','==',user.uid).orderBy('createdAt','desc').limit(20).get().then(snap => {
+      if (snap.empty) { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">No chats yet.</div>'; return; }
+      el.innerHTML = snap.docs.map(doc => {
+        const d = doc.data();
+        const date = d.createdAt ? new Date(d.createdAt.toDate()).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '';
+        const preview = d.lastMessage || d.title || 'Chat session';
+        return `<div style="padding:10px 12px;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:6px;">
+          <div style="font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${preview}</div>
+          <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:3px;">${date}</div>
+        </div>`;
+      }).join('');
+    }).catch(() => { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Could not load chats.</div>'; });
+  }
+}
+
+async function pmOpenBriefing(id, route) {
+  closeProfileModal();
+  const overlay = document.getElementById('resultOverlay');
+  const content = document.getElementById('resultContent');
+  const loading = document.getElementById('loadingState');
+  const status = document.getElementById('resultStatus');
+  if (briefingCache[id]) {
+    window.currentBriefingId = id;
+    overlay.classList.add('open');
+    if (loading) loading.style.display = 'none';
+    if (content) { content.style.display = 'block'; content.innerHTML = briefingCache[id]; }
+    if (status) status.textContent = 'ROUTE BRIEFING: ' + route + ' — COMPLETE';
+    document.getElementById('mainNavbar').style.display = 'none';
+    document.getElementById('askNotamAiBtn').style.display = 'flex';
+    extractBriefingIcaos();
+    appendBriefingActions(content);
+    return;
+  }
+  overlay.classList.add('open');
+  if (loading) loading.style.display = 'flex';
+  if (content) content.style.display = 'none';
+  if (status) status.textContent = 'LOADING BRIEFING...';
+  document.getElementById('mainNavbar').style.display = 'none';
+  document.getElementById('askNotamAiBtn').style.display = 'flex';
+  try {
+    const doc = await db.collection('briefings').doc(id).get();
+    if (doc.exists && doc.data().html) {
+      const html = doc.data().html;
+      briefingCache[id] = html;
+      window.currentBriefingId = id;
+      if (loading) loading.style.display = 'none';
+      if (content) { content.style.display = 'block'; content.innerHTML = html; }
+      if (status) status.textContent = 'ROUTE BRIEFING: ' + route + ' — COMPLETE';
+      extractBriefingIcaos();
+      appendBriefingActions(content);
+    } else {
+      if (status) status.textContent = 'BRIEFING NOT FOUND';
+    }
+  } catch(e) {
+    if (status) status.textContent = 'ERROR LOADING BRIEFING';
+  }
+}
+
+async function pmPlayVideo(id) {
+  closeProfileModal();
+  try {
+    const doc = await db.collection('video_briefings').doc(id).get();
+    if (doc.exists && doc.data().videoUrl) {
+      playArchivedVideo(doc.data().videoUrl, doc.data().script || '');
+    }
+  } catch(e) {}
 }
 
 function pmChangePassword() {
@@ -6056,9 +6156,9 @@ document.addEventListener('mouseout', function(e) {
       <div id="pmTab-archive" class="pm-content" style="padding:28px 28px 24px;display:none;">
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:20px;">ARCHIVE</div>
         <div style="display:flex;gap:8px;margin-bottom:16px;" id="pmArchiveTabs">
-          <button onclick="switchArchiveTab('briefings')" id="pmATab-briefings" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;border-radius:4px;cursor:pointer;background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.3);color:#4a9eff;">BRIEFINGS</button>
-          <button onclick="switchArchiveTab('videos')" id="pmATab-videos" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;">VIDEOS</button>
-          <button onclick="switchArchiveTab('chats')" id="pmATab-chats" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;">CHATS</button>
+          <button onclick="pmLoadArchive('briefings')" id="pmATab-briefings" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;border-radius:4px;cursor:pointer;background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.3);color:#4a9eff;">BRIEFINGS</button>
+          <button onclick="pmLoadArchive('videos')" id="pmATab-videos" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;">VIDEOS</button>
+          <button onclick="pmLoadArchive('chats')" id="pmATab-chats" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;">CHATS</button>
         </div>
         <div id="pmArchiveContent" style="max-height:340px;overflow-y:auto;">
           <div style="color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:13px;">Loading archive...</div>
