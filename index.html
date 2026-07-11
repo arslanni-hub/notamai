@@ -4590,9 +4590,9 @@ function pmLoadArchive(tab) {
         const safeScript = (d.script || '').replace(/'/g,'’').replace(/\n/g,' ').replace(/`/g,'');
         const card = document.createElement('div');
         card.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;';
-        card.onmouseover = function(){ this.style.borderColor='rgba(181,123,255,0.4)'; };
+        card.onmouseover = function(){ this.style.borderColor='rgba(74,158,255,0.4)'; };
         card.onmouseout = function(){ this.style.borderColor='#1a2a3a'; };
-        card.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;"><div style="font-family:Orbitron,sans-serif;font-size:12px;color:#b57bff;">${d.route || 'Video Briefing'}</div><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;">${date}</div></div><div style="font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;line-height:1.4;margin-bottom:8px;">${scriptPreview}${scriptPreview.length>=70?'...':''}</div><button onclick="closeProfileModal();setTimeout(()=>playArchivedVideo('${safeUrl}',\`${safeScript}\`),200)" style="background:transparent;border:1px solid rgba(181,123,255,0.4);color:#b57bff;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;padding:4px 12px;border-radius:4px;cursor:pointer;letter-spacing:1px;">▶ PLAY</button>`;
+        card.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;"><div style="font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;">${d.route || 'Video Briefing'}</div><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;">${date}</div></div><div style="font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;line-height:1.4;margin-bottom:8px;">${scriptPreview}${scriptPreview.length>=70?'...':''}</div><button onclick="closeProfileModal();setTimeout(()=>playArchivedVideo('${safeUrl}',\`${safeScript}\`),200)" style="display:flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:500;letter-spacing:2px;padding:5px 12px;border-radius:4px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4v16l13-8z"/></svg> PLAY</button>`;
         el.appendChild(card);
       });
     }).catch(e => { el.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error: ' + e.message + '</div>'; });
@@ -8000,45 +8000,46 @@ function switchArchiveTab(tab) {
 async function loadVideoArchive() {
   const user = firebase.auth().currentUser;
   if (!user) return;
-  const list = document.getElementById('videoArchiveList');
-  list.innerHTML = '<div style="color:#4a5f72;font-family:\'Share Tech Mono\',monospace;font-size:11px;padding:20px;text-align:center;letter-spacing:1px;">LOADING...</div>';
+  const list = document.getElementById(‘videoArchiveList’);
+  list.innerHTML = ‘<div style="color:#4a5f72;font-family:\’Share Tech Mono\’,monospace;font-size:11px;padding:20px;text-align:center;letter-spacing:1px;">LOADING...</div>’;
   try {
-    const snapshot = await db.collection('videos')
-      .where('userId', '==', user.uid)
-      .where('status', '==', 'completed')
-      .orderBy('createdAt', 'desc')
+    const snapshot = await db.collection(‘videos’)
+      .where(‘userId’, ‘==’, user.uid)
+      .where(‘status’, ‘==’, ‘completed’)
+      .orderBy(‘createdAt’, ‘desc’)
       .limit(20)
       .get();
     if (snapshot.empty) {
-      list.innerHTML = '<div style="color:#4a5f72;font-family:\'Rajdhani\',sans-serif;font-size:13px;padding:30px 20px;text-align:center;">No video briefings yet.<br><span style="font-size:11px;opacity:0.6;">Generate your first video briefing from the main screen.</span></div>';
+      list.innerHTML = ‘<div style="color:#4a5f72;font-family:\’Rajdhani\’,sans-serif;font-size:13px;padding:30px 20px;text-align:center;">No video briefings yet.<br><span style="font-size:11px;opacity:0.6;">Generate your first video briefing from the main screen.</span></div>’;
       return;
     }
-    list.innerHTML = '';
+    list.innerHTML = ‘’;
     snapshot.forEach(doc => {
       const data = doc.data();
-      const date = data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString('en-GB') : '';
-      const scriptPreview = (data.script || '').replace(/'/g, '’').replace(/\n/g, ' ').slice(0, 80);
-      const safeUrl = (data.videoUrl || '').replace(/'/g, '%27');
-      const safeScript = (data.script || '').replace(/'/g, '’').replace(/\n/g, ' ').replace(/`/g, '');
-      const card = document.createElement('div');
-      card.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;';
-      card.onmouseover = function() { this.style.borderColor = '#b57bff'; };
-      card.onmouseout = function() { this.style.borderColor = '#1a2a3a'; };
+      const date = data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString(‘en-GB’) : ‘’;
+      const scriptPreview = (data.script || ‘’).replace(/’/g, ‘’’).replace(/\n/g, ‘ ‘).slice(0, 80);
+      const safeUrl = (data.videoUrl || ‘’).replace(/’/g, ‘%27’);
+      const safeScript = (data.script || ‘’).replace(/’/g, ‘’’).replace(/\n/g, ‘ ‘).replace(/`/g, ‘’);
+      const card = document.createElement(‘div’);
+      card.style.cssText = ‘background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;’;
+      card.onmouseover = function() { this.style.borderColor = ‘rgba(74,158,255,0.4)’; };
+      card.onmouseout = function() { this.style.borderColor = ‘#1a2a3a’; };
       card.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <div style="font-family:'Orbitron',sans-serif;font-size:12px;color:#b57bff;">🎬 ${data.route || 'Video Briefing'}</div>
-          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;">${date}</div>
+          <div style="font-family:’Share Tech Mono’,monospace;font-size:12px;color:#cdd9e5;">${data.route || ‘Video Briefing’}</div>
+          <div style="font-family:’Share Tech Mono’,monospace;font-size:10px;color:#4a5f72;">${date}</div>
         </div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;line-height:1.4;margin-bottom:8px;">${scriptPreview}${scriptPreview.length >= 80 ? '...' : ''}</div>
-        <button onclick="playArchivedVideo('${safeUrl}', \`${safeScript}\`)"
-          style="background:#b57bff;border:none;color:#fff;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;padding:4px 12px;border-radius:4px;cursor:pointer;letter-spacing:1px;">
-          ▶ PLAY
+        <div style="font-family:’Rajdhani’,sans-serif;font-size:12px;color:#4a5f72;line-height:1.4;margin-bottom:8px;">${scriptPreview}${scriptPreview.length >= 80 ? ‘...’ : ‘’}</div>
+        <button onclick="playArchivedVideo(‘${safeUrl}’, \`${safeScript}\`)"
+          style="display:flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:’Rajdhani’,sans-serif;font-size:11px;font-weight:500;letter-spacing:2px;padding:5px 12px;border-radius:4px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color=’#c8daf0’;this.style.borderColor=’rgba(74,158,255,0.6)’" onmouseout="this.style.color=’#8a9bb0’;this.style.borderColor=’rgba(74,158,255,0.3)’">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4v16l13-8z"/></svg>
+          PLAY
         </button>
       `;
       list.appendChild(card);
     });
   } catch(e) {
-    list.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;padding:20px;">Error loading videos: ' + e.message + '</div>';
+    list.innerHTML = ‘<div style="color:#e63946;font-family:\’Rajdhani\’,sans-serif;font-size:13px;padding:20px;">Error loading videos: ‘ + e.message + ‘</div>’;
   }
 }
 
