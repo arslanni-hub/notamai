@@ -5861,84 +5861,127 @@ document.addEventListener('mouseout', function(e) {
   </div>
 </div>
 
-<div id="profileModal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(6,10,15,0.7);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
-  <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:12px;padding:32px;width:480px;max-width:90vw;position:relative;max-height:90vh;overflow-y:auto;">
-    <button onclick="closeProfileModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;color:#4a5f72;font-size:18px;cursor:pointer;">✕</button>
-    <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#fff;letter-spacing:2px;margin-bottom:24px;">PROFILE</div>
-    <!-- Avatar + User Info -->
-    <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
-      <div id="profileAvatar" style="width:56px;height:56px;border-radius:50%;background:#4a9eff;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:20px;font-weight:700;color:#060a0f;flex-shrink:0;"></div>
-      <div>
-        <div id="profileName" style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:#cdd9e5;"></div>
-        <div id="profileEmail" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-top:2px;"></div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-          <div id="profilePlan" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a9eff;letter-spacing:2px;background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.2);padding:2px 8px;border-radius:3px;"></div>
-          <div id="profileMemberSince" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;"></div>
+<div id="profileModal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(6,10,15,0.75);backdrop-filter:blur(10px);align-items:center;justify-content:center;" onclick="if(event.target===this)closeProfileModal()">
+  <div style="background:#0a0f18;border:1px solid #1a2a3a;border-radius:14px;width:720px;max-width:95vw;height:560px;max-height:90vh;display:flex;overflow:hidden;position:relative;">
+
+    <!-- Left sidebar -->
+    <div style="width:180px;flex-shrink:0;border-right:1px solid #1a2a3a;padding:24px 0;display:flex;flex-direction:column;">
+      <div style="padding:0 20px 20px;border-bottom:1px solid #1a2a3a;margin-bottom:8px;">
+        <div id="pmAvatar" style="width:44px;height:44px;border-radius:50%;background:#4a9eff;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#060a0f;margin-bottom:10px;"></div>
+        <div id="pmName" style="font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+        <div id="pmPlanBadge" style="display:inline-block;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;padding:2px 7px;border-radius:3px;margin-top:4px;"></div>
+      </div>
+      <div id="pmTabs" style="padding:8px 12px;flex:1;">
+        <div class="pm-tab active" onclick="pmSwitchTab('profile')" data-tab="profile">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a8 8 0 0 1 16 0v1"/></svg>
+          Profile
         </div>
+        <div class="pm-tab" onclick="pmSwitchTab('usage')" data-tab="usage">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8l4-16l3 8h4"/></svg>
+          Usage
+        </div>
+        <div class="pm-tab" onclick="pmSwitchTab('billing')" data-tab="billing">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+          Billing
+        </div>
+        <div class="pm-tab" onclick="pmSwitchTab('archive')" data-tab="archive">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18v4H3z"/><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>
+          Archive
+        </div>
+        <div class="pm-tab" onclick="pmSwitchTab('danger')" data-tab="danger">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87L13.637 3.59a1.914 1.914 0 0 0-3.274 0z"/><path d="M12 16v.01"/></svg>
+          Danger
+        </div>
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid #1a2a3a;">
+        <div id="pmEmail" style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;word-break:break-all;"></div>
       </div>
     </div>
-    <!-- Editable Fields -->
-    <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">PROFILE SETTINGS</div>
-      <div style="margin-bottom:12px;">
-        <label style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;letter-spacing:1px;display:block;margin-bottom:4px;">DISPLAY NAME</label>
-        <input id="profileDisplayName" type="text" placeholder="e.g. Cpt. İsmail Arslan" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:10px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box;">
-      </div>
-      <div style="margin-bottom:12px;">
-        <label style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;letter-spacing:1px;display:block;margin-bottom:4px;">ROLE</label>
-        <select id="profileRole" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:10px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box;cursor:pointer;">
-          <option value="">Select your role</option>
-          <option value="captain">Captain</option>
-          <option value="first_officer">First Officer</option>
-          <option value="dispatcher">Flight Dispatcher</option>
-          <option value="atco">Air Traffic Controller</option>
-          <option value="aim">AIM Specialist</option>
-          <option value="student">Student Pilot</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-      <div style="margin-bottom:16px;">
-        <label style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;letter-spacing:1px;display:block;margin-bottom:4px;">AIRLINE / ORGANIZATION</label>
-        <input id="profileOrg" type="text" placeholder="e.g. Turkish Airlines" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:10px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box;">
-      </div>
-      <button onclick="saveProfile()" style="width:100%;padding:10px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">SAVE CHANGES</button>
-    </div>
-    <!-- Subscription -->
-    <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">SUBSCRIPTION</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;background:#060a0f;border:1px solid #1a2a3a;padding:14px 16px;border-radius:6px;">
-        <div>
-          <div id="profilePlanLabel" style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#cdd9e5;"></div>
-          <div id="profilePlanDesc" style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;margin-top:2px;"></div>
+
+    <!-- Right content -->
+    <div style="flex:1;overflow-y:auto;position:relative;">
+      <button onclick="closeProfileModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#4a5f72;cursor:pointer;font-size:18px;line-height:1;padding:4px;z-index:1;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">✕</button>
+
+      <!-- PROFILE TAB -->
+      <div id="pmTab-profile" class="pm-content" style="padding:28px 28px 24px;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:20px;">PROFILE SETTINGS</div>
+        <div style="margin-bottom:14px;">
+          <label style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#8a9bb0;letter-spacing:1px;display:block;margin-bottom:5px;">DISPLAY NAME</label>
+          <input id="profileDisplayName" type="text" placeholder="e.g. Cpt. İsmail Arslan" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:10px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='rgba(74,158,255,0.4)'" onblur="this.style.borderColor='#1a2a3a'">
         </div>
-        <button onclick="closeProfileModal();window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:6px;background:rgba(181,123,255,0.12);border:1px solid rgba(181,123,255,0.3);color:#b57bff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:8px 16px;border-radius:6px;cursor:pointer;">
-          <span style="font-size:12px;filter:hue-rotate(200deg) saturate(2);">✨</span>
-          Upgrade
-        </button>
+        <div style="margin-bottom:14px;">
+          <label style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#8a9bb0;letter-spacing:1px;display:block;margin-bottom:5px;">ROLE</label>
+          <select id="profileRole" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:10px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box;cursor:pointer;">
+            <option value="">Select your role</option>
+            <option value="captain">Captain</option>
+            <option value="fo">First Officer</option>
+            <option value="dispatcher">Flight Dispatcher</option>
+            <option value="atc">Air Traffic Controller</option>
+            <option value="aim">AIM Specialist</option>
+            <option value="student">Student Pilot</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div style="margin-bottom:20px;">
+          <label style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#8a9bb0;letter-spacing:1px;display:block;margin-bottom:5px;">AIRLINE / ORGANIZATION</label>
+          <input id="profileOrg" type="text" placeholder="e.g. Turkish Airlines" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:10px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='rgba(74,158,255,0.4)'" onblur="this.style.borderColor='#1a2a3a'">
+        </div>
+        <button onclick="saveProfile()" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">SAVE CHANGES</button>
       </div>
-    </div>
-    <!-- Stats -->
-    <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">ACTIVITY</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-        <div style="background:#060a0f;border:1px solid #1a2a3a;padding:12px;border-radius:6px;text-align:center;">
-          <div id="statTotal" style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:700;color:#4a9eff;">0</div>
-          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-top:4px;">TOTAL BRIEFINGS</div>
-        </div>
-        <div style="background:#060a0f;border:1px solid #1a2a3a;padding:12px;border-radius:6px;text-align:center;">
-          <div id="statThisMonth" style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:700;color:#2ec4b6;">0</div>
-          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-top:4px;">THIS MONTH</div>
-        </div>
-        <div style="background:#060a0f;border:1px solid #1a2a3a;padding:12px;border-radius:6px;text-align:center;">
-          <div id="statDays" style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:700;color:#f2c641;">0</div>
-          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-top:4px;">DAYS MEMBER</div>
+
+      <!-- USAGE TAB -->
+      <div id="pmTab-usage" class="pm-content" style="padding:28px 28px 24px;display:none;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:20px;">USAGE</div>
+        <div id="pmUsageContent">
+          <div style="color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:13px;">Loading usage data...</div>
         </div>
       </div>
-    </div>
-    <!-- Danger Zone -->
-    <div>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">DANGER ZONE</div>
-      <button onclick="deleteAccount()" style="width:100%;padding:10px;background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.3);color:#e63946;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">DELETE ACCOUNT</button>
+
+      <!-- BILLING TAB -->
+      <div id="pmTab-billing" class="pm-content" style="padding:28px 28px 24px;display:none;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:20px;">BILLING</div>
+        <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:8px;padding:18px 20px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div id="pmBillingPlan" style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#cdd9e5;"></div>
+            <div id="pmBillingPrice" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;"></div>
+          </div>
+          <div id="pmBillingDesc" style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button onclick="closeProfileModal();window.location.href='/pricing-upgrade'" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg>
+            UPGRADE PLAN
+          </button>
+          <button onclick="window.open('https://app.lemonsqueezy.com/my-orders','_blank')" style="width:100%;padding:10px;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.color='#4a5f72';this.style.borderColor='#1a2a3a'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l6-6"/><path d="M15 14v-6h-6"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+            MANAGE SUBSCRIPTION
+          </button>
+        </div>
+      </div>
+
+      <!-- ARCHIVE TAB -->
+      <div id="pmTab-archive" class="pm-content" style="padding:28px 28px 24px;display:none;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:20px;">ARCHIVE</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;" id="pmArchiveTabs">
+          <button onclick="switchArchiveTab('briefings')" id="pmATab-briefings" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;border-radius:4px;cursor:pointer;background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.3);color:#4a9eff;">BRIEFINGS</button>
+          <button onclick="switchArchiveTab('videos')" id="pmATab-videos" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;">VIDEOS</button>
+          <button onclick="switchArchiveTab('chats')" id="pmATab-chats" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;">CHATS</button>
+        </div>
+        <div id="pmArchiveContent" style="max-height:340px;overflow-y:auto;">
+          <div style="color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:13px;">Loading archive...</div>
+        </div>
+      </div>
+
+      <!-- DANGER TAB -->
+      <div id="pmTab-danger" class="pm-content" style="padding:28px 28px 24px;display:none;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:20px;">DANGER ZONE</div>
+        <div style="background:rgba(230,57,70,0.05);border:1px solid rgba(230,57,70,0.2);border-radius:8px;padding:18px 20px;">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:#e63946;margin-bottom:6px;">Delete Account</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;line-height:1.5;">This will permanently delete your account, all briefings, and cancel any active subscription. This action cannot be undone.</div>
+          <button onclick="deleteAccount()" style="padding:9px 20px;background:transparent;border:1px solid rgba(230,57,70,0.4);color:#e63946;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(230,57,70,0.1)'" onmouseout="this.style.background='transparent'">DELETE ACCOUNT</button>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
