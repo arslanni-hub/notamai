@@ -1460,12 +1460,12 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
         <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">SHARED BRIEFING</span>
       </div>
     </div>
-    <a id="getAccessBtn" href="https://notamai.onrender.com/?signup=true" style="display:flex;align-items:center;gap:6px;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.2);color:#ffffff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;text-decoration:none;">
-      <span style="font-size:12px;">✨</span>
-      GET FULL ACCESS
+    <a id="getAccessBtn" href="https://notamai.onrender.com/?signup=true" style="display:flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;text-decoration:none;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg>
+      GET STARTED FREE
     </a>
   </div>
-  <div id="getAccessTooltip" style="display:none;position:fixed;background:#1a1a1a;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:12px;font-weight:400;padding:6px 10px;border-radius:4px;border:1px solid #333;box-shadow:0 2px 6px rgba(0,0,0,0.3);white-space:normal;line-height:1.5;pointer-events:none;z-index:9999;max-width:280px;">Create a free account to generate your own AI-powered pre-flight briefings</div>
+  <div id="getAccessTooltip" style="display:none;position:fixed;background:#0a0f18;color:#cdd9e5;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:400;padding:10px 14px;border-radius:8px;border:1px solid #1a2a3a;box-shadow:0 4px 20px rgba(0,0,0,0.5);white-space:normal;line-height:1.5;pointer-events:none;z-index:9999;max-width:280px;">Create a free account to generate your own AI-powered pre-flight briefings.</div>
   <div id="briefingBody" style="padding-top:32px;"></div>
 </div>
 <script>
