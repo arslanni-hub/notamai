@@ -8489,7 +8489,7 @@ document.addEventListener('click', function(e) {
       <!-- Input row -->
       <div style="display:flex;gap:8px;margin-bottom:10px;">
         <input id="airportIcaoInput" type="text" placeholder="ICAO code (e.g. KJFK)" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fetchAirportOrFir()">
-        <button onclick="fetchAirportOrFir()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
+        <button onclick="fetchAirportOrFir()" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">FETCH</button>
       </div>
       <!-- Name/city search -->
       <div style="margin-bottom:12px;">
@@ -8506,7 +8506,7 @@ document.addEventListener('click', function(e) {
       <div style="display:flex;gap:8px;margin-bottom:12px;">
         <input id="sunIcaoInput" type="text" placeholder="ICAO code" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
         <input id="sunDateInput" type="date" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:12px;outline:none;">
-        <button onclick="fetchSunMoon()" style="background:#f2c641;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">GO</button>
+        <button onclick="fetchSunMoon()" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">GO</button>
       </div>
       <div id="sunMoonResult" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;text-align:center;padding:20px 0;">Enter ICAO code and date</div>
     </div>
@@ -8515,7 +8515,7 @@ document.addEventListener('click', function(e) {
     <div id="toolTab-winds" style="display:none;">
       <div style="display:flex;gap:8px;margin-bottom:16px;">
         <input id="windsIcaoInput" type="text" placeholder="ICAO code" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fetchWindsAloft()">
-        <button onclick="fetchWindsAloft()" style="background:#2ec4b6;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
+        <button onclick="fetchWindsAloft()" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">FETCH</button>
       </div>
       <div id="windsAloftResult" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;text-align:center;padding:20px 0;">Enter an ICAO code to get winds aloft data</div>
     </div>
@@ -8527,7 +8527,7 @@ document.addEventListener('click', function(e) {
           style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;"
           oninput="this.value=this.value.toUpperCase()"
           onkeydown="if(event.key==='Enter')fetchCharts()">
-        <button onclick="fetchCharts()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
+        <button onclick="fetchCharts()" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">FETCH</button>
       </div>
       <div id="chartsCategoryBtns" style="display:none;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
         <button onclick="filterCharts('ALL',event)" class="chart-cat-btn active" style="padding:4px 10px;background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.3);color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;border-radius:3px;cursor:pointer;">ALL</button>
@@ -8552,7 +8552,7 @@ document.addEventListener('click', function(e) {
           style="width:100%;box-sizing:border-box;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;margin-bottom:12px;"
           oninput="this.value=this.value.toUpperCase()"
           onkeydown="if(event.key==='Enter')fetchDistance()">
-        <button onclick="fetchDistance()" style="width:100%;background:#b57bff;border:none;color:#060a0f;padding:10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">CALCULATE</button>
+        <button onclick="fetchDistance()" style="width:100%;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">CALCULATE</button>
       </div>
       <div id="distanceResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter departure and arrival ICAO codes</div>
     </div>
@@ -8564,7 +8564,7 @@ document.addEventListener('click', function(e) {
           style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;box-sizing:border-box;"
           oninput="this.value=this.value.toUpperCase()"
           onkeydown="if(event.key==='Enter')fetchNavaids()">
-        <button onclick="fetchNavaids()" style="background:#a3e635;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">FETCH</button>
+        <button onclick="fetchNavaids()" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">FETCH</button>
       </div>
       <div id="navaidsResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter an ICAO code to find navigation aids</div>
     </div>
@@ -8581,7 +8581,7 @@ document.addEventListener('click', function(e) {
           style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;margin-bottom:12px;box-sizing:border-box;"
           oninput="this.value=this.value.toUpperCase()"
           onkeydown="if(event.key==='Enter')fetchFlightTime()">
-        <button onclick="fetchFlightTime()" style="width:100%;background:#f4841a;border:none;color:#060a0f;padding:10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">ESTIMATE</button>
+        <button onclick="fetchFlightTime()" style="width:100%;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:10px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">ESTIMATE</button>
       </div>
       <div id="flighttimeResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter departure and arrival to estimate flight time</div>
     </div>
@@ -8593,7 +8593,7 @@ document.addEventListener('click', function(e) {
           style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;box-sizing:border-box;"
           oninput="this.value=this.value.toUpperCase()"
           onkeydown="if(event.key==='Enter')fetchFlightStatus()">
-        <button onclick="fetchFlightStatus()" style="background:#4a9eff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">TRACK</button>
+        <button onclick="fetchFlightStatus()" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">TRACK</button>
       </div>
       <div id="flightStatusResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter a flight number to track status</div>
     </div>
@@ -8605,7 +8605,7 @@ document.addEventListener('click', function(e) {
           style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;box-sizing:border-box;"
           oninput="this.value=this.value.toUpperCase()"
           onkeydown="if(event.key==='Enter')fetchAircraft()">
-        <button onclick="fetchAircraft()" style="background:#b57bff;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">LOOKUP</button>
+        <button onclick="fetchAircraft()" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">LOOKUP</button>
       </div>
       <div id="aircraftResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter a tail number to look up aircraft</div>
     </div>
@@ -8617,7 +8617,7 @@ document.addEventListener('click', function(e) {
           style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;box-sizing:border-box;"
           oninput="this.value=this.value.toUpperCase()"
           onkeydown="if(event.key==='Enter')fetchAircraftPerf()">
-        <button onclick="fetchAircraftPerf()" style="background:#2ec4b6;border:none;color:#060a0f;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">LOOKUP</button>
+        <button onclick="fetchAircraftPerf()" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">LOOKUP</button>
       </div>
       <div id="acPerfResult" style="color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;padding:20px;">Enter aircraft ICAO type to see performance specs</div>
     </div>
