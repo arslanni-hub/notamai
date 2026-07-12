@@ -7921,9 +7921,9 @@ async function loadSettingsData() {
     const d = await res.json();
     const plan = d.plan || 'free';
     const planColors = { free: '#4a5f72', pro: '#4a9eff', premium: '#b57bff', admin: '#f2c641' };
-    const planLabels = { free: 'FREE', pro: 'PRO', premium: 'PREMIUM', admin: 'ADMIN' };
+    const planLabels = { free: 'Free Plan', pro: 'Pro Plan', premium: 'Premium Plan', admin: 'Admin' };
     const planEl = document.getElementById('settingsPlan');
-    if (planEl) { planEl.textContent = planLabels[plan] || plan.toUpperCase(); planEl.style.color = planColors[plan] || '#cdd9e5'; }
+    if (planEl) { planEl.textContent = planLabels[plan] || plan; planEl.style.color = planColors[plan] || '#cdd9e5'; }
     const upgradeBtn = document.getElementById('settingsUpgradeBtn');
     const manageBtn = document.getElementById('settingsManageBtn');
     if (upgradeBtn && manageBtn) {
@@ -7931,27 +7931,29 @@ async function loadSettingsData() {
       else if (plan === 'free') { upgradeBtn.style.display = 'flex'; manageBtn.style.display = 'none'; }
       else { upgradeBtn.style.display = 'flex'; manageBtn.style.display = 'flex'; }
     }
-    const uc = document.getElementById('settingsUsageContent');
-    if (uc) {
-      const barColor = (used, limit) => { const p = used/limit; return p >= 0.9 ? '#e63946' : p >= 0.7 ? '#f2c641' : '#4a9eff'; };
-      const row = (label, used, limit, resetStr) => {
-        const pct = limit > 0 ? Math.min((used/limit)*100,100) : 0;
-        const bc = barColor(used, limit);
-        const limitStr = limit >= 999 ? '∞' : limit;
-        return `<div style="margin-bottom:12px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;">${label}</div><div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:${bc};">${used} / ${limitStr}</div></div><div style="height:3px;background:#1a2a3a;border-radius:2px;overflow:hidden;"><div style="height:100%;background:${bc};border-radius:2px;width:${pct}%;transition:width 0.5s;"></div></div>${resetStr ? `<div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;margin-top:3px;">${resetStr}</div>` : ''}</div>`;
-      };
-      const daysLeft = new Date(new Date().getFullYear(), new Date().getMonth()+1, 1) - new Date();
-      const resetStr = 'Resets in ' + Math.ceil(daysLeft/86400000) + ' days';
-      let html = row('AI Briefings', d.briefings?.used||0, d.briefings?.limit||3, resetStr);
-      html += row('AI Analysis', d.analysis?.used||0, d.analysis?.limit||0, resetStr);
-      html += row('Expert Chat (tokens)', d.chat?.tokens||0, d.chat?.limit||0, d.chat?.resetInMinutes != null ? 'Resets in ' + (d.chat.resetInMinutes < 60 ? d.chat.resetInMinutes + ' min' : Math.round(d.chat.resetInMinutes/60) + 'h') : '');
-      if (plan === 'premium' || plan === 'admin') html += row('Video Briefings', d.video?.used||0, d.video?.limit||5, resetStr);
-      uc.innerHTML = html;
+    const pct = (u, l) => l > 0 ? Math.min(100, Math.round(u / l * 100)) : 0;
+    const barColor = (p) => p >= 90 ? '#e63946' : p >= 70 ? '#f2c641' : '#4a9eff';
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const daysLeft = Math.ceil((nextMonth - now) / (1000 * 60 * 60 * 24));
+    const resetStr = 'resets in ' + daysLeft + ' day' + (daysLeft !== 1 ? 's' : '');
+    const resetH = Math.floor(d.chat.resetInMinutes / 60);
+    const resetM = d.chat.resetInMinutes % 60;
+    const chatReset = d.chat.resetInMinutes > 0 ? 'resets in ' + resetH + 'h ' + resetM + 'm' : 'window reset';
+    const row = (label, sub, used, limit) => {
+      const p = pct(used, limit); const c = barColor(p);
+      return '<div style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">' + label + '</span><span style="font-family:Share Tech Mono,monospace;font-size:10px;color:' + c + ';">' + p + '%</span></div><div style="height:3px;background:#1a2a3a;border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + p + '%;background:' + c + ';border-radius:2px;"></div></div><div style="font-family:Share Tech Mono,monospace;font-size:9px;color:#4a5f72;margin-top:3px;">' + sub + '</div></div>';
+    };
+    const usageEl = document.getElementById('settingsUsageContent');
+    if (usageEl) {
+      let html = row('AI Briefings', resetStr, d.briefings.used, d.briefings.limit);
+      html += row('AI Analysis', resetStr, d.analysis.used, d.analysis.limit);
+      const cp = pct(d.chat.tokens, d.chat.limit); const cc = barColor(cp);
+      html += '<div style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">NOTAM Intelligence Chat</span><span style="font-family:Share Tech Mono,monospace;font-size:10px;color:' + cc + ';">' + cp + '%</span></div><div style="height:3px;background:#1a2a3a;border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + cp + '%;background:' + cc + ';border-radius:2px;"></div></div><div style="font-family:Share Tech Mono,monospace;font-size:9px;color:#4a5f72;margin-top:3px;">current session \xb7 ' + chatReset + '</div></div>';
+      if (plan === 'premium' || plan === 'admin') html += row('AI Video Briefings', resetStr, d.video.used, d.video.limit);
+      usageEl.innerHTML = html;
     }
-  } catch(e) {
-    const uc = document.getElementById('settingsUsageContent');
-    if (uc) uc.innerHTML = '<div style="font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">Could not load usage.</div>';
-  }
+  } catch(e) {}
 }
 
 function updateToggle(key, value) {
