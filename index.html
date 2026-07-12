@@ -6232,11 +6232,11 @@ document.addEventListener('mouseout', function(e) {
         <div style="display:flex;flex-direction:column;gap:10px;">
           <button id="pmUpgradeBtn" onclick="closeProfileModal();window.location.href='/pricing-upgrade'" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg>
-            UPGRADE PLAN
+            Upgrade Plan
           </button>
           <button id="pmManageBtn" onclick="window.open('https://app.lemonsqueezy.com/my-orders','_blank')" style="display:none;width:100%;padding:10px;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.color='#4a5f72';this.style.borderColor='#1a2a3a'">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l6-6"/><path d="M15 14v-6h-6"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-            MANAGE SUBSCRIPTION
+            Manage Subscription
           </button>
           <div id="pmAdminNote" style="display:none;font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;text-align:center;padding:8px;background:rgba(242,198,65,0.06);border:1px solid rgba(242,198,65,0.15);border-radius:6px;letter-spacing:1px;">ADMIN ACCOUNT — FULL ACCESS</div>
         </div>
@@ -7910,26 +7910,48 @@ async function loadSettingsData() {
   const user = firebase.auth().currentUser;
   if (!user) return;
   document.getElementById('settingsEmail').textContent = user.email;
-  const plan = window.currentUserPlan || 'free';
-  document.getElementById('settingsPlan').textContent = plan.toUpperCase() + ' PLAN';
   const refCode = 'NI-' + user.uid.substring(0,6).toUpperCase();
   document.getElementById('settingsRefCode').textContent = refCode;
-  const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  try {
-    const snapshot = await db.collection('briefings').where('userId','==',user.uid).get();
-    const thisMonth = snapshot.docs.filter(d => {
-      const t = d.data().createdAt?.toDate();
-      return t && t >= firstOfMonth;
-    }).length;
-    document.getElementById('settingsUsage').textContent = thisMonth;
-    const limit = plan === 'free' ? 1 : 999;
-    const pct = Math.min((thisMonth / limit) * 100, 100);
-    document.getElementById('settingsUsageBar').style.width = pct + '%';
-  } catch(e) {}
   const settings = JSON.parse(localStorage.getItem('notamai_settings') || '{}');
   updateToggle('emailAlerts', settings.emailAlerts || false);
   updateToggle('weeklySummary', settings.weeklySummary || false);
+  try {
+    const token = await user.getIdToken();
+    const res = await fetch('/api/usage', { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await res.json();
+    const plan = d.plan || 'free';
+    const planColors = { free: '#4a5f72', pro: '#4a9eff', premium: '#b57bff', admin: '#f2c641' };
+    const planLabels = { free: 'FREE', pro: 'PRO', premium: 'PREMIUM', admin: 'ADMIN' };
+    const planEl = document.getElementById('settingsPlan');
+    if (planEl) { planEl.textContent = planLabels[plan] || plan.toUpperCase(); planEl.style.color = planColors[plan] || '#cdd9e5'; }
+    const upgradeBtn = document.getElementById('settingsUpgradeBtn');
+    const manageBtn = document.getElementById('settingsManageBtn');
+    if (upgradeBtn && manageBtn) {
+      if (plan === 'admin') { upgradeBtn.style.display = 'none'; manageBtn.style.display = 'none'; }
+      else if (plan === 'free') { upgradeBtn.style.display = 'flex'; manageBtn.style.display = 'none'; }
+      else { upgradeBtn.style.display = 'flex'; manageBtn.style.display = 'flex'; }
+    }
+    const uc = document.getElementById('settingsUsageContent');
+    if (uc) {
+      const barColor = (used, limit) => { const p = used/limit; return p >= 0.9 ? '#e63946' : p >= 0.7 ? '#f2c641' : '#4a9eff'; };
+      const row = (label, used, limit, resetStr) => {
+        const pct = limit > 0 ? Math.min((used/limit)*100,100) : 0;
+        const bc = barColor(used, limit);
+        const limitStr = limit >= 999 ? '∞' : limit;
+        return `<div style="margin-bottom:12px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;">${label}</div><div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:${bc};">${used} / ${limitStr}</div></div><div style="height:3px;background:#1a2a3a;border-radius:2px;overflow:hidden;"><div style="height:100%;background:${bc};border-radius:2px;width:${pct}%;transition:width 0.5s;"></div></div>${resetStr ? `<div style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#4a5f72;margin-top:3px;">${resetStr}</div>` : ''}</div>`;
+      };
+      const daysLeft = new Date(new Date().getFullYear(), new Date().getMonth()+1, 1) - new Date();
+      const resetStr = 'Resets in ' + Math.ceil(daysLeft/86400000) + ' days';
+      let html = row('AI Briefings', d.briefings?.used||0, d.briefings?.limit||3, resetStr);
+      html += row('AI Analysis', d.analysis?.used||0, d.analysis?.limit||0, resetStr);
+      html += row('Expert Chat (tokens)', d.chat?.tokens||0, d.chat?.limit||0, d.chat?.resetInMinutes != null ? 'Resets in ' + (d.chat.resetInMinutes < 60 ? d.chat.resetInMinutes + ' min' : Math.round(d.chat.resetInMinutes/60) + 'h') : '');
+      if (plan === 'premium' || plan === 'admin') html += row('Video Briefings', d.video?.used||0, d.video?.limit||5, resetStr);
+      uc.innerHTML = html;
+    }
+  } catch(e) {
+    const uc = document.getElementById('settingsUsageContent');
+    if (uc) uc.innerHTML = '<div style="font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">Could not load usage.</div>';
+  }
 }
 
 function updateToggle(key, value) {
