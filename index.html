@@ -3492,8 +3492,8 @@ function showUpgradeBanner(contentAreaId, message) {
   const banner = document.createElement('div');
   banner.className = 'upgrade-banner';
   banner.style.cssText = 'background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:10px 12px;margin:8px 0;font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;';
-  const formattedMessage = message.replace('Pro or Premium plan', '<span style="color:#b57bff;font-weight:700;">Pro or Premium plan</span>');
-  banner.innerHTML = `<div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="window.location.href='/pricing-upgrade'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b57bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span>${formattedMessage}</span></div>`;
+  const formattedMessage = message.replace('Pro or Premium plan', '<span style="color:#4a9eff;font-weight:600;">Pro or Premium plan</span>');
+  banner.innerHTML = `<div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="window.location.href='/pricing-upgrade'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span>${formattedMessage}</span></div>`;
   area.insertBefore(banner, area.firstChild);
   setTimeout(() => banner.remove(), 6000);
 }
