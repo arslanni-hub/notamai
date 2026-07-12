@@ -3311,8 +3311,9 @@ MANDATORY:
             res.end(JSON.stringify({ error: 'upgrade_required', feature: 'analysis' }));
             return;
           }
+          const effectivePlan = plan === 'admin' ? 'premium' : plan;
           const usage = await getUserUsage(userId, 'analysis');
-          const limit = PLAN_LIMITS[plan]?.analysis || 0;
+          const limit = PLAN_LIMITS[effectivePlan]?.analysis || 0;
           if (usage >= limit) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'limit_reached', plan, feature: 'analysis' }));
@@ -3407,8 +3408,9 @@ MANDATORY:
             res.end(JSON.stringify({ error: 'upgrade_required', feature: 'chat' }));
             return;
           }
+          const effectivePlan = plan === 'admin' ? 'premium' : plan;
           const usage = await getUserUsage(userId, 'chat');
-          const limit = PLAN_LIMITS[plan]?.chat || 0;
+          const limit = PLAN_LIMITS[effectivePlan]?.chat || 0;
           if (usage >= limit) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'limit_reached', plan, feature: 'chat' }));
