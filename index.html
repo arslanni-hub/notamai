@@ -902,22 +902,24 @@ canvas#sky {
 #authModalBg.open { display: flex; }
 #authModal {
   display: flex;
-  width: 90%;
+  width: 92%;
   max-width: 800px;
-  height: 500px;
-  border-radius: 12px;
+  height: 520px;
+  border-radius: 14px;
   overflow: hidden;
   position: relative;
+  border: 1px solid #1a2a3a;
 }
 /* Left panel */
 .auth-left {
   width: 50%;
-  background: #ffffff;
-  padding: 40px;
+  background: #0a0f18;
+  padding: 36px 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;
+  border-right: 1px solid #1a2a3a;
 }
 .auth-left-logo {
   font-family: 'Orbitron', sans-serif;
@@ -927,7 +929,7 @@ canvas#sky {
   text-align: center;
   margin-bottom: 4px;
 }
-.auth-left-logo .al1 { color: #1a1a2e; }
+.auth-left-logo .al1 { color: #ffffff; }
 .auth-left-logo .al2 { color: #4a9eff; }
 .auth-left-badge {
   display: inline-block;
@@ -952,19 +954,18 @@ canvas#sky {
   gap: 0;
 }
 .auth-left-subtitle {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 11px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
   letter-spacing: 2px;
-  text-transform: uppercase;
-  color: #aaa;
+  color: #4a5f72;
   text-align: center;
-  margin-bottom: 0;
+  margin-bottom: 8px;
 }
 .auth-left-heading {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 20px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 22px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: #cdd9e5;
   text-align: center;
   margin-bottom: 24px;
 }
@@ -975,20 +976,20 @@ canvas#sky {
   justify-content: center;
   width: 100%;
   height: 44px;
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: #060a0f;
+  border: 1px solid #1a2a3a;
   border-radius: 8px;
   padding: 0 16px;
   font-family: 'Rajdhani', sans-serif;
   font-size: 14px;
   font-weight: 500;
-  color: #333;
+  color: #8a9bb0;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: color 0.2s, border-color 0.2s;
   margin-bottom: 10px;
 }
 .auth-provider-btn:last-of-type { margin-bottom: 0; }
-.auth-provider-btn:hover { background: #f5f7fa; border-color: #bbb; }
+.auth-provider-btn:hover { color: #c8daf0; border-color: rgba(74,158,255,0.4); }
 .auth-provider-icon {
   position: absolute;
   left: 16px;
@@ -1005,24 +1006,25 @@ canvas#sky {
   margin-top: auto;
   padding-top: 20px;
   font-size: 11px;
-  color: #999;
+  color: #4a5f72;
   line-height: 1.6;
   text-align: center;
 }
-.auth-terms a { color: #4a9eff; text-decoration: underline; }
+.auth-terms a { color: #4a9eff; text-decoration: none; }
 .auth-close {
   position: absolute;
   top: 14px; right: 16px;
   background: none;
   border: none;
-  font-size: 18px;
-  color: #999;
+  color: #4a5f72;
   cursor: pointer;
   z-index: 10;
-  line-height: 1;
-  padding: 4px 6px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
 }
-.auth-close:hover { color: #333; }
+.auth-close:hover { color: #cdd9e5; }
 @keyframes authGradientFlow {
   0%   { background-position: 0% 0%; }
   50%  { background-position: 100% 100%; }
@@ -1675,7 +1677,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
 <!-- AUTH MODAL -->
 <div id="authModalBg" onclick="handleAuthBgClick(event)">
   <div id="authModal">
-    <button class="auth-close" onclick="closeAuthModal()">✕</button>
+    <button class="auth-close" onclick="closeAuthModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
 
     <!-- Left panel -->
     <div class="auth-left">
@@ -1703,9 +1705,9 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         </button>
 
         <div style="display:flex;align-items:center;gap:12px;margin:16px 0;width:100%;">
-          <div style="flex:1;height:1px;background:#e0e0e0;"></div>
-          <span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#999;white-space:nowrap;">or</span>
-          <div style="flex:1;height:1px;background:#e0e0e0;"></div>
+          <div style="flex:1;height:1px;background:#1a2a3a;"></div>
+          <span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;white-space:nowrap;">or</span>
+          <div style="flex:1;height:1px;background:#1a2a3a;"></div>
         </div>
 
         <input id="loginEmail" type="email" placeholder="Enter your email" style="width:100%;padding:12px 16px;border:1px solid #e0e0e0;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:14px;color:#333;background:#fff;outline:none;box-sizing:border-box;margin-bottom:12px;">
@@ -1739,7 +1741,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
 <!-- SIGNUP MODAL -->
 <div id="signupModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="handleSignupBgClick(event)">
   <div id="signupModalInner" style="display:flex;width:800px;max-width:90vw;height:500px;border-radius:12px;overflow:hidden;position:relative;">
-    <button class="auth-close" onclick="closeSignupModal()">✕</button>
+    <button class="auth-close" onclick="closeSignupModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
 
     <!-- Left panel -->
     <div class="auth-left">
@@ -1767,9 +1769,9 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         </button>
 
         <div style="display:flex;align-items:center;gap:12px;margin:16px 0;width:100%;">
-          <div style="flex:1;height:1px;background:#e0e0e0;"></div>
-          <span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#999;white-space:nowrap;">or</span>
-          <div style="flex:1;height:1px;background:#e0e0e0;"></div>
+          <div style="flex:1;height:1px;background:#1a2a3a;"></div>
+          <span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;white-space:nowrap;">or</span>
+          <div style="flex:1;height:1px;background:#1a2a3a;"></div>
         </div>
 
         <input id="signupEmail" type="email" placeholder="Enter your email" style="width:100%;height:44px;padding:0 16px;border:1px solid #e0e0e0;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:14px;color:#333;background:#fff;outline:none;box-sizing:border-box;margin-bottom:12px;display:block;">
