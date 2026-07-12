@@ -6366,21 +6366,20 @@ document.addEventListener('mouseout', function(e) {
             Upgrade
           </button>
         </div>
-        <div style="border-top:1px solid #1a2a3a;padding-top:10px;">
-          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;margin-bottom:6px;">THIS MONTH</div>
-          <div style="display:flex;align-items:center;justify-content:space-between;">
-            <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;">Briefings generated</div>
-            <div id="settingsUsage" style="font-family:'Share Tech Mono',monospace;font-size:13px;color:#4a9eff;">0</div>
-          </div>
-          <div style="margin-top:6px;height:4px;background:#1a2a3a;border-radius:2px;overflow:hidden;">
-            <div id="settingsUsageBar" style="height:100%;background:#4a9eff;border-radius:2px;width:0%;transition:width 0.5s;"></div>
-          </div>
+        <div style="border-top:1px solid #1a2a3a;padding-top:12px;">
+          <div id="settingsUsageContent"><div style="font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;">Loading usage...</div></div>
         </div>
       </div>
-      <button onclick="closeSettingsPanel();window.location.href='/pricing-upgrade'" style="width:100%;padding:10px 14px;background:transparent;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;letter-spacing:1px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-        Manage Subscription
-      </button>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button id="settingsUpgradeBtn" onclick="closeSettingsPanel();window.location.href='/pricing-upgrade'" style="width:100%;padding:10px 14px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z"/></svg>
+          UPGRADE PLAN
+        </button>
+        <button id="settingsManageBtn" onclick="window.open('https://app.lemonsqueezy.com/my-orders','_blank')" style="width:100%;padding:10px 14px;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.color='#4a5f72';this.style.borderColor='#1a2a3a'">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          MANAGE SUBSCRIPTION
+        </button>
+      </div>
     </div>
     <!-- NOTIFICATIONS -->
     <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
