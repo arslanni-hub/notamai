@@ -8010,34 +8010,64 @@ async function exportMyData() {
   btn.textContent = 'Preparing...';
   try {
     const snapshot = await db.collection('briefings').where('userId','==',user.uid).get();
-    const data = {
-      user: { email: user.email, uid: user.uid, createdAt: user.metadata.creationTime },
-      briefings: snapshot.docs.map(d => ({
+    const briefings = await Promise.all(snapshot.docs.map(async d => {
+      const data = d.data();
+      return {
         id: d.id,
-        route: d.data().route,
-        riskLevel: d.data().riskLevel,
-        createdAt: d.data().createdAt?.toDate()?.toISOString()
-      }))
+        route: data.route,
+        riskLevel: data.riskLevel,
+        createdAt: data.createdAt?.toDate()?.toISOString(),
+        html: data.html || null
+      };
+    }));
+    const chatSnap = await db.collection('general_chats').where('userId','==',user.uid).get();
+    const chats = chatSnap.docs.map(d => ({
+      id: d.id,
+      messages: d.data().messages || [],
+      createdAt: d.data().createdAt?.toDate()?.toISOString()
+    }));
+    const data = {
+      exportedAt: new Date().toISOString(),
+      user: { email: user.email, uid: user.uid, createdAt: user.metadata.creationTime },
+      briefings,
+      chats
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'notamai_data_' + new Date().toISOString().slice(0,10) + '.json';
+    a.download = 'notamai_export_' + new Date().toISOString().slice(0,10) + '.json';
     a.click();
     URL.revokeObjectURL(url);
     btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download My Data';
   } catch(e) {
-    btn.textContent = 'Error - try again';
+    btn.textContent = 'Error — try again';
   }
 }
 
-function clearHistory() {
-  if (!confirm('This will delete all your local briefing history. Continue?')) return;
-  localStorage.removeItem('notamai_recents');
-  localStorage.removeItem('notamai_starred');
-  renderSidebarHistory();
-  closeSettingsPanel();
+async function clearHistory() {
+  if (!confirm('This will permanently delete all your briefings, chats, saved routes and NOTAM alerts. This cannot be undone. Continue?')) return;
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  const btn = event.currentTarget;
+  btn.textContent = 'Deleting...';
+  try {
+    const collections = ['briefings', 'general_chats', 'saved_routes', 'notam_alerts', 'videos'];
+    for (const col of collections) {
+      const snap = await db.collection(col).where('userId','==',user.uid).get();
+      const batch = db.batch();
+      snap.docs.forEach(d => batch.delete(d.ref));
+      if (!snap.empty) await batch.commit();
+    }
+    localStorage.removeItem('notamai_recents');
+    localStorage.removeItem('notamai_starred');
+    renderSidebarHistory();
+    closeSettingsPanel();
+    showToast('All data cleared successfully.');
+  } catch(e) {
+    btn.textContent = 'Clear All History';
+    showToast('Error: ' + e.message);
+  }
 }
 
 let allArchiveBriefings = [];
