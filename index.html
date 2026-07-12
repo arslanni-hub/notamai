@@ -6905,7 +6905,7 @@ async function fetchRawData() {
 
         const mCorner = document.createElement('div');
         mCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
-        mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
+        mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(45deg) saturate(2) brightness(1.1);">✨</span>';
         const mTooltip = document.createElement('div');
         mTooltip.textContent = 'Analyze';
         mTooltip.style.cssText = "position:absolute;top:-28px;right:0;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;";
@@ -6935,7 +6935,7 @@ async function fetchRawData() {
           e.stopPropagation();
           if (metarAnalysisDiv.style.display === 'block') {
             metarAnalysisDiv.style.display = 'none';
-            mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
+            mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(45deg) saturate(2) brightness(1.1);">✨</span>';
             mTooltip.textContent = 'Analyze';
             el.style.borderColor = '#1a2a3a';
             mCorner.style.opacity = '0';
@@ -6959,7 +6959,7 @@ async function fetchRawData() {
             if (response.status === 403) {
               clearInterval(dotsInterval);
               metarAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#4a9eff;text-decoration:none;font-weight:600;">Pro</a> or <a href="/pricing-upgrade" style="color:#f4841a;text-decoration:none;font-weight:600;">Premium</a> plan.</span></div>';
-              mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
+              mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(45deg) saturate(2) brightness(1.1);">✨</span>';
               mCorner.appendChild(mTooltip);
               return;
             }
@@ -6970,15 +6970,15 @@ async function fetchRawData() {
               metarAnalysisDiv.style.display = 'none';
               el.style.borderColor = '#1a2a3a';
               mCorner.style.opacity = '0';
-              mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
+              mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(45deg) saturate(2) brightness(1.1);">✨</span>';
               mTooltip.textContent = 'Analyze';
             });
-            mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
+            mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(45deg) saturate(2) brightness(1.1);">✨</span>';
             mTooltip.textContent = 'Hide';
           } catch(e2) {
             clearInterval(dotsInterval);
             metarAnalysisDiv.innerHTML = '<div style="color:#e63946;font-family:\'Rajdhani\',sans-serif;font-size:13px;">Error analyzing. Please try again.</div>';
-            mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(140deg) saturate(2) brightness(1.2);">✨</span>';
+            mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(45deg) saturate(2) brightness(1.1);">✨</span>';
             mTooltip.textContent = 'Analyze';
           }
         };
