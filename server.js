@@ -3604,7 +3604,8 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         }
 
         const plan = await getUserPlan(userId);
-        const cfg = GENERAL_CHAT_LIMITS[plan] || GENERAL_CHAT_LIMITS.free;
+        const effectivePlanChat = plan === 'admin' ? 'premium' : plan;
+        const cfg = GENERAL_CHAT_LIMITS[effectivePlanChat] || GENERAL_CHAT_LIMITS.free;
         const { count, tokenTotal, searchTotal, oldestTimestamp } = await getGeneralChatWindowUsage(userId, cfg.windowMinutes);
         const resetInMinutes = minutesUntilWindowReset(oldestTimestamp, cfg.windowMinutes);
 
