@@ -2530,7 +2530,8 @@ let greetingName = 'Captain';
 function setGreeting() {
   const h = new Date().getHours();
   const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  document.getElementById('greeting').textContent = g + ', ' + greetingName;
+  const isLoggedIn = !!firebase.auth().currentUser;
+  document.getElementById('greeting').textContent = g + ', ' + greetingName + (isLoggedIn ? '' : '!');
 }
 
 /* ═══ INPUT ═══ */
