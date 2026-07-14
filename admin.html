@@ -8,35 +8,39 @@
 <style>
 * { margin:0;padding:0;box-sizing:border-box; }
 body { background:#060a0f;color:#cdd9e5;font-family:'Rajdhani',sans-serif;min-height:100vh; }
-.header { display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;border-bottom:1px solid #1a2a3a;background:#060a0f; }
+.header { display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;border-bottom:1px solid #1a2a3a;background:#0a0f18; }
 .logo { font-family:'Orbitron',sans-serif;font-size:12px;color:#ffffff;letter-spacing:3px; }
 .logo span { color:#4a9eff; }
-.admin-badge { font-family:'Share Tech Mono',monospace;font-size:10px;color:#f4841a;letter-spacing:2px;border:1px solid #f4841a;padding:2px 8px;border-radius:3px; }
-.tabs { display:flex;border-bottom:1px solid #1a2a3a;padding:0 24px;background:#060a0f; }
-.tab { padding:12px 20px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;cursor:pointer;text-transform:uppercase; }
+.admin-badge { font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;letter-spacing:2px;border:1px solid rgba(242,198,65,0.4);padding:2px 8px;border-radius:3px;background:rgba(242,198,65,0.08); }
+.tabs { display:flex;border-bottom:1px solid #1a2a3a;padding:0 24px;background:#0a0f18; }
+.tab { padding:12px 20px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;cursor:pointer;transition:color 0.2s; }
 .tab.active { color:#4a9eff;border-bottom-color:#4a9eff; }
+.tab:hover { color:#8a9bb0; }
 .content { padding:24px;max-width:1200px;margin:0 auto; }
 .stats-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px; }
-.stat-card { background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:20px; }
+.stat-card { background:#0a0f18;border:1px solid #1a2a3a;border-radius:8px;padding:20px;transition:border-color 0.2s; }
+.stat-card:hover { border-color:rgba(74,158,255,0.3); }
 .stat-label { font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px; }
-.stat-value { font-family:'Orbitron',sans-serif;font-size:24px;font-weight:700;color:#ffffff; }
-.stat-sub { font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;margin-top:4px; }
-.stat-up { color:#2ec4b6; }
-.stat-down { color:#e63946; }
-.section-title { font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:3px;margin-bottom:16px;margin-top:24px; }
-.table-wrap { background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;overflow:hidden;margin-bottom:24px; }
+.stat-value { font-family:'Orbitron',sans-serif;font-size:24px;font-weight:700;color:#cdd9e5; }
+.stat-sub { font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;margin-top:4px;line-height:1.5; }
+.section-title { font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:3px;margin-bottom:12px;margin-top:24px; }
+.table-wrap { background:#0a0f18;border:1px solid #1a2a3a;border-radius:8px;overflow:hidden;margin-bottom:24px; }
 table { width:100%;border-collapse:collapse; }
 th { font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;padding:12px 16px;text-align:left;border-bottom:1px solid #1a2a3a;background:#060a0f; }
 td { font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:10px 16px;border-bottom:1px solid #0d1520; }
-tr:hover td { background:#0d1520; }
-.badge { font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;font-family:'Share Tech Mono',monospace; }
-.badge-free { background:rgba(74,158,255,0.1);color:#4a9eff;border:1px solid rgba(74,158,255,0.3); }
-.badge-pro { background:rgba(46,196,182,0.1);color:#2ec4b6;border:1px solid rgba(46,196,182,0.3); }
-.badge-premium { background:rgba(181,123,255,0.1);color:#b57bff;border:1px solid rgba(181,123,255,0.3); }
-.badge-admin { background:rgba(244,132,26,0.1);color:#f4841a;border:1px solid rgba(244,132,26,0.3); }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(74,158,255,0.03); }
+.badge { font-size:10px;padding:2px 8px;border-radius:3px;font-family:'Share Tech Mono',monospace;letter-spacing:1px; }
+.badge-free { background:rgba(74,95,114,0.15);color:#4a5f72;border:1px solid rgba(74,95,114,0.3); }
+.badge-pro { background:rgba(74,158,255,0.1);color:#4a9eff;border:1px solid rgba(74,158,255,0.2); }
+.badge-premium { background:rgba(244,132,26,0.1);color:#f4841a;border:1px solid rgba(244,132,26,0.2); }
+.badge-admin { background:rgba(242,198,65,0.1);color:#f2c641;border:1px solid rgba(242,198,65,0.2); }
 .loading { color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;padding:40px;text-align:center; }
 .tab-content { display:none; }
 .tab-content.active { display:block; }
+.cost-positive { color:#2ec4b6; }
+.cost-negative { color:#e63946; }
+.cost-warning { color:#f2c641; }
 </style>
 </head>
 <body>
@@ -48,7 +52,10 @@ tr:hover td { background:#0d1520; }
 <div id="adminPanel" style="display:none;">
   <div class="header">
     <div class="logo">NOTAM <span>INTELLIGENCE</span></div>
-    <div class="admin-badge">ADMIN</div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div id="adminEmail" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;"></div>
+      <div class="admin-badge">ADMIN</div>
+    </div>
   </div>
 
   <div class="tabs">
@@ -60,38 +67,14 @@ tr:hover td { background:#0d1520; }
   </div>
 
   <div class="content">
-
-    <!-- OVERVIEW TAB -->
-    <div id="tab-overview" class="tab-content active">
-      <div class="stats-grid" id="overviewStats">
-        <div class="loading">LOADING...</div>
-      </div>
-    </div>
-
-    <!-- USERS TAB -->
-    <div id="tab-users" class="tab-content">
-      <div id="usersContent"><div class="loading">LOADING...</div></div>
-    </div>
-
-    <!-- REVENUE TAB -->
-    <div id="tab-revenue" class="tab-content">
-      <div id="revenueContent"><div class="loading">LOADING...</div></div>
-    </div>
-
-    <!-- USAGE TAB -->
-    <div id="tab-usage" class="tab-content">
-      <div id="usageContent"><div class="loading">LOADING...</div></div>
-    </div>
-
-    <!-- SYSTEM TAB -->
-    <div id="tab-system" class="tab-content">
-      <div id="systemContent"><div class="loading">LOADING...</div></div>
-    </div>
-
+    <div id="tab-overview" class="tab-content active"><div class="loading">LOADING...</div></div>
+    <div id="tab-users" class="tab-content"><div class="loading">LOADING...</div></div>
+    <div id="tab-revenue" class="tab-content"><div class="loading">LOADING...</div></div>
+    <div id="tab-usage" class="tab-content"><div class="loading">LOADING...</div></div>
+    <div id="tab-system" class="tab-content"><div class="loading">LOADING...</div></div>
   </div>
 </div>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -108,35 +91,30 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const ADMIN_EMAIL = 'arslanni@gmail.com';
+const ADMIN_EMAILS = ['arslanni@gmail.com', 'admin@notamai.com'];
 
-// Auth check
 firebase.auth().onAuthStateChanged(async (user) => {
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (!user || !ADMIN_EMAILS.includes(user.email)) {
     window.location.href = '/';
     return;
   }
   document.getElementById('authCheck').style.display = 'none';
   document.getElementById('adminPanel').style.display = 'block';
+  document.getElementById('adminEmail').textContent = user.email;
   await loadOverview();
 });
 
-// Tab switching
 function switchTab(tab) {
-  const tabs = ['overview', 'users', 'revenue', 'usage', 'system'];
-  document.querySelectorAll('.tab').forEach((t, i) => {
-    t.classList.toggle('active', tabs[i] === tab);
-  });
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
-
   if (tab === 'users') loadUsers();
   if (tab === 'revenue') loadRevenue();
   if (tab === 'usage') loadUsage();
   if (tab === 'system') loadSystem();
 }
 
-// OVERVIEW
 async function loadOverview() {
   try {
     const usersSnap = await db.collection('users').get();
@@ -145,105 +123,93 @@ async function loadOverview() {
     const free = users.filter(u => !u.plan || u.plan === 'free').length;
     const pro = users.filter(u => u.plan === 'pro').length;
     const premium = users.filter(u => u.plan === 'premium').length;
-
     const mrr = (pro * 49) + (premium * 99);
-
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const briefingsSnap = await db.collection('briefings').where('createdAt', '>=', monthStart).get();
-    const monthlyBriefings = briefingsSnap.size;
-
     const totalBriefingsSnap = await db.collection('briefings').get();
-    const totalBriefings = totalBriefingsSnap.size;
-
     const videosSnap = await db.collection('videos').where('status', '==', 'completed').get();
-    const totalVideos = videosSnap.size;
-
     const alertsSnap = await db.collection('alerts').where('active', '==', true).get();
-    const totalAlerts = alertsSnap.size;
+    const chatsSnap = await db.collection('general_chats').where('createdAt', '>=', monthStart).get();
+    const conversionRate = total > 0 ? Math.round(((pro + premium) / total) * 100) : 0;
 
-    document.getElementById('overviewStats').innerHTML = `
-      <div class="stat-card">
-        <div class="stat-label">MONTHLY RECURRING REVENUE</div>
-        <div class="stat-value">$${mrr.toLocaleString()}</div>
-        <div class="stat-sub">ARR: $${(mrr * 12).toLocaleString()}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">TOTAL USERS</div>
-        <div class="stat-value">${total}</div>
-        <div class="stat-sub">
-          <span style="color:#4a5f72;">Free: ${free}</span> ·
-          <span style="color:#2ec4b6;">Pro: ${pro}</span> ·
-          <span style="color:#b57bff;">Premium: ${premium}</span>
+    document.getElementById('tab-overview').innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">MONTHLY RECURRING REVENUE</div>
+          <div class="stat-value" style="color:#2ec4b6;">$${mrr.toLocaleString()}</div>
+          <div class="stat-sub">ARR: $${(mrr * 12).toLocaleString()}</div>
         </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">BRIEFINGS THIS MONTH</div>
-        <div class="stat-value">${monthlyBriefings}</div>
-        <div class="stat-sub">Total: ${totalBriefings}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">VIDEO BRIEFINGS</div>
-        <div class="stat-value">${totalVideos}</div>
-        <div class="stat-sub">Completed</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">ACTIVE ALERTS</div>
-        <div class="stat-value">${totalAlerts}</div>
-        <div class="stat-sub">Across all users</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">CONVERSION RATE</div>
-        <div class="stat-value">${total > 0 ? Math.round(((pro + premium) / total) * 100) : 0}%</div>
-        <div class="stat-sub">Paid / Total users</div>
+        <div class="stat-card">
+          <div class="stat-label">TOTAL USERS</div>
+          <div class="stat-value">${total}</div>
+          <div class="stat-sub">
+            <span style="color:#4a5f72;">Free: ${free}</span> ·
+            <span style="color:#4a9eff;">Pro: ${pro}</span> ·
+            <span style="color:#f4841a;">Premium: ${premium}</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">CONVERSION RATE</div>
+          <div class="stat-value" style="color:#4a9eff;">${conversionRate}%</div>
+          <div class="stat-sub">Paid / Total users</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">BRIEFINGS THIS MONTH</div>
+          <div class="stat-value">${briefingsSnap.size}</div>
+          <div class="stat-sub">Total all time: ${totalBriefingsSnap.size}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">CHATS THIS MONTH</div>
+          <div class="stat-value">${chatsSnap.size}</div>
+          <div class="stat-sub">NOTAM Intelligence Chat</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">VIDEO BRIEFINGS</div>
+          <div class="stat-value">${videosSnap.size}</div>
+          <div class="stat-sub">Completed all time</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">ACTIVE ALERTS</div>
+          <div class="stat-value">${alertsSnap.size}</div>
+          <div class="stat-sub">Across all users</div>
+        </div>
       </div>
     `;
   } catch(e) {
-    document.getElementById('overviewStats').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+    document.getElementById('tab-overview').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
   }
 }
 
-// USERS
 async function loadUsers() {
-  document.getElementById('usersContent').innerHTML = '<div class="loading">LOADING USERS...</div>';
+  document.getElementById('tab-users').innerHTML = '<div class="loading">LOADING USERS...</div>';
   try {
     const idToken = await firebase.auth().currentUser.getIdToken();
-    const res = await fetch('/api/admin/users', {
-      headers: { 'Authorization': 'Bearer ' + idToken }
-    });
+    const res = await fetch('/api/admin/users', { headers: { 'Authorization': 'Bearer ' + idToken } });
     const users = await res.json();
-
     const free = users.filter(u => u.plan === 'free').length;
     const pro = users.filter(u => u.plan === 'pro').length;
     const premium = users.filter(u => u.plan === 'premium').length;
+    const admin = users.filter(u => ADMIN_EMAILS.includes(u.email)).length;
 
     const rows = users.map(u => {
-      const planLabel = u.email === 'arslanni@gmail.com' ? 'ADMIN' : u.plan.toUpperCase();
-      const planClass = u.email === 'arslanni@gmail.com' ? 'admin' : u.plan;
-      return `
-        <tr>
-          <td style="font-family:'Share Tech Mono',monospace;font-size:11px;">${u.email}</td>
-          <td>${u.displayName}</td>
-          <td><span class="badge badge-${planClass}">${planLabel}</span></td>
-          <td>${u.updatedAt}</td>
-        </tr>
-      `;
+      const isAdmin = ADMIN_EMAILS.includes(u.email);
+      const planClass = isAdmin ? 'admin' : (u.plan || 'free');
+      const planLabel = isAdmin ? 'ADMIN' : (u.plan || 'free').toUpperCase();
+      return `<tr>
+        <td style="font-family:'Share Tech Mono',monospace;font-size:11px;">${u.email}</td>
+        <td>${u.displayName || '—'}</td>
+        <td><span class="badge badge-${planClass}">${planLabel}</span></td>
+        <td style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;">${u.updatedAt || '—'}</td>
+      </tr>`;
     }).join('');
 
-    document.getElementById('usersContent').innerHTML = `
-      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
-        <div class="stat-card">
-          <div class="stat-label">FREE</div>
-          <div class="stat-value" style="color:#4a9eff;">${free}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">PRO</div>
-          <div class="stat-value" style="color:#2ec4b6;">${pro}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">PREMIUM</div>
-          <div class="stat-value" style="color:#b57bff;">${premium}</div>
-        </div>
+    document.getElementById('tab-users').innerHTML = `
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat-card"><div class="stat-label">FREE</div><div class="stat-value" style="color:#4a5f72;">${free}</div></div>
+        <div class="stat-card"><div class="stat-label">PRO</div><div class="stat-value" style="color:#4a9eff;">${pro}</div></div>
+        <div class="stat-card"><div class="stat-label">PREMIUM</div><div class="stat-value" style="color:#f4841a;">${premium}</div></div>
+        <div class="stat-card"><div class="stat-label">ADMIN</div><div class="stat-value" style="color:#f2c641;">${admin}</div></div>
       </div>
       <div class="section-title">USER LIST</div>
       <div class="table-wrap">
@@ -254,15 +220,13 @@ async function loadUsers() {
       </div>
     `;
   } catch(e) {
-    document.getElementById('usersContent').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+    document.getElementById('tab-users').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
   }
 }
 
-// REVENUE
 async function loadRevenue() {
-  document.getElementById('revenueContent').innerHTML = '<div class="loading">LOADING...</div>';
+  document.getElementById('tab-revenue').innerHTML = '<div class="loading">LOADING...</div>';
   try {
-    // Users / MRR
     const snap = await db.collection('users').get();
     const users = snap.docs.map(d => d.data());
     const pro = users.filter(u => u.plan === 'pro').length;
@@ -270,7 +234,6 @@ async function loadRevenue() {
     const mrr = (pro * 49) + (premium * 99);
     const arr = mrr * 12;
 
-    // Usage this month
     const now = new Date();
     const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     const usageSnap = await db.collection('usage').get();
@@ -284,117 +247,121 @@ async function loadRevenue() {
       }
     });
     const videoSnap = await db.collection('videos').where('status', '==', 'completed').get();
-    const totalVideos = videoSnap.size;
+    const totalVideosThisMonth = videoSnap.docs.filter(d => {
+      const t = d.data().createdAt?.toDate?.();
+      return t && t >= new Date(now.getFullYear(), now.getMonth(), 1);
+    }).length;
 
-    // Fixed monthly costs
-    const fixedCosts = { render: 7, claudePro: 20 };
-
-    // Variable costs
+    // Cost calculations
     const briefingCost = totalBriefingsThisMonth * 0.09;
     const chatCost = totalChatThisMonth * 0.003;
     const analysisCost = totalAnalysisThisMonth * 0.002;
-    const videoApiCost = totalVideos * 0.80;
-    const ttsApiCost = totalVideos * 0.03;
-    const firebaseCost = 1;
-    const resendCost = 0;
+    const videoApiCost = totalVideosThisMonth * 0.80;
+    const ttsApiCost = totalVideosThisMonth * 0.03;
+    const firebaseStorageCost = 0.50;
+    const hostingerCost = 2.50;
+    const renderCost = 7.00;
+    const claudeProCost = 20.00;
+    const resendCost = 0.00;
+    const lsCommission = mrr > 0 ? (mrr * 0.05) + (pro + premium) * 0.50 : 0;
 
-    const totalVariableCost = briefingCost + chatCost + analysisCost + videoApiCost + ttsApiCost + firebaseCost + resendCost;
-    const totalFixedCost = fixedCosts.render + fixedCosts.claudePro;
-    const totalCost = totalVariableCost + totalFixedCost;
-    const grossMargin = mrr > 0 ? Math.round(((mrr - totalCost) / mrr) * 100) : 0;
+    const totalVariableCost = briefingCost + chatCost + analysisCost + videoApiCost + ttsApiCost + firebaseStorageCost + resendCost;
+    const totalFixedCost = renderCost + claudeProCost + hostingerCost;
+    const totalCost = totalVariableCost + totalFixedCost + lsCommission;
+    const netRevenue = mrr - totalCost;
+    const grossMargin = mrr > 0 ? Math.round((netRevenue / mrr) * 100) : 0;
 
-    document.getElementById('revenueContent').innerHTML = `
+    document.getElementById('tab-revenue').innerHTML = `
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-label">MRR</div>
-          <div class="stat-value">$${mrr.toLocaleString()}</div>
+          <div class="stat-value" style="color:#2ec4b6;">$${mrr.toLocaleString()}</div>
+          <div class="stat-sub">Monthly Recurring Revenue</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">ARR</div>
           <div class="stat-value">$${arr.toLocaleString()}</div>
+          <div class="stat-sub">Annual Run Rate</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">PRO REVENUE</div>
-          <div class="stat-value">$${(pro * 49).toLocaleString()}</div>
-          <div class="stat-sub">${pro} × $49</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">PREMIUM REVENUE</div>
-          <div class="stat-value">$${(premium * 99).toLocaleString()}</div>
-          <div class="stat-sub">${premium} × $99</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">TOTAL COSTS/MO</div>
+          <div class="stat-label">TOTAL COSTS</div>
           <div class="stat-value" style="color:#e63946;">$${totalCost.toFixed(2)}</div>
-          <div class="stat-sub">Fixed + variable</div>
+          <div class="stat-sub">Fixed + Variable + Commission</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">EST. GROSS MARGIN</div>
-          <div class="stat-value" style="color:#2ec4b6;">${grossMargin}%</div>
+          <div class="stat-label">NET REVENUE</div>
+          <div class="stat-value" style="color:${netRevenue >= 0 ? '#2ec4b6' : '#e63946'};">$${netRevenue.toFixed(2)}</div>
+          <div class="stat-sub">MRR − Total Costs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">GROSS MARGIN</div>
+          <div class="stat-value" style="color:${grossMargin >= 50 ? '#2ec4b6' : grossMargin >= 0 ? '#f2c641' : '#e63946'};">${grossMargin}%</div>
           <div class="stat-sub">After all costs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">LS COMMISSION</div>
+          <div class="stat-value" style="color:#f2c641;">$${lsCommission.toFixed(2)}</div>
+          <div class="stat-sub">5% + $0.50/txn</div>
         </div>
       </div>
 
-      <div class="section-title">MONTHLY INFRASTRUCTURE COSTS</div>
+      <div class="section-title">MONTHLY COST BREAKDOWN</div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>PLATFORM</th><th>TYPE</th><th>COST</th></tr></thead>
+          <thead><tr><th>PLATFORM</th><th>TYPE</th><th>BASIS</th><th>COST</th></tr></thead>
           <tbody>
-            <tr><td>Render Starter</td><td>Fixed</td><td>$7.00</td></tr>
-            <tr><td>Claude Pro (dev)</td><td>Fixed</td><td>$20.00</td></tr>
-            <tr><td>Anthropic API (briefings)</td><td>Variable</td><td>$${briefingCost.toFixed(2)}</td></tr>
-            <tr><td>Anthropic API (chat)</td><td>Variable</td><td>$${chatCost.toFixed(2)}</td></tr>
-            <tr><td>Anthropic API (analysis)</td><td>Variable</td><td>$${analysisCost.toFixed(2)}</td></tr>
-            <tr><td>WaveSpeed (video)</td><td>Variable</td><td>$${videoApiCost.toFixed(2)}</td></tr>
-            <tr><td>ElevenLabs TTS</td><td>Variable</td><td>$${ttsApiCost.toFixed(2)}</td></tr>
-            <tr><td>Firebase</td><td>Variable</td><td>~$1.00</td></tr>
-            <tr><td>Resend</td><td>Variable</td><td>$0.00</td></tr>
-            <tr><td>SkyLink API (NOTAM data)</td><td>Fixed</td><td>$0.00</td></tr>
-            <tr><td>LemonSqueezy</td><td>Commission</td><td>5% + $0.50/txn</td></tr>
-            <tr style="border-top:1px solid #4a9eff;">
-              <td><strong>TOTAL</strong></td><td></td>
-              <td style="color:#e63946;"><strong>$${totalCost.toFixed(2)}</strong></td>
+            <tr><td>Render Starter</td><td>Fixed</td><td>Monthly</td><td>$${renderCost.toFixed(2)}</td></tr>
+            <tr><td>Claude Pro (dev)</td><td>Fixed</td><td>Monthly</td><td>$${claudeProCost.toFixed(2)}</td></tr>
+            <tr><td>Hostinger Email</td><td>Fixed</td><td>Monthly</td><td>$${hostingerCost.toFixed(2)}</td></tr>
+            <tr><td>Anthropic API — Briefings</td><td>Variable</td><td>${totalBriefingsThisMonth} × $0.09</td><td>$${briefingCost.toFixed(2)}</td></tr>
+            <tr><td>Anthropic API — Chat</td><td>Variable</td><td>${totalChatThisMonth} msgs × $0.003</td><td>$${chatCost.toFixed(2)}</td></tr>
+            <tr><td>Anthropic API — Analysis</td><td>Variable</td><td>${totalAnalysisThisMonth} × $0.002</td><td>$${analysisCost.toFixed(2)}</td></tr>
+            <tr><td>WaveSpeed (video generation)</td><td>Variable</td><td>${totalVideosThisMonth} × $0.80</td><td>$${videoApiCost.toFixed(2)}</td></tr>
+            <tr><td>ElevenLabs TTS</td><td>Variable</td><td>${totalVideosThisMonth} × $0.03</td><td>$${ttsApiCost.toFixed(2)}</td></tr>
+            <tr><td>Firebase Storage</td><td>Variable</td><td>Est.</td><td>~$${firebaseStorageCost.toFixed(2)}</td></tr>
+            <tr><td>Resend (email)</td><td>Variable</td><td>Free tier</td><td>$0.00</td></tr>
+            <tr><td>SkyLink API (NOTAM data)</td><td>Fixed</td><td>Free tier</td><td>$0.00</td></tr>
+            <tr><td>LemonSqueezy</td><td>Commission</td><td>5% MRR + $0.50/txn</td><td>$${lsCommission.toFixed(2)}</td></tr>
+            <tr style="border-top:2px solid #1a2a3a;">
+              <td><strong>TOTAL</strong></td><td></td><td></td>
+              <td style="color:#e63946;font-weight:700;">$${totalCost.toFixed(2)}</td>
             </tr>
           </tbody>
         </table>
       </div>
     `;
   } catch(e) {
-    document.getElementById('revenueContent').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+    document.getElementById('tab-revenue').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
   }
 }
 
-// USAGE
 async function loadUsage() {
-  document.getElementById('usageContent').innerHTML = '<div class="loading">LOADING...</div>';
+  document.getElementById('tab-usage').innerHTML = '<div class="loading">LOADING...</div>';
   try {
     const briefSnap = await db.collection('briefings').get();
     const totalBriefings = briefSnap.size;
-
     const routeCount = {};
     briefSnap.docs.forEach(doc => {
       const route = doc.data().route || 'Unknown';
       routeCount[route] = (routeCount[route] || 0) + 1;
     });
     const topRoutes = Object.entries(routeCount)
-      .filter(([route]) => route.includes('→') || route.includes(' '))
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10);
+      .sort((a, b) => b[1] - a[1]).slice(0, 10);
 
     const videoSnap = await db.collection('videos').where('status', '==', 'completed').get();
-
+    const chatSnap = await db.collection('general_chats').get();
     const alertSnap = await db.collection('alerts').where('active', '==', true).get();
     const alertIcaos = {};
     alertSnap.docs.forEach(doc => {
       const icao = doc.data().icao;
       alertIcaos[icao] = (alertIcaos[icao] || 0) + 1;
     });
-    const topAlerts = Object.entries(alertIcaos).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const topAlerts = Object.entries(alertIcaos).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
     const likedSnap = await db.collection('briefings').where('liked', '==', true).get();
     const dislikedSnap = await db.collection('briefings').where('liked', '==', false).get();
 
-    document.getElementById('usageContent').innerHTML = `
+    document.getElementById('tab-usage').innerHTML = `
       <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
         <div class="stat-card">
           <div class="stat-label">TOTAL BRIEFINGS</div>
@@ -403,6 +370,16 @@ async function loadUsage() {
         <div class="stat-card">
           <div class="stat-label">VIDEO BRIEFINGS</div>
           <div class="stat-value">${videoSnap.size}</div>
+          <div class="stat-sub">Completed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">CHAT SESSIONS</div>
+          <div class="stat-value">${chatSnap.size}</div>
+          <div class="stat-sub">NOTAM Intelligence Chat</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">ACTIVE ALERTS</div>
+          <div class="stat-value">${alertSnap.size}</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">👍 LIKED</div>
@@ -412,13 +389,18 @@ async function loadUsage() {
           <div class="stat-label">👎 DISLIKED</div>
           <div class="stat-value" style="color:#e63946;">${dislikedSnap.size}</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-label">SATISFACTION</div>
+          <div class="stat-value" style="color:#4a9eff;">${likedSnap.size + dislikedSnap.size > 0 ? Math.round(likedSnap.size / (likedSnap.size + dislikedSnap.size) * 100) : 0}%</div>
+          <div class="stat-sub">Positive feedback rate</div>
+        </div>
       </div>
 
       <div class="section-title">TOP 10 ROUTES</div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>ROUTE</th><th>COUNT</th></tr></thead>
-          <tbody>${topRoutes.map(([r, c]) => `<tr><td>${r}</td><td>${c}</td></tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:#4a5f72;">No data</td></tr>'}</tbody>
+          <tbody>${topRoutes.map(([r, c]) => `<tr><td style="font-family:'Share Tech Mono',monospace;font-size:11px;">${r}</td><td style="color:#4a9eff;">${c}</td></tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:#4a5f72;">No data</td></tr>'}</tbody>
         </table>
       </div>
 
@@ -426,27 +408,22 @@ async function loadUsage() {
       <div class="table-wrap">
         <table>
           <thead><tr><th>ICAO</th><th>WATCHERS</th></tr></thead>
-          <tbody>${topAlerts.map(([i, c]) => `<tr><td>${i}</td><td>${c}</td></tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:#4a5f72;">No data</td></tr>'}</tbody>
+          <tbody>${topAlerts.map(([i, c]) => `<tr><td style="font-family:'Share Tech Mono',monospace;">${i}</td><td style="color:#4a9eff;">${c}</td></tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:#4a5f72;">No data</td></tr>'}</tbody>
         </table>
       </div>
     `;
   } catch(e) {
-    document.getElementById('usageContent').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+    document.getElementById('tab-usage').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
   }
 }
 
-// SYSTEM
 async function loadSystem() {
-  document.getElementById('systemContent').innerHTML = '<div class="loading">LOADING...</div>';
+  document.getElementById('tab-system').innerHTML = '<div class="loading">LOADING...</div>';
   try {
     const now = new Date();
     const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-
     const usageSnap = await db.collection('usage').get();
-    let totalBriefingsThisMonth = 0;
-    let totalChatThisMonth = 0;
-    let totalAnalysisThisMonth = 0;
-
+    let totalBriefingsThisMonth = 0, totalChatThisMonth = 0, totalAnalysisThisMonth = 0;
     usageSnap.docs.forEach(doc => {
       if (doc.id.endsWith(monthKey)) {
         const d = doc.data();
@@ -456,12 +433,22 @@ async function loadSystem() {
       }
     });
 
+    const videoSnap = await db.collection('videos').where('status', '==', 'completed').get();
+    const totalVideosThisMonth = videoSnap.docs.filter(d => {
+      const t = d.data().createdAt?.toDate?.();
+      return t && t >= new Date(now.getFullYear(), now.getMonth(), 1);
+    }).length;
+
     const briefingCost = totalBriefingsThisMonth * 0.09;
     const chatCost = totalChatThisMonth * 0.003;
     const analysisCost = totalAnalysisThisMonth * 0.002;
-    const totalCost = briefingCost + chatCost + analysisCost;
+    const videoApiCost = totalVideosThisMonth * 0.80;
+    const ttsApiCost = totalVideosThisMonth * 0.03;
+    const totalVariableCost = briefingCost + chatCost + analysisCost + videoApiCost + ttsApiCost;
+    const totalFixedCost = 7 + 20 + 2.50;
+    const totalCost = totalVariableCost + totalFixedCost;
 
-    document.getElementById('systemContent').innerHTML = `
+    document.getElementById('tab-system').innerHTML = `
       <div class="section-title">API USAGE THIS MONTH</div>
       <div class="stats-grid">
         <div class="stat-card">
@@ -480,38 +467,58 @@ async function loadSystem() {
           <div class="stat-sub">Est. cost: $${analysisCost.toFixed(2)}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">TOTAL API COST</div>
-          <div class="stat-value" style="color:#e63946;">$${totalCost.toFixed(2)}</div>
-          <div class="stat-sub">Claude API only (excl. video/TTS)</div>
+          <div class="stat-label">VIDEO BRIEFINGS</div>
+          <div class="stat-value">${totalVideosThisMonth}</div>
+          <div class="stat-sub">Est. cost: $${(videoApiCost + ttsApiCost).toFixed(2)}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">TOTAL MONTHLY COSTS</div>
-          <div class="stat-value" style="color:#e63946;">$${(totalCost + 27).toFixed(2)}</div>
-          <div class="stat-sub">API + Render ($7) + Claude Pro ($20)</div>
+          <div class="stat-label">VARIABLE API COST</div>
+          <div class="stat-value" style="color:#f2c641;">$${totalVariableCost.toFixed(2)}</div>
+          <div class="stat-sub">Anthropic + WaveSpeed + TTS</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">TOTAL MONTHLY COST</div>
+          <div class="stat-value" style="color:#e63946;">$${totalCost.toFixed(2)}</div>
+          <div class="stat-sub">API + Render + Claude Pro + Hostinger</div>
         </div>
       </div>
 
-      <div class="section-title">SYSTEM INFO</div>
-      <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);">
-        <div class="stat-card">
+      <div class="section-title">INFRASTRUCTURE STATUS</div>
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat-card" style="border-color:rgba(46,196,182,0.3);">
           <div class="stat-label">SERVER</div>
           <div class="stat-value" style="font-size:16px;color:#2ec4b6;">ONLINE</div>
-          <div class="stat-sub">Render Starter Plan</div>
+          <div class="stat-sub">Render Starter — $7/mo</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">ALERT CHECK INTERVAL</div>
-          <div class="stat-value" style="font-size:16px;">10 min</div>
-          <div class="stat-sub">Pro: 30min · Premium: 10min (coming soon)</div>
+          <div class="stat-value" style="font-size:16px;">5 min</div>
+          <div class="stat-sub">All plans</div>
         </div>
-        <div class="stat-card" style="border-color:rgba(244,132,26,0.4);">
+        <div class="stat-card">
+          <div class="stat-label">EMAIL SERVICE</div>
+          <div class="stat-value" style="font-size:16px;color:#2ec4b6;">ONLINE</div>
+          <div class="stat-sub">Resend — alerts@notamai.com</div>
+        </div>
+        <div class="stat-card">
           <div class="stat-label">SKYLINK API</div>
-          <div class="stat-value" style="color:#f4841a;">146%</div>
-          <div class="stat-sub" style="color:#f4841a;">⚠️ Free tier exceeded — upgrade needed</div>
+          <div class="stat-value" style="font-size:16px;color:#f2c641;">FREE TIER</div>
+          <div class="stat-sub">Monitor usage — upgrade if needed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">FIREBASE</div>
+          <div class="stat-value" style="font-size:16px;color:#2ec4b6;">ONLINE</div>
+          <div class="stat-sub">Firestore + Storage + Auth</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">PAYMENTS</div>
+          <div class="stat-value" style="font-size:16px;color:#2ec4b6;">ONLINE</div>
+          <div class="stat-sub">LemonSqueezy — 5% + $0.50/txn</div>
         </div>
       </div>
     `;
   } catch(e) {
-    document.getElementById('systemContent').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+    document.getElementById('tab-system').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
   }
 }
 </script>
