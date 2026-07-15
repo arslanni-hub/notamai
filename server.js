@@ -3991,6 +3991,15 @@ async function checkNotamAlerts() {
         continue;
       }
       if (!userEmail) continue;
+      // Check user notification preferences
+      try {
+        const userDoc = await adminDb.collection('users').doc(userId).get();
+        const notifications = userDoc.exists ? (userDoc.data().notifications || {}) : {};
+        if (notifications.emailAlerts === false) {
+          console.log('[ALERT CHECK] Email alerts disabled for:', userEmail);
+          continue;
+        }
+      } catch(e) { /* default to sending if we can't read prefs */ }
       console.log('[ALERT CHECK] User email:', userEmail, 'ICAO:', icao);
 
       // Fetch latest NOTAMs via SkyLink

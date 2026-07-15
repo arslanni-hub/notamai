@@ -7913,9 +7913,21 @@ async function loadSettingsData() {
   document.getElementById('settingsEmail').textContent = user.email;
   const refCode = 'NI-' + user.uid.substring(0,6).toUpperCase();
   document.getElementById('settingsRefCode').textContent = refCode;
-  const settings = JSON.parse(localStorage.getItem('notamai_settings') || '{}');
-  updateToggle('emailAlerts', settings.emailAlerts || false);
-  updateToggle('weeklySummary', settings.weeklySummary || false);
+  const user = firebase.auth().currentUser;
+  if (user) {
+    try {
+      const doc = await db.collection('users').doc(user.uid).get();
+      const fsSettings = doc.exists ? (doc.data().notifications || {}) : {};
+      const merged = Object.assign({}, JSON.parse(localStorage.getItem('notamai_settings') || '{}'), fsSettings);
+      localStorage.setItem('notamai_settings', JSON.stringify(merged));
+      updateToggle('emailAlerts', merged.emailAlerts !== false);
+      updateToggle('weeklySummary', merged.weeklySummary || false);
+    } catch(e) {
+      const settings = JSON.parse(localStorage.getItem('notamai_settings') || '{}');
+      updateToggle('emailAlerts', settings.emailAlerts !== false);
+      updateToggle('weeklySummary', settings.weeklySummary || false);
+    }
+  }
   try {
     const token = await user.getIdToken();
     const res = await fetch('/api/usage', { headers: { 'Authorization': 'Bearer ' + token } });
@@ -7972,11 +7984,17 @@ function updateToggle(key, value) {
   }
 }
 
-function toggleSetting(key) {
+async function toggleSetting(key) {
   const settings = JSON.parse(localStorage.getItem('notamai_settings') || '{}');
   settings[key] = !settings[key];
   localStorage.setItem('notamai_settings', JSON.stringify(settings));
   updateToggle(key, settings[key]);
+  const user = firebase.auth().currentUser;
+  if (user) {
+    try {
+      await db.collection('users').doc(user.uid).set({ notifications: settings }, { merge: true });
+    } catch(e) { console.log('Settings save error:', e); }
+  }
 }
 
 async function changePassword() {
