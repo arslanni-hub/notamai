@@ -500,10 +500,10 @@ async function loadSystem() {
           <div class="stat-value" style="font-size:16px;color:#2ec4b6;">ONLINE</div>
           <div class="stat-sub">Resend — alerts@notamai.com</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" id="skylinkCard">
           <div class="stat-label">SKYLINK API</div>
-          <div class="stat-value" style="font-size:16px;color:#f2c641;">FREE TIER</div>
-          <div class="stat-sub">Monitor usage — upgrade if needed</div>
+          <div class="stat-value" style="font-size:16px;" id="skylinkValue">LOADING...</div>
+          <div class="stat-sub" id="skylinkSub">Checking...</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">FIREBASE</div>
@@ -517,6 +517,22 @@ async function loadSystem() {
         </div>
       </div>
     `;
+    try {
+      const skylinkDoc = await db.collection('system').doc('skylink_usage').get();
+      if (skylinkDoc.exists) {
+        const s = skylinkDoc.data();
+        const pct = s.pct || 0;
+        const color = pct >= 90 ? '#e63946' : pct >= 70 ? '#f2c641' : '#2ec4b6';
+        document.getElementById('skylinkValue').textContent = pct + '%';
+        document.getElementById('skylinkValue').style.color = color;
+        document.getElementById('skylinkSub').textContent = s.count + ' / ' + s.limit + ' requests this month';
+        document.getElementById('skylinkCard').style.borderColor = pct >= 90 ? 'rgba(230,57,70,0.4)' : pct >= 70 ? 'rgba(242,198,65,0.3)' : '#1a2a3a';
+      } else {
+        document.getElementById('skylinkValue').textContent = 'FREE TIER';
+        document.getElementById('skylinkValue').style.color = '#4a5f72';
+        document.getElementById('skylinkSub').textContent = 'No usage recorded yet';
+      }
+    } catch(e) {}
   } catch(e) {
     document.getElementById('tab-system').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
   }

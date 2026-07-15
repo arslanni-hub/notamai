@@ -3969,149 +3969,140 @@ async function sendNotamAlert(userEmail, icao, notamText) {
   }
 }
 
+// ─── SKYLINK USAGE TRACKER ────────────────────────────────────────────────
+const SKYLINK_MONTHLY_LIMIT = 1000;
+let skylinkUsageThisMonth = 0;
+let skylinkUsageMonth = '';
+
+async function incrementSkylinkUsage() {
+  const now = new Date();
+  const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  if (skylinkUsageMonth !== monthKey) { skylinkUsageThisMonth = 0; skylinkUsageMonth = monthKey; }
+  skylinkUsageThisMonth++;
+  const pct = Math.round((skylinkUsageThisMonth / SKYLINK_MONTHLY_LIMIT) * 100);
+  await adminDb.collection('system').doc('skylink_usage').set({
+    count: skylinkUsageThisMonth, month: monthKey, limit: SKYLINK_MONTHLY_LIMIT, pct,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+  if (pct === 70 || pct === 90) {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'NOTAM Intelligence <alerts@notamai.com>',
+        to: 'arslanni@gmail.com',
+        subject: pct === 90 ? '🚨 URGENT: SkyLink API at 90% — Upgrade Now' : '⚠️ SkyLink API at 70% — Plan Ahead',
+        html: `<div style="font-family:monospace;background:#060a0f;color:#cdd9e5;padding:24px;"><h2 style="color:${pct===90?'#e63946':'#f2c641'};">SkyLink API Usage: ${pct}%</h2><p>${skylinkUsageThisMonth} / ${SKYLINK_MONTHLY_LIMIT} requests used this month.</p><p style="margin-top:12px;">Upgrade at <a href="https://rapidapi.com" style="color:#4a9eff;">rapidapi.com</a></p></div>`
+      })
+    });
+    console.log('[SKYLINK WARNING] Sent ' + pct + '% alert email');
+  }
+  return pct;
+}
+
+// ─── NOTAM ALERT CHECK (Cache Architecture) ───────────────────────────────
+let alertCheckCycle = 0;
+
 async function checkNotamAlerts() {
-  console.log('[ALERT CHECK] Running...');
+  alertCheckCycle++;
+  console.log('[ALERT CHECK] Running... cycle', alertCheckCycle);
   try {
     const alertsSnap = await adminDb.collection('alerts').where('active', '==', true).get();
-    console.log('[ALERT CHECK] Found alerts:', alertsSnap.size);
     if (alertsSnap.empty) { console.log('[ALERT CHECK] No active alerts'); return; }
 
-    for (const alertDoc of alertsSnap.docs) {
-      const alert = alertDoc.data();
-      const { userId, icao } = alert;
+    // Group by unique ICAO — fetch each only once
+    const icaoMap = {};
+    for (const doc of alertsSnap.docs) {
+      const { userId, icao } = doc.data();
       if (!icao) continue;
+      if (!icaoMap[icao]) icaoMap[icao] = [];
+      icaoMap[icao].push({ doc, userId });
+    }
 
-      // Get user email from Firebase Auth
-      let userEmail = null;
-      try {
-        const userRecord = await admin.auth().getUser(userId);
-        userEmail = userRecord.email;
-      } catch(e) {
-        console.log('[ALERT CHECK] Could not get user email:', userId, e.message);
-        continue;
-      }
-      if (!userEmail) continue;
-      // Check user notification preferences
-      try {
-        const userDoc = await adminDb.collection('users').doc(userId).get();
-        const notifications = userDoc.exists ? (userDoc.data().notifications || {}) : {};
-        if (notifications.emailAlerts === false) {
-          console.log('[ALERT CHECK] Email alerts disabled for:', userEmail);
-          continue;
-        }
-      } catch(e) { /* default to sending if we can't read prefs */ }
-      console.log('[ALERT CHECK] User email:', userEmail, 'ICAO:', icao);
+    const uniqueIcaos = Object.keys(icaoMap);
+    console.log('[ALERT CHECK]', uniqueIcaos.length, 'unique ICAOs,', alertsSnap.size, 'total alerts');
 
-      // Fetch latest NOTAMs via SkyLink
+    for (const icao of uniqueIcaos) {
+      let notams = [];
       try {
         const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + icao, {
           method: 'GET',
-          headers: {
-            'x-rapidapi-key': process.env.SKYLINK_KEY,
-            'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
-          }
+          headers: { 'x-rapidapi-key': process.env.SKYLINK_KEY, 'x-rapidapi-host': 'skylink-api.p.rapidapi.com' }
         });
-        console.log('[NOTAM ALERT RESPONSE TYPE]', typeof data);
-        console.log('[NOTAM ALERT RESPONSE SAMPLE]', JSON.stringify(data).slice(0, 500));
-        const notams = (data?.notams || data?.data || [])
-          .filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase());
-        console.log('[ALERT CHECK]', icao, 'total NOTAMs from API:', notams.length);
-        if (notams.length === 0) continue;
+        await incrementSkylinkUsage();
+        notams = (data?.notams || data?.data || []).filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase());
+        console.log('[ALERT CHECK]', icao, notams.length, 'NOTAMs');
+      } catch(e) {
+        console.log('[ALERT CHECK ERROR] SkyLink fetch failed for', icao, e.message);
+        continue;
+      }
 
-        console.log('[ALERT CHECK] Raw NOTAM sample:', JSON.stringify(notams[0]).slice(0, 200));
+      if (notams.length === 0) continue;
 
-        const sampleIds = notams.slice(0, 5).map(n => {
-          const raw = n.raw || '';
-          const match = raw.match(/([A-Z]\d+\/\d{4})/);
-          return match ? match[1] : (n.id || n.notam_id || 'no-id');
-        });
-        console.log('[ALERT CHECK]', icao, 'sample IDs:', sampleIds.join(', '));
+      const sortedNotams = [...notams].sort((a, b) => notamRecencyKey(b) - notamRecencyKey(a));
+      const latestNotam = sortedNotams[0];
+      let latestId = latestNotam?.id || latestNotam?.notam_id || '';
+      if (!latestId && latestNotam?.raw) {
+        const m = latestNotam.raw.match(/([A-Z]\d+\/\d{4})/);
+        if (m) latestId = m[1];
+      }
+      if (!latestId) continue;
 
-        // Sort NOTAMs to find the most recently issued one (year-aware: A1234/26 > B9999/25)
-        const sortedNotams = [...notams].sort((a, b) => notamRecencyKey(b) - notamRecencyKey(a));
+      for (const { doc: alertDoc, userId } of icaoMap[icao]) {
+        const alert = alertDoc.data();
 
-        const latestNotam = sortedNotams[0];
-        if (!latestNotam) continue;
+        // Plan check — free excluded, Pro every 3rd cycle (30min), Premium/Admin every cycle (10min)
+        const plan = await getUserPlan(userId);
+        if (plan === 'free') continue;
+        if (plan === 'pro' && alertCheckCycle % 3 !== 0) continue;
 
-        // Extract ID from sorted latest NOTAM
-        let latestId = latestNotam.id ||
-                       latestNotam.notam_id ||
-                       latestNotam.notamNumber ||
-                       '';
+        // Notification preference check
+        try {
+          const userDoc = await adminDb.collection('users').doc(userId).get();
+          const notifications = userDoc.exists ? (userDoc.data().notifications || {}) : {};
+          if (notifications.emailAlerts === false) continue;
+        } catch(e) { /* default to sending */ }
 
-        if (!latestId && latestNotam.raw) {
-          const rawMatch = latestNotam.raw.match(/([A-Z]\d+\/\d{4})/);
-          if (rawMatch) latestId = rawMatch[1];
-        }
+        let userEmail = null;
+        try {
+          const userRecord = await admin.auth().getUser(userId);
+          userEmail = userRecord.email;
+        } catch(e) { continue; }
+        if (!userEmail) continue;
 
         const lastSentId = alert.lastSentNotamId || '';
-        console.log('[ALERT CHECK]', icao, 'latestId:', latestId, 'lastSentId:', lastSentId);
+        if (!lastSentId) {
+          await alertDoc.ref.update({ lastSentNotamId: latestId, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
+          console.log('[ALERT CHECK]', icao, 'Baseline saved for', userEmail);
+          continue;
+        }
 
-        if (latestId && latestId !== lastSentId) {
-          if (!lastSentId) {
-            console.log('[ALERT CHECK]', icao, 'First check - saving baseline:', latestId);
-            try {
-              await alertDoc.ref.update({
-                lastSentNotamId: latestId,
-                lastChecked: admin.firestore.FieldValue.serverTimestamp()
-              });
-              console.log('[ALERT CHECK]', icao, 'Baseline saved OK:', latestId);
-            } catch(saveErr) {
-              console.log('[ALERT CHECK]', icao, 'Baseline save FAILED:', saveErr.message);
-            }
-          } else {
-            console.log('[ALERT CHECK]', icao, 'New NOTAM detected! Sending email...');
-            const notamText = latestNotam.raw || latestNotam.text || latestNotam.body || latestId;
-            console.log('[SENDING EMAIL]', userEmail, icao);
-            await sendNotamAlert(userEmail, icao, notamText);
-            try {
-              await alertDoc.ref.update({
-                lastSentNotamId: latestId,
-                lastChecked: admin.firestore.FieldValue.serverTimestamp()
-              });
-              console.log('[ALERT DEBUG]', icao, 'Firestore updated OK');
-            } catch(e) {
-              console.log('[ALERT DEBUG]', icao, 'Firestore update FAILED:', e.message);
+        if (latestId !== lastSentId) {
+          const notamText = latestNotam.raw || latestId;
+          await sendNotamAlert(userEmail, icao, notamText);
+          await alertDoc.ref.update({ lastSentNotamId: latestId, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
+          console.log('[ALERT CHECK] Sent alert to', userEmail, 'for', icao);
+        }
+
+        // SIGMET check (free API — no rate limit impact)
+        try {
+          const sigmetData = await fetchURL('https://aviationweather.gov/api/data/airsigmet?format=json&hazard=sigmet&icao=' + icao);
+          const sigmets = Array.isArray(sigmetData) ? sigmetData : [];
+          if (sigmets.length > 0) {
+            const latestSigmet = sigmets[0];
+            const sigmetId = latestSigmet.airsigmetId || '';
+            const lastSentSigmetId = alert.lastSentSigmetId || '';
+            if (sigmetId && sigmetId !== lastSentSigmetId) {
+              await sendNotamAlert(userEmail, icao + ' SIGMET', latestSigmet.rawAirSigmet || sigmetId);
+              await alertDoc.ref.update({ lastSentSigmetId: sigmetId, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
+              console.log('[SIGMET ALERT]', userEmail, icao, sigmetId);
             }
           }
-        } else {
-          console.log('[ALERT DEBUG]', icao, 'No change or latestId empty - skipping');
-        }
-      } catch(e) {
-        console.log('[ALERT CHECK ERROR]', icao, e.message);
+        } catch(e) { console.log('[SIGMET ERROR]', icao, e.message); }
+
+        await new Promise(r => setTimeout(r, 200));
       }
 
-      // Check SIGMETs for this ICAO (free, no rate limit)
-      try {
-        console.log('[SIGMET CHECK] Checking', icao);
-        const sigmetData = await fetchURL('https://aviationweather.gov/api/data/airsigmet?format=json&hazard=sigmet&icao=' + icao);
-        const sigmets = Array.isArray(sigmetData) ? sigmetData : [];
-
-        if (sigmets.length > 0) {
-          const latestSigmet = sigmets[0];
-          const sigmetId = latestSigmet.airsigmetId || latestSigmet.isigmetId || '';
-          const lastSentSigmetId = alert.lastSentSigmetId || '';
-
-          if (sigmetId && sigmetId !== lastSentSigmetId) {
-            const sigmetText = latestSigmet.rawAirSigmet || (latestSigmet.hazard + ' ' + latestSigmet.severity) || sigmetId;
-
-            // Send SIGMET alert email
-            await sendNotamAlert(userEmail, icao + ' SIGMET', sigmetText);
-
-            // Update Firestore
-            await alertDoc.ref.update({
-              lastSentSigmetId: sigmetId,
-              lastChecked: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            console.log('[SIGMET ALERT]', userEmail, icao, sigmetId);
-          }
-        }
-      } catch(e) {
-        console.log('[SIGMET CHECK ERROR]', icao, e.message);
-      }
-
-      // Small delay between airports to avoid rate limits
       await new Promise(r => setTimeout(r, 500));
     }
   } catch(e) {
@@ -4119,8 +4110,9 @@ async function checkNotamAlerts() {
   }
 }
 
-// Run alert check every 30 minutes
+// 10min interval — Pro users checked every 3rd cycle (30min), Premium every cycle (10min)
 setInterval(checkNotamAlerts, 10 * 60 * 1000);
+setTimeout(checkNotamAlerts, 30 * 1000);
 
 // Weekly Summary — runs every Monday at 08:00 UTC
 function scheduleWeeklySummary() {
@@ -4249,5 +4241,3 @@ async function sendWeeklySummaries() {
     console.log('[WEEKLY] Error:', e.message);
   }
 }
-// Also run once on startup after 30 seconds (allow server to fully initialise)
-setTimeout(checkNotamAlerts, 30 * 1000);
