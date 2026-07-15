@@ -4121,5 +4121,133 @@ async function checkNotamAlerts() {
 
 // Run alert check every 30 minutes
 setInterval(checkNotamAlerts, 10 * 60 * 1000);
+
+// Weekly Summary — runs every Monday at 08:00 UTC
+function scheduleWeeklySummary() {
+  function msUntilNextMonday8am() {
+    const now = new Date();
+    const next = new Date(now);
+    next.setUTCHours(8, 0, 0, 0);
+    const day = now.getUTCDay();
+    const daysUntilMonday = day === 1 ? (now.getUTCHours() >= 8 ? 7 : 0) : (8 - day) % 7;
+    next.setUTCDate(now.getUTCDate() + daysUntilMonday);
+    return next.getTime() - now.getTime();
+  }
+  setTimeout(function runWeekly() {
+    sendWeeklySummaries().catch(e => console.log('[WEEKLY] Error:', e.message));
+    setTimeout(runWeekly, 7 * 24 * 60 * 60 * 1000);
+  }, msUntilNextMonday8am());
+}
+scheduleWeeklySummary();
+
+async function sendWeeklySummaries() {
+  console.log('[WEEKLY] Sending weekly summaries...');
+  try {
+    const usersSnap = await adminDb.collection('users').get();
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    for (const userDoc of usersSnap.docs) {
+      const userData = userDoc.data();
+      const userId = userDoc.id;
+      const notifications = userData.notifications || {};
+      if (notifications.weeklySummary === false) continue;
+      const plan = await getUserPlan(userId);
+      if (plan === 'free') continue;
+
+      let userEmail = null;
+      try {
+        const userRecord = await admin.auth().getUser(userId);
+        userEmail = userRecord.email;
+      } catch(e) { continue; }
+      if (!userEmail) continue;
+
+      const briefSnap = await adminDb.collection('briefings')
+        .where('userId', '==', userId)
+        .where('createdAt', '>=', weekAgo)
+        .get();
+      const weeklyBriefings = briefSnap.size;
+      if (weeklyBriefings === 0) continue;
+
+      const routeCount = {};
+      briefSnap.docs.forEach(d => {
+        const r = d.data().route || '';
+        if (r) routeCount[r] = (routeCount[r] || 0) + 1;
+      });
+      const topRoute = Object.entries(routeCount).sort((a,b) => b[1]-a[1])[0];
+
+      const videoSnap = await adminDb.collection('videos')
+        .where('userId', '==', userId)
+        .where('createdAt', '>=', weekAgo)
+        .where('status', '==', 'completed')
+        .get();
+      const weeklyVideos = videoSnap.size;
+
+      const totalSnap = await adminDb.collection('briefings')
+        .where('userId', '==', userId)
+        .get();
+      const totalBriefings = totalSnap.size;
+
+      const displayName = userData.displayName || userEmail.split('@')[0];
+
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + process.env.RESEND_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: 'NOTAM Intelligence <alerts@notamai.com>',
+          to: userEmail,
+          subject: '📊 Your Weekly NOTAM Intelligence Summary',
+          html: `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#060a0f;">
+  <div style="max-width:560px;margin:0 auto;padding:32px 24px;font-family:'Rajdhani',Helvetica,Arial,sans-serif;">
+    <div style="text-align:center;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid #1a2a3a;">
+      <div style="font-family:Georgia,serif;font-size:16px;font-weight:700;letter-spacing:4px;color:#ffffff;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+      <div style="font-family:monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-top:6px;">WEEKLY ACTIVITY SUMMARY</div>
+    </div>
+    <div style="margin-bottom:24px;">
+      <p style="font-size:15px;color:#8a9bb0;margin:0 0 4px;">Good morning,</p>
+      <p style="font-size:18px;font-weight:700;color:#cdd9e5;margin:0;">Here's your week in review.</p>
+    </div>
+    <div style="display:grid;gap:12px;margin-bottom:28px;">
+      <div style="background:#0a0f18;border:1px solid #1a2a3a;border-radius:8px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-family:monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;">BRIEFINGS THIS WEEK</div>
+        <div style="font-family:monospace;font-size:22px;font-weight:700;color:#4a9eff;">${weeklyBriefings}</div>
+      </div>
+      ${topRoute ? `<div style="background:#0a0f18;border:1px solid #1a2a3a;border-radius:8px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-family:monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;">TOP ROUTE</div>
+        <div style="font-family:monospace;font-size:14px;font-weight:700;color:#cdd9e5;">${topRoute[0]} <span style="color:#4a5f72;">(×${topRoute[1]})</span></div>
+      </div>` : ''}
+      ${weeklyVideos > 0 ? `<div style="background:#0a0f18;border:1px solid #1a2a3a;border-radius:8px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-family:monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;">VIDEO BRIEFINGS</div>
+        <div style="font-family:monospace;font-size:22px;font-weight:700;color:#f4841a;">${weeklyVideos}</div>
+      </div>` : ''}
+      <div style="background:#0a0f18;border:1px solid #1a2a3a;border-radius:8px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-family:monospace;font-size:11px;color:#4a5f72;letter-spacing:1px;">TOTAL BRIEFINGS ALL TIME</div>
+        <div style="font-family:monospace;font-size:22px;font-weight:700;color:#cdd9e5;">${totalBriefings}</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="https://notamai.onrender.com" style="display:inline-block;padding:12px 28px;background:transparent;border:1px solid rgba(74,158,255,0.4);color:#8a9bb0;font-family:monospace;font-size:12px;letter-spacing:2px;text-decoration:none;border-radius:6px;">START A NEW BRIEFING</a>
+    </div>
+    <div style="border-top:1px solid #1a2a3a;padding-top:16px;text-align:center;">
+      <p style="font-family:monospace;font-size:10px;color:#4a5f72;margin:0;">You're receiving this because weekly summaries are enabled.</p>
+      <p style="font-family:monospace;font-size:10px;color:#4a5f72;margin:4px 0 0;">Manage preferences in Settings → Notifications.</p>
+    </div>
+  </div>
+</body>
+</html>`
+        })
+      });
+      console.log('[WEEKLY] Sent summary to:', userEmail);
+    }
+  } catch(e) {
+    console.log('[WEEKLY] Error:', e.message);
+  }
+}
 // Also run once on startup after 30 seconds (allow server to fully initialise)
 setTimeout(checkNotamAlerts, 30 * 1000);
