@@ -781,29 +781,21 @@ canvas#sky {
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-#askNotamAiBtn {
-  position: relative;
-  padding: 8px 19px !important;
-}
-#askNotamAiBtn::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
+#askNotamAiBtn-wrap {
+  display: none;
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 550;
   border-radius: 7px;
+  padding: 1px;
+  background: rgba(74,158,255,0.3);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+#askNotamAiBtn-wrap:hover {
   background: linear-gradient(90deg, #4a9eff, #b57bff, #ffffff, #2ec4b6, #b57bff, #4a9eff);
   background-size: 300% 100%;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: -1;
-}
-#askNotamAiBtn:hover::before {
-  opacity: 1;
   animation: border-flow 2.5s ease infinite;
-}
-#askNotamAiBtn:hover {
-  background: #060a0f !important;
-  border-color: transparent !important;
-  color: #cdd9e5 !important;
 }
 .result-overlay {
   position: fixed;
@@ -1504,10 +1496,10 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
 
 <!-- AI Assistant — Ask NOTAM AI -->
 <!-- Floating Ask NOTAM AI Button -->
-<button id="askNotamAiBtn" onclick="openAIChat()" style="display:none;position:fixed;bottom:24px;right:24px;z-index:550;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;padding:7px 18px;border-radius:6px;cursor:pointer;align-items:center;gap:8px;box-shadow:0 4px 24px rgba(0,0,0,0.4);transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)';this.querySelector('svg').style.stroke='#c8daf0'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)';this.querySelector('svg').style.stroke='#8a9bb0'">
+<div id="askNotamAiBtn-wrap"><button id="askNotamAiBtn" onclick="openAIChat()" style="display:flex;position:static;z-index:auto;background:transparent;border:none;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;padding:7px 18px;border-radius:6px;cursor:pointer;align-items:center;gap:8px;transition:color 0.2s;" onmouseover="this.style.color='#c8daf0';this.querySelector('svg').style.stroke='#c8daf0'" onmouseout="this.style.color='#8a9bb0';this.querySelector('svg').style.stroke='#8a9bb0'">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9h8" /><path d="M8 13h4.5" /><path d="M10.325 19.605l-2.325 1.395v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v4.5" /><path d="M19 22.5a4.75 4.75 0 0 1 3.5 -3.5a4.75 4.75 0 0 1 -3.5 -3.5a4.75 4.75 0 0 1 -3.5 3.5a4.75 4.75 0 0 1 3.5 3.5" /></svg>
   Ask NOTAM AI
-</button>
+</button></div>
 
 <div id="aiChatContainer" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:600;flex-direction:column;transition:transform 0.3s ease;transform:translateX(100%);">
 
@@ -2678,7 +2670,7 @@ async function handleSend(silent = false) {
   if (!silent) {
     overlay.classList.add('open');
     document.getElementById('mainNavbar').style.display = 'none';
-    document.getElementById('askNotamAiBtn').style.display = 'flex';
+    document.getElementById('askNotamAiBtn-wrap').style.display = 'flex';document.getElementById('askNotamAiBtn').style.display = 'flex';
     loading.style.display = 'flex';
     content.style.display = 'none';
     closeAIChat();
@@ -3531,7 +3523,7 @@ function showUpgradeBanner(contentAreaId, message) {
 
 function closeResult() {
   document.getElementById('resultOverlay').classList.remove('open');
-  document.getElementById('askNotamAiBtn').style.display = 'none';
+  document.getElementById('askNotamAiBtn-wrap').style.display = 'none';document.getElementById('askNotamAiBtn').style.display = 'none';
   closeAIChat();
   aiChatHistory = [];
   if (document.getElementById('appSidebar').style.display === 'none') {
@@ -4204,7 +4196,7 @@ function renderSidebarItem(item, isStarred) {
       extractBriefingIcaos();
       const navbar = document.getElementById('mainNavbar');
       if (navbar) navbar.style.display = 'none';
-      document.getElementById('askNotamAiBtn').style.display = 'flex';
+      document.getElementById('askNotamAiBtn-wrap').style.display = 'flex';document.getElementById('askNotamAiBtn').style.display = 'flex';
       closeAIChat();
       aiChatHistory = [];
       aiChatOpen = false;
@@ -4708,7 +4700,7 @@ async function pmOpenBriefing(id, route) {
     if (content) { content.style.display = 'block'; content.innerHTML = briefingCache[id]; }
     if (status) status.textContent = 'ROUTE BRIEFING: ' + route + ' — COMPLETE';
     document.getElementById('mainNavbar').style.display = 'none';
-    document.getElementById('askNotamAiBtn').style.display = 'flex';
+    document.getElementById('askNotamAiBtn-wrap').style.display = 'flex';document.getElementById('askNotamAiBtn').style.display = 'flex';
     extractBriefingIcaos();
     appendBriefingActions(content);
     return;
@@ -4718,7 +4710,7 @@ async function pmOpenBriefing(id, route) {
   if (content) content.style.display = 'none';
   if (status) status.textContent = 'LOADING BRIEFING...';
   document.getElementById('mainNavbar').style.display = 'none';
-  document.getElementById('askNotamAiBtn').style.display = 'flex';
+  document.getElementById('askNotamAiBtn-wrap').style.display = 'flex';document.getElementById('askNotamAiBtn').style.display = 'flex';
   try {
     const doc = await db.collection('briefings').doc(id).get();
     if (doc.exists && doc.data().html) {
@@ -8452,7 +8444,7 @@ function renderArchive(briefings) {
           if (content) { content.style.display = 'block'; content.innerHTML = briefingCache[briefing.id]; }
           if (status) status.textContent = 'ROUTE BRIEFING: ' + briefing.route + ' — COMPLETE';
           extractBriefingIcaos();
-          document.getElementById('askNotamAiBtn').style.display = 'flex';
+          document.getElementById('askNotamAiBtn-wrap').style.display = 'flex';document.getElementById('askNotamAiBtn').style.display = 'flex';
           closeAIChat();
           aiChatHistory = [];
           aiChatOpen = false;
