@@ -7797,6 +7797,11 @@ async function addAlert() {
     showUpgradeBanner('alertsList', 'You have reached your 3 alert limit. Upgrade to Premium for unlimited alerts.');
     return;
   }
+  // Premium plan - soft limit 10
+  if (plan === 'premium' && count >= 10) {
+    showUpgradeBanner('alertsList', 'You have reached your 10 airport limit for Premium.');
+    return;
+  }
   try {
     await db.collection('alerts').doc(user.uid + '_' + icao).set({
       userId: user.uid,
