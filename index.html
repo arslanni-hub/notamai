@@ -4806,9 +4806,6 @@ window.addEventListener('load', function() {
 
     <!-- LEFT: form -->
     <div style="width:50%;background:#0a0f18;padding:36px 32px;position:relative;flex-shrink:0;">
-      <button onclick="closeSupportModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;display:flex;align-items:center;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
       <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">SUPPORT</div>
       <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:#cdd9e5;margin-bottom:6px;">How can we help?</div>
       <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:24px;line-height:1.6;">Send us a message and we'll get back to you as soon as possible.</div>
@@ -4823,6 +4820,9 @@ window.addEventListener('load', function() {
 
     <!-- RIGHT: animated panel -->
     <div style="width:50%;background:linear-gradient(135deg,#000510,#000d1a,#001428,#000510);background-size:400% 400%;animation:navyFlow 8s ease infinite;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <button onclick="closeSupportModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:rgba(74,158,255,0.35);cursor:pointer;padding:4px;display:flex;align-items:center;z-index:2;" onmouseover="this.style.color='rgba(74,158,255,0.8)'" onmouseout="this.style.color='rgba(74,158,255,0.35)'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
       <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.18) 2px,rgba(0,0,0,0.18) 4px);pointer-events:none;"></div>
       <div style="position:absolute;top:14px;left:14px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(74,158,255,0.2);line-height:1.7;">ALT 35000 FT<br>SPD 480 KTS</div>
       <div style="position:absolute;top:14px;right:14px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(74,158,255,0.2);line-height:1.7;text-align:right;">HDG 270°<br>FL350</div>

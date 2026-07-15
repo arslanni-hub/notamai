@@ -34,7 +34,8 @@ if (!fs.existsSync(PILOT_IMAGE_PATH)) {
 const PLAN_LIMITS = {
   free:    { briefings: 3,   chat: 0,   analysis: 0   },
   pro:     { briefings: 100, chat: 150, analysis: 200  },
-  premium: { briefings: 150, chat: 400, analysis: 300  }
+  premium: { briefings: 150, chat: 400, analysis: 300  },
+  admin:   { briefings: 9999, chat: 9999, analysis: 9999 }
 };
 
 // General Aviation Expert Chat — separate from the briefing-specific "Ask NOTAM AI" above.
@@ -48,9 +49,10 @@ const PLAN_LIMITS = {
 // the existing budget). Free has no soft limit since it's Haiku-only already; it hard-stops
 // at 100% of its small token budget.
 const GENERAL_CHAT_LIMITS = {
-  free:    { windowMinutes: 300, limit: 470,   mode: 'tokens', model: 'claude-haiku-4-5-20251001' },
-  pro:     { windowMinutes: 300, limit: 12000, mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 },
-  premium: { windowMinutes: 300, limit: 24000, mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 }
+  free:    { windowMinutes: 300, limit: 470,    mode: 'tokens', model: 'claude-haiku-4-5-20251001' },
+  pro:     { windowMinutes: 300, limit: 12000,  mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 },
+  premium: { windowMinutes: 300, limit: 24000,  mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 },
+  admin:   { windowMinutes: 300, limit: 999999, mode: 'tokens', model: 'claude-sonnet-4-6' }
 };
 const GENERAL_CHAT_FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
 
@@ -3604,8 +3606,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         }
 
         const plan = await getUserPlan(userId);
-        const effectivePlanChat = plan === 'admin' ? 'premium' : plan;
-        const cfg = GENERAL_CHAT_LIMITS[effectivePlanChat] || GENERAL_CHAT_LIMITS.free;
+        const cfg = GENERAL_CHAT_LIMITS[plan] || GENERAL_CHAT_LIMITS.free;
         const { count, tokenTotal, searchTotal, oldestTimestamp } = await getGeneralChatWindowUsage(userId, cfg.windowMinutes);
         const resetInMinutes = minutesUntilWindowReset(oldestTimestamp, cfg.windowMinutes);
 
@@ -3738,7 +3739,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         if (userId) {
           const plan = await getUserPlan(userId);
           const usage = await getUserUsage(userId, 'briefings');
-          const limit = PLAN_LIMITS[plan]?.briefings || 3;
+          const limit = PLAN_LIMITS[plan]?.briefings || (plan === 'admin' ? 9999 : 3);
           if (usage >= limit) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'limit_reached', plan, usage, limit }));
