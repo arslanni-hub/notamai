@@ -776,35 +776,6 @@ canvas#sky {
 .pm-tab.active svg { stroke:#cdd9e5; }
 .pm-usage-bar { height:4px;background:#1a2a3a;border-radius:2px;margin-top:6px;overflow:hidden; }
 .pm-usage-fill { height:100%;border-radius:2px;transition:width 0.6s ease; }
-@keyframes border-flow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-#askNotamAiBtn {
-  position: relative;
-  padding: 8px 19px !important;
-}
-#askNotamAiBtn::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: 7px;
-  background: linear-gradient(90deg, #4a9eff, #b57bff, #ffffff, #2ec4b6, #b57bff, #4a9eff);
-  background-size: 300% 100%;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: -1;
-}
-#askNotamAiBtn:hover::before {
-  opacity: 1;
-  animation: border-flow 2.5s ease infinite;
-}
-#askNotamAiBtn:hover {
-  background: #060a0f !important;
-  border-color: transparent !important;
-  color: #cdd9e5 !important;
-}
 .result-overlay {
   position: fixed;
   top: 0;
