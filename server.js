@@ -3231,7 +3231,7 @@ MANDATORY:
     const userId = usageUserId;
     try {
       const plan = await getUserPlan(userId);
-      const effectivePlan = plan === 'admin' ? 'premium' : plan;
+      const effectivePlan = plan;
       const limits = PLAN_LIMITS[effectivePlan] || PLAN_LIMITS.free;
       const now = new Date();
       const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
@@ -3252,7 +3252,7 @@ MANDATORY:
         plan,
         briefings: { used: briefingsUsed, limit: limits.briefings },
         analysis: { used: analysisUsed, limit: limits.analysis },
-        video: { used: videoUsed, limit: (plan === 'premium' || plan === 'admin') ? 5 : 0 },
+        video: { used: videoUsed, limit: plan === 'admin' ? 9999 : (plan === 'premium' ? 5 : 0) },
         chat: { tokens: chatTokens, limit: chatCfg.limit, resetInMinutes },
         monthlyResetDays: daysUntilReset,
         memberSince: userData.createdAt ? userData.createdAt.toDate().toISOString() : null
