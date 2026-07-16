@@ -5536,6 +5536,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
     <div class="pricing-grid" style="padding-top:14px;">
       <!-- FREE -->
       <div class="pricing-card" style="border:1px solid #1a2a3a;">
+        <div class="card-badge" style="min-height:16px;"></div>
         <div class="card-name">Free</div>
         <div class="card-price"><span class="price-amount" style="color:#ffffff;">$0</span><span class="price-period">/month</span></div>
         <div class="card-subtitle">No credit card required</div>
@@ -5604,22 +5605,24 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
       <!-- ENTERPRISE -->
       <div class="pricing-card" style="border:1px solid rgba(181,123,255,0.3);position:relative;">
         <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#b57bff;color:#060a0f;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;white-space:nowrap;">ENTERPRISE</div>
+        <div class="card-badge" style="color:#b57bff;min-height:16px;"></div>
         <div class="card-name" style="color:#b57bff;">Enterprise</div>
-        <div class="card-price" style="margin-bottom:6px;">
-          <span style="font-family:'Orbitron',sans-serif;font-size:32px;font-weight:700;color:#b57bff;">$999</span>
-          <span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#4a5f72;">/month</span>
+        <div class="card-price">
+          <span class="price-amount" id="pricing_enterprisePrice" style="color:#b57bff;">$999</span>
+          <span class="price-period" id="pricing_enterprisePeriod">/month</span>
         </div>
+        <div id="pricing_enterpriseNote2" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">Annual: $849/mo · Save $1,800</div>
         <div class="card-subtitle">Up to 10 users · For airlines &amp; operations centers</div>
         <ul class="features-list">
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Max +</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Up to 10 users</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">API Access</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Priority Support &amp; SLA</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Dedicated Account Manager</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Custom Onboarding</span></li>
+          <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Everything in Max +</span></li>
+          <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Up to 10 users</span></li>
+          <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">API Access</span></li>
+          <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Priority Support &amp; SLA</span></li>
+          <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Dedicated Account Manager</span></li>
+          <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Custom Onboarding</span></li>
         </ul>
-        <button class="card-btn" onclick="window.location.href='mailto:support@notamai.com?subject=Enterprise Plan Inquiry'">Contact Sales →</button>
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">10+ users? Contact us for custom pricing</div>
+        <button class="card-btn" onclick="window.location.href='mailto:support@notamai.com?subject=Enterprise Plan Inquiry'" style="background:transparent;border:1px solid rgba(181,123,255,0.4);color:#b57bff;font-weight:600;margin-top:auto;">CONTACT SALES →</button>
+        <div id="pricing_enterpriseNote" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">10+ users? Contact us for custom pricing</div>
       </div>
     </div>
     <!-- REFERRAL SECTION -->
@@ -5710,7 +5713,8 @@ function pricing_toggleBilling() {
     document.getElementById('pricing_maxNote').innerHTML = '$1,008/year · <span style="color:#2ec4b6;font-weight:700;">Save $180</span>';
     document.getElementById('pricing_enterprisePrice').textContent = '$849';
     document.getElementById('pricing_enterprisePeriod').textContent = '/month';
-    document.getElementById('pricing_enterpriseNote').textContent = 'Save $1,800 · 10+ users? Contact us';
+    document.getElementById('pricing_enterpriseNote').textContent = '10+ users? Contact us for custom pricing';
+    if(document.getElementById('pricing_enterpriseNote2')) document.getElementById('pricing_enterpriseNote2').textContent = 'Annual · Save $1,800';
   } else {
     dot.style.left = '2px'; toggle.style.background = '#1a2a3a';
     badge.style.display = 'none';
@@ -5722,6 +5726,7 @@ function pricing_toggleBilling() {
     document.getElementById('pricing_enterprisePrice').textContent = '$999';
     document.getElementById('pricing_enterprisePeriod').textContent = '/month';
     document.getElementById('pricing_enterpriseNote').textContent = '10+ users? Contact us for custom pricing';
+    if(document.getElementById('pricing_enterpriseNote2')) document.getElementById('pricing_enterpriseNote2').textContent = 'Annual: $849/mo · Save $1,800';
   }
 }
 </script>
