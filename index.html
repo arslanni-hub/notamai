@@ -5631,6 +5631,26 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
       </div>
       <div style="margin-top:24px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;">Your referral code is available in your dashboard after signing up.</div>
     </div>
+    <!-- ENTERPRISE -->
+    <div class="pricing-card" style="border:1px solid rgba(181,123,255,0.3);position:relative;margin-top:16px;">
+      <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#b57bff;color:#060a0f;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;white-space:nowrap;">ENTERPRISE</div>
+      <div class="plan-name" style="color:#b57bff;">Enterprise</div>
+      <div class="card-price">
+        <span class="price-amount" id="pricing_enterprisePrice" style="color:#b57bff;">$999</span>
+        <span class="price-period" id="pricing_enterprisePeriod">/month</span>
+      </div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:16px;">Up to 10 users · Billed per workspace</div>
+      <ul class="plan-features">
+        <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Everything in Max +</span></li>
+        <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Up to 10 users</span></li>
+        <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">API Access</span></li>
+        <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Priority Support & SLA</span></li>
+        <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Custom Onboarding</span></li>
+        <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Dedicated Account Manager</span></li>
+      </ul>
+      <button class="card-btn" onclick="window.location.href='mailto:support@notamai.com?subject=Enterprise Plan Inquiry'" style="background:transparent;border:1px solid rgba(181,123,255,0.4);color:#b57bff;font-weight:600;">Contact Sales →</button>
+      <div id="pricing_enterpriseNote" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">10+ users? Contact us for custom pricing</div>
+    </div>
     <!-- FAQ -->
     <div class="faq-section">
       <h2 class="faq-title">Frequently Asked Questions</h2>
@@ -5642,6 +5662,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
       <div class="faq-item"><div class="faq-q">Is my data secure?</div><div class="faq-a">Yes. All data is encrypted in transit and at rest. We never share your flight data with third parties.</div></div>
       <div class="faq-item"><div class="faq-q">Do you offer a student or flight school discount?</div><div class="faq-a">Yes. We offer discounted pricing for student pilots, flight schools, and aviation academies. Contact us at <a href="mailto:support@notamai.com" style="color:#4a9eff;">support@notamai.com</a> for details.</div></div>
       <div class="faq-item"><div class="faq-q">How does the 7-day free trial work?</div><div class="faq-a">Enter your credit card to start. You won't be charged for 7 days. Cancel anytime before the trial ends and pay nothing.</div></div>
+      <div class="faq-item"><div class="faq-q">What does the Enterprise plan include?</div><div class="faq-a">The Enterprise plan supports up to 10 users under a single workspace at $999/month, with full access to all Max features plus API access, priority support with SLA, dedicated account management, and custom onboarding. For teams larger than 10 users, contact us at <a href="mailto:support@notamai.com" style="color:#4a9eff;">support@notamai.com</a> for custom pricing.</div></div>
     </div>
 
     <!-- CTA -->
@@ -5705,6 +5726,9 @@ function pricing_toggleBilling() {
     document.getElementById('pricing_maxPrice').textContent = '$84';
     document.getElementById('pricing_proNote').innerHTML = '$504/year · <span style="color:#2ec4b6;font-weight:700;">Save $108</span>';
     document.getElementById('pricing_maxNote').innerHTML = '$1,008/year · <span style="color:#2ec4b6;font-weight:700;">Save $180</span>';
+    document.getElementById('pricing_enterprisePrice').textContent = '$849';
+    document.getElementById('pricing_enterprisePeriod').textContent = '/month';
+    document.getElementById('pricing_enterpriseNote').textContent = 'Save $1,800 · 10+ users? Contact us';
   } else {
     dot.style.left = '2px'; toggle.style.background = '#1a2a3a';
     badge.style.display = 'none';
@@ -5713,6 +5737,9 @@ function pricing_toggleBilling() {
     document.getElementById('pricing_maxPrice').textContent = '$99';
     document.getElementById('pricing_proNote').textContent = '7-day free trial · Cancel anytime';
     document.getElementById('pricing_maxNote').textContent = '7-day free trial · Cancel anytime';
+    document.getElementById('pricing_enterprisePrice').textContent = '$999';
+    document.getElementById('pricing_enterprisePeriod').textContent = '/month';
+    document.getElementById('pricing_enterpriseNote').textContent = '10+ users? Contact us for custom pricing';
   }
 }
 </script>
