@@ -5621,7 +5621,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
           <span id="pricing_enterprisePrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#b57bff;">$999</span>
           <span id="pricing_enterprisePeriod" style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#4a5f72;">/month</span>
         </div>
-        <div id="pricing_enterpriseNote2" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;min-height:18px;">Annual: $849/mo · <span style="color:#2ec4b6;font-weight:700;">Save $1,800</span></div>
+        <div id="pricing_enterpriseNote2" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;min-height:18px;display:none;"></div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:24px;">Up to 10 users · Airlines &amp; ops centers</div>
         <ul style="list-style:none;flex:1;margin-bottom:28px;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>Everything in Max +</li>
@@ -5725,7 +5725,8 @@ function pricing_toggleBilling() {
     document.getElementById('pricing_enterprisePrice').textContent = '$849';
     document.getElementById('pricing_enterprisePeriod').textContent = '/month';
     document.getElementById('pricing_enterpriseNote').innerHTML = '<span style="color:#2ec4b6;font-weight:700;">Save $1,800</span> · 10+ users? Contact us';
-    if(document.getElementById('pricing_enterpriseNote2')) document.getElementById('pricing_enterpriseNote2').innerHTML = 'Annual: $849/mo · <span style="color:#2ec4b6;font-weight:700;">Save $1,800</span>';
+    document.getElementById('pricing_enterpriseNote2').style.display = 'block';
+    document.getElementById('pricing_enterpriseNote2').innerHTML = 'Annual: $849/mo · <span style="color:#2ec4b6;font-weight:700;">Save $1,800</span>';
   } else {
     dot.style.left = '2px'; toggle.style.background = '#1a2a3a';
     badge.style.display = 'none';
@@ -5736,8 +5737,8 @@ function pricing_toggleBilling() {
     document.getElementById('pricing_maxNote').textContent = '7-day free trial · Cancel anytime';
     document.getElementById('pricing_enterprisePrice').textContent = '$999';
     document.getElementById('pricing_enterprisePeriod').textContent = '/month';
-    document.getElementById('pricing_enterpriseNote').innerHTML = '<span style="color:#2ec4b6;font-weight:700;">Save $1,800</span> · 10+ users? Contact us';
-    if(document.getElementById('pricing_enterpriseNote2')) document.getElementById('pricing_enterpriseNote2').innerHTML = 'Annual: $849/mo · <span style="color:#2ec4b6;font-weight:700;">Save $1,800</span>';
+    document.getElementById('pricing_enterpriseNote').textContent = '10+ users? Contact us for custom pricing';
+    document.getElementById('pricing_enterpriseNote2').style.display = 'none';
   }
 }
 </script>
