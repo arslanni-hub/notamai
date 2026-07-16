@@ -5533,97 +5533,108 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
       <span id="pricing_saveBadge" style="display:none;background:rgba(46,196,182,0.15);color:#2ec4b6;border:1px solid #0e5a54;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:2px;">SAVE 10%</span>
     </div>
     <!-- PRICING CARDS -->
-    <div class="pricing-grid" style="padding-top:14px;">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;max-width:1200px;margin:60px auto 0;align-items:stretch;">
+
       <!-- FREE -->
-      <div class="pricing-card" style="border:1px solid #1a2a3a;">
-        <div class="card-badge" style="min-height:16px;"></div>
-        <div class="card-name">Free</div>
-        <div class="card-price"><span class="price-amount" style="color:#ffffff;">$0</span><span class="price-period">/month</span></div>
-        <div class="card-subtitle">No credit card required</div>
-        <ul class="features-list">
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">3 AI Briefings / month</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">NOTAMs &amp; MET live raw data</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">SIGMET / AIRMET</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Aviation Tools Panel (Airport Info, Charts, Winds Aloft, Sun/Moon, Navaids, Distance &amp; Bearing, Flight Time, Flight Tracker, Aircraft Lookup)</span></li>
-          <li><span class="feat-check feat-off">✗</span><span class="feat-off">NOTAM Intelligence Chat</span></li>
-          <li><span class="feat-check feat-off">✗</span><span class="feat-off">Ask NOTAM AI — AI Assistant</span></li>
-          <li><span class="feat-check feat-off">✗</span><span class="feat-off">AI Video Briefing</span></li>
-          <li><span class="feat-check feat-off">✗</span><span class="feat-off">✦ AI NOTAM/METAR/TAF Analysis</span></li>
-          <li><span class="feat-check feat-off">✗</span><span class="feat-off">Archive &amp; Saved Routes</span></li>
+      <div style="background:#0a0f18;border:1px solid #1a2a3a;border-radius:8px;padding:32px 24px 28px;display:flex;flex-direction:column;">
+        <div style="min-height:20px;margin-bottom:20px;"></div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#ffffff;margin-bottom:16px;">Free</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;">
+          <span style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#ffffff;">$0</span>
+          <span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#4a5f72;">/month</span>
+        </div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;min-height:18px;"></div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:24px;">No credit card required</div>
+        <ul style="list-style:none;flex:1;margin-bottom:28px;">
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✓</span>3 AI Briefings / month</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✓</span>NOTAMs &amp; MET live raw data</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✓</span>SIGMET / AIRMET</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✓</span>Aviation Tools Panel</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#4a5f72;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✗</span>NOTAM Intelligence Chat</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#4a5f72;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✗</span>Ask NOTAM AI — AI Assistant</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#4a5f72;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✗</span>AI Video Briefing</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#4a5f72;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✗</span>✦ AI NOTAM/METAR/TAF Analysis</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#4a5f72;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✗</span>Archive &amp; Saved Routes</li>
         </ul>
-        <button class="card-btn card-btn-outline" onclick="openSignupModal()">Start Free</button>
+        <button onclick="openSignupModal()" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">Start Free</button>
       </div>
+
       <!-- PRO -->
-      <div class="pricing-card" style="border:1px solid #4a9eff;position:relative;">
+      <div style="background:#0a0f18;border:1px solid #4a9eff;border-radius:8px;padding:32px 24px 28px;display:flex;flex-direction:column;position:relative;">
         <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#4a9eff;color:#060a0f;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;white-space:nowrap;">MOST POPULAR</div>
-        <div class="card-name">Pro</div>
-        <div class="card-price">
-          <span class="price-amount" id="pricing_proPrice" style="color:#4a9eff;">$49</span>
-          <span class="price-period" id="pricing_proPeriod">/month</span>
+        <div style="min-height:20px;margin-bottom:20px;"></div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#ffffff;margin-bottom:16px;">Pro</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;">
+          <span id="pricing_proPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#4a9eff;">$49</span>
+          <span id="pricing_proPeriod" style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#4a5f72;">/month</span>
         </div>
-        <div id="pricing_proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
-        <div class="card-subtitle">For active pilots &amp; dispatchers</div>
-        <ul class="features-list">
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">All Free features +</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Unlimited AI Briefings*</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">NOTAM Intelligence Chat</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">En-route FIR Analysis</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Ask NOTAM AI — AI Assistant</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">✦ AI NOTAM/METAR/TAF Analysis</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Briefing Archive</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Saved Routes</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">NOTAM Alerts</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Share &amp; PDF Export</span></li>
-          <li><span class="feat-check feat-off">✗</span><span class="feat-off">AI Video Briefing</span></li>
+        <div id="pricing_proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;min-height:18px;">7-day free trial · Cancel anytime</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:24px;">For active pilots &amp; dispatchers</div>
+        <ul style="list-style:none;flex:1;margin-bottom:28px;">
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#4a9eff;font-size:13px;margin-top:1px;">✓</span>All Free features +</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#4a9eff;font-size:13px;margin-top:1px;">✓</span>Unlimited AI Briefings*</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#4a9eff;font-size:13px;margin-top:1px;">✓</span>NOTAM Intelligence Chat</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#4a9eff;font-size:13px;margin-top:1px;">✓</span>En-route FIR Analysis</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#4a9eff;font-size:13px;margin-top:1px;">✓</span>Ask NOTAM AI — AI Assistant</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#4a9eff;font-size:13px;margin-top:1px;">✓</span>✦ AI NOTAM/METAR/TAF Analysis</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#4a9eff;font-size:13px;margin-top:1px;">✓</span>Briefing Archive</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#4a9eff;font-size:13px;margin-top:1px;">✓</span>Saved Routes</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#4a9eff;font-size:13px;margin-top:1px;">✓</span>NOTAM Alerts</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#4a9eff;font-size:13px;margin-top:1px;">✓</span>Share &amp; PDF Export</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#4a5f72;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✗</span>AI Video Briefing</li>
         </ul>
-        <button class="card-btn card-btn-blue" onclick="openSignupModal()">Start Free Trial →</button>
-        <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
+        <button onclick="initiateCheckout('pro')" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:#4a9eff;border:1px solid #4a9eff;color:#060a0f;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Start Free Trial →</button>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">* Subject to <a href="#" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></div>
       </div>
+
       <!-- MAX -->
-      <div class="pricing-card" style="border:1px solid #f4841a;position:relative;">
+      <div style="background:#0a0f18;border:1px solid #f4841a;border-radius:8px;padding:32px 24px 28px;display:flex;flex-direction:column;position:relative;">
         <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#f4841a;color:#060a0f;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;white-space:nowrap;">BEST VALUE</div>
-        <div class="card-name">Max</div>
-        <div class="card-price">
-          <span class="price-amount" id="pricing_maxPrice" style="color:#f4841a;">$99</span>
-          <span class="price-period" id="pricing_maxPeriod">/month</span>
+        <div style="min-height:20px;margin-bottom:20px;"></div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#ffffff;margin-bottom:16px;">Max</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;">
+          <span id="pricing_maxPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#f4841a;">$99</span>
+          <span id="pricing_maxPeriod" style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#4a5f72;">/month</span>
         </div>
-        <div id="pricing_maxNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
-        <div class="card-subtitle">For aviation professionals</div>
-        <ul class="features-list">
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Pro +</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">NOTAM Intelligence Chat (higher limits)</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">AI Video Briefing (5/month) 🎬</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Unlimited Archive</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Unlimited Saved Routes</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Unlimited NOTAM Alerts</span></li>
-          <li><span class="feat-check feat-on">✓</span><span class="feat-on">Priority Support</span></li>
-          <li><span class="feat-check feat-on" style="color:#f4841a;">+</span><span class="feat-on" style="color:#8a9bb0;font-size:13px;">Extra video pack: $10 = 3 videos</span></li>
+        <div id="pricing_maxNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;min-height:18px;">7-day free trial · Cancel anytime</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:24px;">For aviation professionals</div>
+        <ul style="list-style:none;flex:1;margin-bottom:28px;">
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">✓</span>Everything in Pro +</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">✓</span>NOTAM Intelligence Chat (higher limits)</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">✓</span>AI Video Briefing (5/month) 🎬</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">✓</span>Unlimited Archive</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">✓</span>Unlimited Saved Routes</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">✓</span>Unlimited NOTAM Alerts</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">✓</span>Priority Support</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#8a9bb0;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">+</span>Extra video pack: $10 = 3 videos</li>
         </ul>
-        <button class="card-btn card-btn-orange" onclick="openSignupModal()">Start Free Trial →</button>
-        <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
+        <button onclick="initiateCheckout('max')" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:#f4841a;border:1px solid #f4841a;color:#060a0f;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Start Free Trial →</button>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">* Subject to <a href="#" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></div>
       </div>
+
       <!-- ENTERPRISE -->
-      <div class="pricing-card" style="border:1px solid rgba(181,123,255,0.3);position:relative;">
+      <div style="background:#0a0f18;border:1px solid rgba(181,123,255,0.4);border-radius:8px;padding:32px 24px 28px;display:flex;flex-direction:column;position:relative;">
         <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#b57bff;color:#060a0f;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;white-space:nowrap;">ENTERPRISE</div>
-        <div class="card-badge" style="color:#b57bff;min-height:16px;"></div>
-        <div class="card-name" style="color:#b57bff;">Enterprise</div>
-        <div class="card-price">
-          <span class="price-amount" id="pricing_enterprisePrice" style="color:#b57bff;">$999</span>
-          <span class="price-period" id="pricing_enterprisePeriod">/month</span>
+        <div style="min-height:20px;margin-bottom:20px;"></div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#ffffff;margin-bottom:16px;">Enterprise</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;">
+          <span id="pricing_enterprisePrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#b57bff;">$999</span>
+          <span id="pricing_enterprisePeriod" style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#4a5f72;">/month</span>
         </div>
-        <div id="pricing_enterpriseNote2" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">Annual: $849/mo · Save $1,800</div>
-        <div class="card-subtitle">Up to 10 users · For airlines &amp; operations centers</div>
-        <ul class="features-list">
-          <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Everything in Max +</span></li>
-          <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Up to 10 users</span></li>
-          <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">API Access</span></li>
-          <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Priority Support &amp; SLA</span></li>
-          <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Dedicated Account Manager</span></li>
-          <li><span class="feat-check feat-on" style="color:#b57bff;">✓</span><span class="feat-on">Custom Onboarding</span></li>
+        <div id="pricing_enterpriseNote2" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;min-height:18px;">Annual: $849/mo · <span style="color:#2ec4b6;font-weight:700;">Save $1,800</span></div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:24px;">Up to 10 users · Airlines &amp; ops centers</div>
+        <ul style="list-style:none;flex:1;margin-bottom:28px;">
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>Everything in Max +</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>Up to 10 users</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>API Access</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>Priority Support &amp; SLA</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>Dedicated Account Manager</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>Custom Onboarding</li>
         </ul>
-        <button class="card-btn" onclick="window.location.href='mailto:support@notamai.com?subject=Enterprise Plan Inquiry'" style="background:transparent;border:1px solid rgba(181,123,255,0.4);color:#b57bff;font-weight:600;margin-top:auto;">CONTACT SALES →</button>
+        <button onclick="window.location.href='mailto:support@notamai.com?subject=Enterprise Plan Inquiry'" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid rgba(181,123,255,0.4);color:#b57bff;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">Contact Sales →</button>
         <div id="pricing_enterpriseNote" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">10+ users? Contact us for custom pricing</div>
       </div>
+
     </div>
     <!-- REFERRAL SECTION -->
     <div style="max-width:700px;margin:60px auto;text-align:center;">
