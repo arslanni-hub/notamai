@@ -33,7 +33,7 @@ tr:hover td { background:rgba(74,158,255,0.03); }
 .badge { font-size:10px;padding:2px 8px;border-radius:3px;font-family:'Share Tech Mono',monospace;letter-spacing:1px; }
 .badge-free { background:rgba(74,95,114,0.15);color:#4a5f72;border:1px solid rgba(74,95,114,0.3); }
 .badge-pro { background:rgba(74,158,255,0.1);color:#4a9eff;border:1px solid rgba(74,158,255,0.2); }
-.badge-premium { background:rgba(244,132,26,0.1);color:#f4841a;border:1px solid rgba(244,132,26,0.2); }
+.badge-max { background:rgba(244,132,26,0.1);color:#f4841a;border:1px solid rgba(244,132,26,0.2); }
 .badge-admin { background:rgba(242,198,65,0.1);color:#f2c641;border:1px solid rgba(242,198,65,0.2); }
 .loading { color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;padding:40px;text-align:center; }
 .tab-content { display:none; }
@@ -122,8 +122,8 @@ async function loadOverview() {
     const total = users.length;
     const free = users.filter(u => !u.plan || u.plan === 'free').length;
     const pro = users.filter(u => u.plan === 'pro').length;
-    const premium = users.filter(u => u.plan === 'premium').length;
-    const mrr = (pro * 49) + (premium * 99);
+    const max = users.filter(u => u.plan === 'max').length;
+    const mrr = (pro * 49) + (max * 99);
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const briefingsSnap = await db.collection('briefings').where('createdAt', '>=', monthStart).get();
@@ -131,7 +131,7 @@ async function loadOverview() {
     const videosSnap = await db.collection('videos').where('status', '==', 'completed').get();
     const alertsSnap = await db.collection('alerts').where('active', '==', true).get();
     const chatsSnap = await db.collection('general_chats').where('createdAt', '>=', monthStart).get();
-    const conversionRate = total > 0 ? Math.round(((pro + premium) / total) * 100) : 0;
+    const conversionRate = total > 0 ? Math.round(((pro + max) / total) * 100) : 0;
 
     document.getElementById('tab-overview').innerHTML = `
       <div class="stats-grid">
@@ -146,7 +146,7 @@ async function loadOverview() {
           <div class="stat-sub">
             <span style="color:#4a5f72;">Free: ${free}</span> ·
             <span style="color:#4a9eff;">Pro: ${pro}</span> ·
-            <span style="color:#f4841a;">Premium: ${premium}</span>
+            <span style="color:#f4841a;">Max: ${max}</span>
           </div>
         </div>
         <div class="stat-card">
@@ -189,7 +189,7 @@ async function loadUsers() {
     const users = await res.json();
     const free = users.filter(u => u.plan === 'free').length;
     const pro = users.filter(u => u.plan === 'pro').length;
-    const premium = users.filter(u => u.plan === 'premium').length;
+    const max = users.filter(u => u.plan === 'max').length;
     const admin = users.filter(u => ADMIN_EMAILS.includes(u.email)).length;
 
     const rows = users.map(u => {
@@ -208,7 +208,7 @@ async function loadUsers() {
       <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
         <div class="stat-card"><div class="stat-label">FREE</div><div class="stat-value" style="color:#4a5f72;">${free}</div></div>
         <div class="stat-card"><div class="stat-label">PRO</div><div class="stat-value" style="color:#4a9eff;">${pro}</div></div>
-        <div class="stat-card"><div class="stat-label">PREMIUM</div><div class="stat-value" style="color:#f4841a;">${premium}</div></div>
+        <div class="stat-card"><div class="stat-label">MAX</div><div class="stat-value" style="color:#f4841a;">${max}</div></div>
         <div class="stat-card"><div class="stat-label">ADMIN</div><div class="stat-value" style="color:#f2c641;">${admin}</div></div>
       </div>
       <div class="section-title">USER LIST</div>
@@ -230,8 +230,8 @@ async function loadRevenue() {
     const snap = await db.collection('users').get();
     const users = snap.docs.map(d => d.data());
     const pro = users.filter(u => u.plan === 'pro').length;
-    const premium = users.filter(u => u.plan === 'premium').length;
-    const mrr = (pro * 49) + (premium * 99);
+    const max = users.filter(u => u.plan === 'max').length;
+    const mrr = (pro * 49) + (max * 99);
     const arr = mrr * 12;
 
     const now = new Date();
@@ -263,7 +263,7 @@ async function loadRevenue() {
     const renderCost = 7.00;
     const claudeProCost = 20.00;
     const resendCost = 0.00;
-    const lsCommission = mrr > 0 ? (mrr * 0.05) + (pro + premium) * 0.50 : 0;
+    const lsCommission = mrr > 0 ? (mrr * 0.05) + (pro + max) * 0.50 : 0;
 
     const totalVariableCost = briefingCost + chatCost + analysisCost + videoApiCost + ttsApiCost + firebaseStorageCost + resendCost;
     const totalFixedCost = renderCost + claudeProCost + hostingerCost;

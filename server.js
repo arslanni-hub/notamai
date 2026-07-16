@@ -35,7 +35,7 @@ if (!fs.existsSync(PILOT_IMAGE_PATH)) {
 const PLAN_LIMITS = {
   free:    { briefings: 3,   chat: 0,   analysis: 0   },
   pro:     { briefings: 100, chat: 150, analysis: 200  },
-  premium: { briefings: 150, chat: 400, analysis: 300  },
+  max: { briefings: 150, chat: 400, analysis: 300  },
   admin:   { briefings: 9999, chat: 9999, analysis: 9999 }
 };
 
@@ -44,7 +44,7 @@ const PLAN_LIMITS = {
 // downgrade the model rather than hard-block (except Free, which hard-stops since it's
 // already a thin "taste" tier with no Firestore persistence).
 // All plans use token budgets over a 5-hour rolling window (matching Claude's own
-// usage window). softLimitRatio is the fraction of the budget at which Pro/Premium
+// usage window). softLimitRatio is the fraction of the budget at which Pro/Max
 // silently downgrade from Sonnet to Haiku (cheaper model, same total budget still
 // hard-caps at 100% — this isn't a separate allowance, just a quality step-down within
 // the existing budget). Free has no soft limit since it's Haiku-only already; it hard-stops
@@ -52,23 +52,23 @@ const PLAN_LIMITS = {
 const GENERAL_CHAT_LIMITS = {
   free:    { windowMinutes: 300, limit: 470,    mode: 'tokens', model: 'claude-haiku-4-5-20251001' },
   pro:     { windowMinutes: 300, limit: 12000,  mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 },
-  premium: { windowMinutes: 300, limit: 24000,  mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 },
+  max: { windowMinutes: 300, limit: 24000,  mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 },
   admin:   { windowMinutes: 300, limit: 999999, mode: 'tokens', model: 'claude-sonnet-4-6' }
 };
 const GENERAL_CHAT_FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
 
-// Web search for General Aviation Expert Chat — Pro/Premium only. The flat $0.01/search
+// Web search for General Aviation Expert Chat — Pro/Max only. The flat $0.01/search
 // fee is NOT covered by the token-budget rate limit below (only token cost is), so we gate
 // by plan rather than opening it to Free, whose budget is too thin to absorb an uncounted
 // per-search fee. max_uses is a hard ceiling on searches per question, for cost/latency control.
-const GENERAL_CHAT_WEB_SEARCH_PLANS = ['pro', 'premium'];
+const GENERAL_CHAT_WEB_SEARCH_PLANS = ['pro', 'max'];
 const GENERAL_CHAT_WEB_SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses: 3 };
 // Hard ceiling on searches per 5-hour window, independent of the token budget above. The
 // flat $0.01/search fee isn't proportional to tokens, so a token-only gate doesn't bound it.
 // Once reached — OR once the user is already past the token soft-limit threshold (the same
 // signal that downgrades Sonnet to Haiku) — search silently turns off for the rest of that
 // window; chat keeps answering normally, just without search. Never blocks the user.
-const GENERAL_CHAT_WEB_SEARCH_CAP = { pro: 3, premium: 6 };
+const GENERAL_CHAT_WEB_SEARCH_CAP = { pro: 3, max: 6 };
 
 async function getGeneralChatWindowUsage(userId, windowMinutes) {
   try {
@@ -3116,7 +3116,7 @@ MANDATORY:
     req.on('end', async () => {
       try {
         const { plan, userId, email } = JSON.parse(body);
-        const variantId = plan === 'premium'
+        const variantId = plan === 'max'
           ? process.env.LEMONSQUEEZY_PREMIUM_VARIANT_ID
           : process.env.LEMONSQUEEZY_PRO_VARIANT_ID;
         const response = await fetchURL('https://api.lemonsqueezy.com/v1/checkouts', {
@@ -3188,10 +3188,10 @@ MANDATORY:
         console.log('[WEBHOOK]', eventName, 'userId:', userId, 'variantId:', variantId);
         if (!userId) { res.writeHead(200); res.end('OK'); return; }
         const proPlanId = String(process.env.LEMONSQUEEZY_PRO_VARIANT_ID);
-        const premiumPlanId = String(process.env.LEMONSQUEEZY_PREMIUM_VARIANT_ID);
+        const maxPlanId = String(process.env.LEMONSQUEEZY_PREMIUM_VARIANT_ID);
         let plan = null;
         if (variantId === proPlanId) plan = 'pro';
-        if (variantId === premiumPlanId) plan = 'premium';
+        if (variantId === maxPlanId) plan = 'max';
         if (eventName === 'subscription_created' || eventName === 'order_created') {
           if (plan) {
             await adminDb.collection('users').doc(userId).set({
@@ -3253,7 +3253,7 @@ MANDATORY:
         plan,
         briefings: { used: briefingsUsed, limit: limits.briefings },
         analysis: { used: analysisUsed, limit: limits.analysis },
-        video: { used: videoUsed, limit: plan === 'admin' ? 9999 : (plan === 'premium' ? 5 : 0) },
+        video: { used: videoUsed, limit: plan === 'admin' ? 9999 : (plan === 'max' ? 5 : 0) },
         chat: { tokens: chatTokens, limit: chatCfg.limit, resetInMinutes },
         monthlyResetDays: daysUntilReset,
         memberSince: userData.createdAt ? userData.createdAt.toDate().toISOString() : null
@@ -3314,7 +3314,7 @@ MANDATORY:
             res.end(JSON.stringify({ error: 'upgrade_required', feature: 'analysis' }));
             return;
           }
-          const effectivePlan = plan === 'admin' ? 'premium' : plan;
+          const effectivePlan = plan === 'admin' ? 'max' : plan;
           const usage = await getUserUsage(userId, 'analysis');
           const limit = PLAN_LIMITS[effectivePlan]?.analysis || 0;
           if (usage >= limit) {
@@ -3411,7 +3411,7 @@ MANDATORY:
             res.end(JSON.stringify({ error: 'upgrade_required', feature: 'chat' }));
             return;
           }
-          const effectivePlan = plan === 'admin' ? 'premium' : plan;
+          const effectivePlan = plan === 'admin' ? 'max' : plan;
           const usage = await getUserUsage(userId, 'chat');
           const limit = PLAN_LIMITS[effectivePlan]?.chat || 0;
           if (usage >= limit) {
@@ -4052,7 +4052,7 @@ async function checkNotamAlerts() {
       for (const { doc: alertDoc, userId } of icaoMap[icao]) {
         const alert = alertDoc.data();
 
-        // Plan check — free excluded, Pro every 3rd cycle (30min), Premium/Admin every cycle (10min)
+        // Plan check — free excluded, Pro every 3rd cycle (30min), Max/Admin every cycle (10min)
         const plan = await getUserPlan(userId);
         if (plan === 'free') continue;
         if (plan === 'pro' && alertCheckCycle % 3 !== 0) continue;
@@ -4111,7 +4111,7 @@ async function checkNotamAlerts() {
   }
 }
 
-// 10min interval — Pro users checked every 3rd cycle (30min), Premium every cycle (10min)
+// 10min interval — Pro users checked every 3rd cycle (30min), Max every cycle (10min)
 setInterval(checkNotamAlerts, 10 * 60 * 1000);
 setTimeout(checkNotamAlerts, 30 * 1000);
 

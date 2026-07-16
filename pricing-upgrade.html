@@ -452,17 +452,17 @@ canvas#sky {
       <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
     </div>
 
-    <!-- PREMIUM -->
+    <!-- MAX -->
     <div class="pricing-card" style="border: 1px solid #f4841a; position:relative;">
       <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#f4841a;color:#060a0f;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;white-space:nowrap;">BEST VALUE</div>
-      <div style="min-height:16px;margin-bottom:6px;"><div id="current_premium" style="display:none;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;">&#9679; CURRENT PLAN</div></div>
+      <div style="min-height:16px;margin-bottom:6px;"><div id="current_max" style="display:none;font-family:'Share Tech Mono',monospace;font-size:10px;color:#2ec4b6;letter-spacing:2px;">&#9679; CURRENT PLAN</div></div>
       <div class="card-badge"></div>
-      <div class="card-name">Premium</div>
+      <div class="card-name">Max</div>
       <div class="card-price">
-        <span class="price-amount" id="premiumPrice" data-monthly="99" data-yearly="84" style="color:#f4841a;">$99</span>
-        <span class="price-period" id="premiumPeriod">/month</span>
+        <span class="price-amount" id="maxPrice" data-monthly="99" data-yearly="84" style="color:#f4841a;">$99</span>
+        <span class="price-period" id="maxPeriod">/month</span>
       </div>
-      <div id="pricing_premiumNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial &middot; Cancel anytime</div>
+      <div id="pricing_maxNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial &middot; Cancel anytime</div>
       <div class="card-subtitle">For aviation professionals</div>
       <ul class="features-list">
         <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Everything in Pro +</span></li>
@@ -474,7 +474,7 @@ canvas#sky {
         <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Priority Support</span></li>
         <li><span class="feat-check feat-on" style="color:#f4841a;">+</span><span class="feat-on" style="color:#8a9bb0;font-size:13px;">Extra video pack: $10 = 3 videos</span></li>
       </ul>
-      <button id="btn-premium" onclick="initiateCheckout('premium')" style="width:100%;padding:12px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">UPGRADE TO PREMIUM &rarr;</button>
+      <button id="btn-max" onclick="initiateCheckout('max')" style="width:100%;padding:12px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:4px;cursor:pointer;">UPGRADE TO MAX &rarr;</button>
       <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
     </div>
 
@@ -488,7 +488,7 @@ canvas#sky {
       </div>
       <div class="card-subtitle">For airlines &amp; operations centers</div>
       <ul class="features-list">
-        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Everything in Premium +</span></li>
+        <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Everything in Max +</span></li>
         <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Multi-user access</span></li>
         <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">API Access</span></li>
         <li><span class="feat-check feat-on">&#10003;</span><span class="feat-on">Custom integrations</span></li>
@@ -557,9 +557,9 @@ function pricing_toggleBilling() {
     monthlyLabel.style.color = '#4a5f72';
     yearlyLabel.style.color = '#cdd9e5';
     document.getElementById('proPrice').textContent = '42';
-    document.getElementById('premiumPrice').textContent = '84';
+    document.getElementById('maxPrice').textContent = '84';
     document.getElementById('pricing_proNote').innerHTML = '$504/year &middot; <span style="color:#2ec4b6;font-weight:700;">Save $108</span>';
-    document.getElementById('pricing_premiumNote').innerHTML = '$1,008/year &middot; <span style="color:#2ec4b6;font-weight:700;">Save $180</span>';
+    document.getElementById('pricing_maxNote').innerHTML = '$1,008/year &middot; <span style="color:#2ec4b6;font-weight:700;">Save $180</span>';
   } else {
     dot.style.left = '2px';
     toggle.style.background = '#1a2a3a';
@@ -567,9 +567,9 @@ function pricing_toggleBilling() {
     monthlyLabel.style.color = '#cdd9e5';
     yearlyLabel.style.color = '#4a5f72';
     document.getElementById('proPrice').textContent = '49';
-    document.getElementById('premiumPrice').textContent = '99';
+    document.getElementById('maxPrice').textContent = '99';
     document.getElementById('pricing_proNote').textContent = '7-day free trial \u00b7 Cancel anytime';
-    document.getElementById('pricing_premiumNote').textContent = '7-day free trial \u00b7 Cancel anytime';
+    document.getElementById('pricing_maxNote').textContent = '7-day free trial \u00b7 Cancel anytime';
   }
 }
 </script>
@@ -595,20 +595,20 @@ firebase.auth().onAuthStateChanged(async (user) => {
     const plan = doc.exists ? (doc.data().plan || 'free') : 'free';
 
     // Update current_* labels
-    ['free', 'pro', 'premium', 'enterprise'].forEach(p => {
+    ['free', 'pro', 'max', 'enterprise'].forEach(p => {
       const label = document.getElementById('current_' + p);
       if (label) label.style.display = p === plan ? 'block' : 'none';
     });
 
     const freeBtn    = document.getElementById('btn-free');
     const proBtn     = document.getElementById('btn-pro');
-    const premiumBtn = document.getElementById('btn-premium');
+    const maxBtn = document.getElementById('btn-max');
 
     if (plan === 'pro') {
       if (proBtn)     { proBtn.textContent = '\u2713 CURRENT PLAN'; proBtn.style.opacity = '0.6'; proBtn.onclick = null; }
       if (freeBtn)    { freeBtn.textContent = 'Downgrade'; freeBtn.style.opacity = '0.5'; }
-    } else if (plan === 'premium') {
-      if (premiumBtn) { premiumBtn.textContent = '\u2713 CURRENT PLAN'; premiumBtn.style.opacity = '0.6'; premiumBtn.onclick = null; }
+    } else if (plan === 'max') {
+      if (maxBtn) { maxBtn.textContent = '\u2713 CURRENT PLAN'; maxBtn.style.opacity = '0.6'; maxBtn.onclick = null; }
       if (proBtn)     { proBtn.textContent = 'Downgrade'; proBtn.style.opacity = '0.5'; }
       if (freeBtn)    { freeBtn.textContent = 'Downgrade'; freeBtn.style.opacity = '0.5'; }
     } else {
