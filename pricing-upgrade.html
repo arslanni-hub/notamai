@@ -598,28 +598,47 @@ const db = firebase.firestore();
 firebase.auth().onAuthStateChanged(async (user) => {
   if (!user) return;
   try {
-    const doc = await db.collection('users').doc(user.uid).get();
-    const plan = doc.exists ? (doc.data().plan || 'free') : 'free';
+    const token = await user.getIdToken();
+    const res = await fetch('/api/usage', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    const plan = data.plan || 'free';
 
-    // Update current_* labels
-    ['free', 'pro', 'max', 'enterprise'].forEach(p => {
-      const label = document.getElementById('current_' + p);
-      if (label) label.style.display = p === plan ? 'block' : 'none';
-    });
-
-    const freeBtn    = document.getElementById('btn-free');
-    const proBtn     = document.getElementById('btn-pro');
+    const freeBtn = document.getElementById('btn-free');
+    const proBtn = document.getElementById('btn-pro');
     const maxBtn = document.getElementById('btn-max');
 
-    if (plan === 'pro') {
-      if (proBtn)     { proBtn.textContent = '\u2713 CURRENT PLAN'; proBtn.style.opacity = '0.6'; proBtn.onclick = null; }
-      if (freeBtn)    { freeBtn.textContent = 'Downgrade'; freeBtn.style.opacity = '0.5'; }
+    // Hide all current plan indicators first
+    ['free', 'pro', 'max', 'enterprise'].forEach(p => {
+      const label = document.getElementById('current_' + p);
+      if (label) label.style.display = 'none';
+    });
+
+    if (plan === 'admin') {
+      // Admin \u2014 show no upgrade options, all buttons hidden
+      if (freeBtn) freeBtn.style.display = 'none';
+      if (proBtn) proBtn.style.display = 'none';
+      if (maxBtn) maxBtn.style.display = 'none';
+      // Show admin banner
+      const adminNote = document.createElement('div');
+      adminNote.style.cssText = 'text-align:center;padding:12px;background:rgba(242,198,65,0.08);border:1px solid rgba(242,198,65,0.2);border-radius:6px;font-family:Share Tech Mono,monospace;font-size:11px;color:#f2c641;letter-spacing:2px;margin-bottom:16px;';
+      adminNote.textContent = 'ADMIN ACCOUNT \u2014 FULL ACCESS';
+      if (freeBtn) freeBtn.parentNode.insertBefore(adminNote, freeBtn);
+    } else if (plan === 'pro') {
+      const label = document.getElementById('current_pro');
+      if (label) label.style.display = 'block';
+      if (proBtn) { proBtn.textContent = '\u2713 CURRENT PLAN'; proBtn.style.opacity = '0.6'; proBtn.onclick = null; proBtn.style.cursor = 'default'; }
+      if (freeBtn) { freeBtn.textContent = 'Downgrade'; freeBtn.style.opacity = '0.5'; }
     } else if (plan === 'max') {
-      if (maxBtn) { maxBtn.textContent = '\u2713 CURRENT PLAN'; maxBtn.style.opacity = '0.6'; maxBtn.onclick = null; }
-      if (proBtn)     { proBtn.textContent = 'Downgrade'; proBtn.style.opacity = '0.5'; }
-      if (freeBtn)    { freeBtn.textContent = 'Downgrade'; freeBtn.style.opacity = '0.5'; }
+      const label = document.getElementById('current_max');
+      if (label) label.style.display = 'block';
+      if (maxBtn) { maxBtn.textContent = '\u2713 CURRENT PLAN'; maxBtn.style.opacity = '0.6'; maxBtn.onclick = null; maxBtn.style.cursor = 'default'; }
+      if (proBtn) { proBtn.textContent = 'Downgrade'; proBtn.style.opacity = '0.5'; }
+      if (freeBtn) { freeBtn.textContent = 'Downgrade'; freeBtn.style.opacity = '0.5'; }
     } else {
-      if (freeBtn) { freeBtn.textContent = '\u2713 CURRENT PLAN'; }
+      // Free
+      const label = document.getElementById('current_free');
+      if (label) label.style.display = 'block';
+      if (freeBtn) { freeBtn.textContent = '\u2713 CURRENT PLAN'; freeBtn.style.cursor = 'default'; }
     }
   } catch(e) {
     console.error(e);
