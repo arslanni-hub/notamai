@@ -1659,18 +1659,30 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
   <div class="modal-box">
     <button class="modal-close-btn" onclick="closeModal()">✕</button>
     <div class="modal-title">🎬 AI VIDEO BRIEFING</div>
-    <div class="modal-desc">A 60-second spoken pre-flight briefing delivered by an AI presenter. Upgrade to Pro to unlock.</div>
-    <div class="plan featured">
-      <div class="plan-name">Pro</div>
-      <div class="plan-price">$299 <small>/ month</small></div>
-      <div class="plan-feat">✓ Live NOTAM auto-fetch<br>✓ Full route analysis<br>✓ AI Video Briefing 🎬<br>✓ PDF export & share link</div>
+    <div class="modal-desc">A fully narrated AI video briefing for your route — risk score, NOTAMs, Go/No-Go and pilot actions. Available with Max plan.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0;">
+      <div style="background:#0a0f18;border:1px solid rgba(244,132,26,0.4);border-radius:8px;padding:20px 16px;display:flex;flex-direction:column;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:#f4841a;margin-bottom:10px;">Max</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:28px;font-weight:900;color:#f4841a;margin-bottom:4px;">$99 <span style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#4a5f72;font-weight:400;">/ month</span></div>
+        <ul style="list-style:none;flex:1;margin:12px 0 16px;">
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:4px 0;">✓ Everything in Pro +</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:4px 0;">✓ AI Video Briefing (5/month) 🎬</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:4px 0;">✓ Unlimited Archive &amp; Alerts</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:4px 0;">✓ Priority Support</li>
+        </ul>
+        <button onclick="initiateCheckout('max');closeModal();" style="width:100%;padding:10px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO MAX →</button>
+      </div>
+      <div style="background:#0a0f18;border:1px solid rgba(181,123,255,0.4);border-radius:8px;padding:20px 16px;display:flex;flex-direction:column;">
+        <div style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:#b57bff;margin-bottom:10px;">Enterprise</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:28px;font-weight:900;color:#b57bff;margin-bottom:4px;">$999 <span style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#4a5f72;font-weight:400;">/ month</span></div>
+        <ul style="list-style:none;flex:1;margin:12px 0 16px;">
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:4px 0;">✓ Everything in Max +</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:4px 0;">✓ Up to 10 users</li>
+          <li style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:4px 0;">✓ API Access &amp; SLA</li>
+        </ul>
+        <button onclick="window.location.href='mailto:support@notamai.com?subject=Enterprise Plan Inquiry'" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(181,123,255,0.4);color:#b57bff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">CONTACT SALES →</button>
+      </div>
     </div>
-    <div class="plan">
-      <div class="plan-name">Enterprise</div>
-      <div class="plan-price">$999 <small>/ month</small></div>
-      <div class="plan-feat">✓ Everything in Pro<br>✓ Unlimited users & API access<br>✓ Custom integration</div>
-    </div>
-    <button class="upgrade-btn">UPGRADE TO PRO →</button>
   </div>
 </div>
 
@@ -3391,7 +3403,7 @@ async function sendAIChat() {
       const data = await response.json();
       const msg = data.error === 'upgrade_required'
         ? 'Ask NOTAM AI requires a Pro or Max plan.'
-        : 'You have reached your monthly chat limit. Upgrade to Max for unlimited access.';
+        : 'You have reached your monthly chat limit. Upgrade to Max for higher limits.';
       showUpgradeBanner('aiChatMessages', msg);
       return;
     }
@@ -3465,7 +3477,7 @@ function showLimitModal(plan, feature, usage, limit) {
   const messages = {
     free_briefing:    `You've used all ${limit} free briefings this month. Upgrade to Pro for up to 100 AI briefings.`,
     pro_briefing:     `You've reached your monthly briefing limit (${usage}/${limit}). Upgrade to Max for higher limits.`,
-    pro_chat:         `You've reached your monthly chat limit (${usage}/${limit}). Upgrade to Max for unlimited Ask NOTAM AI.`,
+    pro_chat:         `You've reached your monthly chat limit (${usage}/${limit}). Upgrade to Max for higher limits.`,
     max_briefing: `You've reached your monthly briefing limit (${usage}/${limit}).`,
     max_chat:     `You've reached your monthly chat limit.`,
   };
