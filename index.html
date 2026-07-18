@@ -8535,11 +8535,6 @@ document.addEventListener('click', function(e) {
         <button id="aptModeBtn" onclick="setAptMode('airport')" style="flex:1;padding:7px;background:rgba(74,158,255,0.1);border:1px solid rgba(74,158,255,0.4);color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;border-radius:4px;cursor:pointer;">AIRPORT</button>
         <button id="firModeBtn" onclick="setAptMode('fir')" style="flex:1;padding:7px;background:none;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;border-radius:4px;cursor:pointer;">FIR</button>
       </div>
-      <!-- Input row -->
-      <div style="display:flex;gap:8px;margin-bottom:10px;">
-        <input id="airportIcaoInput" type="text" placeholder="ICAO code (e.g. KJFK)" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')fetchAirportOrFir()">
-        <button onclick="fetchAirportOrFir()" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">FETCH</button>
-      </div>
       <!-- Name/city search -->
       <div style="margin-bottom:12px;">
         <input id="aptSearchInput" type="text" placeholder="Search airport/FIR name, city or country..." style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:13px;outline:none;" oninput="searchAptFir(this.value)">
