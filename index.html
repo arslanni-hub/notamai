@@ -9321,7 +9321,7 @@ function setAptMode(mode) {
     firBtn.style.background = 'none';
     firBtn.style.borderColor = '#1a2a3a';
     firBtn.style.color = '#4a5f72';
-    document.getElementById('airportIcaoInput').placeholder = 'ICAO code (e.g. KJFK)';
+    const _aptIn1 = document.getElementById('airportIcaoInput'); if (_aptIn1) _aptIn1.placeholder = 'ICAO code (e.g. KJFK)';
   } else {
     firBtn.style.background = 'rgba(74,158,255,0.1)';
     firBtn.style.borderColor = 'rgba(74,158,255,0.4)';
@@ -9329,16 +9329,27 @@ function setAptMode(mode) {
     aptBtn.style.background = 'none';
     aptBtn.style.borderColor = '#1a2a3a';
     aptBtn.style.color = '#4a5f72';
-    document.getElementById('airportIcaoInput').placeholder = 'FIR code (e.g. LTAA)';
+    const _aptIn2 = document.getElementById('airportIcaoInput'); if (_aptIn2) _aptIn2.placeholder = 'FIR code (e.g. LTAA)';
   }
   document.getElementById('airportInfoResult').innerHTML = '';
 }
 
-function fetchAirportOrFir() {
+function fetchAirportOrFirByCode(code) {
+  code = code.trim().toUpperCase();
   if (aptMode === 'airport') {
-    fetchAirportInfo();
+    fetchAirportInfo(code);
   } else {
-    fetchFirInfo();
+    fetchFirInfo(code);
+  }
+}
+
+function fetchAirportOrFir() {
+  const input = document.getElementById('airportIcaoInput');
+  const code = input ? input.value.trim().toUpperCase() : '';
+  if (aptMode === 'airport') {
+    fetchAirportInfo(code);
+  } else {
+    fetchFirInfo(code);
   }
 }
 
@@ -9403,14 +9414,14 @@ function searchAptFir(query) {
 }
 
 function selectAptFir(code) {
-  document.getElementById('airportIcaoInput').value = code;
   document.getElementById('aptSearchResults').style.display = 'none';
   document.getElementById('aptSearchInput').value = '';
-  fetchAirportOrFir();
+  fetchAirportOrFirByCode(code);
 }
 
-async function fetchFirInfo() {
-  const icao = document.getElementById('airportIcaoInput').value.trim().toUpperCase();
+async function fetchFirInfo(directCode) {
+  const input = document.getElementById('airportIcaoInput');
+  const icao = directCode ? directCode.trim().toUpperCase() : (input ? input.value.trim().toUpperCase() : '');
   if (!icao || icao.length < 4) return;
   const result = document.getElementById('airportInfoResult');
   result.innerHTML = '<div style="color:#4a9eff;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">FETCHING FIR DATA...</div>';
@@ -9459,8 +9470,9 @@ async function fetchFirInfo() {
 }
 
 // AIRPORT INFO
-async function fetchAirportInfo() {
-  const icao = document.getElementById('airportIcaoInput').value.trim().toUpperCase();
+async function fetchAirportInfo(directCode) {
+  const input = document.getElementById('airportIcaoInput');
+  const icao = directCode ? directCode.trim().toUpperCase() : (input ? input.value.trim().toUpperCase() : '');
   if (!icao || icao.length < 3) return;
 
   const result = document.getElementById('airportInfoResult');
