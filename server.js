@@ -3335,14 +3335,41 @@ MANDATORY:
         }))];
 
         const airportNames = {};
-        await Promise.all(uniqueIcaos.slice(0, 5).map(async icao => {
+        for (const icao of uniqueIcaos.slice(0, 5)) {
           try {
-            const data = await fetchURL('https://aviationweather.gov/api/data/airport?ids=' + icao + '&format=json');
-            if (data && Array.isArray(data) && data.length > 0 && data[0].name) {
-              airportNames[icao] = data[0].name + (data[0].city ? ', ' + data[0].city : '') + (data[0].country ? ', ' + data[0].country : '');
+            const data = await fetchURL(`https://skylink-api.p.rapidapi.com/airports/${icao}`, {
+              method: 'GET',
+              headers: { 'x-rapidapi-key': process.env.SKYLINK_KEY, 'x-rapidapi-host': 'skylink-api.p.rapidapi.com' }
+            });
+            if (data && data[0] && data[0].name) {
+              const name = data[0].name;
+              const city = data[0].city || data[0].municipality || '';
+              const country = data[0].country || data[0].iso_country || '';
+              airportNames[icao] = [name, city, country].filter(Boolean).join(', ');
+              console.log('[ANALYSIS] SkyLink verified:', icao, '=', airportNames[icao]);
+            }
+          } catch(e) {
+            console.log('[ANALYSIS] SkyLink lookup failed for', icao, e.message);
+          }
+        }
+        // Also extract any ICAO codes directly from raw text that might not be in uniqueIcaos
+        const rawIcaoMatches = (notam || '').match(/\b[A-Z]{4}\b/g) || [];
+        const extraIcaos = [...new Set(rawIcaoMatches)].filter(c => !uniqueIcaos.includes(c) && !airportNames[c]);
+        for (const icao of extraIcaos.slice(0, 3)) {
+          try {
+            const data = await fetchURL(`https://skylink-api.p.rapidapi.com/airports/${icao}`, {
+              method: 'GET',
+              headers: { 'x-rapidapi-key': process.env.SKYLINK_KEY, 'x-rapidapi-host': 'skylink-api.p.rapidapi.com' }
+            });
+            if (data && data[0] && data[0].name) {
+              const name = data[0].name;
+              const city = data[0].city || data[0].municipality || '';
+              const country = data[0].country || data[0].iso_country || '';
+              airportNames[icao] = [name, city, country].filter(Boolean).join(', ');
+              console.log('[ANALYSIS] SkyLink verified extra:', icao, '=', airportNames[icao]);
             }
           } catch(e) {}
-        }));
+        }
 
         // Fallback known airports for common codes not in SkyLink
         const KNOWN_AIRPORTS = {
