@@ -3344,8 +3344,42 @@ MANDATORY:
           } catch(e) {}
         }));
 
-        const airportContext = Object.keys(airportNames).length > 0
-          ? '\n\nVERIFIED AIRPORT NAMES FROM LIVE DATABASE:\n' + Object.entries(airportNames).map(([k, v]) => k + ' = ' + v).join('\n')
+        // Fallback known airports for common codes not in SkyLink
+        const KNOWN_AIRPORTS = {
+          'ULLI': 'Pulkovo Airport, Saint Petersburg, Russia',
+          'UUEE': 'Sheremetyevo International Airport, Moscow, Russia',
+          'UUWW': 'Vnukovo International Airport, Moscow, Russia',
+          'UUDD': 'Domodedovo International Airport, Moscow, Russia',
+          'URSS': 'Sochi International Airport, Sochi, Russia',
+          'USSS': 'Koltsovo International Airport, Yekaterinburg, Russia',
+          'UNNT': 'Tolmachevo Airport, Novosibirsk, Russia',
+          'UHWW': 'Vladivostok International Airport, Vladivostok, Russia',
+          'UHMM': 'Magadan Airport, Magadan, Russia',
+          'UKBB': 'Boryspil International Airport, Kyiv, Ukraine',
+          'UKLL': 'Lviv Danylo Halytskyi International Airport, Lviv, Ukraine',
+          'UMMS': 'Minsk National Airport, Minsk, Belarus',
+          'EVRA': 'Riga International Airport, Riga, Latvia',
+          'EYVI': 'Vilnius Airport, Vilnius, Lithuania',
+          'EETN': 'Lennart Meri Tallinn Airport, Tallinn, Estonia',
+          'UGGG': 'Tbilisi International Airport, Tbilisi, Georgia',
+          'UBBB': 'Heydar Aliyev International Airport, Baku, Azerbaijan',
+          'UDYZ': 'Zvartnots International Airport, Yerevan, Armenia',
+          'UAAA': 'Almaty International Airport, Almaty, Kazakhstan',
+          'UACC': 'Nursultan Nazarbayev International Airport, Astana, Kazakhstan',
+          'UTDD': 'Dushanbe International Airport, Dushanbe, Tajikistan',
+          'UTAA': 'Ashgabat International Airport, Ashgabat, Turkmenistan',
+          'UTTT': 'Tashkent International Airport, Tashkent, Uzbekistan',
+          'UCFM': 'Manas International Airport, Bishkek, Kyrgyzstan',
+        };
+
+        // Merge SkyLink results with known airports fallback
+        const mergedAirportNames = Object.assign({}, airportNames);
+        Object.keys(KNOWN_AIRPORTS).forEach(code => {
+          if (!mergedAirportNames[code]) mergedAirportNames[code] = KNOWN_AIRPORTS[code];
+        });
+
+        const airportContext = Object.keys(mergedAirportNames).length > 0
+          ? '\n\nVERIFIED AIRPORT NAMES (use EXACTLY as provided, never modify):\n' + Object.entries(mergedAirportNames).map(([k, v]) => k + ' = ' + v).join('\n')
           : '';
 
         let analyzeSystemPrompt;
