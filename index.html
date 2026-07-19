@@ -4745,14 +4745,15 @@ async function saveProfile() {
   const organization = document.getElementById('profileOrg').value.trim();
   try {
     await db.collection('users').doc(user.uid).set({
-      displayName, role, organization,
+      displayName, role, org: organization,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     if (displayName) document.getElementById('sidebarName').textContent = displayName;
     const btn = event.currentTarget;
     btn.textContent = '✓ SAVED';
-    btn.style.background = '#2ec4b6';
-    setTimeout(() => { btn.textContent = 'SAVE CHANGES'; btn.style.background = '#4a9eff'; }, 2000);
+    btn.style.color = '#2ec4b6';
+    btn.style.borderColor = 'rgba(46,196,182,0.4)';
+    setTimeout(() => { btn.textContent = 'SAVE CHANGES'; btn.style.color = '#8a9bb0'; btn.style.borderColor = 'rgba(74,158,255,0.3)'; }, 2000);
   } catch(e) {
     alert('Error saving profile: ' + e.message);
   }
