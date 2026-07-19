@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="https://browser.sentry-cdn.com/7.99.0/bundle.min.js" crossorigin="anonymous"></script>
+<script>
+  Sentry.init({
+    dsn: "https://354cef485cedf29335313fb9736c0350@o4511763434176512.ingest.de.sentry.io/4511763442958416",
+    environment: "production",
+    tracesSampleRate: 0.2,
+  });
+</script>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-26DHT93JR9"></script>
 <script>

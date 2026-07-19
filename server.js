@@ -1,3 +1,11 @@
+const { init: sentryInit, captureException } = (() => {
+  try { return require('@sentry/node'); } catch(e) { return { init: ()=>{}, captureException: ()=>{} }; }
+})();
+sentryInit({
+  dsn: 'https://354cef485cedf29335313fb9736c0350@o4511763434176512.ingest.de.sentry.io/4511763442958416',
+  environment: 'production',
+  tracesSampleRate: 0.1,
+});
 // Force redeploy
 const https = require('https');
 const http = require('http');
@@ -1332,6 +1340,7 @@ const AIRCRAFT_PERF_FALLBACK = {
 };
 
 const server = http.createServer(async (req, res) => {
+  try {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
 
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -3953,6 +3962,14 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
 
   res.writeHead(404);
   res.end('Not found');
+  } catch (err) {
+    console.error('Server error:', err);
+    captureException(err);
+    if (!res.headersSent) {
+      res.writeHead(500);
+      res.end('Internal Server Error');
+    }
+  }
 });
 
 server.timeout = 120000;
