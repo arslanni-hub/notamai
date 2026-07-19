@@ -200,6 +200,8 @@ async function loadUsers() {
         <td style="font-family:'Share Tech Mono',monospace;font-size:11px;">${u.email}</td>
         <td>${u.displayName || '—'}</td>
         <td><span class="badge badge-${planClass}">${planLabel}</span></td>
+        <td style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;">${u.role || '—'}</td>
+        <td style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;">${u.org || '—'}</td>
         <td style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;">${u.updatedAt || '—'}</td>
       </tr>`;
     }).join('');
@@ -214,7 +216,7 @@ async function loadUsers() {
       <div class="section-title">USER LIST</div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>EMAIL</th><th>NAME</th><th>PLAN</th><th>UPDATED</th></tr></thead>
+          <thead><tr><th>EMAIL</th><th>NAME</th><th>PLAN</th><th>ROLE</th><th>ORGANIZATION</th><th>UPDATED</th></tr></thead>
           <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:#4a5f72;">No users yet</td></tr>'}</tbody>
         </table>
       </div>
