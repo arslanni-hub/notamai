@@ -1393,6 +1393,16 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && req.url === '/sitemap.xml') {
+    res.writeHead(200, { 'Content-Type': 'application/xml' });
+    res.end(fs.readFileSync(path.join(__dirname, 'sitemap.xml'), 'utf8'));
+    return;
+  }
+  if (req.method === 'GET' && req.url === '/robots.txt') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end(fs.readFileSync(path.join(__dirname, 'robots.txt'), 'utf8'));
+    return;
+  }
   if (req.method === 'GET' && (req.url === '/admin' || req.url === '/admin/')) {
     const html = fs.readFileSync(path.join(__dirname, 'admin.html'), 'utf8');
     res.writeHead(200, { 'Content-Type': 'text/html' });
