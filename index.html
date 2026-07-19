@@ -1354,7 +1354,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
   <div class="chat-usage-banner" id="chatUsageBanner">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
     <span id="chatUsageBannerText"></span>
-    <button class="upgrade-pill" id="chatUpgradePill" style="display:none;" onclick="window.location.href='/pricing-upgrade'">Get more usage</button>
+    <button class="upgrade-pill" id="chatUpgradePill" style="display:none;" onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'">Get more usage</button>
   </div>
   <div class="logo" onclick="window.location.reload()" style="cursor:pointer">NOTAM <em>INTELLIGENCE</em></div>
   <div class="logo-line">AI-POWERED PRE-FLIGHT BRIEFING SYSTEM</div>
@@ -1452,7 +1452,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     <div class="live-dot"></div>
     <div class="result-status" id="resultStatus">GENERATING BRIEFING...</div>
     <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-      <button onclick="window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;padding:7px 18px;border-radius:6px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)';this.querySelector('svg').style.stroke='#c8daf0'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)';this.querySelector('svg').style.stroke='#8a9bb0'">
+      <button onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;padding:7px 18px;border-radius:6px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)';this.querySelector('svg').style.stroke='#c8daf0'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)';this.querySelector('svg').style.stroke='#8a9bb0'">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg>
         Upgrade
       </button>
@@ -2667,6 +2667,7 @@ async function handleSend(silent = false) {
   const loading = document.getElementById('loadingState');
   const content = document.getElementById('resultContent');
 
+  if (!silent) gtag('event', 'generate_briefing', { route: document.getElementById('mainInput')?.value || '' });
   if (!silent) {
     overlay.classList.add('open');
     document.getElementById('mainNavbar').style.display = 'none';
@@ -3002,6 +3003,7 @@ function openChatShareModal() {
 }
 
 function openShareModal() {
+  gtag('event', 'share_briefing');
   console.log('currentBriefingId:', window.currentBriefingId);
   const modal = document.getElementById('shareModal');
   document.getElementById('shareModalTitle').textContent = 'SHARE BRIEFING';
@@ -3441,6 +3443,7 @@ async function initiateCheckout(plan) {
   const originalText = btn.innerHTML;
   btn.innerHTML = 'Loading...';
   btn.disabled = true;
+  gtag('event', 'checkout_start', { plan: plan });
   try {
     const response = await fetch('/api/create-checkout', {
       method: 'POST',
@@ -3501,7 +3504,7 @@ function showLimitModal(plan, feature, usage, limit) {
     <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;margin-bottom:20px;line-height:1.6;">${message}</div>
     <div style="display:flex;gap:8px;justify-content:center;">
       <button onclick="this.closest('[style]').remove()" style="padding:8px 16px;background:none;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;border-radius:6px;cursor:pointer;">Maybe Later</button>
-      <button onclick="window.location.href='/pricing-upgrade'" style="padding:8px 20px;background:#b57bff;border:none;color:#fff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;border-radius:6px;cursor:pointer;">Upgrade Now ⚡</button>
+      <button onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'" style="padding:8px 20px;background:#b57bff;border:none;color:#fff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;border-radius:6px;cursor:pointer;">Upgrade Now ⚡</button>
     </div>
   `;
   document.body.appendChild(warningDiv);
@@ -3516,7 +3519,7 @@ function showUpgradeBanner(contentAreaId, message) {
   banner.className = 'upgrade-banner';
   banner.style.cssText = 'background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:10px 12px;margin:8px 0;font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;';
   const formattedMessage = message.replace('Pro or Max plan', '<span style="color:#4a9eff;font-weight:600;">Pro or Max plan</span>');
-  banner.innerHTML = `<div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="window.location.href='/pricing-upgrade'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span>${formattedMessage}</span></div>`;
+  banner.innerHTML = `<div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span>${formattedMessage}</span></div>`;
   area.insertBefore(banner, area.firstChild);
   setTimeout(() => banner.remove(), 6000);
 }
@@ -3957,6 +3960,9 @@ async function signInWithGoogle() {
     provider.setCustomParameters({ prompt: 'select_account' });
     const result = await firebase.auth().signInWithPopup(provider);
     if (result.user) {
+      const isNew = result.additionalUserInfo?.isNewUser;
+      if (isNew) gtag('event', 'sign_up', { method: 'google' });
+      else gtag('event', 'login', { method: 'google' });
       closeLoginModal();
       closeSignupModal();
     }
@@ -3988,7 +3994,7 @@ function signInWithEmail() {
     return;
   }
   auth.signInWithEmailAndPassword(email, password)
-    .then(() => { closeAuthModal(); })
+    .then(() => { gtag('event', 'login', { method: 'email' }); closeAuthModal(); })
     .catch(err => {
       if (err.code === 'auth/user-not-found') {
         auth.createUserWithEmailAndPassword(email, password)
@@ -4463,6 +4469,7 @@ async function createAccount() {
       referredBy: referralCode || null,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+    gtag('event', 'sign_up', { method: 'email' });
     closeSignupModal();
   } catch(e) {
     alert('Error: ' + e.message);
@@ -5879,7 +5886,7 @@ function pricing_toggleBilling() {
       </div>
       <div style="border-top:1px solid #1a2a3a;margin:4px 4px;"></div>
       <!-- Plan actions -->
-      <div id="popupUpgradeBtn" class="popup-item" onclick="window.location.href='/pricing-upgrade'">
+      <div id="popupUpgradeBtn" class="popup-item" onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg>
         Upgrade Plan
       </div>
@@ -9780,6 +9787,7 @@ function openVideoBriefing() {
   if (content) content.style.display = 'block';
 
   // Show backdrop + overlay
+  gtag('event', 'generate_video', { route: inputVal || '' });
   document.getElementById('videoBriefingBackdrop').style.display = 'block';
   const overlay = document.getElementById('videoBriefingOverlay');
   overlay.style.display = 'flex';
