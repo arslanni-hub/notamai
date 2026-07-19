@@ -2542,7 +2542,8 @@ let greetingName = 'Captain';
 function setGreeting() {
   const h = new Date().getHours();
   const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  document.getElementById('greeting').textContent = g + ', ' + greetingName;
+  const suffix = greetingName === 'Captain' ? '!' : '';
+  document.getElementById('greeting').textContent = g + ', ' + greetingName + suffix;
 }
 
 /* ═══ INPUT ═══ */
