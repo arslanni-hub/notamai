@@ -1393,9 +1393,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'GET' && req.url === '/og-image.png') {
-    res.writeHead(200, { 'Content-Type': 'image/png' });
-    res.end(fs.readFileSync(path.join(__dirname, 'og-image.png')));
+  if (req.method === 'GET' && (req.url === '/og-image.png' || req.url === '/og-image.jpg')) {
+    const ext = req.url.endsWith('.jpg') ? 'image/jpeg' : 'image/png';
+    const fname = fs.existsSync(path.join(__dirname, 'og-image.jpg')) ? 'og-image.jpg' : 'og-image.png';
+    res.writeHead(200, { 'Content-Type': ext });
+    res.end(fs.readFileSync(path.join(__dirname, fname)));
     return;
   }
 
