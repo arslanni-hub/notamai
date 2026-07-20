@@ -1409,11 +1409,6 @@ const server = http.createServer(async (req, res) => {
     res.end(fs.readFileSync(path.join(__dirname, 'favicon.svg')));
     return;
   }
-  if (req.method === 'GET' && req.url === '/og-image.png') {
-    res.writeHead(200, { 'Content-Type': 'image/png' });
-    res.end(fs.readFileSync(path.join(__dirname, 'og-image.png')));
-    return;
-  }
   if (req.method === 'GET' && req.url === '/sitemap.xml') {
     res.writeHead(200, { 'Content-Type': 'application/xml' });
     res.end(fs.readFileSync(path.join(__dirname, 'sitemap.xml'), 'utf8'));
