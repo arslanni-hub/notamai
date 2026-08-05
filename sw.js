@@ -1,7 +1,6 @@
 const CACHE_NAME = 'notamai-v1';
 const STATIC_ASSETS = [
   '/',
-  '/favicon.svg',
   '/favicon.png',
   'https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap'
 ];

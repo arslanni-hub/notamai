@@ -1411,6 +1411,16 @@ const server = http.createServer(async (req, res) => {
     res.end(fs.readFileSync(path.join(__dirname, 'favicon.svg')));
     return;
   }
+  if (req.method === 'GET' && req.url === '/manifest.json') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(fs.readFileSync(path.join(__dirname, 'manifest.json'), 'utf8'));
+    return;
+  }
+  if (req.method === 'GET' && req.url === '/sw.js') {
+    res.writeHead(200, { 'Content-Type': 'application/javascript' });
+    res.end(fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8'));
+    return;
+  }
   if (req.method === 'GET' && req.url === '/sitemap.xml') {
     res.writeHead(200, { 'Content-Type': 'application/xml' });
     res.end(fs.readFileSync(path.join(__dirname, 'sitemap.xml'), 'utf8'));
