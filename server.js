@@ -4547,13 +4547,26 @@ async function processSupportEmail(email) {
         max_tokens: 1000,
         messages: [{
           role: 'user',
-          content: `You are a support agent for NOTAM Intelligence, an AI-powered pre-flight briefing system for pilots and dispatchers.
+          content: `You are a support agent for NOTAM Intelligence, an AI-powered pre-flight briefing system for pilots and flight dispatchers.
+
+PLANS & PRICING:
+- Free: 3 AI Briefings/month, NOTAMs & MET live data, SIGMET/AIRMET, Aviation Tools Panel
+- Pro ($49/month): Unlimited AI Briefings, NOTAM Intelligence Chat, En-route FIR Analysis, AI Assistant, NOTAM/METAR/TAF Analysis, Briefing Archive, Saved Routes, NOTAM Alerts (3 airports), Share & PDF Export
+- Max ($99/month): Everything in Pro + AI Video Briefing (5/month), higher chat limits, unlimited archive, unlimited saved routes, unlimited NOTAM alerts, Priority Support, extra video pack $10=3 videos
+- Enterprise ($999/month): Everything in Max + up to 10 users, API Access, Priority Support & SLA, Dedicated Account Manager, Custom Onboarding
+- All paid plans have 7-day free trial, cancel anytime
+- Annual billing available with 15% discount
+
+COMPANY INFO:
+- Website: notamai.com
+- Support email: support@notamai.com
+- Built for aviation professionals worldwide
 
 Analyze this customer email and provide:
 1. CATEGORY: (Technical Issue / Billing / Feature Request / General Question / Enterprise Inquiry / Other)
 2. PRIORITY: (High / Medium / Low)
 3. SUMMARY: One sentence summary
-4. SUGGESTED_REPLY: A professional, helpful reply email (in English, signed "NOTAM Intelligence Support Team")
+4. SUGGESTED_REPLY: A professional, helpful reply email based on ACTUAL plan features above (in English, signed "NOTAM Intelligence Support Team"). Be accurate - only mention features that actually exist.
 
 Customer email:
 From: ${email.from}
@@ -4625,7 +4638,7 @@ SUGGESTED_REPLY:
   </div>
 
   <div style="text-align:center;">
-    <a href="mailto:${email.from}?subject=Re: ${encodeURIComponent(email.subject)}&body=${encodeURIComponent(suggestedReply)}"
+    <a href="mailto:${email.from.replace(/.*<(.+)>.*/, '$1').replace(/[<>]/g,'').trim()}?subject=Re%3A%20${encodeURIComponent(email.subject)}"
        style="display:inline-block;padding:11px 24px;background:#4a9eff;color:#fff;font-size:12px;letter-spacing:2px;text-decoration:none;border-radius:6px;font-weight:700;">
       REPLY TO CUSTOMER →
     </a>
