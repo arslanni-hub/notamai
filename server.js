@@ -8,8 +8,14 @@ sentryInit({
 });
 // Force redeploy
 const https = require('https');
-const Imap = require('imap');
-const { simpleParser } = require('mailparser');
+let Imap, simpleParser;
+try {
+  Imap = require('imap');
+  simpleParser = require('mailparser').simpleParser;
+  console.log('[SUPPORT AGENT] IMAP packages loaded OK');
+} catch(e) {
+  console.log('[SUPPORT AGENT] IMAP packages missing:', e.message);
+}
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
