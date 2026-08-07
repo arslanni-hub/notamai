@@ -3376,13 +3376,12 @@ MANDATORY:
 
         // Extract ICAO codes from the text and look up live names
         const icaoMatches = (notam || '').match(/\b[A-Z]{4}\b/g) || [];
-        const uniqueIcaos = [...new Set(icaoMatches.filter(c => {
-          const validPrefixes = ['LT','EG','ED','LF','LI','LE','EH','EK','EN','LG','LO','LK','LB','LR','EP','OM','OE','OI','OJ','OR','OT','OY','ZB','ZS','RJ','RK','VT','WS','VH','HE','DA','DT','FA','YM','KJ','KL','LH','LY','LD','EF','EE','EV','EY'];
-          return validPrefixes.some(p => c.startsWith(p));
-        }))];
+        // No prefix filtering — let SkyLink validate, skip words that aren't airports
+        const stopWords = new Set(['NOTAM','METAR','SIGMET','AIRMET','PIREP','SNOWTAM','ASHTAM','FROM','UNTIL','VALID','INFO','PERM','PANS','ICAO','NATO','TRUE','WIND','TEMP','DEW','PRES','FEET','KNOT','MILE','HOUR','TIME','DATE','ITEM','NOTE','TYPE','AREA','ACFT']);
+        const uniqueIcaos = [...new Set(icaoMatches.filter(c => !stopWords.has(c)))];
 
         const airportNames = {};
-        for (const icao of uniqueIcaos.slice(0, 5)) {
+        for (const icao of uniqueIcaos.slice(0, 8)) {
           try {
             const data = await fetchURL(`https://skylink-api.p.rapidapi.com/airports/${icao}`, {
               method: 'GET',
@@ -3401,8 +3400,8 @@ MANDATORY:
         }
         // Also extract any ICAO codes directly from raw text that might not be in uniqueIcaos
         const rawIcaoMatches = (notam || '').match(/\b[A-Z]{4}\b/g) || [];
-        const extraIcaos = [...new Set(rawIcaoMatches)].filter(c => !uniqueIcaos.includes(c) && !airportNames[c]);
-        for (const icao of extraIcaos.slice(0, 3)) {
+        const extraIcaos = [...new Set(rawIcaoMatches)].filter(c => !uniqueIcaos.includes(c) && !airportNames[c] && !stopWords.has(c));
+        for (const icao of extraIcaos.slice(0, 4)) {
           try {
             const data = await fetchURL(`https://skylink-api.p.rapidapi.com/airports/${icao}`, {
               method: 'GET',
