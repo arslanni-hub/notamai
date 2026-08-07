@@ -8,6 +8,8 @@ sentryInit({
 });
 // Force redeploy
 const https = require('https');
+const Imap = require('imap');
+const { simpleParser } = require('mailparser');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -4439,6 +4441,203 @@ function scheduleDailyHealthCheck() {
 }
 scheduleDailyHealthCheck();
 setTimeout(()=>runHealthCheck().catch(e=>console.log('[HC TEST]',e.message)), 15000);
+
+// ─── SUPPORT AGENT ────────────────────────────────────────────────────────
+const processedEmails = new Set();
+
+async function checkSupportEmails() {
+  if (!process.env.SUPPORT_EMAIL || !process.env.SUPPORT_EMAIL_PASSWORD) return;
+
+  return new Promise((resolve) => {
+    const imap = new Imap({
+      user: process.env.SUPPORT_EMAIL,
+      password: process.env.SUPPORT_EMAIL_PASSWORD,
+      host: 'imap.hostinger.com',
+      port: 993,
+      tls: true,
+      tlsOptions: { rejectUnauthorized: false }
+    });
+
+    imap.once('error', (e) => {
+      console.log('[SUPPORT AGENT] IMAP error:', e.message);
+      resolve();
+    });
+
+    imap.once('ready', () => {
+      imap.openBox('INBOX', false, (err, box) => {
+        if (err) { imap.end(); resolve(); return; }
+
+        // Fetch unseen emails from last 24 hours
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        imap.search(['UNSEEN', ['SINCE', yesterday]], (err, results) => {
+          if (err || !results || results.length === 0) {
+            imap.end(); resolve(); return;
+          }
+
+          console.log('[SUPPORT AGENT] Found', results.length, 'unread emails');
+
+          const fetch = imap.fetch(results, { bodies: '' });
+          const emails = [];
+
+          fetch.on('message', (msg) => {
+            msg.on('body', (stream) => {
+              simpleParser(stream, async (err, parsed) => {
+                if (err) return;
+                const msgId = parsed.messageId || parsed.subject + parsed.date;
+                if (processedEmails.has(msgId)) return;
+                processedEmails.add(msgId);
+                emails.push({
+                  from: parsed.from?.text || 'Unknown',
+                  subject: parsed.subject || '(no subject)',
+                  text: (parsed.text || '').slice(0, 2000),
+                  date: parsed.date || new Date()
+                });
+              });
+            });
+          });
+
+          fetch.once('end', async () => {
+            imap.end();
+            if (emails.length === 0) { resolve(); return; }
+
+            // Process each email with Claude
+            for (const email of emails) {
+              await processSupportEmail(email);
+              await new Promise(r => setTimeout(r, 1000));
+            }
+            resolve();
+          });
+        });
+      });
+    });
+
+    imap.connect();
+  });
+}
+
+async function processSupportEmail(email) {
+  try {
+    console.log('[SUPPORT AGENT] Processing email from:', email.from);
+
+    // Analyze with Claude
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `You are a support agent for NOTAM Intelligence, an AI-powered pre-flight briefing system for pilots and dispatchers.
+
+Analyze this customer email and provide:
+1. CATEGORY: (Technical Issue / Billing / Feature Request / General Question / Enterprise Inquiry / Other)
+2. PRIORITY: (High / Medium / Low)
+3. SUMMARY: One sentence summary
+4. SUGGESTED_REPLY: A professional, helpful reply email (in English, signed "NOTAM Intelligence Support Team")
+
+Customer email:
+From: ${email.from}
+Subject: ${email.subject}
+Message: ${email.text}
+
+Respond in this exact format:
+CATEGORY: ...
+PRIORITY: ...
+SUMMARY: ...
+SUGGESTED_REPLY:
+[reply text here]`
+        }]
+      })
+    });
+
+    const data = await claudeRes.json();
+    const analysis = data.content[0].text;
+
+    // Parse Claude's response
+    const categoryMatch = analysis.match(/CATEGORY:\s*(.+)/);
+    const priorityMatch = analysis.match(/PRIORITY:\s*(.+)/);
+    const summaryMatch = analysis.match(/SUMMARY:\s*(.+)/);
+    const replyMatch = analysis.match(/SUGGESTED_REPLY:\n([\s\S]+)/);
+
+    const category = categoryMatch ? categoryMatch[1].trim() : 'Unknown';
+    const priority = priorityMatch ? priorityMatch[1].trim() : 'Medium';
+    const summary = summaryMatch ? summaryMatch[1].trim() : email.subject;
+    const suggestedReply = replyMatch ? replyMatch[1].trim() : '';
+
+    const priorityEmoji = priority === 'High' ? '🔴' : priority === 'Medium' ? '🟡' : '🟢';
+
+    // Send notification to admin
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'NOTAM Intelligence <alerts@notamai.com>',
+        to: 'admin@notamai.com',
+        subject: `${priorityEmoji} New Support Email — ${category} — ${summary}`,
+        html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f4f8;font-family:monospace;">
+<div style="max-width:600px;margin:0 auto;padding:28px 20px;">
+
+  <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid #e2e8f0;margin-bottom:20px;">
+    <div style="font-size:14px;font-weight:700;letter-spacing:3px;color:#0f172a;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-top:3px;">SUPPORT AGENT</div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">INCOMING EMAIL</div>
+    <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>From:</strong> ${email.from}</div>
+    <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Subject:</strong> ${email.subject}</div>
+    <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Date:</strong> ${email.date}</div>
+    <div style="margin-top:10px;padding:10px;background:#f8fafc;border-radius:4px;font-size:12px;color:#475569;white-space:pre-wrap;">${email.text.slice(0, 500)}${email.text.length > 500 ? '...' : ''}</div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">AI ANALYSIS</div>
+    <div style="display:flex;gap:12px;margin-bottom:8px;">
+      <div style="background:#f1f5f9;padding:6px 12px;border-radius:20px;font-size:12px;color:#475569;"><strong>Category:</strong> ${category}</div>
+      <div style="background:${priority==='High'?'#fef2f2':priority==='Medium'?'#fffbeb':'#f0fdf4'};padding:6px 12px;border-radius:20px;font-size:12px;color:${priority==='High'?'#dc2626':priority==='Medium'?'#d97706':'#16a34a'};">${priorityEmoji} ${priority} Priority</div>
+    </div>
+    <div style="font-size:13px;color:#1e293b;"><strong>Summary:</strong> ${summary}</div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">SUGGESTED REPLY</div>
+    <div style="font-size:12px;color:#475569;white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:4px;border-left:3px solid #4a9eff;">${suggestedReply}</div>
+  </div>
+
+  <div style="text-align:center;">
+    <a href="mailto:${email.from}?subject=Re: ${encodeURIComponent(email.subject)}&body=${encodeURIComponent(suggestedReply)}"
+       style="display:inline-block;padding:11px 24px;background:#4a9eff;color:#fff;font-size:12px;letter-spacing:2px;text-decoration:none;border-radius:6px;font-weight:700;">
+      REPLY TO CUSTOMER →
+    </a>
+  </div>
+
+</div></body></html>`
+      })
+    });
+
+    console.log('[SUPPORT AGENT] Notification sent for email from:', email.from, '| Category:', category, '| Priority:', priority);
+
+  } catch(e) {
+    console.log('[SUPPORT AGENT] Error processing email:', e.message);
+  }
+}
+
+// Check support emails every 5 minutes
+setInterval(() => {
+  checkSupportEmails().catch(e => console.log('[SUPPORT AGENT ERROR]', e.message));
+}, 5 * 60 * 1000);
+
+// Run once on startup after 30 seconds
+setTimeout(() => {
+  checkSupportEmails().catch(e => console.log('[SUPPORT AGENT ERROR]', e.message));
+}, 30 * 1000);
 
 async function sendWeeklySummaries() {
   console.log('[WEEKLY] Sending weekly summaries...');
