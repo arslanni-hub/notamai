@@ -4440,7 +4440,6 @@ function scheduleDailyHealthCheck() {
   }, msUntil8am());
 }
 scheduleDailyHealthCheck();
-setTimeout(()=>runHealthCheck().catch(e=>console.log('[HC TEST]',e.message)), 15000);
 
 // ─── SUPPORT AGENT ────────────────────────────────────────────────────────
 const processedEmails = new Set();
