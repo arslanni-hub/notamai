@@ -4657,12 +4657,16 @@ SUGGESTED_REPLY:
 
 // Check support emails every 5 minutes
 setInterval(() => {
+  console.log('[SUPPORT AGENT] Interval check running...');
   checkSupportEmails().catch(e => console.log('[SUPPORT AGENT ERROR]', e.message));
 }, 5 * 60 * 1000);
 
 // Run once on startup after 30 seconds
 setTimeout(() => {
-  checkSupportEmails().catch(e => console.log('[SUPPORT AGENT ERROR]', e.message));
+  console.log('[SUPPORT AGENT] Starting startup check...');
+  checkSupportEmails().then(() => {
+    console.log('[SUPPORT AGENT] Startup check complete');
+  }).catch(e => console.log('[SUPPORT AGENT ERROR]', e.message));
 }, 30 * 1000);
 
 async function sendWeeklySummaries() {
