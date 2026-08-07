@@ -4405,8 +4405,8 @@ async function runHealthCheck() {
 <body style="margin:0;padding:0;background:#060a0f;font-family:monospace;">
 <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
   <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #1a2a3a;">
-    <div style="font-size:16px;font-weight:700;letter-spacing:4px;color:#fff;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
-    <div style="font-size:11px;color:#4a5f72;letter-spacing:2px;margin-top:4px;">DAILY SYSTEM REPORT</div>
+    <div style="font-size:16px;font-weight:700;letter-spacing:4px;color:#0f172a;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+    <div style="font-size:11px;color:#64748b;letter-spacing:2px;margin-top:4px;">DAILY SYSTEM REPORT</div>
   </div>
   ${issues.length > 0 ? `<div style="background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:6px;padding:12px 16px;margin-bottom:20px;">
     <div style="font-size:11px;color:#e63946;letter-spacing:2px;margin-bottom:8px;">⚠ ISSUES DETECTED</div>
