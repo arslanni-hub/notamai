@@ -3420,6 +3420,52 @@ MANDATORY:
 
         // Fallback known airports for common codes not in SkyLink
         const KNOWN_AIRPORTS = {
+          'LTFM': 'Istanbul Airport, Istanbul, Turkey',
+          'LTBA': 'Istanbul Atatürk Airport, Istanbul, Turkey (CLOSED)',
+          'LTAI': 'Antalya Airport, Antalya, Turkey',
+          'LTAC': 'Ankara Esenboğa International Airport, Ankara, Turkey',
+          'LTBJ': 'İzmir Adnan Menderes Airport, İzmir, Turkey',
+          'LTFE': 'Dalaman Airport, Muğla, Turkey',
+          'LTBS': 'Bodrum Milas Airport, Muğla, Turkey',
+          'LTCG': 'Trabzon Airport, Trabzon, Turkey',
+          'LTCE': 'Erzurum Airport, Erzurum, Turkey',
+          'LTCA': 'Elazığ Airport, Elazığ, Turkey',
+          'LTAF': 'Adana Şakirpaşa Airport, Adana, Turkey',
+          'LTAG': 'İncirlik Air Base, Adana, Turkey',
+          'EGLL': 'London Heathrow Airport, London, United Kingdom',
+          'EGKK': 'London Gatwick Airport, London, United Kingdom',
+          'EHAM': 'Amsterdam Schiphol Airport, Amsterdam, Netherlands',
+          'EDDF': 'Frankfurt Airport, Frankfurt, Germany',
+          'LFPG': 'Paris Charles de Gaulle Airport, Paris, France',
+          'LEMD': 'Madrid Barajas Airport, Madrid, Spain',
+          'LIRF': 'Rome Fiumicino Airport, Rome, Italy',
+          'LSZH': 'Zurich Airport, Zurich, Switzerland',
+          'LOWW': 'Vienna International Airport, Vienna, Austria',
+          'EPWA': 'Warsaw Chopin Airport, Warsaw, Poland',
+          'LHBP': 'Budapest Ferenc Liszt Airport, Budapest, Hungary',
+          'LKPR': 'Prague Václav Havel Airport, Prague, Czech Republic',
+          'KJFK': 'John F. Kennedy International Airport, New York, USA',
+          'KLAX': 'Los Angeles International Airport, Los Angeles, USA',
+          'KORD': "O'Hare International Airport, Chicago, USA",
+          'KATL': 'Hartsfield-Jackson Atlanta Airport, Atlanta, USA',
+          'OMDB': 'Dubai International Airport, Dubai, UAE',
+          'OMSJ': 'Sharjah International Airport, Sharjah, UAE',
+          'OMAA': 'Abu Dhabi International Airport, Abu Dhabi, UAE',
+          'OERK': 'King Khalid International Airport, Riyadh, Saudi Arabia',
+          'OEDF': 'King Fahd International Airport, Dammam, Saudi Arabia',
+          'OTHH': 'Hamad International Airport, Doha, Qatar',
+          'OBBI': 'Bahrain International Airport, Manama, Bahrain',
+          'OKBK': 'Kuwait International Airport, Kuwait City, Kuwait',
+          'HECA': 'Cairo International Airport, Cairo, Egypt',
+          'FACT': 'Cape Town International Airport, Cape Town, South Africa',
+          'FAOR': 'O.R. Tambo International Airport, Johannesburg, South Africa',
+          'VHHH': 'Hong Kong International Airport, Hong Kong',
+          'RJTT': 'Tokyo Haneda Airport, Tokyo, Japan',
+          'RJAA': 'Tokyo Narita Airport, Tokyo, Japan',
+          'RKSI': 'Incheon International Airport, Seoul, South Korea',
+          'WSSS': 'Singapore Changi Airport, Singapore',
+          'YSSY': 'Sydney Kingsford Smith Airport, Sydney, Australia',
+          'YMML': 'Melbourne Airport, Melbourne, Australia',
           'ULLI': 'Pulkovo Airport, Saint Petersburg, Russia',
           'UUEE': 'Sheremetyevo International Airport, Moscow, Russia',
           'UUWW': 'Vnukovo International Airport, Moscow, Russia',
@@ -3465,6 +3511,10 @@ MANDATORY:
           analyzeSystemPrompt = 'You are an expert aviation meteorologist with complete knowledge of all world airports and their ICAO codes.\n\nICAO IDENTIFICATION RULES:\n1. Extract the 4-letter ICAO code directly from the TAF text (first identifier after the report type).\n2. If verified airport names are provided in the prompt, use them EXACTLY as given.\n3. If no verified name is provided, use ONLY the raw ICAO code — write "Airport [ICAO CODE]". Do NOT guess the name.\n4. NEVER invent, guess, or hallucinate airport names.\n\nDecode this TAF and provide:\n1. Airport name and ICAO code (verified correct)\n2. Forecast period and overall summary\n3. Significant weather changes and timing\n4. Worst conditions expected and when\n5. Any TEMPO, BECMG, or PROB groups of concern\n6. Operational planning recommendation\n\nBe concise, 4-6 bullet points, practical for flight planning.';
         } else {
           analyzeSystemPrompt = 'You are an expert AIM (Aeronautical Information Management) specialist with complete knowledge of all world airports and their ICAO codes.\n\nICAO IDENTIFICATION RULES:\n1. Extract the 4-letter ICAO code directly from the NOTAM text (it appears after the location identifier).\n2. If verified airport names are provided in the prompt, use them EXACTLY as given — never modify or rewrite them.\n3. If no verified name is provided, use ONLY the raw ICAO code — do NOT attempt to guess or translate the airport name. Write it as "Airport [ICAO CODE]" instead.\n4. NEVER invent, guess, or hallucinate airport names. When in doubt, use the ICAO code only.\n\nAnalyze this NOTAM and provide:\n1. What is affected (runway, navaid, airspace, service)\n2. When it is active (effective and expiry times in UTC)\n3. Operational impact for crews\n4. Required crew action\n5. Risk level (CRITICAL/HIGH/MEDIUM/LOW)\n\nBe concise and practical. Use plain English.';
+        }
+        // Inject verified airport names into ALL prompts
+        if (airportContext) {
+          analyzeSystemPrompt = analyzeSystemPrompt + airportContext;
         }
         const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
