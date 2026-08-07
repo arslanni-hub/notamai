@@ -4352,10 +4352,10 @@ async function runHealthCheck() {
   const now = new Date();
   const yesterday = new Date(now.getTime()-86400000);
   let b24=0,v24=0,u24=0,totalUsers=0,pro=0,max=0,mrr=0;
+  try { b24 = (await adminDb.collection('briefings').where('createdAt','>=',yesterday).get()).size; } catch(e) {}
+  try { v24 = (await adminDb.collection('videos').where('createdAt','>=',yesterday).where('status','==','completed').get()).size; } catch(e) {}
+  try { u24 = (await adminDb.collection('users').where('createdAt','>=',yesterday).get()).size; } catch(e) {}
   try {
-    b24 = (await adminDb.collection('briefings').where('createdAt','>=',yesterday).get()).size;
-    v24 = (await adminDb.collection('videos').where('createdAt','>=',yesterday).where('status','==','completed').get()).size;
-    u24 = (await adminDb.collection('users').where('createdAt','>=',yesterday).get()).size;
     const us = await adminDb.collection('users').get();
     totalUsers = us.size;
     us.docs.forEach(d=>{ if(d.data().plan==='pro') pro++; if(d.data().plan==='max') max++; });
