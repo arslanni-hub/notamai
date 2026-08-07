@@ -3381,40 +3381,22 @@ MANDATORY:
         const uniqueIcaos = [...new Set(icaoMatches.filter(c => !stopWords.has(c)))];
 
         const airportNames = {};
-        for (const icao of uniqueIcaos.slice(0, 8)) {
+        // Use aviationweather.gov for airport lookup — free, comprehensive, covers all ICAO codes
+        const allIcaos = [...new Set([...uniqueIcaos, ...(notam || '').match(/\b[A-Z]{4}\b/g) || []])].filter(c => !stopWords.has(c)).slice(0, 10);
+        for (const icao of allIcaos) {
           try {
-            const data = await fetchURL(`https://skylink-api.p.rapidapi.com/airports/${icao}`, {
-              method: 'GET',
-              headers: { 'x-rapidapi-key': process.env.SKYLINK_KEY, 'x-rapidapi-host': 'skylink-api.p.rapidapi.com' }
-            });
-            if (data && data[0] && data[0].name) {
-              const name = data[0].name;
-              const city = data[0].city || data[0].municipality || '';
-              const country = data[0].country || data[0].iso_country || '';
+            const data = await fetchURL(`https://aviationweather.gov/api/data/airport?ids=${icao}&format=json`);
+            if (data && Array.isArray(data) && data.length > 0 && data[0].name) {
+              const apt = data[0];
+              const name = apt.name || '';
+              const city = apt.city || '';
+              const country = apt.country || '';
               airportNames[icao] = [name, city, country].filter(Boolean).join(', ');
-              console.log('[ANALYSIS] SkyLink verified:', icao, '=', airportNames[icao]);
+              console.log('[ANALYSIS] AWC verified:', icao, '=', airportNames[icao]);
             }
           } catch(e) {
-            console.log('[ANALYSIS] SkyLink lookup failed for', icao, e.message);
+            console.log('[ANALYSIS] AWC lookup failed for', icao, e.message);
           }
-        }
-        // Also extract any ICAO codes directly from raw text that might not be in uniqueIcaos
-        const rawIcaoMatches = (notam || '').match(/\b[A-Z]{4}\b/g) || [];
-        const extraIcaos = [...new Set(rawIcaoMatches)].filter(c => !uniqueIcaos.includes(c) && !airportNames[c] && !stopWords.has(c));
-        for (const icao of extraIcaos.slice(0, 4)) {
-          try {
-            const data = await fetchURL(`https://skylink-api.p.rapidapi.com/airports/${icao}`, {
-              method: 'GET',
-              headers: { 'x-rapidapi-key': process.env.SKYLINK_KEY, 'x-rapidapi-host': 'skylink-api.p.rapidapi.com' }
-            });
-            if (data && data[0] && data[0].name) {
-              const name = data[0].name;
-              const city = data[0].city || data[0].municipality || '';
-              const country = data[0].country || data[0].iso_country || '';
-              airportNames[icao] = [name, city, country].filter(Boolean).join(', ');
-              console.log('[ANALYSIS] SkyLink verified extra:', icao, '=', airportNames[icao]);
-            }
-          } catch(e) {}
         }
 
         // Fallback known airports for common codes not in SkyLink
