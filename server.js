@@ -1421,6 +1421,30 @@ const server = http.createServer(async (req, res) => {
     res.end(fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8'));
     return;
   }
+  if (req.method === 'GET' && req.url === '/api/health') {
+    try {
+      const usersSnap = await adminDb.collection('users').get();
+      const users = usersSnap.docs.map(d => d.data());
+      const pro = users.filter(u => u.plan === 'pro').length;
+      const max = users.filter(u => u.plan === 'max').length;
+      const mrr = (pro * 49) + (max * 99);
+      const skylinkDoc = await adminDb.collection('system').doc('skylink_usage').get();
+      const skylink = skylinkDoc.exists ? skylinkDoc.data() : {};
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        users: usersSnap.size,
+        pro, max, mrr,
+        skylink_pct: skylink.pct || 0,
+        skylink_count: skylink.count || 0
+      }));
+    } catch(e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'error', message: e.message }));
+    }
+    return;
+  }
   if (req.method === 'GET' && req.url === '/sitemap.xml') {
     res.writeHead(200, { 'Content-Type': 'application/xml' });
     res.end(fs.readFileSync(path.join(__dirname, 'sitemap.xml'), 'utf8'));
