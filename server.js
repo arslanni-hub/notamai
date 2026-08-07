@@ -4305,6 +4305,161 @@ function scheduleWeeklySummary() {
 }
 scheduleWeeklySummary();
 
+async function runHealthCheck() {
+  console.log('[HEALTH CHECK] Running...');
+  const results = {};
+  const issues = [];
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 10, messages: [{ role: 'user', content: 'ping' }] })
+    });
+    results.anthropic = res.ok ? '✅ OK' : `❌ HTTP ${res.status}`;
+    if (!res.ok) issues.push('Anthropic API error: HTTP ' + res.status);
+  } catch(e) {
+    results.anthropic = '❌ ' + e.message;
+    issues.push('Anthropic API unreachable: ' + e.message);
+  }
+
+  try {
+    const skylinkDoc = await adminDb.collection('system').doc('skylink_usage').get();
+    if (skylinkDoc.exists) {
+      const s = skylinkDoc.data();
+      const pct = s.pct || 0;
+      results.skylink = pct >= 90 ? `🔴 ${pct}% CRITICAL` : pct >= 70 ? `🟡 ${pct}% WARNING` : `✅ ${pct}%`;
+      if (pct >= 90) issues.push('SkyLink API at ' + pct + '% — upgrade needed!');
+      else if (pct >= 70) issues.push('SkyLink API at ' + pct + '% — plan ahead');
+    } else {
+      results.skylink = '✅ Free tier (no usage recorded)';
+    }
+  } catch(e) {
+    results.skylink = '❌ ' + e.message;
+  }
+
+  try {
+    await adminDb.collection('system').doc('health').set({ lastCheck: admin.firestore.FieldValue.serverTimestamp() });
+    results.firebase = '✅ OK';
+  } catch(e) {
+    results.firebase = '❌ ' + e.message;
+    issues.push('Firebase error: ' + e.message);
+  }
+
+  try {
+    const res = await fetch('https://api.resend.com/domains', {
+      headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY }
+    });
+    results.resend = res.ok ? '✅ OK' : `❌ HTTP ${res.status}`;
+    if (!res.ok) issues.push('Resend API error: HTTP ' + res.status);
+  } catch(e) {
+    results.resend = '❌ ' + e.message;
+    issues.push('Resend unreachable: ' + e.message);
+  }
+
+  try {
+    const res = await fetch('https://api.wavespeed.ai/api/v3/user/info', {
+      headers: { 'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY }
+    });
+    results.wavespeed = res.ok ? '✅ OK' : `❌ HTTP ${res.status}`;
+    if (!res.ok) issues.push('WaveSpeed API error: HTTP ' + res.status);
+  } catch(e) {
+    results.wavespeed = '❌ ' + e.message;
+  }
+
+  const now = new Date();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  let briefings24h = 0, videos24h = 0, users24h = 0;
+  try {
+    const bSnap = await adminDb.collection('briefings').where('createdAt', '>=', yesterday).get();
+    briefings24h = bSnap.size;
+    const vSnap = await adminDb.collection('videos').where('createdAt', '>=', yesterday).where('status', '==', 'completed').get();
+    videos24h = vSnap.size;
+    const uSnap = await adminDb.collection('users').where('createdAt', '>=', yesterday).get();
+    users24h = uSnap.size;
+  } catch(e) {}
+
+  let totalUsers = 0, pro = 0, max = 0, mrr = 0;
+  try {
+    const usersSnap = await adminDb.collection('users').get();
+    totalUsers = usersSnap.size;
+    usersSnap.docs.forEach(d => {
+      const plan = d.data().plan;
+      if (plan === 'pro') pro++;
+      if (plan === 'max') max++;
+    });
+    mrr = (pro * 49) + (max * 99);
+  } catch(e) {}
+
+  const statusIcon = issues.length === 0 ? '✅' : issues.length <= 2 ? '⚠️' : '🚨';
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'NOTAM Intelligence <alerts@notamai.com>',
+      to: 'admin@notamai.com',
+      subject: `${statusIcon} NOTAM Intelligence — Daily Report ${now.toISOString().split('T')[0]}`,
+      html: `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#060a0f;font-family:monospace;">
+<div style="max-width:560px;margin:0 auto;padding:32px 24px;">
+  <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #1a2a3a;">
+    <div style="font-size:16px;font-weight:700;letter-spacing:4px;color:#fff;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+    <div style="font-size:11px;color:#4a5f72;letter-spacing:2px;margin-top:4px;">DAILY SYSTEM REPORT</div>
+  </div>
+  ${issues.length > 0 ? `<div style="background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:6px;padding:12px 16px;margin-bottom:20px;">
+    <div style="font-size:11px;color:#e63946;letter-spacing:2px;margin-bottom:8px;">⚠ ISSUES DETECTED</div>
+    ${issues.map(i => `<div style="font-size:13px;color:#cdd9e5;margin-bottom:4px;">• ${i}</div>`).join('')}
+  </div>` : `<div style="background:rgba(46,196,182,0.08);border:1px solid rgba(46,196,182,0.2);border-radius:6px;padding:12px 16px;margin-bottom:20px;">
+    <div style="font-size:13px;color:#2ec4b6;">✅ All systems operational</div>
+  </div>`}
+  <div style="margin-bottom:20px;">
+    <div style="font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">SYSTEM STATUS</div>
+    ${Object.entries(results).map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #0d1520;"><div style="font-size:12px;color:#8a9bb0;text-transform:uppercase;">${k}</div><div style="font-size:12px;color:#cdd9e5;">${v}</div></div>`).join('')}
+  </div>
+  <div style="margin-bottom:20px;">
+    <div style="font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">LAST 24 HOURS</div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #0d1520;"><div style="font-size:12px;color:#8a9bb0;">NEW BRIEFINGS</div><div style="font-size:12px;color:#4a9eff;font-weight:700;">${briefings24h}</div></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #0d1520;"><div style="font-size:12px;color:#8a9bb0;">VIDEO BRIEFINGS</div><div style="font-size:12px;color:#f4841a;font-weight:700;">${videos24h}</div></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;"><div style="font-size:12px;color:#8a9bb0;">NEW USERS</div><div style="font-size:12px;color:#2ec4b6;font-weight:700;">${users24h}</div></div>
+  </div>
+  <div style="margin-bottom:24px;">
+    <div style="font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">BUSINESS METRICS</div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #0d1520;"><div style="font-size:12px;color:#8a9bb0;">TOTAL USERS</div><div style="font-size:12px;color:#cdd9e5;font-weight:700;">${totalUsers}</div></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #0d1520;"><div style="font-size:12px;color:#8a9bb0;">PRO / MAX</div><div style="font-size:12px;color:#cdd9e5;font-weight:700;">${pro} / ${max}</div></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;"><div style="font-size:12px;color:#8a9bb0;">MRR</div><div style="font-size:14px;color:#2ec4b6;font-weight:700;">$${mrr.toLocaleString()}</div></div>
+  </div>
+  <div style="border-top:1px solid #1a2a3a;padding-top:16px;text-align:center;">
+    <a href="https://notamai.onrender.com/admin" style="display:inline-block;padding:10px 24px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#4a9eff;font-size:11px;letter-spacing:2px;text-decoration:none;border-radius:6px;">OPEN ADMIN PANEL</a>
+  </div>
+</div>
+</body>
+</html>`
+    })
+  });
+  console.log('[HEALTH CHECK] Done. Issues:', issues.length, '| MRR: $' + mrr);
+}
+
+function scheduleDailyHealthCheck() {
+  function msUntilNext8am() {
+    const now = new Date();
+    const next = new Date(now);
+    next.setUTCHours(8, 0, 0, 0);
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+    return next.getTime() - now.getTime();
+  }
+  setTimeout(function runDaily() {
+    runHealthCheck().catch(e => console.log('[HEALTH CHECK ERROR]', e.message));
+    setTimeout(runDaily, 24 * 60 * 60 * 1000);
+  }, msUntilNext8am());
+  console.log('[HEALTH CHECK] Scheduled');
+}
+scheduleDailyHealthCheck();
+
+// Test — sends one report on startup after 15 seconds, remove after testing
+setTimeout(() => runHealthCheck().catch(e => console.log('[HC TEST]', e.message)), 15 * 1000);
+
 async function sendWeeklySummaries() {
   console.log('[WEEKLY] Sending weekly summaries...');
   try {
