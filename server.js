@@ -4638,7 +4638,7 @@ SUGGESTED_REPLY:
   </div>
 
   <div style="text-align:center;">
-    <a href="mailto:${email.from.replace(/.*<(.+)>.*/, '$1').replace(/[<>]/g,'').trim()}?subject=Re%3A%20${encodeURIComponent(email.subject)}"
+    <a href="mailto:${email.from.replace(/.*<(.+)>.*/, '$1').replace(/[<>]/g,'').trim()}?subject=Re%3A%20${encodeURIComponent(email.subject)}&body=${encodeURIComponent(suggestedReply)}"
        style="display:inline-block;padding:11px 24px;background:#4a9eff;color:#fff;font-size:12px;letter-spacing:2px;text-decoration:none;border-radius:6px;font-weight:700;">
       REPLY TO CUSTOMER →
     </a>
