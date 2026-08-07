@@ -4484,33 +4484,41 @@ async function checkSupportEmails() {
           console.log('[SUPPORT AGENT] Found', results.length, 'unread emails');
 
           const fetch = imap.fetch(results, { bodies: '' });
-          const emails = [];
+          const parsePromises = [];
 
           fetch.on('message', (msg) => {
-            msg.on('body', (stream) => {
-              simpleParser(stream, async (err, parsed) => {
-                if (err) return;
-                const msgId = parsed.messageId || parsed.subject + parsed.date;
-                if (processedEmails.has(msgId)) return;
-                processedEmails.add(msgId);
-                emails.push({
-                  from: parsed.from?.text || 'Unknown',
-                  subject: parsed.subject || '(no subject)',
-                  text: (parsed.text || '').slice(0, 2000),
-                  date: parsed.date || new Date()
-                });
+            const parsePromise = new Promise((resolveMsg) => {
+              msg.on('body', (stream) => {
+                simpleParser(stream).then((parsed) => {
+                  const msgId = parsed.messageId || parsed.subject + parsed.date;
+                  if (!processedEmails.has(msgId)) {
+                    processedEmails.add(msgId);
+                    resolveMsg({
+                      from: parsed.from?.text || 'Unknown',
+                      subject: parsed.subject || '(no subject)',
+                      text: (parsed.text || '').slice(0, 2000),
+                      date: parsed.date || new Date()
+                    });
+                  } else {
+                    resolveMsg(null);
+                  }
+                }).catch(() => resolveMsg(null));
               });
             });
+            parsePromises.push(parsePromise);
           });
 
           fetch.once('end', async () => {
             imap.end();
-            if (emails.length === 0) { resolve(); return; }
-
-            // Process each email with Claude
-            for (const email of emails) {
-              await processSupportEmail(email);
-              await new Promise(r => setTimeout(r, 1000));
+            try {
+              const emails = (await Promise.all(parsePromises)).filter(Boolean);
+              console.log('[SUPPORT AGENT] Parsed', emails.length, 'emails');
+              for (const email of emails) {
+                await processSupportEmail(email);
+                await new Promise(r => setTimeout(r, 1000));
+              }
+            } catch(e) {
+              console.log('[SUPPORT AGENT] Parse error:', e.message);
             }
             resolve();
           });
