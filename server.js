@@ -4891,7 +4891,7 @@ async function checkSupportEmails() {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
 
-        imap.search([['SINCE', yesterday]], (err, results) => {
+        imap.search(['UNSEEN'], (err, results) => {
           if (err || !results || results.length === 0) {
             imap.end(); resolve(); return;
           }
@@ -5014,6 +5014,13 @@ SUGGESTED_REPLY:
 
     const priorityEmoji = priority === 'High' ? '🔴' : priority === 'Medium' ? '🟡' : '🟢';
 
+    // For Enterprise — only send Sales Agent report, skip regular support notification
+    if (category.toLowerCase().includes('enterprise')) {
+      console.log('[SALES AGENT] Enterprise inquiry detected — triggering Sales Agent');
+      processSalesLead(email, `Category: ${category} | Priority: ${priority} | Summary: ${summary}`).catch(e => console.log('[SALES AGENT ERROR]', e.message));
+      return;
+    }
+
     // Send notification to admin
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -5064,12 +5071,6 @@ SUGGESTED_REPLY:
     });
 
     console.log('[SUPPORT AGENT] Notification sent for email from:', email.from, '| Category:', category, '| Priority:', priority);
-
-    // If Enterprise Inquiry — trigger Sales Agent
-    if (category.toLowerCase().includes('enterprise')) {
-      console.log('[SALES AGENT] Enterprise inquiry detected — triggering Sales Agent');
-      processSalesLead(email, `Category: ${category} | Priority: ${priority} | Summary: ${summary}`).catch(e => console.log('[SALES AGENT ERROR]', e.message));
-    }
 
   } catch(e) {
     console.log('[SUPPORT AGENT] Error processing email:', e.message);
