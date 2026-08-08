@@ -4770,7 +4770,7 @@ Format your response with these exact labels.`
 
     // Parse sections
     const getSection = (label) => {
-      const match = analysis.match(new RegExp(label + ':?\\s*\\n?([\\s\\S]*?)(?=\\n[A-Z_]+:|$)'));
+      const match = analysis.match(new RegExp(label + ':?\\s*\\n?([\\s\\S]*?)(?=\\n\\d+\\.\\s+[A-Z_]+:|\\n[A-Z_]{3,}:|$)'));
       return match ? match[1].trim() : '';
     };
 
