@@ -4779,8 +4779,9 @@ Format your response with these exact labels.`
     const recommendedPlan = getSection('RECOMMENDED_PLAN');
     const estimatedValue = getSection('ESTIMATED_VALUE');
     const keyQuestions = getSection('KEY_QUESTIONS');
-    const proposalDraft = getSection('PROPOSAL_DRAFT');
-    const followupPlan = getSection('FOLLOWUP_PLAN');
+    const proposalDraft = getSection('PROPOSAL_DRAFT').replace(/[<>]/g, '');
+    const followupPlan = getSection('FOLLOWUP_PLAN').replace(/[<>]/g, '');
+    const estimatedValueClean = getSection('ESTIMATED_VALUE').replace(/[<>|*#\-]/g, '').trim().split('\n')[0];
 
     // Send sales report to admin
     await fetch('https://api.resend.com/emails', {
@@ -4789,7 +4790,7 @@ Format your response with these exact labels.`
       body: JSON.stringify({
         from: 'NOTAM Intelligence <alerts@notamai.com>',
         to: 'admin@notamai.com',
-        subject: `🎯 Enterprise Lead — ${email.from} — ${estimatedValue || 'Unknown Value'}`,
+        subject: `🎯 Enterprise Lead — ${email.from} — ${estimatedValueClean || estimatedValue || 'Unknown Value'}`,
         html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f4f8;font-family:monospace;">
 <div style="max-width:640px;margin:0 auto;padding:28px 20px;">
 
@@ -4842,7 +4843,7 @@ Format your response with these exact labels.`
 
   <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
     <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">PROPOSAL DRAFT</div>
-    <div style="font-size:12px;color:#475569;white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:4px;border-left:3px solid #22c55e;">${proposalDraft}</div>
+    <div style="font-size:12px;color:#475569;white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:4px;border-left:3px solid #22c55e;">${proposalDraft.slice(0, 2000)}</div>
   </div>
 
   <div style="text-align:center;">
@@ -4856,7 +4857,7 @@ Format your response with these exact labels.`
       })
     });
 
-    console.log('[SALES AGENT] Enterprise lead processed for:', email.from, '| Value:', estimatedValue);
+    console.log('[SALES AGENT] Enterprise lead processed for:', email.from, '| Value:', estimatedValueClean || estimatedValue);
   } catch(e) {
     console.log('[SALES AGENT ERROR]', e.message);
   }
