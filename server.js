@@ -4748,10 +4748,10 @@ An Enterprise inquiry has arrived. Analyze it and provide:
 1. COMPANY_PROFILE: What type of organization is this? (airline, charter, flight school, dispatch center, etc.)
 2. ESTIMATED_USERS: How many users might they need?
 3. RECOMMENDED_PLAN: Which plan fits best and why?
-4. ESTIMATED_VALUE: Monthly and annual contract value
-5. KEY_QUESTIONS: 3 questions to ask to qualify this lead
-6. PROPOSAL_DRAFT: A professional sales proposal email (sign as "NOTAM Intelligence Sales Team")
-7. FOLLOWUP_PLAN: Suggested follow-up timeline (Day 1, Day 3, Day 7)
+4. ESTIMATED_VALUE: Monthly and annual contract value (one line only, e.g. "$999/month | $10,188/year")
+5. KEY_QUESTIONS: 3 short questions to qualify this lead (numbered list, max 2 lines each)
+6. PROPOSAL_DRAFT: A clean, professional email to send directly to the customer. Maximum 200 words. No analysis, no pricing tables, no follow-up plans. Just a warm introduction, key benefits for their use case, and a call-to-action to schedule a demo. Sign as "NOTAM Intelligence Sales Team, support@notamai.com"
+7. FOLLOWUP_PLAN: 3-step follow-up plan (Day 1, Day 3, Day 7) - short bullet points only
 
 Customer email:
 From: ${email.from}
