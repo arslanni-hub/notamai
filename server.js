@@ -4453,7 +4453,10 @@ Write 2-3 sentences of actionable growth insight. Be specific and practical. Foc
         })
       });
       const cd = await claudeRes.json();
-      aiInsight = cd.content[0].text;
+      aiInsight = cd.content[0].text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^#\s+.+\n?/gm, '')
+        .replace(/\n/g, '<br>');
     } catch(e) {}
 
     // Send report email
@@ -4574,8 +4577,6 @@ function scheduleGrowthReport() {
 }
 scheduleGrowthReport();
 
-// Test — run once on startup after 45 seconds
-setTimeout(() => runGrowthReport().catch(e => console.log('[GROWTH AGENT TEST ERROR]', e.message)), 45 * 1000);
 
 async function runHealthCheck() {
   console.log('[HEALTH CHECK] Running...');
