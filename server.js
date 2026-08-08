@@ -4720,6 +4720,148 @@ function scheduleDailyHealthCheck() {
 }
 scheduleDailyHealthCheck();
 
+// ─── SALES AGENT ────────────────────────────────────────────────────────
+async function processSalesLead(email, supportAnalysis) {
+  console.log('[SALES AGENT] Processing Enterprise lead from:', email.from);
+  try {
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 1500,
+        messages: [{
+          role: 'user',
+          content: `You are a B2B sales specialist for NOTAM Intelligence, an AI-powered pre-flight briefing SaaS for aviation professionals.
+
+PRICING:
+- Pro: $49/month per user
+- Max: $99/month per user
+- Enterprise: $999/month (up to 10 users) — Everything in Max + API Access, Priority Support & SLA, Dedicated Account Manager, Custom Onboarding
+- 11-25 users: $1,999/month
+- 26-50 users: $3,499/month
+- 50+ users: Custom pricing, annual contract required
+- Annual discount: 15% off
+
+An Enterprise inquiry has arrived. Analyze it and provide:
+
+1. COMPANY_PROFILE: What type of organization is this? (airline, charter, flight school, dispatch center, etc.)
+2. ESTIMATED_USERS: How many users might they need?
+3. RECOMMENDED_PLAN: Which plan fits best and why?
+4. ESTIMATED_VALUE: Monthly and annual contract value
+5. KEY_QUESTIONS: 3 questions to ask to qualify this lead
+6. PROPOSAL_DRAFT: A professional sales proposal email (sign as "NOTAM Intelligence Sales Team")
+7. FOLLOWUP_PLAN: Suggested follow-up timeline (Day 1, Day 3, Day 7)
+
+Customer email:
+From: ${email.from}
+Subject: ${email.subject}
+Message: ${email.text}
+
+Support analysis: ${supportAnalysis}
+
+Format your response with these exact labels.`
+        }]
+      })
+    });
+
+    const data = await claudeRes.json();
+    const analysis = data.content[0].text;
+
+    // Parse sections
+    const getSection = (label) => {
+      const match = analysis.match(new RegExp(label + ':\\s*([\\s\\S]*?)(?=\\n[A-Z_]+:|$)'));
+      return match ? match[1].trim() : '';
+    };
+
+    const companyProfile = getSection('COMPANY_PROFILE');
+    const estimatedUsers = getSection('ESTIMATED_USERS');
+    const recommendedPlan = getSection('RECOMMENDED_PLAN');
+    const estimatedValue = getSection('ESTIMATED_VALUE');
+    const keyQuestions = getSection('KEY_QUESTIONS');
+    const proposalDraft = getSection('PROPOSAL_DRAFT');
+    const followupPlan = getSection('FOLLOWUP_PLAN');
+
+    // Send sales report to admin
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'NOTAM Intelligence <alerts@notamai.com>',
+        to: 'admin@notamai.com',
+        subject: `🎯 Enterprise Lead — ${email.from} — ${estimatedValue || 'Unknown Value'}`,
+        html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f4f8;font-family:monospace;">
+<div style="max-width:640px;margin:0 auto;padding:28px 20px;">
+
+  <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid #e2e8f0;margin-bottom:20px;">
+    <div style="font-size:14px;font-weight:700;letter-spacing:3px;color:#0f172a;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-top:3px;">🎯 SALES AGENT — ENTERPRISE LEAD</div>
+  </div>
+
+  <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px 16px;margin-bottom:20px;border-left:4px solid #22c55e;">
+    <div style="font-size:10px;color:#16a34a;letter-spacing:2px;margin-bottom:6px;">💰 NEW ENTERPRISE OPPORTUNITY</div>
+    <div style="font-size:13px;color:#14532d;"><strong>From:</strong> ${email.from}</div>
+    <div style="font-size:13px;color:#14532d;"><strong>Estimated Value:</strong> ${estimatedValue}</div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">ORIGINAL EMAIL</div>
+    <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Subject:</strong> ${email.subject}</div>
+    <div style="margin-top:8px;padding:10px;background:#f8fafc;border-radius:4px;font-size:12px;color:#475569;white-space:pre-wrap;">${email.text.slice(0, 400)}${email.text.length > 400 ? '...' : ''}</div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">LEAD ANALYSIS</div>
+    <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f1f5f9;">
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;">COMPANY PROFILE</div>
+      <div style="font-size:13px;color:#1e293b;">${companyProfile}</div>
+    </div>
+    <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f1f5f9;">
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;">ESTIMATED USERS</div>
+      <div style="font-size:13px;color:#1e293b;">${estimatedUsers}</div>
+    </div>
+    <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f1f5f9;">
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;">RECOMMENDED PLAN</div>
+      <div style="font-size:13px;color:#1e293b;">${recommendedPlan}</div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;">ESTIMATED VALUE</div>
+      <div style="font-size:16px;color:#16a34a;font-weight:700;">${estimatedValue}</div>
+    </div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">KEY QUALIFYING QUESTIONS</div>
+    <div style="font-size:13px;color:#1e293b;white-space:pre-wrap;">${keyQuestions}</div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">FOLLOW-UP PLAN</div>
+    <div style="font-size:13px;color:#1e293b;white-space:pre-wrap;">${followupPlan}</div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">PROPOSAL DRAFT</div>
+    <div style="font-size:12px;color:#475569;white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:4px;border-left:3px solid #22c55e;">${proposalDraft}</div>
+  </div>
+
+  <div style="text-align:center;">
+    <a href="mailto:${email.from.replace(/.*<(.+)>.*/, '$1').replace(/[<>]/g,'').trim()}?subject=Re%3A%20${encodeURIComponent(email.subject)}&body=${encodeURIComponent(proposalDraft)}"
+       style="display:inline-block;padding:11px 28px;background:#22c55e;color:#fff;font-size:12px;letter-spacing:2px;text-decoration:none;border-radius:6px;font-weight:700;">
+      SEND PROPOSAL →
+    </a>
+  </div>
+
+</div></body></html>`
+      })
+    });
+
+    console.log('[SALES AGENT] Enterprise lead processed for:', email.from, '| Value:', estimatedValue);
+  } catch(e) {
+    console.log('[SALES AGENT ERROR]', e.message);
+  }
+}
+
 // ─── SUPPORT AGENT ────────────────────────────────────────────────────────
 const processedEmails = new Set();
 
@@ -4922,6 +5064,12 @@ SUGGESTED_REPLY:
     });
 
     console.log('[SUPPORT AGENT] Notification sent for email from:', email.from, '| Category:', category, '| Priority:', priority);
+
+    // If Enterprise Inquiry — trigger Sales Agent
+    if (category.toLowerCase().includes('enterprise')) {
+      console.log('[SALES AGENT] Enterprise inquiry detected — triggering Sales Agent');
+      processSalesLead(email, `Category: ${category} | Priority: ${priority} | Summary: ${summary}`).catch(e => console.log('[SALES AGENT ERROR]', e.message));
+    }
 
   } catch(e) {
     console.log('[SUPPORT AGENT] Error processing email:', e.message);
