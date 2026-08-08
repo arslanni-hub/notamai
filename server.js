@@ -4891,7 +4891,7 @@ async function checkSupportEmails() {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
 
-        imap.search(['UNSEEN', ['SINCE', yesterday]], (err, results) => {
+        imap.search([['SINCE', yesterday]], (err, results) => {
           if (err || !results || results.length === 0) {
             imap.end(); resolve(); return;
           }
