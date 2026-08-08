@@ -22,14 +22,22 @@ const path = require('path');
 const admin = require('firebase-admin');
 
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: 'notamai-a9d57',
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-    }),
-    storageBucket: 'notamai-a9d57.firebasestorage.app'
-  });
+  try {
+    const serviceAccount = process.env.GA_SERVICE_ACCOUNT_KEY
+      ? JSON.parse(process.env.GA_SERVICE_ACCOUNT_KEY)
+      : {
+          projectId: 'notamai-a9d57',
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+        };
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket: 'notamai-a9d57.firebasestorage.app'
+    });
+    console.log('[FIREBASE] Initialized successfully');
+  } catch(e) {
+    console.log('[FIREBASE] Init error:', e.message);
+  }
 }
 
 const adminDb = admin.firestore();
