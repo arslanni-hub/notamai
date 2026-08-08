@@ -4313,6 +4313,270 @@ function scheduleWeeklySummary() {
 }
 scheduleWeeklySummary();
 
+// ─── GROWTH AGENT ────────────────────────────────────────────────────────
+const GA4_PROPERTY_ID = '546126543';
+
+async function getGA4AccessToken() {
+  const key = JSON.parse(process.env.GA_SERVICE_ACCOUNT_KEY);
+  const now = Math.floor(Date.now() / 1000);
+  const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({
+    iss: key.client_email,
+    scope: 'https://www.googleapis.com/auth/analytics.readonly',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  })).toString('base64url');
+
+  const crypto = require('crypto');
+  const sign = crypto.createSign('RSA-SHA256');
+  sign.update(`${header}.${payload}`);
+  const signature = sign.sign(key.private_key, 'base64url');
+  const jwt = `${header}.${payload}.${signature}`;
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
+  });
+  const data = await res.json();
+  return data.access_token;
+}
+
+async function fetchGA4Report(accessToken, metrics, dimensions, dateRange) {
+  const res = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${GA4_PROPERTY_ID}:runReport`, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      dateRanges: [dateRange],
+      metrics: metrics.map(m => ({ name: m })),
+      dimensions: dimensions.map(d => ({ name: d }))
+    })
+  });
+  return res.json();
+}
+
+async function runGrowthReport() {
+  console.log('[GROWTH AGENT] Running weekly growth report...');
+  try {
+    const accessToken = await getGA4AccessToken();
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const dateRange = { startDate: '7daysAgo', endDate: 'today' };
+    const prevDateRange = { startDate: '14daysAgo', endDate: '8daysAgo' };
+
+    // This week metrics
+    const [overviewRes, sourceRes, pageRes] = await Promise.all([
+      fetchGA4Report(accessToken, ['sessions', 'totalUsers', 'newUsers', 'bounceRate', 'averageSessionDuration'], [], dateRange),
+      fetchGA4Report(accessToken, ['sessions'], ['sessionSource'], dateRange),
+      fetchGA4Report(accessToken, ['screenPageViews'], ['pagePath'], dateRange)
+    ]);
+
+    // Previous week for comparison
+    const prevOverviewRes = await fetchGA4Report(accessToken, ['sessions', 'totalUsers', 'newUsers'], [], prevDateRange);
+
+    // Parse overview
+    const getVal = (res, idx) => parseFloat(res?.rows?.[0]?.metricValues?.[idx]?.value || 0);
+    const sessions = getVal(overviewRes, 0);
+    const users = getVal(overviewRes, 1);
+    const newUsers = getVal(overviewRes, 2);
+    const bounceRate = (getVal(overviewRes, 3) * 100).toFixed(1);
+    const avgSession = Math.round(getVal(overviewRes, 4));
+    const avgSessionMin = Math.floor(avgSession / 60) + 'm ' + (avgSession % 60) + 's';
+
+    const prevSessions = getVal(prevOverviewRes, 0);
+    const prevUsers = getVal(prevOverviewRes, 1);
+    const prevNewUsers = getVal(prevOverviewRes, 2);
+
+    const trend = (cur, prev) => {
+      if (prev === 0) return cur > 0 ? '🟢 NEW' : '—';
+      const pct = Math.round(((cur - prev) / prev) * 100);
+      return pct > 0 ? `🟢 +${pct}%` : pct < 0 ? `🔴 ${pct}%` : '⚪ 0%';
+    };
+
+    // Top sources
+    const sources = (sourceRes?.rows || []).slice(0, 5).map(r => ({
+      source: r.dimensionValues[0].value,
+      sessions: r.metricValues[0].value
+    }));
+
+    // Top pages
+    const pages = (pageRes?.rows || []).slice(0, 5).map(r => ({
+      path: r.dimensionValues[0].value,
+      views: r.metricValues[0].value
+    }));
+
+    // Firebase stats
+    let newSignups = 0, totalUsers = 0, pro = 0, max = 0, mrr = 0, briefings7d = 0;
+    try {
+      const usersSnap = await adminDb.collection('users').get();
+      totalUsers = usersSnap.size;
+      usersSnap.docs.forEach(d => {
+        const u = d.data();
+        if (u.plan === 'pro') pro++;
+        if (u.plan === 'max') max++;
+        if (u.createdAt && u.createdAt.toDate() >= weekAgo) newSignups++;
+      });
+      mrr = (pro * 49) + (max * 99);
+      const bSnap = await adminDb.collection('briefings').where('createdAt', '>=', weekAgo).get();
+      briefings7d = bSnap.size;
+    } catch(e) {}
+
+    // Claude analysis
+    let aiInsight = '';
+    try {
+      const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5',
+          max_tokens: 300,
+          messages: [{
+            role: 'user',
+            content: `You are a growth analyst for NOTAM Intelligence, an AI-powered pre-flight briefing SaaS for pilots.
+
+Weekly metrics:
+- Sessions: ${sessions} (prev: ${prevSessions})
+- Users: ${users} (prev: ${prevUsers})
+- New users: ${newUsers} (prev: ${prevNewUsers})
+- Bounce rate: ${bounceRate}%
+- Avg session: ${avgSessionMin}
+- New signups: ${newSignups}
+- MRR: $${mrr}
+- Briefings generated: ${briefings7d}
+- Top traffic source: ${sources[0]?.source || 'direct'}
+
+Write 2-3 sentences of actionable growth insight. Be specific and practical. Focus on what's working and what to improve.`
+          }]
+        })
+      });
+      const cd = await claudeRes.json();
+      aiInsight = cd.content[0].text;
+    } catch(e) {}
+
+    // Send report email
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'NOTAM Intelligence <alerts@notamai.com>',
+        to: 'admin@notamai.com',
+        subject: `📈 NOTAM Intelligence — Weekly Growth Report ${now.toISOString().split('T')[0]}`,
+        html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f4f8;font-family:monospace;">
+<div style="max-width:600px;margin:0 auto;padding:28px 20px;">
+
+  <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid #e2e8f0;margin-bottom:20px;">
+    <div style="font-size:14px;font-weight:700;letter-spacing:3px;color:#0f172a;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-top:3px;">WEEKLY GROWTH REPORT · ${now.toISOString().split('T')[0]}</div>
+  </div>
+
+  ${aiInsight ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 16px;margin-bottom:20px;border-left:4px solid #4a9eff;">
+    <div style="font-size:10px;color:#3b82f6;letter-spacing:2px;margin-bottom:6px;">🤖 AI GROWTH INSIGHT</div>
+    <div style="font-size:13px;color:#1e3a5f;line-height:1.6;">${aiInsight}</div>
+  </div>` : ''}
+
+  <div style="margin-bottom:20px;">
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">TRAFFIC — LAST 7 DAYS</div>
+    <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e2e8f0;">
+      <div style="font-size:12px;color:#475569;">SESSIONS</div>
+      <div style="font-size:12px;color:#1e293b;font-weight:700;">${sessions} <span style="font-size:11px;color:#64748b;">${trend(sessions, prevSessions)}</span></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e2e8f0;">
+      <div style="font-size:12px;color:#475569;">USERS</div>
+      <div style="font-size:12px;color:#1e293b;font-weight:700;">${users} <span style="font-size:11px;color:#64748b;">${trend(users, prevUsers)}</span></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e2e8f0;">
+      <div style="font-size:12px;color:#475569;">NEW USERS</div>
+      <div style="font-size:12px;color:#1e293b;font-weight:700;">${newUsers} <span style="font-size:11px;color:#64748b;">${trend(newUsers, prevNewUsers)}</span></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e2e8f0;">
+      <div style="font-size:12px;color:#475569;">BOUNCE RATE</div>
+      <div style="font-size:12px;color:#1e293b;font-weight:700;">${bounceRate}%</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:9px 0;">
+      <div style="font-size:12px;color:#475569;">AVG SESSION</div>
+      <div style="font-size:12px;color:#1e293b;font-weight:700;">${avgSessionMin}</div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:20px;">
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">BUSINESS — LAST 7 DAYS</div>
+    <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e2e8f0;">
+      <div style="font-size:12px;color:#475569;">NEW SIGNUPS</div>
+      <div style="font-size:14px;color:#4a9eff;font-weight:700;">${newSignups}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e2e8f0;">
+      <div style="font-size:12px;color:#475569;">BRIEFINGS GENERATED</div>
+      <div style="font-size:14px;color:#4a9eff;font-weight:700;">${briefings7d}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e2e8f0;">
+      <div style="font-size:12px;color:#475569;">TOTAL USERS</div>
+      <div style="font-size:12px;color:#1e293b;font-weight:700;">${totalUsers}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e2e8f0;">
+      <div style="font-size:12px;color:#475569;">PRO / MAX</div>
+      <div style="font-size:12px;color:#1e293b;font-weight:700;">${pro} / ${max}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:9px 0;">
+      <div style="font-size:12px;color:#475569;">MRR</div>
+      <div style="font-size:18px;color:#2ec4b6;font-weight:700;">$${mrr.toLocaleString()}</div>
+    </div>
+  </div>
+
+  ${sources.length > 0 ? `<div style="margin-bottom:20px;">
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">TOP TRAFFIC SOURCES</div>
+    ${sources.map(s => `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #e2e8f0;">
+      <div style="font-size:12px;color:#475569;">${s.source}</div>
+      <div style="font-size:12px;color:#1e293b;font-weight:700;">${s.sessions} sessions</div>
+    </div>`).join('')}
+  </div>` : ''}
+
+  ${pages.length > 0 ? `<div style="margin-bottom:24px;">
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">TOP PAGES</div>
+    ${pages.map(p => `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #e2e8f0;">
+      <div style="font-size:11px;color:#475569;word-break:break-all;">${p.path}</div>
+      <div style="font-size:12px;color:#1e293b;font-weight:700;">${p.views} views</div>
+    </div>`).join('')}
+  </div>` : ''}
+
+  <div style="text-align:center;border-top:1px solid #e2e8f0;padding-top:16px;">
+    <a href="https://notamai.onrender.com/admin" style="display:inline-block;padding:10px 24px;background:transparent;border:1px solid #4a9eff;color:#4a9eff;font-size:11px;letter-spacing:2px;text-decoration:none;border-radius:6px;">OPEN ADMIN PANEL →</a>
+  </div>
+
+</div></body></html>`
+      })
+    });
+
+    console.log('[GROWTH AGENT] Weekly report sent successfully');
+  } catch(e) {
+    console.log('[GROWTH AGENT ERROR]', e.message);
+  }
+}
+
+// Schedule growth report every Monday at 09:00 UTC
+function scheduleGrowthReport() {
+  function msUntilNextMonday9am() {
+    const now = new Date();
+    const next = new Date(now);
+    next.setUTCHours(9, 0, 0, 0);
+    const day = now.getUTCDay();
+    const daysUntilMonday = day === 1 ? (now.getUTCHours() >= 9 ? 7 : 0) : (8 - day) % 7;
+    next.setUTCDate(now.getUTCDate() + daysUntilMonday);
+    return next.getTime() - now.getTime();
+  }
+  setTimeout(function runWeekly() {
+    runGrowthReport().catch(e => console.log('[GROWTH AGENT ERROR]', e.message));
+    setTimeout(runWeekly, 7 * 24 * 60 * 60 * 1000);
+  }, msUntilNextMonday9am());
+  console.log('[GROWTH AGENT] Scheduled — every Monday 09:00 UTC');
+}
+scheduleGrowthReport();
+
+// Test — run once on startup after 45 seconds
+setTimeout(() => runGrowthReport().catch(e => console.log('[GROWTH AGENT TEST ERROR]', e.message)), 45 * 1000);
+
 async function runHealthCheck() {
   console.log('[HEALTH CHECK] Running...');
   const results = {};
