@@ -4770,7 +4770,7 @@ Format your response with these exact labels.`
 
     // Parse sections
     const getSection = (label) => {
-      const match = analysis.match(new RegExp(label + ':\\s*([\\s\\S]*?)(?=\\n[A-Z_]+:|$)'));
+      const match = analysis.match(new RegExp(label + ':?\\s*\\n?([\\s\\S]*?)(?=\\n[A-Z_]+:|$)'));
       return match ? match[1].trim() : '';
     };
 
@@ -4846,7 +4846,7 @@ Format your response with these exact labels.`
   </div>
 
   <div style="text-align:center;">
-    <a href="mailto:${email.from.replace(/.*<(.+)>.*/, '$1').replace(/[<>]/g,'').trim()}?subject=Re%3A%20${encodeURIComponent(email.subject)}&body=${encodeURIComponent(proposalDraft)}"
+    <a href="mailto:${email.from.replace(/.*<(.+)>.*/, '$1').replace(/[<>]/g,'').trim()}?subject=Re%3A%20${encodeURIComponent(email.subject)}&body=${encodeURIComponent(proposalDraft.slice(0, 1800))}"
        style="display:inline-block;padding:11px 28px;background:#22c55e;color:#fff;font-size:12px;letter-spacing:2px;text-decoration:none;border-radius:6px;font-weight:700;">
       SEND PROPOSAL →
     </a>
