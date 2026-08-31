@@ -4798,8 +4798,24 @@ Format your response with these exact labels.`
     };
     // Special parser for PROPOSAL_DRAFT — stop at END marker
     const getProposal = () => {
-      const match = analysis.match(/PROPOSAL_DRAFT:?\s*\n?([\s\S]*?)(?=---END OF PROPOSAL---|7\.|FOLLOWUP_PLAN:|$)/);
-      return match ? match[1].trim() : getSection('PROPOSAL_DRAFT');
+      // Try multiple patterns
+      const patterns = [
+        /(?:6\.\s*)?PROPOSAL_DRAFT:?\s*\n?([\s\S]*?)(?=---END OF PROPOSAL---|(?:7\.|FOLLOWUP_PLAN:)|$)/,
+        /PROPOSAL[_\s]DRAFT:?\s*\n?([\s\S]*?)(?=---END OF PROPOSAL---|(?:\n7\.|\nFOLLOWUP)|$)/,
+        /Dear[\s\S]*?notamai\.com/
+      ];
+      for (const pattern of patterns) {
+        const match = analysis.match(pattern);
+        if (match && match[1] && match[1].trim().length > 50) {
+          console.log('[SALES AGENT] Proposal found with pattern:', pattern.toString().slice(0,50));
+          return match[1].trim();
+        }
+        if (match && match[0] && !match[1]) {
+          return match[0].trim();
+        }
+      }
+      console.log('[SALES AGENT] Analysis sample:', analysis.slice(0, 500));
+      return '';
     };
 
     const companyProfile = getSection('COMPANY_PROFILE');
