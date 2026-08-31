@@ -4762,7 +4762,17 @@ An Enterprise inquiry has arrived. Analyze it and provide:
 3. RECOMMENDED_PLAN: Which plan fits best and why?
 4. ESTIMATED_VALUE: Monthly and annual contract value (one line only, e.g. "$999/month | $10,188/year")
 5. KEY_QUESTIONS: 3 short questions to qualify this lead (numbered list, max 2 lines each)
-6. PROPOSAL_DRAFT: Write ONLY the email body to send to the customer. Max 150 words. Start with "Dear [Name]," and end with "Best regards, NOTAM Intelligence Sales Team". Include NOTHING else — no analysis, no pricing tables, no follow-up instructions. Stop writing when you reach "Best regards, NOTAM Intelligence Sales Team".
+6. PROPOSAL_DRAFT: Write ONLY the email body to send to the customer. Max 250 words. Format it as a proper email:
+- Start with "Dear [Name],"
+- Write 2-3 professional paragraphs
+- End with:
+
+Best regards,
+NOTAM Intelligence Sales Team
+support@notamai.com
+notamai.com
+
+Include NOTHING else after the sign-off — no analysis, no pricing tables, no follow-up instructions.
 ---END OF PROPOSAL---
 7. FOLLOWUP_PLAN: After the ---END OF PROPOSAL--- marker, write a 3-step follow-up plan (Day 1, Day 3, Day 7) in short bullet points only.
 
