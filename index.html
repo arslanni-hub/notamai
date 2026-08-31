@@ -6175,11 +6175,13 @@ document.addEventListener('mouseout', function(e) {
     if (e.target === this) closeShareModal();
   });
   // Close invite modal on backdrop click
-  document.getElementById('inviteModal').addEventListener('click', function(e) {
+  const _inviteModal = document.getElementById('inviteModal');
+  if (_inviteModal) _inviteModal.addEventListener('click', function(e) {
     if (e.target === this) closeInviteModal();
   });
   // Close profile modal on backdrop click
-  document.getElementById('profileModal').addEventListener('click', function(e) {
+  const _profileModal = document.getElementById('profileModal');
+  if (_profileModal) _profileModal.addEventListener('click', function(e) {
     if (e.target === this) closeProfileModal();
   });
 })();
