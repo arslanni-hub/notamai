@@ -4755,27 +4755,6 @@ PRICING:
 - 50+ users: Custom pricing, annual contract required
 - Annual discount: 15% off
 
-An Enterprise inquiry has arrived. Analyze it and provide:
-
-1. COMPANY_PROFILE: What type of organization is this? (airline, charter, flight school, dispatch center, etc.)
-2. ESTIMATED_USERS: How many users might they need?
-3. RECOMMENDED_PLAN: Which plan fits best and why?
-4. ESTIMATED_VALUE: Monthly and annual contract value (one line only, e.g. "$999/month | $10,188/year")
-5. KEY_QUESTIONS: 3 short questions to qualify this lead (numbered list, max 2 lines each)
-6. PROPOSAL_DRAFT: Write ONLY the email body to send to the customer. Max 250 words. Format it as a proper email:
-- Start with "Dear [Name],"
-- Write 2-3 professional paragraphs
-- End with:
-
-Best regards,
-NOTAM Intelligence Sales Team
-support@notamai.com
-notamai.com
-
-Include NOTHING else after the sign-off — no analysis, no pricing tables, no follow-up instructions.
----END OF PROPOSAL---
-7. FOLLOWUP_PLAN: After the ---END OF PROPOSAL--- marker, write a 3-step follow-up plan (Day 1, Day 3, Day 7) in short bullet points only.
-
 Customer email:
 From: ${email.from}
 Subject: ${email.subject}
@@ -4783,63 +4762,41 @@ Message: ${email.text}
 
 Support analysis: ${supportAnalysis}
 
-Format your response with these exact labels.`
+Respond ONLY with a valid JSON object, no other text before or after:
+{
+  "company_profile": "one sentence about the company type",
+  "estimated_users": "estimated number and type of users",
+  "recommended_plan": "which plan and why (one sentence)",
+  "estimated_value": "monthly and annual value (one line)",
+  "key_questions": ["question 1", "question 2", "question 3"],
+  "proposal": "Dear [Name],\\n\\n[paragraph 1 - warm intro and understanding their need]\\n\\n[paragraph 2 - key benefits for their use case]\\n\\n[paragraph 3 - call to action]\\n\\nBest regards,\\nNOTAM Intelligence Sales Team\\nsupport@notamai.com\\nnotamai.com",
+  "followup": ["Day 1: action", "Day 3: action", "Day 7: action"]
+}`
         }]
       })
     });
 
     const data = await claudeRes.json();
     const analysis = data.content[0].text;
+    let parsed = {};
+    try {
+      const jsonMatch = analysis.match(/\{[\s\S]*\}/);
+      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : analysis);
+    } catch(e) {
+      console.log('[SALES AGENT] JSON parse error:', e.message, 'Raw:', analysis.slice(0, 200));
+    }
 
-    // Parse sections
-    const getSection = (label) => {
-      const match = analysis.match(new RegExp(label + ':?\\s*\\n?([\\s\\S]*?)(?=\\n\\d+\\.\\s+[A-Z_]+:|\\n[A-Z_]{3,}:|---END OF PROPOSAL---|$)'));
-      return match ? match[1].trim() : '';
-    };
-    // Special parser for PROPOSAL_DRAFT — stop at END marker
-    const getProposal = () => {
-      // Try multiple patterns
-      const patterns = [
-        /(?:6\.\s*)?PROPOSAL_DRAFT:?\s*\n?([\s\S]*?)(?=---END OF PROPOSAL---|(?:7\.|FOLLOWUP_PLAN:)|$)/,
-        /PROPOSAL[_\s]DRAFT:?\s*\n?([\s\S]*?)(?=---END OF PROPOSAL---|(?:\n7\.|\nFOLLOWUP)|$)/,
-        /Dear[\s\S]*?notamai\.com/
-      ];
-      for (const pattern of patterns) {
-        const match = analysis.match(pattern);
-        if (match && match[1] && match[1].trim().length > 50) {
-          console.log('[SALES AGENT] Proposal found with pattern:', pattern.toString().slice(0,50));
-          return match[1].trim();
-        }
-        if (match && match[0] && !match[1]) {
-          return match[0].trim();
-        }
-      }
-      console.log('[SALES AGENT] Analysis sample:', analysis.slice(0, 500));
-      return '';
-    };
+    const companyProfile = parsed.company_profile || '';
+    const estimatedUsers = parsed.estimated_users || '';
+    const recommendedPlan = parsed.recommended_plan || '';
+    const estimatedValue = parsed.estimated_value || '';
+    const keyQuestions = Array.isArray(parsed.key_questions) ? parsed.key_questions.join('\n') : (parsed.key_questions || '');
+    const keyQuestionsClean = keyQuestions;
+    const proposalDraft = (parsed.proposal || '').replace(/\\n/g, '\n');
+    const followupPlan = Array.isArray(parsed.followup) ? parsed.followup.join('\n') : (parsed.followup || '');
+    const estimatedValueClean = estimatedValue;
 
-    const companyProfile = getSection('COMPANY_PROFILE');
-    const estimatedUsers = getSection('ESTIMATED_USERS');
-    const recommendedPlan = getSection('RECOMMENDED_PLAN');
-    const estimatedValue = getSection('ESTIMATED_VALUE');
-    const keyQuestions = getSection('KEY_QUESTIONS');
-    const cleanMd = (text) => text
-      .replace(/\*\*([^*]+)\*\*/g, '$1')
-      .replace(/\*([^*]+)\*/g, '$1')
-      .replace(/^#{1,6}\s+/gm, '')
-      .replace(/^\s*[-*•]\s+/gm, '• ')
-      .replace(/\|[^\n]+\|/g, '')
-      .replace(/^[-=]{3,}$/gm, '')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      .replace(/[<>]/g, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    const rawProposal = getProposal();
-    console.log('[SALES AGENT] Raw proposal length:', rawProposal.length, 'preview:', rawProposal.slice(0, 100));
-    const proposalDraft = cleanMd(rawProposal);
-    const followupPlan = cleanMd(getSection('FOLLOWUP_PLAN'));
-    const keyQuestionsClean = cleanMd(getSection('KEY_QUESTIONS'));
-    const estimatedValueClean = getSection('ESTIMATED_VALUE').replace(/[<>|*#\-]/g, '').trim().split('\n')[0];
+    console.log('[SALES AGENT] Proposal length:', proposalDraft.length);
 
     // Send sales report to admin
     await fetch('https://api.resend.com/emails', {
