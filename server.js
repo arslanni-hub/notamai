@@ -3023,14 +3023,26 @@ MANDATORY:
           const dateB = b.effective || '0';
           return dateB.localeCompare(dateA);
         });
-        const notamText = active.map(n => {
+        const allNotams = data.notams.filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase());
+        const futureNotams = allNotams.filter(n => {
+          if (!n.effective || n.effective.length < 12) return false;
+          const eff = n.effective;
+          const effDate = new Date(Date.UTC(
+            parseInt(eff.slice(0,4)), parseInt(eff.slice(4,6)) - 1, parseInt(eff.slice(6,8)),
+            parseInt(eff.slice(8,10)), parseInt(eff.slice(10,12))
+          ));
+          return effDate > now && !active.find(a => a.notam_id === n.notam_id);
+        });
+        const combined = [...active, ...futureNotams];
+        const notamText = combined.map(n => {
+          const isFuture = futureNotams.find(f => f.notam_id === n.notam_id);
           const id = n.notam_id || '';
           const ntype = n.type === 'R' ? 'NOTAMR' : n.type === 'C' ? 'NOTAMC' : 'NOTAMN';
           const location = n.location || icao;
           const effective = n.effective ? n.effective.slice(2) : '';
           const expiration = n.expiration ? (n.expiration === 'PERM' ? 'PERM' : n.expiration.slice(2)) : 'PERM';
           const body = (n.body || '').trim() || (n.raw || '').replace(/^![A-Z]+ [A-Z0-9/]+\s*/, '').trim();
-          let formatted = id + '\t' + ntype + '\n';
+          let formatted = (isFuture ? '[FUTURE NOTAM - NOT YET ACTIVE]\n' : '') + id + '\t' + ntype + '\n';
           formatted += 'A) ' + location + '\n';
           formatted += 'B) ' + effective + ' C) ' + expiration + '\n';
           formatted += 'E) ' + body;
