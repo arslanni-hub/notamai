@@ -4818,7 +4818,9 @@ Format your response with these exact labels.`
       .replace(/[<>]/g, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-    const proposalDraft = cleanMd(getProposal());
+    const rawProposal = getProposal();
+    console.log('[SALES AGENT] Raw proposal length:', rawProposal.length, 'preview:', rawProposal.slice(0, 100));
+    const proposalDraft = cleanMd(rawProposal);
     const followupPlan = cleanMd(getSection('FOLLOWUP_PLAN'));
     const keyQuestionsClean = cleanMd(getSection('KEY_QUESTIONS'));
     const estimatedValueClean = getSection('ESTIMATED_VALUE').replace(/[<>|*#\-]/g, '').trim().split('\n')[0];
