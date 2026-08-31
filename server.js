@@ -4762,8 +4762,9 @@ An Enterprise inquiry has arrived. Analyze it and provide:
 3. RECOMMENDED_PLAN: Which plan fits best and why?
 4. ESTIMATED_VALUE: Monthly and annual contract value (one line only, e.g. "$999/month | $10,188/year")
 5. KEY_QUESTIONS: 3 short questions to qualify this lead (numbered list, max 2 lines each)
-6. PROPOSAL_DRAFT: A clean, professional email to send directly to the customer. Maximum 200 words. No analysis, no pricing tables, no follow-up plans. Just a warm introduction, key benefits for their use case, and a call-to-action to schedule a demo. Sign as "NOTAM Intelligence Sales Team, support@notamai.com"
-7. FOLLOWUP_PLAN: 3-step follow-up plan (Day 1, Day 3, Day 7) - short bullet points only
+6. PROPOSAL_DRAFT: Write ONLY the email body to send to the customer. Max 150 words. Start with "Dear [Name]," and end with "Best regards, NOTAM Intelligence Sales Team". Include NOTHING else — no analysis, no pricing tables, no follow-up instructions. Stop writing when you reach "Best regards, NOTAM Intelligence Sales Team".
+---END OF PROPOSAL---
+7. FOLLOWUP_PLAN: After the ---END OF PROPOSAL--- marker, write a 3-step follow-up plan (Day 1, Day 3, Day 7) in short bullet points only.
 
 Customer email:
 From: ${email.from}
@@ -4782,8 +4783,13 @@ Format your response with these exact labels.`
 
     // Parse sections
     const getSection = (label) => {
-      const match = analysis.match(new RegExp(label + ':?\\s*\\n?([\\s\\S]*?)(?=\\n\\d+\\.\\s+[A-Z_]+:|\\n[A-Z_]{3,}:|$)'));
+      const match = analysis.match(new RegExp(label + ':?\\s*\\n?([\\s\\S]*?)(?=\\n\\d+\\.\\s+[A-Z_]+:|\\n[A-Z_]{3,}:|---END OF PROPOSAL---|$)'));
       return match ? match[1].trim() : '';
+    };
+    // Special parser for PROPOSAL_DRAFT — stop at END marker
+    const getProposal = () => {
+      const match = analysis.match(/PROPOSAL_DRAFT:?\s*\n?([\s\S]*?)(?=---END OF PROPOSAL---|7\.|FOLLOWUP_PLAN:|$)/);
+      return match ? match[1].trim() : getSection('PROPOSAL_DRAFT');
     };
 
     const companyProfile = getSection('COMPANY_PROFILE');
@@ -4802,7 +4808,7 @@ Format your response with these exact labels.`
       .replace(/[<>]/g, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-    const proposalDraft = cleanMd(getSection('PROPOSAL_DRAFT'));
+    const proposalDraft = cleanMd(getProposal());
     const followupPlan = cleanMd(getSection('FOLLOWUP_PLAN'));
     const keyQuestionsClean = cleanMd(getSection('KEY_QUESTIONS'));
     const estimatedValueClean = getSection('ESTIMATED_VALUE').replace(/[<>|*#\-]/g, '').trim().split('\n')[0];
