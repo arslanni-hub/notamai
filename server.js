@@ -4796,7 +4796,6 @@ Respond ONLY with a valid JSON object, no other text before or after:
     const followupPlan = Array.isArray(parsed.followup) ? parsed.followup.join('\n') : (parsed.followup || '');
     const estimatedValueClean = estimatedValue;
 
-    console.log('[SALES AGENT] Proposal length:', proposalDraft.length);
 
     // Send sales report to admin
     await fetch('https://api.resend.com/emails', {
