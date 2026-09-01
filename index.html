@@ -9970,11 +9970,6 @@ function closeVideoBriefing() {
 
   window.videoBriefingMode = false;
 
-  // Start briefing after modal closes
-  const mainInput = document.getElementById('mainInput');
-  if (mainInput && mainInput.value.trim()) {
-    setTimeout(() => handleSend(), 800);
-  }
 }
 
 // ── Onboarding ──────────────────────────────────────────────
