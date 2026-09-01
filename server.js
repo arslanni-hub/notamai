@@ -4743,6 +4743,205 @@ function scheduleDailyHealthCheck() {
 }
 scheduleDailyHealthCheck();
 
+// ─── REAL-TIME NOTIFICATION AGENT ────────────────────────────────────────
+async function sendAdminNotification(subject, html) {
+  try {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'NOTAM Intelligence <alerts@notamai.com>',
+        to: 'admin@notamai.com',
+        subject,
+        html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f4f8;font-family:monospace;">
+<div style="max-width:520px;margin:0 auto;padding:24px 20px;">
+  <div style="text-align:center;padding-bottom:12px;border-bottom:1px solid #e2e8f0;margin-bottom:16px;">
+    <div style="font-size:13px;font-weight:700;letter-spacing:3px;color:#0f172a;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+  </div>
+  ${html}
+  <div style="text-align:center;border-top:1px solid #e2e8f0;padding-top:14px;margin-top:16px;">
+    <a href="https://notamai.onrender.com/admin" style="display:inline-block;padding:9px 22px;background:transparent;border:1px solid #4a9eff;color:#4a9eff;font-size:11px;letter-spacing:2px;text-decoration:none;border-radius:6px;">OPEN ADMIN →</a>
+  </div>
+</div></body></html>`
+      })
+    });
+  } catch(e) {
+    console.log('[NOTIFICATION] Send error:', e.message);
+  }
+}
+
+// Watch Firestore for real-time events
+function startRealtimeNotifications() {
+  console.log('[NOTIFICATIONS] Starting real-time watchers...');
+
+  // 1. New user registration
+  adminDb.collection('users').onSnapshot(snapshot => {
+    snapshot.docChanges().forEach(async change => {
+      if (change.type !== 'added') return;
+      const data = change.doc.data();
+      // Skip if created more than 2 minutes ago (avoid alerts on server restart)
+      if (data.createdAt) {
+        const created = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+        if (Date.now() - created.getTime() > 2 * 60 * 1000) return;
+      }
+      const email = data.email || change.doc.id;
+      const plan = data.plan || 'free';
+      const name = data.displayName || email;
+      console.log('[NOTIFICATIONS] New user:', email);
+      await sendAdminNotification(
+        `🆕 New User — ${email}`,
+        `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px;border-left:4px solid #22c55e;">
+          <div style="font-size:11px;color:#16a34a;letter-spacing:2px;margin-bottom:8px;">🆕 NEW USER REGISTERED</div>
+          <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Name:</strong> ${name}</div>
+          <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${email}</div>
+          <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Plan:</strong> ${plan.toUpperCase()}</div>
+          <div style="font-size:13px;color:#1e293b;"><strong>Time:</strong> ${new Date().toUTCString()}</div>
+        </div>`
+      );
+    });
+  }, err => console.log('[NOTIFICATIONS] Users watcher error:', err.message));
+
+  // 2. Plan change (upgrade/downgrade)
+  adminDb.collection('users').onSnapshot(snapshot => {
+    snapshot.docChanges().forEach(async change => {
+      if (change.type !== 'modified') return;
+      const before = change.doc.data();
+      const newPlan = before.plan;
+      if (!newPlan) return;
+      // Check if plan actually changed by comparing updatedAt
+      const updatedAt = before.updatedAt?.toDate ? before.updatedAt.toDate() : null;
+      if (!updatedAt || Date.now() - updatedAt.getTime() > 2 * 60 * 1000) return;
+      const email = before.email || change.doc.id;
+      const name = before.displayName || email;
+      const planColors = { free: '#64748b', pro: '#4a9eff', max: '#f4841a', enterprise: '#b57bff' };
+      const color = planColors[newPlan] || '#64748b';
+      const isUpgrade = ['pro', 'max', 'enterprise'].includes(newPlan);
+      const emoji = isUpgrade ? '⬆️' : '⬇️';
+      const label = isUpgrade ? 'PLAN UPGRADED' : 'PLAN CHANGED';
+      const bgColor = isUpgrade ? '#f0fdf4' : '#fff7ed';
+      const borderColor = isUpgrade ? '#86efac' : '#fed7aa';
+      const leftColor = isUpgrade ? '#22c55e' : '#f97316';
+      const textColor = isUpgrade ? '#16a34a' : '#c2410c';
+      console.log('[NOTIFICATIONS] Plan change:', email, '->', newPlan);
+      await sendAdminNotification(
+        `${emoji} Plan ${isUpgrade ? 'Upgrade' : 'Change'} — ${email} → ${newPlan.toUpperCase()}`,
+        `<div style="background:${bgColor};border:1px solid ${borderColor};border-radius:8px;padding:14px;border-left:4px solid ${leftColor};">
+          <div style="font-size:11px;color:${textColor};letter-spacing:2px;margin-bottom:8px;">${emoji} ${label}</div>
+          <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>User:</strong> ${name}</div>
+          <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${email}</div>
+          <div style="font-size:13px;color:${color};font-weight:700;margin-bottom:4px;font-size:16px;">${newPlan.toUpperCase()}</div>
+          <div style="font-size:13px;color:#1e293b;"><strong>Time:</strong> ${new Date().toUTCString()}</div>
+          ${isUpgrade ? `<div style="font-size:12px;color:#16a34a;margin-top:8px;">💰 MRR impact: +$${newPlan === 'pro' ? 49 : newPlan === 'max' ? 99 : 999}/month</div>` : ''}
+        </div>`
+      );
+    });
+  }, err => console.log('[NOTIFICATIONS] Plan watcher error:', err.message));
+
+  // 3. First briefing (user activation)
+  adminDb.collection('briefings').onSnapshot(snapshot => {
+    snapshot.docChanges().forEach(async change => {
+      if (change.type !== 'added') return;
+      const data = change.doc.data();
+      const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : null;
+      if (!createdAt || Date.now() - createdAt.getTime() > 2 * 60 * 1000) return;
+      const userId = data.userId;
+      if (!userId) return;
+      try {
+        const userDoc = await adminDb.collection('users').doc(userId).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+        // Count user's briefings — only notify on first one
+        const briefingCount = await adminDb.collection('briefings').where('userId', '==', userId).get();
+        if (briefingCount.size !== 1) return; // Not the first briefing
+        const email = userData.email || userId;
+        const plan = userData.plan || 'free';
+        const route = data.route || 'Unknown';
+        const risk = data.riskLevel || 'N/A';
+        console.log('[NOTIFICATIONS] First briefing:', email, route);
+        await sendAdminNotification(
+          `✈️ First Briefing — ${email} — ${route}`,
+          `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;border-left:4px solid #4a9eff;">
+            <div style="font-size:11px;color:#1d4ed8;letter-spacing:2px;margin-bottom:8px;">✈️ USER ACTIVATED — FIRST BRIEFING</div>
+            <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${email}</div>
+            <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Plan:</strong> ${plan.toUpperCase()}</div>
+            <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Route:</strong> ${route}</div>
+            <div style="font-size:13px;color:#1e293b;"><strong>Risk Level:</strong> ${risk}</div>
+          </div>`
+        );
+      } catch(e) {}
+    });
+  }, err => console.log('[NOTIFICATIONS] Briefings watcher error:', err.message));
+
+  // 4. First video briefing
+  adminDb.collection('videos').onSnapshot(snapshot => {
+    snapshot.docChanges().forEach(async change => {
+      if (change.type !== 'added' && change.type !== 'modified') return;
+      const data = change.doc.data();
+      if (data.status !== 'completed') return;
+      const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : null;
+      if (!createdAt || Date.now() - createdAt.getTime() > 10 * 60 * 1000) return;
+      const userId = data.userId;
+      if (!userId) return;
+      try {
+        const userDoc = await adminDb.collection('users').doc(userId).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+        const videoCount = await adminDb.collection('videos').where('userId', '==', userId).where('status', '==', 'completed').get();
+        if (videoCount.size !== 1) return;
+        const email = userData.email || userId;
+        const route = data.route || 'Unknown';
+        console.log('[NOTIFICATIONS] First video:', email, route);
+        await sendAdminNotification(
+          `🎬 First Video Briefing — ${email} — ${route}`,
+          `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px;border-left:4px solid #f4841a;">
+            <div style="font-size:11px;color:#c2410c;letter-spacing:2px;margin-bottom:8px;">🎬 FIRST VIDEO BRIEFING GENERATED</div>
+            <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${email}</div>
+            <div style="font-size:13px;color:#1e293b;"><strong>Route:</strong> ${route}</div>
+          </div>`
+        );
+      } catch(e) {}
+    });
+  }, err => console.log('[NOTIFICATIONS] Videos watcher error:', err.message));
+
+  // 5. Limit reached (upgrade candidate)
+  // This is handled via API response — we'll monitor usage collection
+  adminDb.collection('usage').onSnapshot(snapshot => {
+    snapshot.docChanges().forEach(async change => {
+      if (change.type !== 'modified') return;
+      const data = change.doc.data();
+      const userId = data.userId;
+      if (!userId) return;
+      try {
+        const userDoc = await adminDb.collection('users').doc(userId).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+        const plan = userData.plan || 'free';
+        const limits = { free: 3, pro: 100, max: 150 };
+        const limit = limits[plan];
+        if (!limit) return;
+        const briefings = data.briefings || 0;
+        // Alert when hitting 80% of limit
+        const threshold = Math.floor(limit * 0.8);
+        if (briefings !== threshold) return;
+        const email = userData.email || userId;
+        console.log('[NOTIFICATIONS] Usage warning:', email, briefings, '/', limit);
+        await sendAdminNotification(
+          `⚠️ Usage Warning — ${email} at ${briefings}/${limit} briefings`,
+          `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;border-left:4px solid #f59e0b;">
+            <div style="font-size:11px;color:#b45309;letter-spacing:2px;margin-bottom:8px;">⚠️ UPGRADE CANDIDATE — LIMIT APPROACHING</div>
+            <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${email}</div>
+            <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Plan:</strong> ${plan.toUpperCase()}</div>
+            <div style="font-size:13px;color:#b45309;font-weight:700;margin-bottom:4px;">${briefings} / ${limit} briefings used</div>
+            <div style="font-size:12px;color:#92400e;">This user may be ready to upgrade — consider reaching out.</div>
+          </div>`
+        );
+      } catch(e) {}
+    });
+  }, err => console.log('[NOTIFICATIONS] Usage watcher error:', err.message));
+
+  console.log('[NOTIFICATIONS] All watchers active.');
+}
+
+// Start after 20 seconds to let server fully initialize
+setTimeout(() => startRealtimeNotifications(), 20 * 1000);
+
 // ─── SALES AGENT ────────────────────────────────────────────────────────
 async function processSalesLead(email, supportAnalysis) {
   console.log('[SALES AGENT] Processing Enterprise lead from:', email.from);
