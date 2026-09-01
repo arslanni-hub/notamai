@@ -2743,15 +2743,26 @@ MANDATORY:
       console.log('[AIRPORT TEXT SEARCH]', query, JSON.stringify(data).slice(0,300));
 
       const airports = Array.isArray(data) ? data : (data?.airports || data?.results || []);
-      const results = airports
+      const mapped = airports
         .filter(a => (a.icao || a.ident))
-        .slice(0, 8)
         .map(a => ({
           id: a.icao || a.ident,
           name: a.name || '',
           country: a.country || a.iso_country || '',
           city: a.city || a.municipality || ''
         }));
+
+      // Sort: exact ICAO match first, then starts-with, then rest
+      const q = query.toUpperCase();
+      const results = mapped.sort((a, b) => {
+        const aId = (a.id || '').toUpperCase();
+        const bId = (b.id || '').toUpperCase();
+        if (aId === q && bId !== q) return -1;
+        if (bId === q && aId !== q) return 1;
+        if (aId.startsWith(q) && !bId.startsWith(q)) return -1;
+        if (bId.startsWith(q) && !aId.startsWith(q)) return 1;
+        return 0;
+      }).slice(0, 8);
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(results));
