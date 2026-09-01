@@ -4666,6 +4666,58 @@ async function runHealthCheck() {
     mrr = (pro*49)+(max*99);
   } catch(e) {}
 
+  // Activation stats — first briefings and upgrade candidates
+  let firstBriefingUsers = [], firstVideoUsers = [], upgradeCandidate = [];
+  try {
+    const briefSnap = await adminDb.collection('briefings').where('createdAt','>=',yesterday).get();
+    const userBriefCounts = {};
+    briefSnap.docs.forEach(d => {
+      const uid = d.data().userId;
+      if (uid) userBriefCounts[uid] = (userBriefCounts[uid] || 0) + 1;
+    });
+    for (const [uid, count] of Object.entries(userBriefCounts)) {
+      const allBriefs = await adminDb.collection('briefings').where('userId','==',uid).get();
+      if (allBriefs.size === count) {
+        const uDoc = await adminDb.collection('users').doc(uid).get();
+        if (uDoc.exists) firstBriefingUsers.push(uDoc.data().email || uid);
+      }
+    }
+  } catch(e) {}
+  try {
+    const vidSnap = await adminDb.collection('videos').where('createdAt','>=',yesterday).where('status','==','completed').get();
+    const userVidSet = new Set();
+    for (const d of vidSnap.docs) {
+      const uid = d.data().userId;
+      if (!uid || userVidSet.has(uid)) continue;
+      userVidSet.add(uid);
+      const allVids = await adminDb.collection('videos').where('userId','==',uid).where('status','==','completed').get();
+      if (allVids.size === 1) {
+        const uDoc = await adminDb.collection('users').doc(uid).get();
+        if (uDoc.exists) firstVideoUsers.push(uDoc.data().email || uid);
+      }
+    }
+  } catch(e) {}
+  try {
+    const usageSnap = await adminDb.collection('usage').get();
+    const monthKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+    for (const d of usageSnap.docs) {
+      if (!d.id.endsWith(monthKey)) continue;
+      const ud = d.data();
+      const uid = ud.userId;
+      if (!uid) continue;
+      const uDoc = await adminDb.collection('users').doc(uid).get();
+      if (!uDoc.exists) continue;
+      const plan = uDoc.data().plan || 'free';
+      const limits = { free: 3, pro: 100, max: 150 };
+      const limit = limits[plan];
+      if (!limit) continue;
+      const briefings = ud.briefings || 0;
+      if (briefings >= Math.floor(limit * 0.8)) {
+        upgradeCandidate.push({ email: uDoc.data().email || uid, plan, briefings, limit });
+      }
+    }
+  } catch(e) {}
+
   const statusIcon = issues.length===0?'✅':issues.length<=2?'⚠️':'🚨';
 
   await fetch('https://api.resend.com/emails', {
@@ -4719,6 +4771,24 @@ ${issues.length>0
   <div style="display:flex;justify-content:space-between;padding:9px 0;"><div style="font-size:12px;color:#8a9bb0;">MRR</div><div style="font-size:18px;color:#2ec4b6;font-weight:700;">$${mrr.toLocaleString()}</div></div>
 </div>
 
+${firstBriefingUsers.length > 0 ? `
+<div style="margin-bottom:20px;">
+  <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">✈️ FIRST BRIEFING TODAY</div>
+  ${firstBriefingUsers.map(e => `<div style="font-size:12px;color:#1e293b;padding:5px 0;border-bottom:1px solid #e2e8f0;">${e}</div>`).join('')}
+</div>` : ''}
+
+${firstVideoUsers.length > 0 ? `
+<div style="margin-bottom:20px;">
+  <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">🎬 FIRST VIDEO TODAY</div>
+  ${firstVideoUsers.map(e => `<div style="font-size:12px;color:#1e293b;padding:5px 0;border-bottom:1px solid #e2e8f0;">${e}</div>`).join('')}
+</div>` : ''}
+
+${upgradeCandidate.length > 0 ? `
+<div style="margin-bottom:20px;">
+  <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">⚠️ UPGRADE CANDIDATES</div>
+  ${upgradeCandidate.map(u => `<div style="font-size:12px;color:#1e293b;padding:5px 0;border-bottom:1px solid #e2e8f0;">${u.email} — ${u.plan.toUpperCase()} ${u.briefings}/${u.limit}</div>`).join('')}
+</div>` : ''}
+
 <div style="text-align:center;border-top:1px solid #1a2a3a;padding-top:20px;">
   <a href="https://notamai.onrender.com/admin" style="display:inline-block;padding:11px 28px;background:transparent;border:1px solid rgba(74,158,255,0.4);color:#4a9eff;font-size:11px;letter-spacing:2px;text-decoration:none;border-radius:6px;">OPEN ADMIN PANEL →</a>
 </div>
@@ -4771,15 +4841,15 @@ async function sendAdminNotification(subject, html) {
 }
 
 // Watch Firestore for real-time events
+// ─── REAL-TIME NOTIFICATIONS (Critical events only) ───────────────────────
 function startRealtimeNotifications() {
   console.log('[NOTIFICATIONS] Starting real-time watchers...');
 
-  // 1. New user registration
+  // 1. New user registration — INSTANT
   adminDb.collection('users').onSnapshot(snapshot => {
     snapshot.docChanges().forEach(async change => {
       if (change.type !== 'added') return;
       const data = change.doc.data();
-      // Skip if created more than 2 minutes ago (avoid alerts on server restart)
       if (data.createdAt) {
         const created = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
         if (Date.now() - created.getTime() > 2 * 60 * 1000) return;
@@ -4801,145 +4871,38 @@ function startRealtimeNotifications() {
     });
   }, err => console.log('[NOTIFICATIONS] Users watcher error:', err.message));
 
-  // 2. Plan change (upgrade/downgrade)
+  // 2. Plan upgrade — INSTANT
   adminDb.collection('users').onSnapshot(snapshot => {
     snapshot.docChanges().forEach(async change => {
       if (change.type !== 'modified') return;
-      const before = change.doc.data();
-      const newPlan = before.plan;
-      if (!newPlan) return;
-      // Check if plan actually changed by comparing updatedAt
-      const updatedAt = before.updatedAt?.toDate ? before.updatedAt.toDate() : null;
+      const data = change.doc.data();
+      const newPlan = data.plan;
+      if (!newPlan || newPlan === 'free') return;
+      const updatedAt = data.updatedAt?.toDate ? data.updatedAt.toDate() : null;
       if (!updatedAt || Date.now() - updatedAt.getTime() > 2 * 60 * 1000) return;
-      const email = before.email || change.doc.id;
-      const name = before.displayName || email;
-      const planColors = { free: '#64748b', pro: '#4a9eff', max: '#f4841a', enterprise: '#b57bff' };
+      const email = data.email || change.doc.id;
+      const name = data.displayName || email;
+      const planColors = { pro: '#4a9eff', max: '#f4841a', enterprise: '#b57bff' };
       const color = planColors[newPlan] || '#64748b';
-      const isUpgrade = ['pro', 'max', 'enterprise'].includes(newPlan);
-      const emoji = isUpgrade ? '⬆️' : '⬇️';
-      const label = isUpgrade ? 'PLAN UPGRADED' : 'PLAN CHANGED';
-      const bgColor = isUpgrade ? '#f0fdf4' : '#fff7ed';
-      const borderColor = isUpgrade ? '#86efac' : '#fed7aa';
-      const leftColor = isUpgrade ? '#22c55e' : '#f97316';
-      const textColor = isUpgrade ? '#16a34a' : '#c2410c';
-      console.log('[NOTIFICATIONS] Plan change:', email, '->', newPlan);
+      const mrr = newPlan === 'pro' ? 49 : newPlan === 'max' ? 99 : 999;
+      console.log('[NOTIFICATIONS] Plan upgrade:', email, '->', newPlan);
       await sendAdminNotification(
-        `${emoji} Plan ${isUpgrade ? 'Upgrade' : 'Change'} — ${email} → ${newPlan.toUpperCase()}`,
-        `<div style="background:${bgColor};border:1px solid ${borderColor};border-radius:8px;padding:14px;border-left:4px solid ${leftColor};">
-          <div style="font-size:11px;color:${textColor};letter-spacing:2px;margin-bottom:8px;">${emoji} ${label}</div>
+        `⬆️ Plan Upgrade — ${email} → ${newPlan.toUpperCase()}`,
+        `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px;border-left:4px solid #22c55e;">
+          <div style="font-size:11px;color:#16a34a;letter-spacing:2px;margin-bottom:8px;">⬆️ PLAN UPGRADED</div>
           <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>User:</strong> ${name}</div>
           <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${email}</div>
-          <div style="font-size:13px;color:${color};font-weight:700;margin-bottom:4px;font-size:16px;">${newPlan.toUpperCase()}</div>
+          <div style="font-size:16px;color:${color};font-weight:700;margin-bottom:4px;">${newPlan.toUpperCase()}</div>
+          <div style="font-size:13px;color:#16a34a;margin-bottom:4px;">💰 +$${mrr}/month MRR</div>
           <div style="font-size:13px;color:#1e293b;"><strong>Time:</strong> ${new Date().toUTCString()}</div>
-          ${isUpgrade ? `<div style="font-size:12px;color:#16a34a;margin-top:8px;">💰 MRR impact: +$${newPlan === 'pro' ? 49 : newPlan === 'max' ? 99 : 999}/month</div>` : ''}
         </div>`
       );
     });
   }, err => console.log('[NOTIFICATIONS] Plan watcher error:', err.message));
 
-  // 3. First briefing (user activation)
-  adminDb.collection('briefings').onSnapshot(snapshot => {
-    snapshot.docChanges().forEach(async change => {
-      if (change.type !== 'added') return;
-      const data = change.doc.data();
-      const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : null;
-      if (!createdAt || Date.now() - createdAt.getTime() > 2 * 60 * 1000) return;
-      const userId = data.userId;
-      if (!userId) return;
-      try {
-        const userDoc = await adminDb.collection('users').doc(userId).get();
-        const userData = userDoc.exists ? userDoc.data() : {};
-        // Count user's briefings — only notify on first one
-        const briefingCount = await adminDb.collection('briefings').where('userId', '==', userId).get();
-        if (briefingCount.size !== 1) return; // Not the first briefing
-        const email = userData.email || userId;
-        const plan = userData.plan || 'free';
-        const route = data.route || 'Unknown';
-        const risk = data.riskLevel || 'N/A';
-        console.log('[NOTIFICATIONS] First briefing:', email, route);
-        await sendAdminNotification(
-          `✈️ First Briefing — ${email} — ${route}`,
-          `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;border-left:4px solid #4a9eff;">
-            <div style="font-size:11px;color:#1d4ed8;letter-spacing:2px;margin-bottom:8px;">✈️ USER ACTIVATED — FIRST BRIEFING</div>
-            <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${email}</div>
-            <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Plan:</strong> ${plan.toUpperCase()}</div>
-            <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Route:</strong> ${route}</div>
-            <div style="font-size:13px;color:#1e293b;"><strong>Risk Level:</strong> ${risk}</div>
-          </div>`
-        );
-      } catch(e) {}
-    });
-  }, err => console.log('[NOTIFICATIONS] Briefings watcher error:', err.message));
-
-  // 4. First video briefing
-  adminDb.collection('videos').onSnapshot(snapshot => {
-    snapshot.docChanges().forEach(async change => {
-      if (change.type !== 'added' && change.type !== 'modified') return;
-      const data = change.doc.data();
-      if (data.status !== 'completed') return;
-      const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : null;
-      if (!createdAt || Date.now() - createdAt.getTime() > 10 * 60 * 1000) return;
-      const userId = data.userId;
-      if (!userId) return;
-      try {
-        const userDoc = await adminDb.collection('users').doc(userId).get();
-        const userData = userDoc.exists ? userDoc.data() : {};
-        const videoCount = await adminDb.collection('videos').where('userId', '==', userId).where('status', '==', 'completed').get();
-        if (videoCount.size !== 1) return;
-        const email = userData.email || userId;
-        const route = data.route || 'Unknown';
-        console.log('[NOTIFICATIONS] First video:', email, route);
-        await sendAdminNotification(
-          `🎬 First Video Briefing — ${email} — ${route}`,
-          `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px;border-left:4px solid #f4841a;">
-            <div style="font-size:11px;color:#c2410c;letter-spacing:2px;margin-bottom:8px;">🎬 FIRST VIDEO BRIEFING GENERATED</div>
-            <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${email}</div>
-            <div style="font-size:13px;color:#1e293b;"><strong>Route:</strong> ${route}</div>
-          </div>`
-        );
-      } catch(e) {}
-    });
-  }, err => console.log('[NOTIFICATIONS] Videos watcher error:', err.message));
-
-  // 5. Limit reached (upgrade candidate)
-  // This is handled via API response — we'll monitor usage collection
-  adminDb.collection('usage').onSnapshot(snapshot => {
-    snapshot.docChanges().forEach(async change => {
-      if (change.type !== 'modified') return;
-      const data = change.doc.data();
-      const userId = data.userId;
-      if (!userId) return;
-      try {
-        const userDoc = await adminDb.collection('users').doc(userId).get();
-        const userData = userDoc.exists ? userDoc.data() : {};
-        const plan = userData.plan || 'free';
-        const limits = { free: 3, pro: 100, max: 150 };
-        const limit = limits[plan];
-        if (!limit) return;
-        const briefings = data.briefings || 0;
-        // Alert when hitting 80% of limit
-        const threshold = Math.floor(limit * 0.8);
-        if (briefings !== threshold) return;
-        const email = userData.email || userId;
-        console.log('[NOTIFICATIONS] Usage warning:', email, briefings, '/', limit);
-        await sendAdminNotification(
-          `⚠️ Usage Warning — ${email} at ${briefings}/${limit} briefings`,
-          `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;border-left:4px solid #f59e0b;">
-            <div style="font-size:11px;color:#b45309;letter-spacing:2px;margin-bottom:8px;">⚠️ UPGRADE CANDIDATE — LIMIT APPROACHING</div>
-            <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${email}</div>
-            <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Plan:</strong> ${plan.toUpperCase()}</div>
-            <div style="font-size:13px;color:#b45309;font-weight:700;margin-bottom:4px;">${briefings} / ${limit} briefings used</div>
-            <div style="font-size:12px;color:#92400e;">This user may be ready to upgrade — consider reaching out.</div>
-          </div>`
-        );
-      } catch(e) {}
-    });
-  }, err => console.log('[NOTIFICATIONS] Usage watcher error:', err.message));
-
-  console.log('[NOTIFICATIONS] All watchers active.');
+  console.log('[NOTIFICATIONS] Real-time watchers active (new user + upgrade).');
 }
 
-// Start after 20 seconds to let server fully initialize
 setTimeout(() => startRealtimeNotifications(), 20 * 1000);
 
 // ─── SALES AGENT ────────────────────────────────────────────────────────
