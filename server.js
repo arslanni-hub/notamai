@@ -174,6 +174,62 @@ async function incrementUsage(userId, field) {
 }
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
+const OPENAI_KEY = process.env.OPENAI_KEY; // Fallback provider
+
+// Provider abstraction
+async function callAI({ model = 'claude-haiku-4-5', maxTokens = 1000, messages, system }) {
+  // Try Anthropic first
+  try {
+    const body = { model, max_tokens: maxTokens, messages };
+    if (system) body.system = system;
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('Anthropic HTTP ' + res.status);
+    const data = await res.json();
+    if (!data.content?.[0]?.text) throw new Error('Anthropic empty response');
+    return { text: data.content[0].text, provider: 'anthropic' };
+  } catch(e) {
+    console.log('[AI PROVIDER] Anthropic failed:', e.message, '— trying fallback...');
+
+    // Notify admin
+    fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'NOTAM Intelligence <alerts@notamai.com>',
+        to: 'admin@notamai.com',
+        subject: '🚨 Anthropic API Failed — Fallback Activated',
+        html: `<div style="font-family:monospace;padding:20px;background:#f0f4f8;"><h3 style="color:#dc2626;">Anthropic API Failed</h3><p>Error: ${e.message}</p><p>Time: ${new Date().toUTCString()}</p><p style="color:#dc2626;">Manual review recommended — check Anthropic status at status.anthropic.com</p></div>`
+      })
+    }).catch(() => {});
+
+    // Try OpenAI fallback if key exists
+    if (!OPENAI_KEY) throw new Error('Anthropic failed and no fallback key configured');
+
+    try {
+      const openaiMessages = [];
+      if (system) openaiMessages.push({ role: 'system', content: system });
+      messages.forEach(m => openaiMessages.push(m));
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OPENAI_KEY },
+        body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: maxTokens, messages: openaiMessages })
+      });
+      if (!res.ok) throw new Error('OpenAI HTTP ' + res.status);
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content;
+      if (!text) throw new Error('OpenAI empty response');
+      console.log('[AI PROVIDER] OpenAI fallback succeeded');
+      return { text, provider: 'openai' };
+    } catch(e2) {
+      console.log('[AI PROVIDER] OpenAI fallback also failed:', e2.message);
+      throw new Error('All AI providers failed: ' + e.message + ' | ' + e2.message);
+    }
+  }
+}
 const NOTAMIFY_KEY = process.env.NOTAMIFY_KEY;
 const PORT = process.env.PORT || 3000;
 
@@ -4614,12 +4670,15 @@ async function runHealthCheck() {
   const results = {};
   const issues = [];
 
-  // Anthropic
+  // Anthropic + OpenAI fallback status
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{'Content-Type':'application/json','x-api-key':process.env.ANTHROPIC_KEY,'anthropic-version':'2023-06-01'}, body:JSON.stringify({model:'claude-haiku-4-5',max_tokens:10,messages:[{role:'user',content:'ping'}]}) });
     results.anthropic = r.ok ? '✅ OK' : `❌ HTTP ${r.status}`;
-    if (!r.ok) issues.push({ msg:'Anthropic API error: HTTP '+r.status, action:'Check Anthropic dashboard at console.anthropic.com — verify API key and billing.' });
-  } catch(e) { results.anthropic = '❌ '+e.message; issues.push({ msg:'Anthropic unreachable', action:'Check Render server logs.' }); }
+    if (!r.ok) issues.push({ msg:'Anthropic API error: HTTP '+r.status, action:'Check console.anthropic.com — verify API key and billing. OpenAI fallback will activate automatically.' });
+  } catch(e) { results.anthropic = '❌ '+e.message; issues.push({ msg:'Anthropic unreachable — OpenAI fallback will activate', action:'Check Render logs. Add OPENAI_KEY to Render env vars if not set.' }); }
+
+  // OpenAI fallback status
+  results.openai_fallback = process.env.OPENAI_KEY ? '✅ Configured' : '⚠️ Not configured (add OPENAI_KEY)';
 
   // SkyLink
   try {
