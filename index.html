@@ -9847,11 +9847,16 @@ function openVideoBriefing() {
   ambientAudio.volume = 0.15;
   ambientAudio.play().catch(() => {});
 
-  // Status messages
+  // Status messages — stop cycling at last message
   let msgIndex = 0;
   vbInterval = setInterval(() => {
-    document.getElementById('vbStatus').textContent = vbMessages[msgIndex % vbMessages.length];
-    msgIndex++;
+    const progress = parseFloat(document.getElementById('vbProgress').style.width) || 0;
+    if (progress >= 88) {
+      document.getElementById('vbStatus').textContent = 'Rendering your AI video briefing...';
+    } else if (msgIndex < vbMessages.length) {
+      document.getElementById('vbStatus').textContent = vbMessages[msgIndex];
+      msgIndex++;
+    }
   }, 3000);
 
   // Progress bar
