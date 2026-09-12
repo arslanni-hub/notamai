@@ -3939,12 +3939,41 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         const searchCapForPlan = GENERAL_CHAT_WEB_SEARCH_CAP[plan] || 0;
         const webSearchEnabled = GENERAL_CHAT_WEB_SEARCH_PLANS.includes(plan) && !pastSoftLimit && searchTotal < searchCapForPlan;
 
-        const { question, history, image_base64, image_type, pdf_base64 } = JSON.parse(body);
-        const effectiveQuestion = question || ((image_base64 || pdf_base64) ? 'Please analyze this attached document and provide a detailed aviation analysis.' : '');
-        if (!effectiveQuestion || typeof effectiveQuestion !== 'string') {
+        const { question, history, image_base64, image_type, pdf_base64, extra_text } = JSON.parse(body);
+        if (!question && !image_base64 && !pdf_base64) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ answer: 'No question provided.' }));
           return;
+        }
+        const effectiveQuestion = question || 'Please analyze this attached document.';
+
+        // Extract ICAO codes from file if uploaded — fetch verified names via SkyLink
+        let generalChatAirportContext = '';
+        if (image_base64 || pdf_base64) {
+          try {
+            const extractContent = [];
+            if (image_base64) extractContent.push({ type: 'image', source: { type: 'base64', media_type: image_type || 'image/jpeg', data: image_base64 } });
+            if (pdf_base64) extractContent.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 } });
+            extractContent.push({ type: 'text', text: 'Extract ALL 4-letter ICAO airport codes from this document. Return ONLY the codes separated by spaces, nothing else.' });
+            const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+              body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
+            });
+            const extractData = await extractRes.json();
+            const extractedText = extractData.content?.[0]?.text || '';
+            const stopWords = new Set(['NOTAM','METAR','SIGMET','FROM','UNTIL','VALID','INFO','PERM','TRUE','WIND','TEMP','PRES','FEET','KNOT']);
+            const imageCodes = [...new Set((extractedText.match(/\b[A-Z]{4}\b/g) || []).filter(c => !stopWords.has(c)))].slice(0, 5);
+            if (imageCodes.length > 0) {
+              const names = await Promise.all(imageCodes.map(c => fetchAndCacheAirportName(c)));
+              const verified = imageCodes.map((c, i) => names[i] !== c ? `${c} = ${names[i]}` : null).filter(Boolean);
+              if (verified.length > 0) {
+                generalChatAirportContext = `\n\nVERIFIED AIRPORT NAMES (from SkyLink database — use EXACTLY, never modify):\n${verified.join('\n')}\nFor any ICAO code not listed, write "Airport [ICAO CODE]" — never guess.`;
+              }
+            }
+          } catch(e) {
+            console.log('[GENERAL CHAT] ICAO extraction failed:', e.message);
+          }
         }
 
         const systemPrompt = `You are a world-class aviation expert assistant embedded in NOTAM Intelligence, a professional pre-flight briefing platform used by pilots and flight dispatchers. You have the depth of knowledge of a senior airline captain, a flight dispatcher, and an aviation safety instructor combined.
@@ -3974,9 +4003,14 @@ WEB SEARCH: You have a real-time web search tool. Use it ONLY when the question 
 ` : ''}
 For everything else — explaining concepts, regulations, procedures, aircraft systems, weather theory, navigation, human factors, career guidance, aviation history — answer fully, accurately, and with real expertise.`;
 
+        const userContent = [];
+        if (image_base64) userContent.push({ type: 'image', source: { type: 'base64', media_type: image_type || 'image/jpeg', data: image_base64 } });
+        if (pdf_base64) userContent.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 } });
+        userContent.push({ type: 'text', text: effectiveQuestion + (extra_text ? '\n\nAttached text:\n' + extra_text : '') + generalChatAirportContext });
+
         const messages = [
           ...(history || []).slice(-10).map(h => ({ role: h.role, content: h.content })),
-          { role: 'user', content: effectiveQuestion }
+          { role: 'user', content: userContent.length > 1 ? userContent : effectiveQuestion + (extra_text ? '\n\nAttached text:\n' + extra_text : '') + generalChatAirportContext }
         ];
 
         const requestBody = JSON.stringify({

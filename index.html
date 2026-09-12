@@ -2424,7 +2424,7 @@ function renderChatSearchStatus(query) {
   return `<div class="chat-search-status"><span class="chat-search-dot"></span>Searching the web for "<em>${safeQuery}</em>"</div>`;
 }
 
-async function mockChatResponse(question) {
+async function mockChatResponse(question, filePayload = {}) {
   const row = addChatBubble('ai', 'Thinking...');
   const bubble = row.querySelector('.chat-msg-bubble');
   const messagesArea = document.getElementById('chatMessagesArea');
@@ -2437,7 +2437,7 @@ async function mockChatResponse(question) {
         'Content-Type': 'application/json',
         'x-user-id': firebase.auth().currentUser?.uid || ''
       },
-      body: JSON.stringify({ question, history: historyForApi })
+      body: JSON.stringify({ question, history: historyForApi, ...filePayload })
     });
 
     // Limit-reached responses are still plain JSON (returned before streaming starts server-side)
@@ -2680,13 +2680,31 @@ async function handleSend(silent = false) {
     if (!chatModeActive) enterChatMode();
     const chatInput = document.getElementById('mainInput');
     const question = chatInput.value.trim();
-    if (!question) return;
-    const suggestedMode = looksLikeBriefingOrVideoRequest(question);
+    if (!question && !attachedFile) return;
+    const suggestedMode = question ? looksLikeBriefingOrVideoRequest(question) : null;
     if (suggestedMode) { showChatModeMismatchBubble(question, suggestedMode); return; }
     chatInput.value = '';
     autoResize(chatInput);
-    addChatBubble('user', question);
-    mockChatResponse(question);
+    const displayQ = question || '📎 ' + attachedFile?.name;
+    addChatBubble('user', displayQ);
+
+    // Handle file attachment for general chat
+    let chatFilePayload = {};
+    if (attachedFile) {
+      const mime = attachedFile.type;
+      if (mime.startsWith('image/')) {
+        chatFilePayload.image_base64 = await readFileAsBase64(attachedFile);
+        chatFilePayload.image_type = mime;
+      } else if (mime === 'application/pdf') {
+        chatFilePayload.pdf_base64 = await readFileAsBase64(attachedFile);
+      } else {
+        const txt = await readFileAsText(attachedFile);
+        chatFilePayload.extra_text = txt;
+      }
+      removeFile();
+    }
+
+    mockChatResponse(question || 'Please analyze this attached document.', chatFilePayload);
     return;
   }
 
