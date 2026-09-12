@@ -4089,8 +4089,42 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           }
         }
 
+        // For image/PDF uploads — first extract ICAO codes, then fetch verified names
+        let imageAirportContext = quickAirportContext;
+        if (isQuickAnalysis && (image_base64 || pdf_base64) && !notam_text) {
+          try {
+            // Step 1: Quick ICAO extraction from image
+            const extractContent = [];
+            if (image_base64) extractContent.push({ type: 'image', source: { type: 'base64', media_type: image_type || 'image/jpeg', data: image_base64 } });
+            if (pdf_base64) extractContent.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 } });
+            extractContent.push({ type: 'text', text: 'Extract ALL 4-letter ICAO airport codes from this document. Return ONLY the codes separated by spaces, nothing else. Example: LTFD LTBB LTFM' });
+
+            const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+              body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
+            });
+            const extractData = await extractRes.json();
+            const extractedText = extractData.content?.[0]?.text || '';
+            const stopWords = new Set(['NOTAM','METAR','SIGMET','FROM','UNTIL','VALID','INFO','PERM','TRUE','WIND','TEMP','PRES','FEET','KNOT']);
+            const imageCodes = [...new Set((extractedText.match(/\b[A-Z]{4}\b/g) || []).filter(c => !stopWords.has(c)))].slice(0, 5);
+
+            if (imageCodes.length > 0) {
+              console.log('[QUICK ANALYSIS] Extracted ICAO codes from image:', imageCodes);
+              const names = await Promise.all(imageCodes.map(c => fetchAndCacheAirportName(c)));
+              const verified = imageCodes.map((c, i) => names[i] !== c ? `${c} = ${names[i]}` : null).filter(Boolean);
+              if (verified.length > 0) {
+                imageAirportContext = `\n\nVERIFIED AIRPORT NAMES (from SkyLink database — use EXACTLY as provided, never modify or guess):\n${verified.join('\n')}\nFor any ICAO code not listed above, write "Airport [ICAO CODE]" — never guess.`;
+                console.log('[QUICK ANALYSIS] Airport context:', imageAirportContext);
+              }
+            }
+          } catch(e) {
+            console.log('[QUICK ANALYSIS] ICAO extraction failed:', e.message);
+          }
+        }
+
         const userMessage = isQuickAnalysis
-          ? `Analyze the aviation data provided below and/or any attached image or PDF. There is no confirmed airport or route — just analyze exactly what was given, nothing more.\n\nTODAY'S DATE: ${utcDate}\n${notam_text ? `\nPROVIDED TEXT:\n${notam_text}` : '\n(No text provided — analyze the attached image/PDF only.)'}${quickAirportContext}\n\nGenerate the complete quick analysis HTML content.`
+          ? `Analyze the aviation data provided below and/or any attached image or PDF. There is no confirmed airport or route — just analyze exactly what was given, nothing more.\n\nTODAY'S DATE: ${utcDate}\n${notam_text ? `\nPROVIDED TEXT:\n${notam_text}` : '\n(No text provided — analyze the attached image/PDF only.)'}${imageAirportContext}\n\nGenerate the complete quick analysis HTML content.`
           : isSingleAirport
           ? `Must complete ALL sections including Weather, Airport Operational Considerations, Ground & ATC Notes, Airport Operational Status, and Footer. Be concise in each section. This is a SINGLE AIRPORT briefing — there is no second airport and no flight-specific Go/No-Go decision.
 
