@@ -3593,9 +3593,28 @@ async function sendAIChat() {
   const question = input.value.trim();
   if (!question && chatAttachedFiles.length === 0) return;
 
-  const displayText = question || (chatAttachedFiles.length > 0 ? '📎 ' + chatAttachedFiles.map(f => f.name).join(', ') : '');
   input.value = '';
-  addChatMessage('user', displayText);
+
+  // Show files as image bubbles in chat
+  const filesToSend = [...chatAttachedFiles];
+  for (const f of filesToSend) {
+    if (f.type.startsWith('image/')) {
+      const imgData = await readFileAsBase64(f);
+      const fileDataUrl = `data:${f.type};base64,${imgData}`;
+      const msgDiv = document.createElement('div');
+      msgDiv.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:8px;';
+      msgDiv.innerHTML = `<img src="${fileDataUrl}" onclick="openImageLightbox(this.src)" style="max-width:200px;max-height:160px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1px solid #1a2a3a;">`;
+      document.getElementById('aiChatMessages').appendChild(msgDiv);
+    } else {
+      const msgDiv = document.createElement('div');
+      msgDiv.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:8px;';
+      msgDiv.innerHTML = `<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:11px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${f.name}</span></div>`;
+      document.getElementById('aiChatMessages').appendChild(msgDiv);
+    }
+  }
+  if (question) addChatMessage('user', question);
+
+  const displayText = question || (filesToSend.length > 0 ? filesToSend[0].name : '');
 
   // Typing indicator
   const typingDiv = document.createElement('div');
@@ -3618,7 +3637,7 @@ async function sendAIChat() {
   const currentRoute  = routeEl ? routeEl.textContent.trim() : '';
 
   const payload = {
-    question: question || (chatAttachedFile ? 'Please analyze this attached document and provide a detailed aviation analysis.' : ''),
+    question: question || (filesToSend.length > 0 ? 'Please analyze this attached document and provide a detailed aviation analysis.' : ''),
     briefingContext: briefingText,
     currentRoute,
     history: aiChatHistory.slice(-8)
