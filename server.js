@@ -85,14 +85,14 @@ const GENERAL_CHAT_FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
 // fee is NOT covered by the token-budget rate limit below (only token cost is), so we gate
 // by plan rather than opening it to Free, whose budget is too thin to absorb an uncounted
 // per-search fee. max_uses is a hard ceiling on searches per question, for cost/latency control.
-const GENERAL_CHAT_WEB_SEARCH_PLANS = ['pro', 'max'];
+const GENERAL_CHAT_WEB_SEARCH_PLANS = ['pro', 'max', 'admin'];
 const GENERAL_CHAT_WEB_SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses: 3 };
 // Hard ceiling on searches per 5-hour window, independent of the token budget above. The
 // flat $0.01/search fee isn't proportional to tokens, so a token-only gate doesn't bound it.
 // Once reached — OR once the user is already past the token soft-limit threshold (the same
 // signal that downgrades Sonnet to Haiku) — search silently turns off for the rest of that
 // window; chat keeps answering normally, just without search. Never blocks the user.
-const GENERAL_CHAT_WEB_SEARCH_CAP = { pro: 3, max: 6 };
+const GENERAL_CHAT_WEB_SEARCH_CAP = { pro: 3, max: 6, admin: 10 };
 
 async function getGeneralChatWindowUsage(userId, windowMinutes) {
   try {
