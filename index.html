@@ -3480,9 +3480,9 @@ function renderChatFilePreview() {
     previewEl = document.createElement('div');
     previewEl.id = 'chatFilePreviewArea';
     previewEl.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;padding:8px 12px 4px;';
-    const chatInput = document.getElementById('aiChatInput');
+    const chatInput = document.getElementById('aiChatTextInput');
     if (chatInput && chatInput.parentNode) {
-      chatInput.parentNode.insertBefore(previewEl, chatInput);
+      chatInput.parentNode.insertBefore(previewEl, chatInput.parentNode.firstChild);
     }
   }
   previewEl.innerHTML = '';
