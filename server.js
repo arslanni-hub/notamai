@@ -685,7 +685,7 @@ function streamClaude(requestBody, onChunk, onDone, onError, onSearchStart) {
       'Content-Type': 'application/json',
       'x-api-key': ANTHROPIC_KEY,
       'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'prompt-caching-2024-07-31',
+      'anthropic-beta': 'interleaved-thinking-2025-05-14',
       'Content-Length': Buffer.byteLength(requestBody)
     }
   }, (claudeRes) => {
