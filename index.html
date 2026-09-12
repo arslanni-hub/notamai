@@ -3603,7 +3603,7 @@ async function sendAIChat() {
       const fileDataUrl = `data:${f.type};base64,${imgData}`;
       const msgDiv = document.createElement('div');
       msgDiv.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:8px;';
-      msgDiv.innerHTML = `<img src="${fileDataUrl}" onclick="openImageLightbox(this.src)" style="max-width:200px;max-height:160px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1px solid #1a2a3a;">`;
+      msgDiv.innerHTML = `<img src="${fileDataUrl}" onclick="openImageLightbox(this.src)" style="max-width:140px;max-height:110px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1px solid #1a2a3a;">`;
       document.getElementById('aiChatMessages').appendChild(msgDiv);
     } else {
       const msgDiv = document.createElement('div');
