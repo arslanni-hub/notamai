@@ -3939,8 +3939,9 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         const searchCapForPlan = GENERAL_CHAT_WEB_SEARCH_CAP[plan] || 0;
         const webSearchEnabled = GENERAL_CHAT_WEB_SEARCH_PLANS.includes(plan) && !pastSoftLimit && searchTotal < searchCapForPlan;
 
-        const { question, history } = JSON.parse(body);
-        if (!question || typeof question !== 'string') {
+        const { question, history, image_base64, image_type, pdf_base64 } = JSON.parse(body);
+        const effectiveQuestion = question || ((image_base64 || pdf_base64) ? 'Please analyze this attached document and provide a detailed aviation analysis.' : '');
+        if (!effectiveQuestion || typeof effectiveQuestion !== 'string') {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ answer: 'No question provided.' }));
           return;
@@ -3975,7 +3976,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
 
         const messages = [
           ...(history || []).slice(-10).map(h => ({ role: h.role, content: h.content })),
-          { role: 'user', content: question }
+          { role: 'user', content: effectiveQuestion }
         ];
 
         const requestBody = JSON.stringify({
