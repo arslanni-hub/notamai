@@ -1401,14 +1401,6 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
   <div class="greeting-sub" style="visibility:hidden;">Enter an ICAO code, a route, or paste your aviation data</div>
 
   <div class="input-card">
-    <textarea
-      class="input-field"
-      id="mainInput"
-      placeholder=""
-      rows="2"
-      oninput="autoResize(this)"
-    ></textarea>
-
     <div class="file-preview" id="filePreview" style="padding:0;background:transparent;border:none;">
       <div id="filePreviewInner" style="position:relative;display:inline-block;"
            onmouseenter="document.getElementById('fileRemoveBtn').style.opacity='1'"
@@ -1421,6 +1413,14 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         <button id="fileRemoveBtn" onclick="removeFile()" style="position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(10,15,24,0.7);border:1px solid #1a2a3a;color:#8a9bb0;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;z-index:10;">✕</button>
       </div>
     </div>
+
+    <textarea
+      class="input-field"
+      id="mainInput"
+      placeholder=""
+      rows="2"
+      oninput="autoResize(this)"
+    ></textarea>
 
     <div class="input-bar">
       <!-- attach -->
