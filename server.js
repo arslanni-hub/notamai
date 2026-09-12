@@ -3711,6 +3711,30 @@ MANDATORY:
 
         // Pre-fetch airport names via SkyLink for accuracy
         let chatAirportContext = '';
+
+        // For image/PDF uploads without route context — extract ICAO codes first
+        if ((image_base64 || pdf_base64) && icaoCodes.length === 0) {
+          try {
+            const extractContent = [];
+            if (image_base64) extractContent.push({ type: 'image', source: { type: 'base64', media_type: image_type || 'image/jpeg', data: image_base64 } });
+            if (pdf_base64) extractContent.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 } });
+            extractContent.push({ type: 'text', text: 'Extract ALL 4-letter ICAO airport codes from this document. Return ONLY the codes separated by spaces, nothing else.' });
+            const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+              body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
+            });
+            const extractData = await extractRes.json();
+            const extractedText = extractData.content?.[0]?.text || '';
+            const stopWords = new Set(['NOTAM','METAR','SIGMET','FROM','UNTIL','VALID','INFO','PERM','TRUE','WIND','TEMP','PRES','FEET','KNOT']);
+            const imageCodes = [...new Set((extractedText.match(/\b[A-Z]{4}\b/g) || []).filter(c => !stopWords.has(c)))].slice(0, 5);
+            imageCodes.forEach(c => { if (!icaoCodes.includes(c)) icaoCodes.push(c); });
+            console.log('[CHAT] Extracted ICAO codes from image:', imageCodes);
+          } catch(e) {
+            console.log('[CHAT] ICAO extraction failed:', e.message);
+          }
+        }
+
         if (icaoCodes.length > 0) {
           const names = await Promise.all(icaoCodes.slice(0, 5).map(c => fetchAndCacheAirportName(c)));
           const verified = icaoCodes.slice(0, 5).map((c, i) => names[i] !== c ? `${c} = ${names[i]}` : null).filter(Boolean);
