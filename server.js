@@ -4183,8 +4183,10 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
               console.log('[QUICK ANALYSIS] Extracted ICAO codes from image:', imageCodes);
               const names = await Promise.all(imageCodes.map(c => fetchAndCacheAirportName(c)));
               const verified = imageCodes.map((c, i) => names[i] !== c ? `${c} = ${names[i]}` : null).filter(Boolean);
-              if (verified.length > 0) {
-                imageAirportContext = `\n\nVERIFIED AIRPORT NAMES (from SkyLink database — use EXACTLY as provided, never modify or guess):\n${verified.join('\n')}\nFor any ICAO code not listed above, write "Airport [ICAO CODE]" — never guess.`;
+              const firNames = {'LTBB':'Istanbul FIR','LTAA':'Ankara FIR','EGTT':'London FIR','EGPX':'Scottish FIR','EDGG':'Langen FIR','EDWW':'Bremen FIR','EDMM':'Munich FIR','LFPP':'Paris FIR','LECB':'Barcelona FIR','LECM':'Madrid FIR','LIBB':'Brindisi FIR','LIMM':'Milano FIR','LIRR':'Roma FIR','OMAE':'Emirates FIR'};
+              const firCtx = imageCodes.filter(c => firNames[c]).map(c => `${c} = ${firNames[c]}`).join('\n');
+              if (verified.length > 0 || firCtx) {
+                imageAirportContext = `\n\nVERIFIED NAMES (use EXACTLY, never modify):\n${[...verified, ...(firCtx ? [firCtx] : [])].join('\n')}\nFor any code not listed, write the code only — never guess.`;
                 console.log('[QUICK ANALYSIS] Airport context:', imageAirportContext);
               }
             }
