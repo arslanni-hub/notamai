@@ -2622,14 +2622,55 @@ function handleFile(e) {
   const f = e.target.files[0];
   if (!f) return;
   attachedFile = f;
-  document.getElementById('fileName').textContent = f.name;
-  document.getElementById('filePreview').classList.add('show');
+  const preview = document.getElementById('filePreview');
+  const fileName = document.getElementById('fileName');
+  fileName.textContent = f.name;
+  // Show image thumbnail if image
+  let thumbEl = document.getElementById('fileThumb');
+  if (!thumbEl) {
+    thumbEl = document.createElement('img');
+    thumbEl.id = 'fileThumb';
+    thumbEl.style.cssText = 'width:36px;height:36px;object-fit:cover;border-radius:4px;border:1px solid #1a2a3a;';
+    preview.insertBefore(thumbEl, preview.firstChild);
+  }
+  if (f.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = ev => { thumbEl.src = ev.target.result; thumbEl.style.display = 'block'; };
+    reader.readAsDataURL(f);
+  } else {
+    thumbEl.style.display = 'none';
+  }
+  preview.classList.add('show');
 }
 
 function removeFile() {
   attachedFile = null;
   document.getElementById('filePreview').classList.remove('show');
 }
+
+// Drag & drop for chat input area
+function initDragDrop() {
+  const inputBar = document.querySelector('.input-bar');
+  if (!inputBar) return;
+  ['dragenter','dragover'].forEach(ev => {
+    inputBar.addEventListener(ev, e => {
+      e.preventDefault();
+      inputBar.style.border = '1px solid #4a9eff';
+    });
+  });
+  ['dragleave','drop'].forEach(ev => {
+    inputBar.addEventListener(ev, e => {
+      e.preventDefault();
+      inputBar.style.border = '';
+    });
+  });
+  inputBar.addEventListener('drop', e => {
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    handleFile({ target: { files: [file] } });
+  });
+}
+document.addEventListener('DOMContentLoaded', initDragDrop);
 
 async function handleSend(silent = false) {
   const val = document.getElementById('mainInput').value.trim();
@@ -2685,8 +2726,22 @@ async function handleSend(silent = false) {
     if (suggestedMode) { showChatModeMismatchBubble(question, suggestedMode); return; }
     chatInput.value = '';
     autoResize(chatInput);
-    const displayQ = question || '📎 ' + attachedFile?.name;
-    addChatBubble('user', displayQ);
+    const displayQ = question || '';
+    // Show file thumbnail in chat bubble if image
+    let filePreviewHtml = '';
+    if (attachedFile) {
+      if (attachedFile.type.startsWith('image/')) {
+        const imgData = await readFileAsBase64(attachedFile);
+        filePreviewHtml = `<img src="data:${attachedFile.type};base64,${imgData}" style="max-width:200px;max-height:150px;border-radius:6px;border:1px solid #1a2a3a;display:block;margin-bottom:${question ? '6px' : '0'};">`;
+      } else {
+        filePreviewHtml = `<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:${question ? '6px' : '0'};"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:11px;color:#8a9bb0;">${attachedFile.name}</span></div>`;
+      }
+    }
+    const bubbleRow = addChatBubble('user', displayQ);
+    if (filePreviewHtml) {
+      const bubble = bubbleRow.querySelector('.chat-msg-bubble');
+      bubble.innerHTML = filePreviewHtml + (displayQ ? `<span>${displayQ}</span>` : '');
+    }
 
     // Handle file attachment for general chat
     let chatFilePayload = {};
