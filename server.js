@@ -233,29 +233,31 @@ async function callAI({ model = 'claude-haiku-4-5', maxTokens = 1000, messages, 
 const NOTAMIFY_KEY = process.env.NOTAMIFY_KEY;
 const PORT = process.env.PORT || 3000;
 
-const AIRPORT_NAMES = {
-  LTFM: 'Istanbul Airport (IST)',
-  LTBA: 'Istanbul Atatürk Airport (closed)',
-  LTAI: 'Antalya Airport',
-  LTFD: 'Balıkesir Koca Seyit Airport',
-  LTBJ: 'İzmir Adnan Menderes Airport',
-  LTAC: 'Ankara Esenboğa Airport',
-  LTFE: 'Dalaman Airport',
-  LTBS: 'Bodrum Milas Airport',
-  EGLL: 'London Heathrow',
-  EGKK: 'London Gatwick',
-  EHAM: 'Amsterdam Schiphol',
-  EDDF: 'Frankfurt Airport',
-  LFPG: 'Paris Charles de Gaulle',
-  LEMD: 'Madrid Barajas',
-  LIRF: 'Rome Fiumicino',
-  LSZH: 'Zurich Airport',
-  LOWW: 'Vienna International Airport',
-  EKCH: 'Copenhagen Airport',
-};
+// Airport name cache — populated from aviationweather.gov
+const airportNameCache = {};
+
+async function fetchAndCacheAirportName(icao) {
+  if (!icao) return icao;
+  const code = icao.toUpperCase();
+  if (airportNameCache[code]) return airportNameCache[code];
+  try {
+    const data = await fetchURL(`https://aviationweather.gov/api/data/airport?ids=${code}&format=json`);
+    if (data && Array.isArray(data) && data.length > 0 && data[0].name) {
+      const apt = data[0];
+      const name = [apt.name, apt.city, apt.country].filter(Boolean).join(', ');
+      airportNameCache[code] = name;
+      return name;
+    }
+  } catch(e) {}
+  airportNameCache[code] = code; // Cache the failure too
+  return code;
+}
 
 function airportName(icao) {
-  return icao ? (AIRPORT_NAMES[icao.toUpperCase()] || icao) : '';
+  // Synchronous fallback — returns cached value or ICAO code
+  if (!icao) return '';
+  const code = icao.toUpperCase();
+  return airportNameCache[code] || code;
 }
 
 function fetchURL(url, options = {}) {
@@ -4044,6 +4046,12 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         const arrOverflow = notamArrResult.total > notamArrResult.shown
           ? `\n[${notamArrResult.total - notamArrResult.shown} additional NOTAMs not shown — open the NOTAMs & MET panel or use Single NOTAM Analysis for details]`
           : '';
+
+        // Pre-fetch airport names for accurate display
+        await Promise.all([
+          icao_dep ? fetchAndCacheAirportName(icao_dep) : Promise.resolve(),
+          icao_arr ? fetchAndCacheAirportName(icao_arr) : Promise.resolve()
+        ]);
 
         const userMessage = isQuickAnalysis
           ? `Analyze the aviation data provided below and/or any attached image or PDF. There is no confirmed airport or route — just analyze exactly what was given, nothing more.
