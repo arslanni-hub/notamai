@@ -2648,29 +2648,61 @@ function removeFile() {
   document.getElementById('filePreview').classList.remove('show');
 }
 
-// Drag & drop for chat input area
+// Drag & drop for entire chat area
 function initDragDrop() {
+  const chatArea = document.getElementById('chatMessagesArea') || document.querySelector('.input-bar');
   const inputBar = document.querySelector('.input-bar');
   if (!inputBar) return;
-  ['dragenter','dragover'].forEach(ev => {
-    inputBar.addEventListener(ev, e => {
-      e.preventDefault();
-      inputBar.style.border = '1px solid #4a9eff';
-    });
+
+  let dragCounter = 0;
+
+  document.addEventListener('dragenter', e => {
+    e.preventDefault();
+    dragCounter++;
+    if (e.dataTransfer?.types?.includes('Files')) {
+      inputBar.style.outline = '2px dashed #4a9eff';
+      inputBar.style.outlineOffset = '2px';
+    }
   });
-  ['dragleave','drop'].forEach(ev => {
-    inputBar.addEventListener(ev, e => {
-      e.preventDefault();
-      inputBar.style.border = '';
-    });
+
+  document.addEventListener('dragleave', e => {
+    dragCounter--;
+    if (dragCounter === 0) {
+      inputBar.style.outline = '';
+      inputBar.style.outlineOffset = '';
+    }
   });
-  inputBar.addEventListener('drop', e => {
+
+  document.addEventListener('dragover', e => {
+    e.preventDefault();
+  });
+
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    dragCounter = 0;
+    inputBar.style.outline = '';
+    inputBar.style.outlineOffset = '';
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf' && file.type !== 'text/plain') return;
     handleFile({ target: { files: [file] } });
   });
 }
 document.addEventListener('DOMContentLoaded', initDragDrop);
+
+// Lightbox for chat images
+function openImageLightbox(src) {
+  let lb = document.getElementById('chatLightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'chatLightbox';
+    lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+    lb.onclick = () => lb.remove();
+    document.body.appendChild(lb);
+  }
+  lb.innerHTML = `<img src="${src}" style="max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;">`;
+  lb.style.display = 'flex';
+}
 
 async function handleSend(silent = false) {
   const val = document.getElementById('mainInput').value.trim();
@@ -2727,20 +2759,22 @@ async function handleSend(silent = false) {
     chatInput.value = '';
     autoResize(chatInput);
     const displayQ = question || '';
-    // Show file thumbnail in chat bubble if image
+    // Build file preview for chat bubble
+    let fileDataUrl = null;
     let filePreviewHtml = '';
     if (attachedFile) {
       if (attachedFile.type.startsWith('image/')) {
         const imgData = await readFileAsBase64(attachedFile);
-        filePreviewHtml = `<img src="data:${attachedFile.type};base64,${imgData}" style="max-width:200px;max-height:150px;border-radius:6px;border:1px solid #1a2a3a;display:block;margin-bottom:${question ? '6px' : '0'};">`;
+        fileDataUrl = `data:${attachedFile.type};base64,${imgData}`;
+        filePreviewHtml = `<img src="${fileDataUrl}" onclick="openImageLightbox('${fileDataUrl}')" style="max-width:280px;max-height:280px;width:100%;object-fit:cover;border-radius:8px;display:block;cursor:zoom-in;${displayQ ? 'margin-bottom:8px;' : ''}">`;
       } else {
-        filePreviewHtml = `<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0d1520;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:${question ? '6px' : '0'};"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:11px;color:#8a9bb0;">${attachedFile.name}</span></div>`;
+        filePreviewHtml = `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;${displayQ ? 'margin-bottom:8px;' : ''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:12px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${attachedFile.name}</span></div>`;
       }
     }
     const bubbleRow = addChatBubble('user', displayQ);
     if (filePreviewHtml) {
       const bubble = bubbleRow.querySelector('.chat-msg-bubble');
-      bubble.innerHTML = filePreviewHtml + (displayQ ? `<span>${displayQ}</span>` : '');
+      bubble.innerHTML = filePreviewHtml + (displayQ ? `<span style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;">${displayQ}</span>` : '');
     }
 
     // Handle file attachment for general chat
