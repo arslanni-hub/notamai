@@ -233,7 +233,7 @@ async function callAI({ model = 'claude-haiku-4-5', maxTokens = 1000, messages, 
 const NOTAMIFY_KEY = process.env.NOTAMIFY_KEY;
 const PORT = process.env.PORT || 3000;
 
-// Airport name cache — populated from aviationweather.gov
+// Airport name cache — populated via SkyLink exact-ICAO lookup
 const airportNameCache = {};
 
 async function fetchAndCacheAirportName(icao) {
@@ -241,15 +241,27 @@ async function fetchAndCacheAirportName(icao) {
   const code = icao.toUpperCase();
   if (airportNameCache[code]) return airportNameCache[code];
   try {
-    const data = await fetchURL(`https://aviationweather.gov/api/data/airport?ids=${code}&format=json`);
-    if (data && Array.isArray(data) && data.length > 0 && data[0].name) {
-      const apt = data[0];
-      const name = [apt.name, apt.city, apt.country].filter(Boolean).join(', ');
+    // Use SkyLink text search — same source as Tools panel, reliable for all regions
+    const data = await fetchURL('https://skylink-api.p.rapidapi.com/airports/search/text?q=' + encodeURIComponent(code) + '&limit=5', {
+      headers: {
+        'X-RapidAPI-Key': process.env.SKYLINK_KEY,
+        'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
+      }
+    });
+    const airports = Array.isArray(data) ? data : (data?.airports || data?.results || []);
+    // Find exact ICAO match
+    const exact = airports.find(a => (a.icao || a.ident || '').toUpperCase() === code);
+    if (exact && exact.name) {
+      const name = [exact.name, exact.city || exact.municipality, exact.country || exact.iso_country].filter(Boolean).join(', ');
       airportNameCache[code] = name;
+      console.log('[AIRPORT CACHE] SkyLink verified:', code, '=', name);
       return name;
     }
-  } catch(e) {}
-  airportNameCache[code] = code; // Cache the failure too
+  } catch(e) {
+    console.log('[AIRPORT CACHE] SkyLink lookup failed for', code, e.message);
+  }
+  // Fallback — return ICAO code only, never guess
+  airportNameCache[code] = code;
   return code;
 }
 
