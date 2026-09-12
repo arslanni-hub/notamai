@@ -3709,6 +3709,16 @@ MANDATORY:
           }
         }
 
+        // Pre-fetch airport names via SkyLink for accuracy
+        let chatAirportContext = '';
+        if (icaoCodes.length > 0) {
+          const names = await Promise.all(icaoCodes.slice(0, 5).map(c => fetchAndCacheAirportName(c)));
+          const verified = icaoCodes.slice(0, 5).map((c, i) => names[i] !== c ? `${c} = ${names[i]}` : null).filter(Boolean);
+          if (verified.length > 0) {
+            chatAirportContext = `\n\nVERIFIED AIRPORT NAMES (from SkyLink database — use EXACTLY, never modify):\n${verified.join('\n')}\nFor any ICAO code not listed, write "Airport [ICAO CODE]" — never guess.`;
+          }
+        }
+
         // Detect if live data is needed
         const needsLiveNotam   = /notam|active|current.*notam|how many notam|kaç notam|güncel notam|enroute|en-route|military|TFR|restricted|FIR/i.test(question);
         const needsLiveWeather = /weather|hava|metar|taf|cloud|wind|rüzgar|bulut|görüş|visibility|ceiling|tafc|sigmet|atis/i.test(question);
@@ -3784,7 +3794,7 @@ The following is the complete pre-flight operational briefing you have analyzed:
 
 ${briefingContext}
 
-${liveData ? 'LIVE REAL-TIME DATA FETCHED:\n' + liveData : ''}
+${liveData ? 'LIVE REAL-TIME DATA FETCHED:\n' + liveData : ''}${chatAirportContext}
 
 IMPORTANT - NOTAM SCOPE: When analyzing NOTAMs, consider ALL types including:
 - Aerodrome NOTAMs (departure and arrival airports)
