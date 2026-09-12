@@ -3694,7 +3694,7 @@ MANDATORY:
           await incrementUsage(userId, 'chat');
         }
 
-        const { question, briefingContext, currentRoute, history, image_base64, image_type, pdf_base64 } = JSON.parse(body);
+        const { question, briefingContext, currentRoute, history, image_base64, image_type, pdf_base64, images } = JSON.parse(body);
 
         // Extract ICAO codes from route for live data fetching
         const icaoCodes = currentRoute
@@ -3848,7 +3848,9 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
 
         // Build user content (supports images and PDFs)
         const userContent = [];
-        if (image_base64) {
+        if (images && Array.isArray(images)) {
+          images.forEach(img => userContent.push({ type: 'image', source: { type: 'base64', media_type: img.type || 'image/jpeg', data: img.data } }));
+        } else if (image_base64) {
           userContent.push({ type: 'image', source: { type: 'base64', media_type: image_type || 'image/jpeg', data: image_base64 } });
         }
         if (pdf_base64) {
@@ -4114,7 +4116,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           }
         }
 
-        const { icao_dep, icao_arr, notam_text, image_base64, image_type, pdf_base64 } = JSON.parse(body);
+        const { icao_dep, icao_arr, notam_text, image_base64, image_type, pdf_base64, images } = JSON.parse(body);
 
         const isValidIcaoCode = (code) => !!code && /^[A-Z]{4}$/.test(code.trim());
         const isQuickAnalysis = !isValidIcaoCode(icao_dep);
@@ -4240,17 +4242,13 @@ ${notam_text ? `\nADDITIONAL USER DATA:\n${notam_text}` : ''}
 Generate the complete pre-flight operational intelligence briefing HTML content.`;
 
         const contentBlocks = [{ type: 'text', text: userMessage }];
-        if (image_base64) {
-          contentBlocks.push({
-            type: 'image',
-            source: { type: 'base64', media_type: image_type || 'image/jpeg', data: image_base64 }
-          });
+        if (images && Array.isArray(images)) {
+          images.forEach(img => contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: img.type || 'image/jpeg', data: img.data } }));
+        } else if (image_base64) {
+          contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: image_type || 'image/jpeg', data: image_base64 } });
         }
         if (pdf_base64) {
-          contentBlocks.push({
-            type: 'document',
-            source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 }
-          });
+          contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 } });
         }
 
         const claudeBody = JSON.stringify({
