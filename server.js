@@ -3939,7 +3939,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         const searchCapForPlan = GENERAL_CHAT_WEB_SEARCH_CAP[plan] || 0;
         const webSearchEnabled = GENERAL_CHAT_WEB_SEARCH_PLANS.includes(plan) && !pastSoftLimit && searchTotal < searchCapForPlan;
 
-        const { question, history, image_base64, image_type, pdf_base64, extra_text } = JSON.parse(body);
+        const { question, history, image_base64, image_type, pdf_base64, extra_text, images } = JSON.parse(body);
         if (!question && !image_base64 && !pdf_base64) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ answer: 'No question provided.' }));
@@ -4015,7 +4015,14 @@ WEB SEARCH: You have a real-time web search tool. Use it ONLY when the question 
 For everything else — explaining concepts, regulations, procedures, aircraft systems, weather theory, navigation, human factors, career guidance, aviation history — answer fully, accurately, and with real expertise.`;
 
         const userContent = [];
-        if (image_base64) userContent.push({ type: 'image', source: { type: 'base64', media_type: image_type || 'image/jpeg', data: image_base64 } });
+        // Support multiple images
+        if (images && Array.isArray(images)) {
+          images.forEach(img => {
+            userContent.push({ type: 'image', source: { type: 'base64', media_type: img.type || 'image/jpeg', data: img.data } });
+          });
+        } else if (image_base64) {
+          userContent.push({ type: 'image', source: { type: 'base64', media_type: image_type || 'image/jpeg', data: image_base64 } });
+        }
         if (pdf_base64) userContent.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 } });
         userContent.push({ type: 'text', text: effectiveQuestion + (extra_text ? '\n\nAttached text:\n' + extra_text : '') + generalChatAirportContext });
 

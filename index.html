@@ -2812,17 +2812,20 @@ async function handleSend(silent = false) {
     }
     if (displayQ) addChatBubble('user', displayQ);
 
-    // Build payload — send first image/pdf
-    const firstImage = filesToSend.find(f => f.type.startsWith('image/'));
+    // Build payload — send ALL images as array
+    const imageFiles = filesToSend.filter(f => f.type.startsWith('image/'));
     const firstPdf = filesToSend.find(f => f.type === 'application/pdf');
-    if (firstImage) {
-      chatFilePayload.image_base64 = await readFileAsBase64(firstImage);
-      chatFilePayload.image_type = firstImage.type;
-    } else if (firstPdf) {
+    const textFiles = filesToSend.filter(f => f.type === 'text/plain');
+
+    if (imageFiles.length > 0) {
+      chatFilePayload.images = await Promise.all(imageFiles.map(async f => ({
+        data: await readFileAsBase64(f),
+        type: f.type
+      })));
+    }
+    if (firstPdf) {
       chatFilePayload.pdf_base64 = await readFileAsBase64(firstPdf);
     }
-    // Add text files as extra_text
-    const textFiles = filesToSend.filter(f => f.type === 'text/plain');
     if (textFiles.length > 0) {
       chatFilePayload.extra_text = (await Promise.all(textFiles.map(f => readFileAsText(f)))).join('\n\n');
     }
