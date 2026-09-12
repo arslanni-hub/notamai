@@ -2601,7 +2601,8 @@ function autoResize(el) {
   el.style.height = Math.min(el.scrollHeight, 160) + 'px';
 }
 
-let attachedFile = null;
+let attachedFiles = [];
+let attachedFile = null; // kept for compatibility
 
 async function readFileAsBase64(file) {
   return new Promise((res, rej) => {
@@ -2622,32 +2623,61 @@ async function readFileAsText(file) {
 }
 
 function handleFile(e) {
-  const f = e.target.files[0];
-  if (!f) return;
-  attachedFile = f;
+  const files = e.target.files || (e.dataTransfer && e.dataTransfer.files);
+  if (!files || files.length === 0) return;
+  Array.from(files).forEach(f => {
+    if (attachedFiles.length >= 5) return; // max 5 files
+    attachedFiles.push(f);
+  });
+  attachedFile = attachedFiles[0]; // compatibility
+  renderFilePreview();
+}
+
+function renderFilePreview() {
   const preview = document.getElementById('filePreview');
-  const thumbEl = document.getElementById('fileThumbPreview');
-  const chipEl = document.getElementById('fileChipPreview');
-  const fileName = document.getElementById('fileName');
-  if (f.type.startsWith('image/')) {
-    const reader = new FileReader();
-    reader.onload = ev => {
-      thumbEl.src = ev.target.result;
-      thumbEl.style.display = 'block';
-      chipEl.style.display = 'none';
-    };
-    reader.readAsDataURL(f);
-  } else {
-    thumbEl.style.display = 'none';
-    chipEl.style.display = 'flex';
-    fileName.textContent = f.name;
+  const inner = document.getElementById('filePreviewInner');
+  if (attachedFiles.length === 0) {
+    preview.classList.remove('show');
+    return;
   }
+  inner.innerHTML = '';
+  attachedFiles.forEach((f, idx) => {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:relative;display:inline-block;margin-right:8px;';
+    const btn = document.createElement('button');
+    btn.innerHTML = '✕';
+    btn.style.cssText = 'position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(10,15,24,0.7);border:1px solid #1a2a3a;color:#8a9bb0;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;z-index:10;';
+    btn.onclick = () => { attachedFiles.splice(idx, 1); attachedFile = attachedFiles[0] || null; renderFilePreview(); };
+    wrapper.onmouseenter = () => btn.style.opacity = '1';
+    wrapper.onmouseleave = () => btn.style.opacity = '0';
+    if (f.type.startsWith('image/')) {
+      const img = document.createElement('img');
+      img.style.cssText = 'max-width:160px;max-height:120px;border-radius:10px;border:1px solid #1a2a3a;object-fit:cover;cursor:zoom-in;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:block;';
+      img.onclick = () => openImageLightbox(img.src);
+      const reader = new FileReader();
+      reader.onload = ev => { img.src = ev.target.result; };
+      reader.readAsDataURL(f);
+      wrapper.appendChild(img);
+    } else {
+      const chip = document.createElement('div');
+      chip.style.cssText = 'display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;max-width:160px;';
+      chip.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:11px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span>`;
+      wrapper.appendChild(chip);
+    }
+    wrapper.appendChild(btn);
+    inner.appendChild(wrapper);
+  });
+  inner.style.display = 'flex';
+  inner.style.flexWrap = 'wrap';
+  inner.style.gap = '8px';
   preview.classList.add('show');
 }
 
 function removeFile() {
+  attachedFiles = [];
   attachedFile = null;
   document.getElementById('filePreview').classList.remove('show');
+  document.getElementById('filePreviewInner').innerHTML = '';
 }
 
 // Drag & drop for entire chat area
@@ -2684,10 +2714,9 @@ function initDragDrop() {
     dragCounter = 0;
     inputBar.style.outline = '';
     inputBar.style.outlineOffset = '';
-    const file = e.dataTransfer?.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/') && file.type !== 'application/pdf' && file.type !== 'text/plain') return;
-    handleFile({ target: { files: [file] } });
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    handleFile({ target: { files } });
   });
 }
 document.addEventListener('DOMContentLoaded', initDragDrop);
@@ -2708,7 +2737,7 @@ function openImageLightbox(src) {
 
 async function handleSend(silent = false) {
   const val = document.getElementById('mainInput').value.trim();
-  if (!val && !attachedFile) {
+  if (!val && attachedFiles.length === 0) {
     const mode = getActivePillMode();
     const emptyMessages = {
       chat: 'Type a question first',
@@ -2755,59 +2784,54 @@ async function handleSend(silent = false) {
     if (!chatModeActive) enterChatMode();
     const chatInput = document.getElementById('mainInput');
     const question = chatInput.value.trim();
-    if (!question && !attachedFile) return;
+    if (!question && attachedFiles.length === 0) return;
     const suggestedMode = question ? looksLikeBriefingOrVideoRequest(question) : null;
     if (suggestedMode) { showChatModeMismatchBubble(question, suggestedMode); return; }
     chatInput.value = '';
     autoResize(chatInput);
     const displayQ = question || '';
-    // Build file preview for chat bubble
-    let fileDataUrl = null;
-    let filePreviewHtml = '';
-    if (attachedFile) {
-      if (attachedFile.type.startsWith('image/')) {
-        const imgData = await readFileAsBase64(attachedFile);
-        fileDataUrl = `data:${attachedFile.type};base64,${imgData}`;
-        filePreviewHtml = `<div style="position:relative;display:inline-block;"><img src="${fileDataUrl}" onclick="openImageLightbox(this.src)" style="max-width:200px;max-height:160px;object-fit:cover;border-radius:8px;display:block;cursor:zoom-in;"></div>`;
-      } else {
-        filePreviewHtml = `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;${displayQ ? 'margin-bottom:8px;' : ''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:12px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${attachedFile.name}</span></div>`;
-      }
-    }
-    if (filePreviewHtml) {
-      // File in separate bubble
-      const fileBubbleRow = addChatBubble('user', '');
-      const fileBubble = fileBubbleRow.querySelector('.chat-msg-bubble');
-      fileBubble.innerHTML = filePreviewHtml;
-      fileBubble.style.background = 'transparent';
-      fileBubble.style.border = 'none';
-      fileBubble.style.padding = '0';
-    }
-    // Text in separate bubble if exists
-    if (displayQ) {
-      addChatBubble('user', displayQ);
-    }
-
-    // Handle file attachment for general chat
     let chatFilePayload = {};
-    if (attachedFile) {
-      const mime = attachedFile.type;
-      if (mime.startsWith('image/')) {
-        chatFilePayload.image_base64 = await readFileAsBase64(attachedFile);
-        chatFilePayload.image_type = mime;
-      } else if (mime === 'application/pdf') {
-        chatFilePayload.pdf_base64 = await readFileAsBase64(attachedFile);
+    const filesToSend = [...attachedFiles];
+    removeFile();
+
+    // Show each file as separate bubble
+    for (const f of filesToSend) {
+      if (f.type.startsWith('image/')) {
+        const imgData = await readFileAsBase64(f);
+        const fileDataUrl = `data:${f.type};base64,${imgData}`;
+        const fileBubbleRow = addChatBubble('user', '');
+        const fileBubble = fileBubbleRow.querySelector('.chat-msg-bubble');
+        fileBubble.innerHTML = `<div style="position:relative;display:inline-block;"><img src="${fileDataUrl}" onclick="openImageLightbox(this.src)" style="max-width:200px;max-height:160px;object-fit:cover;border-radius:8px;display:block;cursor:zoom-in;"></div>`;
+        fileBubble.style.cssText = 'background:transparent;border:none;padding:0;';
       } else {
-        const txt = await readFileAsText(attachedFile);
-        chatFilePayload.extra_text = txt;
+        const fileBubbleRow = addChatBubble('user', '');
+        const fileBubble = fileBubbleRow.querySelector('.chat-msg-bubble');
+        fileBubble.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:12px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${f.name}</span></div>`;
+        fileBubble.style.cssText = 'background:transparent;border:none;padding:0;';
       }
-      removeFile();
+    }
+    if (displayQ) addChatBubble('user', displayQ);
+
+    // Build payload — send first image/pdf
+    const firstImage = filesToSend.find(f => f.type.startsWith('image/'));
+    const firstPdf = filesToSend.find(f => f.type === 'application/pdf');
+    if (firstImage) {
+      chatFilePayload.image_base64 = await readFileAsBase64(firstImage);
+      chatFilePayload.image_type = firstImage.type;
+    } else if (firstPdf) {
+      chatFilePayload.pdf_base64 = await readFileAsBase64(firstPdf);
+    }
+    // Add text files as extra_text
+    const textFiles = filesToSend.filter(f => f.type === 'text/plain');
+    if (textFiles.length > 0) {
+      chatFilePayload.extra_text = (await Promise.all(textFiles.map(f => readFileAsText(f)))).join('\n\n');
     }
 
-    mockChatResponse(question || 'Please analyze this attached document.', chatFilePayload);
+    mockChatResponse(question || 'Please analyze the attached document(s).', chatFilePayload);
     return;
   }
 
-  if (!attachedFile && val && !looksLikeCleanIcaoInput(val)) {
+  if (attachedFiles.length === 0 && val && !looksLikeCleanIcaoInput(val)) {
     const route = await extractRouteOrNull(val);
     if (route === null) { showMainInputMismatchWarning(); return; }
     if (route !== 'SKIP_CHECK') document.getElementById('mainInput').value = route;
@@ -2860,16 +2884,18 @@ async function handleSend(silent = false) {
 
   try {
     const payload = { icao_dep: dep, icao_arr: arr, notam_text: val };
-    if (attachedFile) {
-      const mime = attachedFile.type;
-      if (mime === 'text/plain') {
-        const txt = await readFileAsText(attachedFile);
+    if (attachedFiles.length > 0) {
+      const firstText = attachedFiles.find(f => f.type === 'text/plain');
+      const firstPdf = attachedFiles.find(f => f.type === 'application/pdf');
+      const firstImg = attachedFiles.find(f => f.type.startsWith('image/'));
+      if (firstText) {
+        const txt = await readFileAsText(firstText);
         payload.notam_text = val ? val + '\n\n' + txt : txt;
-      } else if (mime === 'application/pdf') {
-        payload.pdf_base64 = await readFileAsBase64(attachedFile);
-      } else if (mime.startsWith('image/')) {
-        payload.image_base64 = await readFileAsBase64(attachedFile);
-        payload.image_type = mime;
+      } else if (firstPdf) {
+        payload.pdf_base64 = await readFileAsBase64(firstPdf);
+      } else if (firstImg) {
+        payload.image_base64 = await readFileAsBase64(firstImg);
+        payload.image_type = firstImg.type;
       }
     }
 
