@@ -4065,13 +4065,22 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           icao_arr ? fetchAndCacheAirportName(icao_arr) : Promise.resolve()
         ]);
 
+        // For quick analysis — extract ICAO codes from text and fetch names via SkyLink
+        let quickAirportContext = '';
+        if (isQuickAnalysis && notam_text) {
+          const stopWords = new Set(['NOTAM','METAR','SIGMET','AIRMET','PIREP','FROM','UNTIL','VALID','INFO','PERM','TRUE','WIND','TEMP','PRES','FEET','KNOT']);
+          const icaoCodes = [...new Set((notam_text.match(/\b[A-Z]{4}\b/g) || []).filter(c => !stopWords.has(c)))].slice(0, 5);
+          if (icaoCodes.length > 0) {
+            const names = await Promise.all(icaoCodes.map(c => fetchAndCacheAirportName(c)));
+            const verified = icaoCodes.map((c, i) => names[i] !== c ? `${c} = ${names[i]}` : null).filter(Boolean);
+            if (verified.length > 0) {
+              quickAirportContext = `\n\nVERIFIED AIRPORT NAMES (from SkyLink database — use EXACTLY as provided):\n${verified.join('\n')}\nFor any other ICAO code not listed above, write "Airport [ICAO CODE]" — never guess.`;
+            }
+          }
+        }
+
         const userMessage = isQuickAnalysis
-          ? `Analyze the aviation data provided below and/or any attached image or PDF. There is no confirmed airport or route — just analyze exactly what was given, nothing more.
-
-TODAY'S DATE: ${utcDate}
-${notam_text ? `\nPROVIDED TEXT:\n${notam_text}` : '\n(No text provided — analyze the attached image/PDF only.)'}
-
-Generate the complete quick analysis HTML content.`
+          ? `Analyze the aviation data provided below and/or any attached image or PDF. There is no confirmed airport or route — just analyze exactly what was given, nothing more.\n\nTODAY'S DATE: ${utcDate}\n${notam_text ? `\nPROVIDED TEXT:\n${notam_text}` : '\n(No text provided — analyze the attached image/PDF only.)'}${quickAirportContext}\n\nGenerate the complete quick analysis HTML content.`
           : isSingleAirport
           ? `Must complete ALL sections including Weather, Airport Operational Considerations, Ground & ATC Notes, Airport Operational Status, and Footer. Be concise in each section. This is a SINGLE AIRPORT briefing — there is no second airport and no flight-specific Go/No-Go decision.
 
