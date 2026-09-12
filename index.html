@@ -3418,7 +3418,12 @@ async function sendAIChat() {
   const routeEl       = document.querySelector('.route-id');
   const currentRoute  = routeEl ? routeEl.textContent.trim() : '';
 
-  const payload = { question, briefingContext: briefingText, currentRoute, history: aiChatHistory.slice(-8) };
+  const payload = {
+    question: question || (chatAttachedFile ? 'Please analyze this attached document and provide a detailed aviation analysis.' : ''),
+    briefingContext: briefingText,
+    currentRoute,
+    history: aiChatHistory.slice(-8)
+  };
 
   // Handle file attachment
   if (chatAttachedFile) {
