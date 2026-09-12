@@ -3967,8 +3967,19 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
             if (imageCodes.length > 0) {
               const names = await Promise.all(imageCodes.map(c => fetchAndCacheAirportName(c)));
               const verified = imageCodes.map((c, i) => names[i] !== c ? `${c} = ${names[i]}` : null).filter(Boolean);
-              if (verified.length > 0) {
-                generalChatAirportContext = `\n\nVERIFIED AIRPORT NAMES (from SkyLink database — use EXACTLY, never modify):\n${verified.join('\n')}\nFor any ICAO code not listed, write "Airport [ICAO CODE]" — never guess.`;
+              // Also add FIR name corrections
+              const firNames = {
+                'LTBB': 'Istanbul FIR', 'LTAA': 'Ankara FIR', 'LTCC': 'Istanbul Oceanic FIR',
+                'EGTT': 'London FIR', 'EGPX': 'Scottish FIR', 'EDGG': 'Langen FIR',
+                'EDWW': 'Bremen FIR', 'EDMM': 'Munich FIR', 'LFBB': 'Bordeaux FIR',
+                'LFEE': 'Reims FIR', 'LFMM': 'Marseille FIR', 'LFPP': 'Paris FIR',
+                'LECB': 'Barcelona FIR', 'LECM': 'Madrid FIR', 'LIBB': 'Brindisi FIR',
+                'LIMM': 'Milano FIR', 'LIRR': 'Roma FIR', 'OMAE': 'Emirates FIR',
+                'OKAC': 'Kuwait FIR', 'ORBB': 'Baghdad FIR', 'OSTT': 'Damascus FIR'
+              };
+              const firContext = imageCodes.filter(c => firNames[c]).map(c => `${c} = ${firNames[c]}`).join('\n');
+              if (verified.length > 0 || firContext) {
+                generalChatAirportContext = `\n\nVERIFIED NAMES (from SkyLink database — use EXACTLY, never modify):\n${[...verified, ...(firContext ? [firContext] : [])].join('\n')}\nFor any code not listed, write the code only — never guess.`;
               }
             }
           } catch(e) {
