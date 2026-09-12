@@ -74,12 +74,12 @@ const PLAN_LIMITS = {
 // the existing budget). Free has no soft limit since it's Haiku-only already; it hard-stops
 // at 100% of its small token budget.
 const GENERAL_CHAT_LIMITS = {
-  free:    { windowMinutes: 300, limit: 470,    mode: 'tokens', model: 'claude-haiku-4-5-20251001' },
-  pro:     { windowMinutes: 300, limit: 12000,  mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 },
-  max: { windowMinutes: 300, limit: 24000,  mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 },
-  admin:   { windowMinutes: 300, limit: 999999, mode: 'tokens', model: 'claude-sonnet-4-6' }
+  free:    { windowMinutes: 300, limit: 470,    mode: 'tokens', model: 'claude-haiku-4-5' },
+  pro:     { windowMinutes: 300, limit: 12000,  mode: 'tokens', model: 'claude-sonnet-5', softLimitRatio: 0.70 },
+  max: { windowMinutes: 300, limit: 24000,  mode: 'tokens', model: 'claude-sonnet-5', softLimitRatio: 0.70 },
+  admin:   { windowMinutes: 300, limit: 999999, mode: 'tokens', model: 'claude-sonnet-5' }
 };
-const GENERAL_CHAT_FALLBACK_MODEL = 'claude-haiku-4-5-20251001';
+const GENERAL_CHAT_FALLBACK_MODEL = 'claude-haiku-4-5';
 
 // Web search for General Aviation Expert Chat — Pro/Max only. The flat $0.01/search
 // fee is NOT covered by the token-budget rate limit below (only token cost is), so we gate
@@ -2513,7 +2513,7 @@ MANDATORY:
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
+            model: 'claude-haiku-4-5',
             max_tokens: 200,
             messages: [{ role: 'user', content: scriptPrompt }]
           })
@@ -2648,7 +2648,7 @@ MANDATORY:
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
+            model: 'claude-haiku-4-5',
             max_tokens: 200,
             messages: [{ role: 'user', content: `Route: ${route}\nBriefing: ${briefingContent}\nWrite a 45-second briefing starting with "${greeting}, Captain."` }]
           })
@@ -3458,7 +3458,7 @@ MANDATORY:
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
+            model: 'claude-haiku-4-5',
             max_tokens: 50,
             system: 'You are an expert aviation dispatcher with complete knowledge of all world airports and their ICAO codes. Your only job is to extract one or two airports from any natural language input (in any language) and return their ICAO codes.\n\nRules:\n- Always use the main international airport for a city unless specified otherwise\n- Convert city names, country names, airport names, or any hint to the correct ICAO code\n- Support any language input (Turkish, English, Spanish, Arabic, etc.)\n- Examples: "Istanbul Frankfurt" -> "LTFM EDDF", "Barcelona Milan dedim" -> "LEBL LIMC", "Paris CDG to Dubai" -> "LFPG OMDB", "bugün istanbul londra var" -> "LTFM EGLL", "مطار دبي إلى لندن" -> "OMDB EGLL"\n- If the input contains ANY hint of two distinct locations — two city/airport names, two codes, or connecting words like "to"/"and"/"için"/"ile" — always return BOTH as a pair. Never silently drop the one you are less confident about; if you can identify it at all, include it.\n- Only return a single ICAO code when there is truly just one location mentioned with no indication of a second (e.g. "Istanbul", "tell me about LTFM")\n- Return ONLY the format: XXXX (single airport) or XXXX XXXX (two airports, space-separated) — exactly 4 letters per code\n- Return UNKNOWN only if you truly cannot identify even one airport',
             messages: [{ role: 'user', content: text }]
@@ -3639,7 +3639,7 @@ MANDATORY:
             'anthropic-beta': 'prompt-caching-2024-07-31'
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
+            model: 'claude-haiku-4-5',
             max_tokens: 800,
             system: [{ type: 'text', text: analyzeSystemPrompt, cache_control: { type: 'ephemeral' } }],
             messages: [{ role: 'user', content: 'Analyze this ' + (type || 'NOTAM') + ':\n\n' + notam + airportContext }]
@@ -3872,7 +3872,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
             'anthropic-beta': 'prompt-caching-2024-07-31'
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
+            model: 'claude-haiku-4-5',
             max_tokens: 1500,
             system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
             messages
@@ -4252,7 +4252,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         }
 
         const claudeBody = JSON.stringify({
-          model: 'claude-sonnet-4-6',
+          model: 'claude-sonnet-5',
           max_tokens: 16000,
           stream: true,
           system: [{ type: 'text', text: isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt), cache_control: { type: 'ephemeral' } }],
