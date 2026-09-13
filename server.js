@@ -4072,7 +4072,7 @@ G) [UPPER LIMIT - if applicable]
 5. D) schedule varsa ekle
 6. Olası hataları ve dikkat edilmesi gereken noktaları belirt
 
-ALWAYS produce the NOTAM in both Turkish summary and full ICAO English format.
+Produce the NOTAM summary and explanation in the SAME LANGUAGE the user is asking in — if they ask in Turkish, respond in Turkish; if in English, respond in English; etc. ALWAYS produce the actual NOTAM text itself (Q-line, A/B/C/D/E) in ICAO standard English format regardless of the conversation language, since that is the international standard — but your explanations, summaries, and validation notes should match the user's language.
 Remember: LTBB = Istanbul FIR (western Turkey), LTAA = Ankara FIR (central/eastern Turkey)
 
 ### ICAO CODE VERIFICATION:
@@ -4126,7 +4126,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
 
         const requestBody = JSON.stringify({
           model: chatModel,
-          max_tokens: 4000,
+          max_tokens: isNotamProduction ? 8000 : 4000,
           stream: true,
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           messages,
