@@ -4036,19 +4036,12 @@ G) [UPPER LIMIT - if applicable]
 - Lower/Upper limits in FL (000/999 = SFC to UNL)
 - Coordinates: DDMMN/DDDMME + radius in NM (e.g. 3933N02701E005)
 
-### TURKISH AIRPORT ICAO CODES (DHMI):
-LTFD = Balıkesir Koca Seyit (Edremit) — FIR: LTBB
-LTFM = İstanbul Havalimanı — FIR: LTBB
-LTFJ = Sabiha Gökçen — FIR: LTBB
-LTAI = Antalya — FIR: LTAA
-LTAC = Ankara Esenboğa — FIR: LTAA
-LTBJ = İzmir Adnan Menderes — FIR: LTAA
-LTFE = Dalaman — FIR: LTAA (NOT Bodrum, NOT Edremit)
-LTBS = Bodrum Milas — FIR: LTAA
-LTCG = Trabzon — FIR: LTAA
-LTCE = Erzurum — FIR: LTAA
-LTAF = Adana Şakirpaşa — FIR: LTAA
-LTBF = Balıkesir merkez (military/civil, farklı LTFD den) — FIR: LTBB
+### ICAO CODE POLICY:
+- You cover ALL countries worldwide — not just Turkey
+- For ANY airport/FIR ICAO code, use web search to verify if not 100% certain
+- Common prefixes: LT* = Turkey, EG* = UK, ED* = Germany, LF* = France, K* = USA, Y* = Australia, Z* = China, etc.
+- Turkish airports are common in your usage context — extra caution: LTFD=Balıkesir Koca Seyit, LTFE=Dalaman, LTBS=Bodrum (these are commonly confused)
+- For any other country: ALWAYS verify via web search before using
 
 ### COORDINATE FORMAT (ICAO):
 - DMS to decimal: DD°MM'SS.ss" → DDMM.ssN/DDDDMM.ssE
