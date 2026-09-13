@@ -4033,8 +4033,13 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           { role: 'user', content: userContent.length > 1 ? userContent : effectiveQuestion + (extra_text ? '\n\nAttached text:\n' + extra_text : '') + generalChatAirportContext }
         ];
 
+        // Detect NOTAM production requests — use Opus 5 for accuracy
+        const isNotamProduction = /notam.*hazırla|notam.*yaz|notam.*üret|notam.*format|icao.*format|q.?line|yayına hazırla|notam talep|produce.*notam|draft.*notam|generate.*notam/i.test(effectiveQuestion);
+        const chatModel = isNotamProduction ? 'claude-opus-5' : modelToUse;
+        if (isNotamProduction) console.log('[NOTAM PRODUCTION] Using Opus 5 for NOTAM drafting');
+
         const requestBody = JSON.stringify({
-          model: modelToUse,
+          model: chatModel,
           max_tokens: 4000,
           stream: true,
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
