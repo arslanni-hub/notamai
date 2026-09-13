@@ -656,6 +656,8 @@ canvas#sky {
 .chat-md-code { background: rgba(74,158,255,0.1); padding: 1px 6px; border-radius: 4px; font-family: 'Share Tech Mono', monospace; font-size: 12.5px; }
 .chat-msg-bubble p { margin: 0 0 8px; }
 .chat-msg-bubble p:last-child { margin-bottom: 0; }
+.thinking-dots { display:inline-block; color: #4a9eff; font-size: 18px; font-weight:700; animation: thinkPulse 1.2s infinite; }
+@keyframes thinkPulse { 0%,80%,100% { opacity:0.2; } 40% { opacity:1; } }
 .chat-ai-disclaimer {
   display: none;
   width: 100%;
@@ -2429,9 +2431,21 @@ function renderChatSearchStatus(query) {
 
 async function mockChatResponse(question, filePayload = {}) {
   const isNotamDraft = /notam.*hazırla|notam.*yaz|notam.*üret|notam.*format|yayına hazırla|notam talep.*form|produce.*notam|draft.*notam|generate.*notam|notam.*draft|format.*notam|icao.*format.*notam|q.?line.*oluştur/i.test(question || '');
-  const row = addChatBubble('ai', isNotamDraft ? 'Drafting NOTAM...' : 'Thinking...');
+  const row = addChatBubble('ai', '');
   const bubble = row.querySelector('.chat-msg-bubble');
   const messagesArea = document.getElementById('chatMessagesArea');
+
+  // Animated cycling thinking indicator
+  const thinkWords = isNotamDraft ? ['Thinking', 'Analyzing', 'Drafting NOTAM'] : ['Thinking', 'Analyzing'];
+  let thinkIdx = 0;
+  const renderThinking = () => {
+    bubble.innerHTML = `${thinkWords[thinkIdx]}<span class="thinking-dots">.</span><span class="thinking-dots" style="animation-delay:0.2s;">.</span><span class="thinking-dots" style="animation-delay:0.4s;">.</span>`;
+  };
+  renderThinking();
+  const thinkInterval = setInterval(() => {
+    thinkIdx = (thinkIdx + 1) % thinkWords.length;
+    renderThinking();
+  }, 1800);
 
   try {
     const historyForApi = currentChatMessages.slice(0, -1).map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
@@ -2486,9 +2500,11 @@ async function mockChatResponse(question, filePayload = {}) {
           usagePercent = evt.usagePercent;
           resetInMinutes = evt.resetInMinutes;
         } else if (evt.type === 'search' && !accumulated) {
+          clearInterval(thinkInterval);
           bubble.innerHTML = renderChatSearchStatus(evt.query);
           messagesArea.scrollTop = messagesArea.scrollHeight;
         } else if (evt.type === 'chunk') {
+          clearInterval(thinkInterval);
           accumulated += evt.text;
           bubble.innerHTML = renderChatMarkdown(accumulated);
           messagesArea.scrollTop = messagesArea.scrollHeight;
