@@ -2428,7 +2428,8 @@ function renderChatSearchStatus(query) {
 }
 
 async function mockChatResponse(question, filePayload = {}) {
-  const row = addChatBubble('ai', 'Thinking...');
+  const isNotamDraft = /notam.*hazırla|notam.*yaz|notam.*üret|notam.*format|yayına hazırla|notam talep.*form|produce.*notam|draft.*notam|generate.*notam|notam.*draft|format.*notam|icao.*format.*notam|q.?line.*oluştur/i.test(question || '');
+  const row = addChatBubble('ai', isNotamDraft ? 'Drafting NOTAM...' : 'Thinking...');
   const bubble = row.querySelector('.chat-msg-bubble');
   const messagesArea = document.getElementById('chatMessagesArea');
 
