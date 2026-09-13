@@ -2464,7 +2464,6 @@ async function mockChatResponse(question, filePayload = {}) {
     let accumulated = '';
     let usagePercent = null;
     let resetInMinutes = null;
-    bubble.textContent = '';
 
     while (true) {
       const { done, value } = await reader.read();
