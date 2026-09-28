@@ -163,6 +163,53 @@ function sendUnauthorized(res) {
   res.end(JSON.stringify({ error: 'unauthorized' }));
 }
 
+const Stripe = require('stripe');
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://notamai.onrender.com';
+const STRIPE_PRICES = {
+  pro: { month: process.env.STRIPE_PRICE_PRO_MONTHLY, year: process.env.STRIPE_PRICE_PRO_YEARLY },
+  max: { month: process.env.STRIPE_PRICE_MAX_MONTHLY, year: process.env.STRIPE_PRICE_MAX_YEARLY }
+};
+function planFromPriceId(priceId) {
+  for (const [plan, p] of Object.entries(STRIPE_PRICES)) {
+    if (priceId && (priceId === p.month || priceId === p.year)) return plan;
+  }
+  return null;
+}
+async function findUserByStripeCustomer(customerId) {
+  if (!customerId) return null;
+  const snap = await adminDb.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+  return snap.empty ? null : snap.docs[0].id;
+}
+async function syncStripeSubscription(sub, fallbackUid) {
+  const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
+  const uid = sub.metadata?.user_id || fallbackUid || await findUserByStripeCustomer(customerId);
+  if (!uid) { console.log('[STRIPE] No user found for subscription', sub.id); return; }
+  const item = sub.items?.data?.[0];
+  const priceId = item?.price?.id;
+  const active = ['active', 'trialing', 'past_due'].includes(sub.status);
+  const newPlan = active ? planFromPriceId(priceId) : 'free';
+  const ref = adminDb.collection('users').doc(uid);
+  const snap = await ref.get();
+  const cur = snap.exists ? snap.data() : {};
+  const update = {
+    stripeCustomerId: customerId,
+    stripeSubscriptionId: sub.id,
+    subscriptionStatus: sub.status,
+    billingInterval: item?.price?.recurring?.interval || 'month',
+    cancelAtPeriodEnd: !!sub.cancel_at_period_end,
+    trialUsed: true
+  };
+  if (!newPlan) {
+    console.log('[STRIPE] Active subscription with unknown price id — plan NOT changed:', priceId);
+  } else if (cur.plan !== newPlan) {
+    update.plan = newPlan;
+    update.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+  }
+  await ref.set(update, { merge: true });
+  console.log('[STRIPE] Synced', uid, sub.status, '->', newPlan || '(unchanged)');
+}
+
 async function getUserUsage(userId, field) {
   try {
     const now = new Date();
@@ -3420,54 +3467,43 @@ MANDATORY:
     return;
   }
 
-  // ── LEMONSQUEEZY CHECKOUT ────────────────────────────────────
+  // ── STRIPE CHECKOUT ──
   if (req.method === 'POST' && req.url === '/api/create-checkout') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { plan, userId, email } = JSON.parse(body);
-        const variantId = plan === 'max'
-          ? process.env.LEMONSQUEEZY_PREMIUM_VARIANT_ID
-          : process.env.LEMONSQUEEZY_PRO_VARIANT_ID;
-        const response = await fetchURL('https://api.lemonsqueezy.com/v1/checkouts', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + process.env.LEMONSQUEEZY_API_KEY,
-            'Content-Type': 'application/vnd.api+json',
-            'Accept': 'application/vnd.api+json'
-          },
-          body: JSON.stringify({
-            data: {
-              type: 'checkouts',
-              attributes: {
-                checkout_data: {
-                  email: email,
-                  custom: { user_id: userId }
-                },
-                product_options: {
-                  redirect_url: 'https://notamai.onrender.com/?upgrade=success',
-                  receipt_link_url: 'https://notamai.onrender.com/?upgrade=success'
-                }
-              },
-              relationships: {
-                store: { data: { type: 'stores', id: process.env.LEMONSQUEEZY_STORE_ID } },
-                variant: { data: { type: 'variants', id: variantId } }
-              }
-            }
-          })
-        });
-        const checkoutUrl = response?.data?.attributes?.url;
-        console.log('[CHECKOUT URL]', checkoutUrl);
-        console.log('[CHECKOUT FULL]', JSON.stringify(response?.data?.attributes).slice(0, 500));
-        if (!checkoutUrl) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Could not create checkout', details: response }));
+        const userId = await getVerifiedUserId(req);
+        if (!userId) { sendUnauthorized(res); return; }
+        if (!stripe) { res.writeHead(503, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'payments_not_configured' })); return; }
+        const { plan, interval } = JSON.parse(body);
+        const iv = interval === 'year' ? 'year' : 'month';
+        const priceId = STRIPE_PRICES[plan]?.[iv];
+        if (!priceId) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'invalid_plan' })); return; }
+        const snap = await adminDb.collection('users').doc(userId).get();
+        const u = snap.exists ? snap.data() : {};
+        if (u.stripeSubscriptionId && ['active', 'trialing', 'past_due'].includes(u.subscriptionStatus)) {
+          res.writeHead(409, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'already_subscribed' }));
           return;
         }
+        const params = {
+          mode: 'subscription',
+          line_items: [{ price: priceId, quantity: 1 }],
+          client_reference_id: userId,
+          metadata: { user_id: userId, plan },
+          subscription_data: { metadata: { user_id: userId, plan } },
+          success_url: PUBLIC_BASE_URL + '/?upgrade=success',
+          cancel_url: PUBLIC_BASE_URL + '/?upgrade=cancelled'
+        };
+        if (u.stripeCustomerId) params.customer = u.stripeCustomerId;
+        else params.customer_email = (await admin.auth().getUser(userId)).email;
+        if (!u.trialUsed) params.subscription_data.trial_period_days = 7;
+        if (process.env.STRIPE_MANAGED_PAYMENTS !== 'false') params.managed_payments = { enabled: true };
+        const session = await stripe.checkout.sessions.create(params);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ url: checkoutUrl }));
-      } catch(e) {
+        res.end(JSON.stringify({ url: session.url }));
+      } catch (e) {
         console.log('[CHECKOUT ERROR]', e.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: e.message }));
@@ -3476,55 +3512,61 @@ MANDATORY:
     return;
   }
 
-  // ── LEMONSQUEEZY WEBHOOK ─────────────────────────────────────
-  if (req.method === 'POST' && req.url === '/api/lemonsqueezy-webhook') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
+  // ── STRIPE BILLING PORTAL ──
+  if (req.method === 'POST' && req.url === '/api/billing-portal') {
+    req.on('data', () => {});
     req.on('end', async () => {
       try {
-        const crypto = require('crypto');
-        const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
-        const signature = req.headers['x-signature'];
-        const hmac = crypto.createHmac('sha256', secret).update(body).digest('hex');
-        if (signature !== hmac) {
-          console.log('[WEBHOOK] Invalid signature');
-          res.writeHead(401);
-          res.end('Unauthorized');
-          return;
+        const userId = await getVerifiedUserId(req);
+        if (!userId) { sendUnauthorized(res); return; }
+        const snap = await adminDb.collection('users').doc(userId).get();
+        const u = snap.exists ? snap.data() : {};
+        if (!stripe || !u.stripeCustomerId) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'no_subscription' })); return; }
+        try {
+          const portal = await stripe.billingPortal.sessions.create({ customer: u.stripeCustomerId, return_url: PUBLIC_BASE_URL + '/' });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ url: portal.url }));
+        } catch (pe) {
+          console.log('[PORTAL] Falling back to Link:', pe.message);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ url: 'https://link.com', fallback: true }));
         }
-        const event = JSON.parse(body);
-        const eventName = event.meta?.event_name;
-        const userId = event.meta?.custom_data?.user_id;
-        const variantId = String(event.data?.attributes?.variant_id || event.data?.attributes?.first_order_item?.variant_id || '');
-        console.log('[WEBHOOK]', eventName, 'userId:', userId, 'variantId:', variantId);
-        if (!userId) { res.writeHead(200); res.end('OK'); return; }
-        const proPlanId = String(process.env.LEMONSQUEEZY_PRO_VARIANT_ID);
-        const maxPlanId = String(process.env.LEMONSQUEEZY_PREMIUM_VARIANT_ID);
-        let plan = null;
-        if (variantId === proPlanId) plan = 'pro';
-        if (variantId === maxPlanId) plan = 'max';
-        if (eventName === 'subscription_created' || eventName === 'order_created') {
-          if (plan) {
-            await adminDb.collection('users').doc(userId).set({
-              plan,
-              updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-            console.log('[WEBHOOK] Plan updated:', userId, '→', plan);
-          }
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // ── STRIPE WEBHOOK ──
+  if (req.method === 'POST' && req.url === '/api/stripe-webhook') {
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', async () => {
+      let event;
+      try {
+        event = stripe.webhooks.constructEvent(Buffer.concat(chunks), req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET);
+      } catch (e) {
+        console.log('[STRIPE WEBHOOK] Invalid signature:', e.message);
+        res.writeHead(400); res.end('Bad signature'); return;
+      }
+      try {
+        const obj = event.data.object;
+        if (event.type === 'checkout.session.completed' && obj.mode === 'subscription' && obj.subscription) {
+          const sub = await stripe.subscriptions.retrieve(obj.subscription);
+          await syncStripeSubscription(sub, obj.client_reference_id);
+        } else if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+          await syncStripeSubscription(obj);
+        } else if (event.type === 'invoice.payment_failed') {
+          const uid = await findUserByStripeCustomer(obj.customer);
+          await sendAdminNotification('⚠️ Payment failed — ' + (obj.customer_email || uid || obj.customer),
+            '<div style="font-size:13px;color:#1e293b;">Stripe reported a failed invoice payment for ' + (obj.customer_email || obj.customer) + '. Stripe will retry automatically; the plan stays active until the subscription is cancelled.</div>');
         }
-        if (eventName === 'subscription_cancelled' || eventName === 'subscription_expired') {
-          await adminDb.collection('users').doc(userId).set({
-            plan: 'free',
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
-          console.log('[WEBHOOK] Plan downgraded to free:', userId);
-        }
-        res.writeHead(200);
-        res.end('OK');
-      } catch(e) {
-        console.log('[WEBHOOK ERROR]', e.message);
-        res.writeHead(500);
-        res.end('Error');
+        res.writeHead(200); res.end('OK');
+      } catch (e) {
+        console.log('[STRIPE WEBHOOK ERROR]', e.message);
+        res.writeHead(500); res.end('Error');
       }
     });
     return;

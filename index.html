@@ -1642,7 +1642,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="um_proPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#4a9eff;">$49</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div id="um_proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For active pilots &amp; dispatchers</div>
-        <button onclick="initiateCheckout('pro')" style="width:100%;padding:8px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PRO →</button>
+        <button onclick="initiateCheckout('pro', um_isYearly ? 'year' : 'month')" style="width:100%;padding:8px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PRO →</button>
         <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:6px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
         <div style="border-top:1px solid #1a2a3a;margin:16px 0 12px;"></div>
         <ul style="list-style:none;">
@@ -1668,7 +1668,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="um_maxPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#f4841a;">$99</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/month</span></div>
         <div id="um_maxNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For aviation professionals</div>
-        <button onclick="initiateCheckout('max')" style="width:100%;padding:8px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO MAX →</button>
+        <button onclick="initiateCheckout('max', um_isYearly ? 'year' : 'month')" style="width:100%;padding:8px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO MAX →</button>
         <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:6px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
         <div style="border-top:1px solid #1a2a3a;margin:16px 0 12px;"></div>
         <ul style="list-style:none;">
@@ -1721,7 +1721,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:4px 0;">✓ Unlimited Archive &amp; Alerts</li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;padding:4px 0;">✓ Priority Support</li>
         </ul>
-        <button onclick="initiateCheckout('max');closeModal();" style="width:100%;padding:10px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO MAX →</button>
+        <button onclick="initiateCheckout('max', 'month');closeModal();" style="width:100%;padding:10px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO MAX →</button>
       </div>
       <div style="background:#0a0f18;border:1px solid rgba(181,123,255,0.4);border-radius:8px;padding:20px 16px;display:flex;flex-direction:column;">
         <div style="font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:#b57bff;margin-bottom:10px;">Enterprise</div>
@@ -3740,7 +3740,7 @@ async function sendAIChat() {
   }
 }
 
-async function initiateCheckout(plan) {
+async function initiateCheckout(plan, interval = 'month') {
   const user = firebase.auth().currentUser;
   if (!user) {
     document.getElementById('loginModal').style.display = 'flex';
@@ -3752,11 +3752,25 @@ async function initiateCheckout(plan) {
   btn.disabled = true;
   gtag('event', 'checkout_start', { plan: plan });
   try {
+    const token = await user.getIdToken();
     const response = await fetch('/api/create-checkout', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan, userId: user.uid, email: user.email })
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ plan, interval })
     });
+    if (response.status === 401) {
+      showToast('Please sign in to continue.');
+      openLoginModal();
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+      return;
+    }
+    if (response.status === 409) {
+      openBillingPortal();
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+      return;
+    }
     const data = await response.json();
     console.log('[CHECKOUT RESPONSE]', data);
     if (data.url) {
@@ -3772,6 +3786,17 @@ async function initiateCheckout(plan) {
     btn.innerHTML = originalText;
     btn.disabled = false;
   }
+}
+
+async function openBillingPortal() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  try {
+    const token = await user.getIdToken();
+    const r = await fetch('/api/billing-portal', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (d.url) window.open(d.url, '_blank'); else alert('No active subscription found.');
+  } catch (e) { alert('Could not open the billing portal. Please try again.'); }
 }
 
 function showToast(message) {
@@ -5919,7 +5944,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
           <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#4a9eff;font-size:13px;margin-top:1px;">✓</span>Share &amp; PDF Export</li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#4a5f72;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✗</span>AI Video Briefing</li>
         </ul>
-        <button onclick="initiateCheckout('pro')" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:#4a9eff;border:1px solid #4a9eff;color:#060a0f;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Start Free Trial →</button>
+        <button onclick="initiateCheckout('pro', pricing_isYearly ? 'year' : 'month')" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:#4a9eff;border:1px solid #4a9eff;color:#060a0f;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Start Free Trial →</button>
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">* Subject to <a href="#" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></div>
       </div>
 
@@ -5944,7 +5969,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
           <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">✓</span>Priority Support</li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#8a9bb0;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">+</span>Extra video pack: $10 = 3 videos</li>
         </ul>
-        <button onclick="initiateCheckout('max')" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:#f4841a;border:1px solid #f4841a;color:#060a0f;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Start Free Trial →</button>
+        <button onclick="initiateCheckout('max', pricing_isYearly ? 'year' : 'month')" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:#f4841a;border:1px solid #f4841a;color:#060a0f;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Start Free Trial →</button>
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">* Subject to <a href="#" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></div>
       </div>
 
@@ -6039,6 +6064,34 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
   }
   hiw_type();
 })();
+
+/* ═══ UPGRADE MODAL BILLING TOGGLE ═══ */
+let um_isYearly = false;
+function um_toggleBilling() {
+  um_isYearly = !um_isYearly;
+  const dot = document.getElementById('um_toggleDot');
+  const toggle = document.getElementById('um_billingToggle');
+  const badge = document.getElementById('um_saveBadge');
+  const monthlyLabel = document.getElementById('um_monthlyLabel');
+  const yearlyLabel = document.getElementById('um_yearlyLabel');
+  if (um_isYearly) {
+    dot.style.left = '28px'; toggle.style.background = '#4a9eff';
+    badge.style.display = 'inline-block';
+    monthlyLabel.style.color = '#4a5f72'; yearlyLabel.style.color = '#cdd9e5';
+    document.getElementById('um_proPrice').textContent = '$42';
+    document.getElementById('um_maxPrice').textContent = '$84';
+    document.getElementById('um_proNote').innerHTML = '$504/year · <span style="color:#2ec4b6;font-weight:700;">Save $108</span>';
+    document.getElementById('um_maxNote').innerHTML = '$1,008/year · <span style="color:#2ec4b6;font-weight:700;">Save $180</span>';
+  } else {
+    dot.style.left = '2px'; toggle.style.background = '#1a2a3a';
+    badge.style.display = 'none';
+    monthlyLabel.style.color = '#cdd9e5'; yearlyLabel.style.color = '#4a5f72';
+    document.getElementById('um_proPrice').textContent = '$49';
+    document.getElementById('um_maxPrice').textContent = '$99';
+    document.getElementById('um_proNote').innerHTML = '7-day free trial · Cancel anytime';
+    document.getElementById('um_maxNote').innerHTML = '7-day free trial · Cancel anytime';
+  }
+}
 
 /* ═══ PRICING BILLING TOGGLE ═══ */
 let pricing_isYearly = false;
@@ -6197,7 +6250,7 @@ function pricing_toggleBilling() {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg>
         Upgrade Plan
       </div>
-      <div id="popupManageBtn" class="popup-item" onclick="window.open('https://app.lemonsqueezy.com/my-orders','_blank')">
+      <div id="popupManageBtn" class="popup-item" onclick="openBillingPortal()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         Manage Subscription
       </div>
@@ -6599,7 +6652,7 @@ document.addEventListener('mouseout', function(e) {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg>
             Upgrade Plan
           </button>
-          <button id="pmManageBtn" onclick="window.open('https://app.lemonsqueezy.com/my-orders','_blank')" style="display:none;width:100%;padding:10px;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.color='#4a5f72';this.style.borderColor='#1a2a3a'">
+          <button id="pmManageBtn" onclick="openBillingPortal()" style="display:none;width:100%;padding:10px;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.color='#4a5f72';this.style.borderColor='#1a2a3a'">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l6-6"/><path d="M15 14v-6h-6"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
             Manage Subscription
           </button>
@@ -6740,7 +6793,7 @@ document.addEventListener('mouseout', function(e) {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z"/></svg>
           UPGRADE PLAN
         </button>
-        <button id="settingsManageBtn" onclick="window.open('https://app.lemonsqueezy.com/my-orders','_blank')" style="width:100%;padding:10px 14px;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.color='#4a5f72';this.style.borderColor='#1a2a3a'">
+        <button id="settingsManageBtn" onclick="openBillingPortal()" style="width:100%;padding:10px 14px;background:transparent;border:1px solid #1a2a3a;color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.color='#4a5f72';this.style.borderColor='#1a2a3a'">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
           MANAGE SUBSCRIPTION
         </button>

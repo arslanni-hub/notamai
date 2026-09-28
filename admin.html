@@ -265,11 +265,11 @@ async function loadRevenue() {
     const renderCost = 7.00;
     const claudeProCost = 20.00;
     const resendCost = 0.00;
-    const lsCommission = mrr > 0 ? (mrr * 0.05) + (pro + max) * 0.50 : 0;
+    const payFee = mrr > 0 ? (mrr * 0.071) + (pro + max) * 0.30 : 0;
 
     const totalVariableCost = briefingCost + chatCost + analysisCost + videoApiCost + ttsApiCost + firebaseStorageCost + resendCost;
     const totalFixedCost = renderCost + claudeProCost + hostingerCost;
-    const totalCost = totalVariableCost + totalFixedCost + lsCommission;
+    const totalCost = totalVariableCost + totalFixedCost + payFee;
     const netRevenue = mrr - totalCost;
     const grossMargin = mrr > 0 ? Math.round((netRevenue / mrr) * 100) : 0;
 
@@ -301,9 +301,9 @@ async function loadRevenue() {
           <div class="stat-sub">After all costs</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">LS COMMISSION</div>
-          <div class="stat-value" style="color:#f2c641;">$${lsCommission.toFixed(2)}</div>
-          <div class="stat-sub">5% + $0.50/txn</div>
+          <div class="stat-label">STRIPE FEES</div>
+          <div class="stat-value" style="color:#f2c641;">$${payFee.toFixed(2)}</div>
+          <div class="stat-sub">7.1% + $0.30/txn</div>
         </div>
       </div>
 
@@ -323,7 +323,7 @@ async function loadRevenue() {
             <tr><td>Firebase Storage</td><td>Variable</td><td>Est.</td><td>~$${firebaseStorageCost.toFixed(2)}</td></tr>
             <tr><td>Resend (email)</td><td>Variable</td><td>Free tier</td><td>$0.00</td></tr>
             <tr><td>SkyLink API (NOTAM data)</td><td>Fixed</td><td>Free tier</td><td>$0.00</td></tr>
-            <tr><td>LemonSqueezy</td><td>Commission</td><td>5% MRR + $0.50/txn</td><td>$${lsCommission.toFixed(2)}</td></tr>
+            <tr><td>Stripe (Managed Payments)</td><td>Commission</td><td>7.1% MRR + $0.30/txn (intl cards +1.5%)</td><td>$${payFee.toFixed(2)}</td></tr>
             <tr style="border-top:2px solid #1a2a3a;">
               <td><strong>TOTAL</strong></td><td></td><td></td>
               <td style="color:#e63946;font-weight:700;">$${totalCost.toFixed(2)}</td>
@@ -515,7 +515,7 @@ async function loadSystem() {
         <div class="stat-card">
           <div class="stat-label">PAYMENTS</div>
           <div class="stat-value" style="font-size:16px;color:#2ec4b6;">ONLINE</div>
-          <div class="stat-sub">LemonSqueezy — 5% + $0.50/txn</div>
+          <div class="stat-sub">Stripe — 7.1% + $0.30/txn</div>
         </div>
       </div>
     `;

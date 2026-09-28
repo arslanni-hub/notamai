@@ -447,7 +447,7 @@ canvas#sky {
         <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#4a9eff;font-size:13px;margin-top:1px;">✓</span>Share &amp; PDF Export</li>
         <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#4a5f72;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✗</span>AI Video Briefing</li>
       </ul>
-      <button id="btn-pro" onclick="initiateCheckout('pro')" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:#4a9eff;border:1px solid #4a9eff;color:#060a0f;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">UPGRADE TO PRO →</button>
+      <button id="btn-pro" onclick="initiateCheckout('pro', isYearly ? 'year' : 'month')" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:#4a9eff;border:1px solid #4a9eff;color:#060a0f;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">UPGRADE TO PRO →</button>
       <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
     </div>
 
@@ -472,7 +472,7 @@ canvas#sky {
         <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">✓</span>Priority Support</li>
         <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#8a9bb0;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">+</span>Extra video pack: $10 = 3 videos</li>
       </ul>
-      <button id="btn-max" onclick="initiateCheckout('max')" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:#f4841a;border:1px solid #f4841a;color:#060a0f;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">UPGRADE TO MAX →</button>
+      <button id="btn-max" onclick="initiateCheckout('max', isYearly ? 'year' : 'month')" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:#f4841a;border:1px solid #f4841a;color:#060a0f;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">UPGRADE TO MAX →</button>
       <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
     </div>
 
@@ -514,7 +514,7 @@ canvas#sky {
 
 <script>
 /* ═══ CHECKOUT ═══ */
-async function initiateCheckout(plan) {
+async function initiateCheckout(plan, interval = 'month') {
   const user = firebase.auth().currentUser;
   if (!user) { window.location.href = '/'; return; }
   const btn = event.target.closest('button') || event.target;
@@ -522,11 +522,22 @@ async function initiateCheckout(plan) {
   btn.innerHTML = 'Loading...';
   btn.disabled = true;
   try {
+    const token = await user.getIdToken();
     const response = await fetch('/api/create-checkout', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan, userId: user.uid, email: user.email })
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ plan, interval })
     });
+    if (response.status === 401) {
+      window.location.href = '/';
+      return;
+    }
+    if (response.status === 409) {
+      openBillingPortal();
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+      return;
+    }
     const data = await response.json();
     if (data.url) {
       window.location.href = data.url;
@@ -540,6 +551,17 @@ async function initiateCheckout(plan) {
     btn.innerHTML = originalText;
     btn.disabled = false;
   }
+}
+
+async function openBillingPortal() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  try {
+    const token = await user.getIdToken();
+    const r = await fetch('/api/billing-portal', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (d.url) window.open(d.url, '_blank'); else alert('No active subscription found.');
+  } catch (e) { alert('Could not open the billing portal. Please try again.'); }
 }
 
 /* ═══ BILLING TOGGLE ═══ */
