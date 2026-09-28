@@ -4618,14 +4618,29 @@ async function checkNotamAlerts() {
     const alertsSnap = await adminDb.collection('alerts').where('active', '==', true).get();
     if (alertsSnap.empty) { console.log('[ALERT CHECK] No active alerts'); return; }
 
-    // Group by unique ICAO — fetch each only once
-    const icaoMap = {};
+    // Server-side guard: resolve each owner's plan once per cycle and enforce plan caps.
+    const ALERT_CAPS = { free: 0, pro: 3, max: 10, enterprise: 10 };
+    const byUser = {};
     for (const doc of alertsSnap.docs) {
-      const { userId, icao } = doc.data();
-      if (!icao) continue;
-      if (!icaoMap[icao]) icaoMap[icao] = [];
-      icaoMap[icao].push({ doc, userId });
+      const d = doc.data();
+      if (!d.icao || !d.userId) continue;
+      (byUser[d.userId] = byUser[d.userId] || []).push(doc);
     }
+    const planCache = {};
+    const icaoMap = {};
+    let ignored = 0;
+    for (const [userId, docs] of Object.entries(byUser)) {
+      const plan = await getUserPlan(userId);
+      planCache[userId] = plan;
+      const cap = plan === 'admin' ? docs.length : (ALERT_CAPS[plan] ?? 0);
+      docs.sort((a, b) => (a.data().createdAt?.toMillis?.() || 0) - (b.data().createdAt?.toMillis?.() || 0));
+      ignored += Math.max(0, docs.length - cap);
+      for (const doc of docs.slice(0, cap)) {
+        const icao = doc.data().icao;
+        (icaoMap[icao] = icaoMap[icao] || []).push({ doc, userId });
+      }
+    }
+    if (ignored) console.log('[ALERT CHECK] Ignored', ignored, 'alerts (free plan or over plan cap)');
 
     const uniqueIcaos = Object.keys(icaoMap);
     console.log('[ALERT CHECK]', uniqueIcaos.length, 'unique ICAOs,', alertsSnap.size, 'total alerts');
@@ -4658,10 +4673,7 @@ async function checkNotamAlerts() {
       for (const { doc: alertDoc, userId } of icaoMap[icao]) {
         const alert = alertDoc.data();
 
-        // Plan check — free excluded, Pro every 3rd cycle (30min), Max/Admin every cycle (10min)
-        const plan = await getUserPlan(userId);
-        if (plan === 'free') continue;
-        if (plan === 'pro' && alertCheckCycle % 3 !== 0) continue;
+        const plan = planCache[userId];
 
         // Notification preference check
         try {
@@ -4717,8 +4729,8 @@ async function checkNotamAlerts() {
   }
 }
 
-// 10min interval — Pro users checked every 3rd cycle (30min), Max every cycle (10min)
-setInterval(checkNotamAlerts, 10 * 60 * 1000);
+// 30min interval for all plans
+setInterval(checkNotamAlerts, 30 * 60 * 1000);
 setTimeout(checkNotamAlerts, 30 * 1000);
 
 // Weekly Summary — runs every Monday at 08:00 UTC
