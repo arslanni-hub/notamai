@@ -2453,13 +2453,15 @@ async function mockChatResponse(question, filePayload = {}) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-user-id': firebase.auth().currentUser?.uid || ''
+        ...(await getAuthHeader())
       },
       body: JSON.stringify({ question, history: historyForApi, ...filePayload })
     });
 
     // Limit-reached responses are still plain JSON (returned before streaming starts server-side)
+    if (response.status === 401) { clearInterval(thinkInterval); bubble.remove(); if (handleAuthError(401)) return; }
     if (response.status === 403) {
+      clearInterval(thinkInterval);
       const data = await response.json();
       const msg = data.message || "You've reached your chat limit for this window.";
       bubble.textContent = msg;
@@ -2619,6 +2621,21 @@ function autoResize(el) {
 
 let attachedFiles = [];
 let attachedFile = null; // kept for compatibility
+
+async function getAuthHeader() {
+  const user = firebase.auth().currentUser;
+  if (!user) return {};
+  const token = await user.getIdToken();
+  return { 'Authorization': 'Bearer ' + token };
+}
+function handleAuthError(status) {
+  if (status === 401) {
+    showToast('Please sign in to continue.');
+    openLoginModal();
+    return true;
+  }
+  return false;
+}
 
 async function readFileAsBase64(file) {
   return new Promise((res, rej) => {
@@ -2931,13 +2948,20 @@ async function handleSend(silent = false) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-user-id': firebase.auth().currentUser?.uid || ''
+        ...(await getAuthHeader())
       },
       body: JSON.stringify(payload)
     });
 
     clearInterval(stepInt);
 
+    if (response.status === 401) {
+      loading.style.display = 'none';
+      overlay.classList.remove('open');
+      document.getElementById('mainNavbar').style.display = 'flex';
+      handleAuthError(401);
+      return;
+    }
     if (response.status === 403) {
       const data = await response.json();
       if (!silent) {
@@ -3686,11 +3710,12 @@ async function sendAIChat() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-user-id': firebase.auth().currentUser?.uid || ''
+        ...(await getAuthHeader())
       },
       body: JSON.stringify(payload)
     });
 
+    if (response.status === 401) { document.getElementById('aiTyping')?.remove(); handleAuthError(401); return; }
     if (response.status === 403) {
       document.getElementById('aiTyping')?.remove();
       const data = await response.json();
@@ -6903,11 +6928,12 @@ async function openAnalysisPanel(title, data, prompt, color) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-user-id': user?.uid || ''
+        ...(await getAuthHeader())
       },
       body: JSON.stringify({ notam: data, type: title, prompt })
     });
 
+    if (res.status === 401) { modal.style.display = 'none'; handleAuthError(401); return; }
     const result = await res.json();
     content.innerHTML = `
       <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;line-height:1.7;">
@@ -7181,7 +7207,7 @@ async function fetchRawData() {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'x-user-id': firebase.auth().currentUser?.uid || ''
+                ...(await getAuthHeader())
               },
               body: JSON.stringify({ notam: block })
             });
@@ -7296,7 +7322,7 @@ async function fetchRawData() {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'x-user-id': firebase.auth().currentUser?.uid || ''
+                ...(await getAuthHeader())
               },
               body: JSON.stringify({ notam: metar, type: 'METAR' })
             });
@@ -7402,7 +7428,7 @@ async function fetchRawData() {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'x-user-id': firebase.auth().currentUser?.uid || ''
+              ...(await getAuthHeader())
             },
             body: JSON.stringify({ notam: tafText2, type: 'TAF' })
           });
@@ -7502,7 +7528,7 @@ async function fetchRawData() {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'x-user-id': firebase.auth().currentUser?.uid || ''
+                ...(await getAuthHeader())
               },
               body: JSON.stringify({ notam: sigmet, type: 'SIGMET' })
             });
@@ -7622,7 +7648,7 @@ async function fetchRawData() {
             try {
               const response = await fetch('/api/analyze-notam', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-user-id': firebase.auth().currentUser?.uid || '' },
+                headers: { 'Content-Type': 'application/json', ...(await getAuthHeader()) },
                 body: JSON.stringify({ notam: rawText, type: 'AIRMET', prompt: 'Analyze this AIRMET/SIGMET report: ' + rawText + '. Explain: 1) Type and severity of hazard 2) Affected area and altitude 3) Operational impact 4) Pilot recommendation (GO/NO-GO guidance). Keep under 100 words, no markdown.' })
               });
               if (response.status === 403) {
@@ -7751,7 +7777,7 @@ async function fetchRawData() {
               try {
                 const response = await fetch('/api/analyze-notam', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'x-user-id': firebase.auth().currentUser?.uid || '' },
+                  headers: { 'Content-Type': 'application/json', ...(await getAuthHeader()) },
                   body: JSON.stringify({ notam: rawText, type: 'PIREP', prompt: 'Analyze this Pilot Report (PIREP): ' + rawText + '. Explain: 1) What hazard was reported 2) Severity level 3) Operational impact 4) Pilot recommendation. Keep under 100 words, no markdown.' })
                 });
                 if (response.status === 403) {
@@ -7878,7 +7904,7 @@ async function fetchRawData() {
             try {
               const response = await fetch('/api/analyze-notam', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-user-id': firebase.auth().currentUser?.uid || '' },
+                headers: { 'Content-Type': 'application/json', ...(await getAuthHeader()) },
                 body: JSON.stringify({ notam: JSON.stringify(item), type: 'FAA DELAY', prompt: analyzePrompt })
               });
               if (response.status === 403) {
@@ -10122,10 +10148,16 @@ async function generateVideoBriefing(route, userId) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-user-id': userId
+        ...(await getAuthHeader())
       },
       body: JSON.stringify({ route, briefingId: window.currentBriefingId })
     });
+    if (response.status === 401) { handleAuthError(401); return; }
+    if (response.status === 403) {
+      const data = await response.json();
+      showVideoBriefingError(data.error === 'limit_reached' ? 'Video briefing limit reached for this month.' : 'Video briefing requires a Premium plan.');
+      return;
+    }
     const data = await response.json();
     if (data.predictionId) {
       pollVideoStatus(data.predictionId);

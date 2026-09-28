@@ -153,6 +153,16 @@ async function getUserPlan(userId) {
   }
 }
 
+async function getVerifiedUserId(req) {
+  const h = req.headers['authorization'] || '';
+  if (!h.startsWith('Bearer ')) return null;
+  try { return (await admin.auth().verifyIdToken(h.slice(7))).uid; } catch (e) { return null; }
+}
+function sendUnauthorized(res) {
+  res.writeHead(401, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'unauthorized' }));
+}
+
 async function getUserUsage(userId, field) {
   try {
     const now = new Date();
@@ -2402,7 +2412,24 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
     req.on('end', async () => {
       try {
         const { route, briefingId } = JSON.parse(body);
-        const userId = req.headers['x-user-id'];
+        const userId = await getVerifiedUserId(req);
+        if (!userId) { sendUnauthorized(res); return; }
+
+        const vPlan = await getUserPlan(userId);
+        if (vPlan !== 'max' && vPlan !== 'admin') {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'limit_reached', plan: vPlan, feature: 'video' }));
+          return;
+        }
+        if (vPlan === 'max') {
+          const vUsed = await getUserUsage(userId, 'video');
+          if (vUsed >= 5) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'limit_reached', plan: vPlan, feature: 'video', usage: vUsed, limit: 5 }));
+            return;
+          }
+        }
+        await incrementUsage(userId, 'video');
 
         // Parse ICAO codes from route
         const icaos = route.trim().toUpperCase().split(/[\s,->]+/).filter(s => s.length === 4);
@@ -2599,7 +2626,8 @@ MANDATORY:
     req.on('end', async () => {
       try {
         const { route, briefingId } = JSON.parse(body);
-        const userId = req.headers['x-user-id'];
+        const userId = await getVerifiedUserId(req);
+        if (!userId) { sendUnauthorized(res); return; }
 
         // Same logic as generate-video-briefing but without WaveSpeed call
         let briefingContent = '';
@@ -3486,8 +3514,9 @@ MANDATORY:
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const userId = req.headers['x-user-id'];
-        if (userId) {
+        const userId = await getVerifiedUserId(req);
+        if (!userId) { sendUnauthorized(res); return; }
+        {
           const plan = await getUserPlan(userId);
           if (plan === 'free') {
             res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -3675,8 +3704,9 @@ MANDATORY:
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const userId = req.headers['x-user-id'];
-        if (userId) {
+        const userId = await getVerifiedUserId(req);
+        if (!userId) { sendUnauthorized(res); return; }
+        {
           const plan = await getUserPlan(userId);
           if (plan === 'free') {
             res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -3907,12 +3937,8 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const userId = req.headers['x-user-id'];
-        if (!userId) {
-          res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'auth_required' }));
-          return;
-        }
+        const userId = await getVerifiedUserId(req);
+        if (!userId) { sendUnauthorized(res); return; }
 
         const plan = await getUserPlan(userId);
         const cfg = GENERAL_CHAT_LIMITS[plan] || GENERAL_CHAT_LIMITS.free;
@@ -4189,8 +4215,9 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
     req.on('end', async () => {
       try {
         // Plan check before any heavy fetching
-        const userId = req.headers['x-user-id'];
-        if (userId) {
+        const userId = await getVerifiedUserId(req);
+        if (!userId) { sendUnauthorized(res); return; }
+        {
           const plan = await getUserPlan(userId);
           const usage = await getUserUsage(userId, 'briefings');
           const limit = PLAN_LIMITS[plan]?.briefings || (plan === 'admin' ? 9999 : 3);
