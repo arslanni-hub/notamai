@@ -2102,8 +2102,10 @@ async function startChatFirestoreSession() {
   }
 }
 
-async function appendChatMessageToFirestore(role, text) {
-  currentChatMessages.push({ role, text, ts: Date.now() });
+async function appendChatMessageToFirestore(role, text, meta) {
+  const entry = { role, text, ts: Date.now() };
+  if (meta) entry.meta = meta;
+  currentChatMessages.push(entry);
   if (!currentChatSessionId) return; // not persisting (free plan or save failed)
   try {
     await db.collection('general_chats').doc(currentChatSessionId).update({
@@ -2160,7 +2162,18 @@ async function resumeChatSession(sessionId) {
       } else {
         row.innerHTML = '<div class="chat-msg-icon">' + iconSvg + '</div><div class="chat-msg-bubble"></div>';
       }
-      row.querySelector('.chat-msg-bubble').textContent = m.text;
+      const bubble = row.querySelector('.chat-msg-bubble');
+      if (m.meta && m.meta.type === 'image') {
+        bubble.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><span style="font-size:12px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${m.meta.name || 'Image'} (attachment not saved)</span></div>`;
+        bubble.style.cssText = 'background:transparent;border:none;padding:0;';
+      } else if (m.meta && m.meta.type === 'file') {
+        bubble.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:12px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${m.meta.name || 'File'}</span></div>`;
+        bubble.style.cssText = 'background:transparent;border:none;padding:0;';
+      } else if (m.role === 'ai') {
+        bubble.innerHTML = renderChatMarkdown(m.text || '');
+      } else {
+        bubble.textContent = m.text || '';
+      }
       area.appendChild(row);
     });
     document.getElementById('chatMessagesArea').scrollTop = document.getElementById('chatMessagesArea').scrollHeight;
@@ -2833,7 +2846,7 @@ async function handleSend(silent = false) {
     const filesToSend = [...attachedFiles];
     removeFile();
 
-    // Show each file as separate bubble
+    // Show each file as separate bubble, and persist a lightweight record (not the raw image data)
     for (const f of filesToSend) {
       if (f.type.startsWith('image/')) {
         const imgData = await readFileAsBase64(f);
@@ -2842,19 +2855,16 @@ async function handleSend(silent = false) {
         const fileBubble = fileBubbleRow.querySelector('.chat-msg-bubble');
         fileBubble.innerHTML = `<div style="position:relative;display:inline-block;"><img src="${fileDataUrl}" onclick="openImageLightbox(this.src)" style="max-width:200px;max-height:160px;object-fit:cover;border-radius:8px;display:block;cursor:zoom-in;"></div>`;
         fileBubble.style.cssText = 'background:transparent;border:none;padding:0;';
+        appendChatMessageToFirestore('user', '', { type: 'image', name: f.name });
       } else {
         const fileBubbleRow = addChatBubble('user', '');
         const fileBubble = fileBubbleRow.querySelector('.chat-msg-bubble');
         fileBubble.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:12px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${f.name}</span></div>`;
         fileBubble.style.cssText = 'background:transparent;border:none;padding:0;';
+        appendChatMessageToFirestore('user', '', { type: 'file', name: f.name });
       }
     }
-    if (displayQ) {
-      addChatBubble('user', displayQ);
-    } else if (filesToSend.length > 0) {
-      // No text typed — record a searchable label for the Recent list, without showing an extra bubble
-      appendChatMessageToFirestore('user', 'NOTAM Document Analysis');
-    }
+    if (displayQ) addChatBubble('user', displayQ);
 
     // Build payload — send ALL images as array
     const imageFiles = filesToSend.filter(f => f.type.startsWith('image/'));
@@ -5017,8 +5027,10 @@ function pmLoadArchive(tab) {
       snap.forEach(doc => {
         const d = doc.data();
         const date = d.createdAt?.toDate ? d.createdAt.toDate().toLocaleDateString('en-GB') : '';
-        const firstUserMsg = (d.messages || []).find(m => m.role === 'user' && m.text && m.text.trim());
-        const label = firstUserMsg ? firstUserMsg.text.slice(0,70) : 'NOTAM Document Analysis';
+        const firstUserMsg = (d.messages || []).find(m => m.role === 'user' && ((m.text && m.text.trim()) || m.meta));
+        const label = firstUserMsg
+          ? (firstUserMsg.text && firstUserMsg.text.trim() ? firstUserMsg.text.slice(0,70) : (firstUserMsg.meta?.name || 'NOTAM Document Analysis'))
+          : 'Aviation Chat';
         const div = document.createElement('div');
         div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:6px;cursor:pointer;margin-bottom:4px;transition:background 0.15s;';
         div.onmouseover = function(){ this.style.background='rgba(255,255,255,0.06)'; };
