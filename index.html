@@ -2849,7 +2849,12 @@ async function handleSend(silent = false) {
         fileBubble.style.cssText = 'background:transparent;border:none;padding:0;';
       }
     }
-    if (displayQ) addChatBubble('user', displayQ);
+    if (displayQ) {
+      addChatBubble('user', displayQ);
+    } else if (filesToSend.length > 0) {
+      // No text typed — record a searchable label for the Recent list, without showing an extra bubble
+      appendChatMessageToFirestore('user', 'NOTAM Document Analysis');
+    }
 
     // Build payload — send ALL images as array
     const imageFiles = filesToSend.filter(f => f.type.startsWith('image/'));
@@ -5012,8 +5017,8 @@ function pmLoadArchive(tab) {
       snap.forEach(doc => {
         const d = doc.data();
         const date = d.createdAt?.toDate ? d.createdAt.toDate().toLocaleDateString('en-GB') : '';
-        const firstUserMsg = (d.messages || []).find(m => m.role === 'user');
-        const label = firstUserMsg ? firstUserMsg.text.slice(0,70) : 'Aviation Chat';
+        const firstUserMsg = (d.messages || []).find(m => m.role === 'user' && m.text && m.text.trim());
+        const label = firstUserMsg ? firstUserMsg.text.slice(0,70) : 'NOTAM Document Analysis';
         const div = document.createElement('div');
         div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:6px;cursor:pointer;margin-bottom:4px;transition:background 0.15s;';
         div.onmouseover = function(){ this.style.background='rgba(255,255,255,0.06)'; };
