@@ -282,7 +282,7 @@ function airportName(icao) {
   return airportNameCache[code] || code;
 }
 
-function fetchURL(url, options = {}) {
+function fetchURLRaw(url, options = {}) {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http;
     const req = lib.request(url, options, (res) => {
@@ -297,6 +297,91 @@ function fetchURL(url, options = {}) {
     if (options.body) req.write(options.body);
     req.end();
   });
+}
+
+// ── SkyLink gateway: counts real upstream calls, caches static reference data, dedupes in-flight requests
+const SKYLINK_ORIGIN = 'https://skylink-api.p.rapidapi.com';
+const SKYLINK_STATIC_TTL_MS = 12 * 60 * 60 * 1000;
+const SKYLINK_STATIC_PATHS = ['/airports/search', '/charts/', '/navaids', '/distance', '/ml/flight-time', '/aircraft/performance', '/aircraft/registration', '/routes/airport', '/carbon/estimate'];
+const skylinkCache = new Map();
+const skylinkInflight = new Map();
+const skylinkPending = {};
+let skylinkFlushTimer = null;
+
+function skylinkCategory(path) {
+  if (path.startsWith('/notams/')) return 'notams';
+  if (path.startsWith('/airports/')) return 'airports';
+  if (path.startsWith('/delays/')) return 'delays';
+  if (path.startsWith('/weather/')) return 'weather';
+  if (path.startsWith('/charts/')) return 'charts';
+  return 'other';
+}
+
+function trackSkylinkCall(category) {
+  skylinkPending[category] = (skylinkPending[category] || 0) + 1;
+  if (!skylinkFlushTimer) skylinkFlushTimer = setTimeout(flushSkylinkUsage, 30 * 1000);
+}
+
+async function flushSkylinkUsage() {
+  skylinkFlushTimer = null;
+  const pending = { ...skylinkPending };
+  Object.keys(skylinkPending).forEach(k => delete skylinkPending[k]);
+  const added = Object.values(pending).reduce((a, b) => a + b, 0);
+  if (!added) return;
+  const monthKey = new Date().toISOString().slice(0, 7);
+  const limit = parseInt(process.env.SKYLINK_MONTHLY_LIMIT || '1000', 10);
+  try {
+    const ref = adminDb.collection('system').doc('skylink_usage');
+    const warnings = await adminDb.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const cur = snap.exists ? snap.data() : {};
+      const same = cur.month === monthKey;
+      const count = (same ? (cur.count || 0) : 0) + added;
+      const bySource = same ? { ...(cur.bySource || {}) } : {};
+      for (const [k, v] of Object.entries(pending)) bySource[k] = (bySource[k] || 0) + v;
+      const warned = same ? (cur.warned || []) : [];
+      const pct = Math.round((count / limit) * 100);
+      const fresh = [70, 90].filter(t => pct >= t && !warned.includes(t));
+      tx.set(ref, { count, month: monthKey, limit, pct, bySource, warned: [...warned, ...fresh], updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      return fresh.map(t => ({ t, pct, count }));
+    });
+    for (const w of warnings) {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: 'NOTAM Intelligence <alerts@notamai.com>',
+          to: 'admin@notamai.com',
+          subject: w.t >= 90 ? '🚨 URGENT: SkyLink API at 90% — Upgrade Now' : '⚠️ SkyLink API at 70% — Plan Ahead',
+          html: `<div style="font-family:monospace;padding:20px;">SkyLink usage: ${w.pct}% (${w.count}/${limit}). Upgrade the RapidAPI plan and update SKYLINK_MONTHLY_LIMIT in Render.</div>`
+        })
+      });
+    }
+  } catch (e) { console.log('[SKYLINK USAGE] flush error:', e.message); }
+}
+
+function fetchURL(url, options = {}) {
+  if (!url.startsWith(SKYLINK_ORIGIN)) return fetchURLRaw(url, options);
+  const path = url.slice(SKYLINK_ORIGIN.length).split('?')[0];
+  const isStatic = SKYLINK_STATIC_PATHS.some(p => path.startsWith(p));
+  if (isStatic) {
+    const hit = skylinkCache.get(url);
+    if (hit && hit.expires > Date.now()) return Promise.resolve(hit.data);
+  }
+  const running = skylinkInflight.get(url);
+  if (running) return running;
+  const p = (async () => {
+    trackSkylinkCall(skylinkCategory(path));
+    const data = await fetchURLRaw(url, options);
+    const ok = data && typeof data === 'object' && !data.error && !data.message;
+    if (isStatic && ok) {
+      if (skylinkCache.size > 2000) skylinkCache.clear();
+      skylinkCache.set(url, { expires: Date.now() + SKYLINK_STATIC_TTL_MS, data });
+    }
+    return data;
+  })().finally(() => skylinkInflight.delete(url));
+  skylinkInflight.set(url, p);
+  return p;
 }
 
 function classifyNotamSeverity(raw) {
@@ -1435,9 +1520,27 @@ const AIRCRAFT_PERF_FALLBACK = {
   'TBM9': { icao_type:'TBM9', name:'DAHER TBM 900', engine_type:'Turboprop', engine_code:'T1', wake_category:'L', cruise_speed_ktas:330, service_ceiling_ft:31000, max_range_nm:1730, wing_span_m:12.85, length_m:10.68, mtow_t:3.354, max_passengers:6 },
 };
 
+const ipHits = new Map();
+const IP_LIMIT_PER_MIN = 240;
+function ipRateLimited(req) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  let e = ipHits.get(ip);
+  if (!e || now - e.windowStart > 60000) { e = { count: 0, windowStart: now }; ipHits.set(ip, e); }
+  e.count++;
+  return e.count > IP_LIMIT_PER_MIN;
+}
+setInterval(() => { const cutoff = Date.now() - 120000; for (const [ip, e] of ipHits) if (e.windowStart < cutoff) ipHits.delete(ip); }, 60000);
+
 const server = http.createServer(async (req, res) => {
   try {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+
+  if (req.method === 'GET' && req.url.startsWith('/api/') && !req.url.startsWith('/api/health') && ipRateLimited(req)) {
+    res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '60' });
+    res.end(JSON.stringify({ error: 'rate_limited' }));
+    return;
+  }
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -4505,37 +4608,6 @@ async function sendNotamAlert(userEmail, icao, notamText) {
   }
 }
 
-// ─── SKYLINK USAGE TRACKER ────────────────────────────────────────────────
-const SKYLINK_MONTHLY_LIMIT = 1000;
-let skylinkUsageThisMonth = 0;
-let skylinkUsageMonth = '';
-
-async function incrementSkylinkUsage() {
-  const now = new Date();
-  const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-  if (skylinkUsageMonth !== monthKey) { skylinkUsageThisMonth = 0; skylinkUsageMonth = monthKey; }
-  skylinkUsageThisMonth++;
-  const pct = Math.round((skylinkUsageThisMonth / SKYLINK_MONTHLY_LIMIT) * 100);
-  await adminDb.collection('system').doc('skylink_usage').set({
-    count: skylinkUsageThisMonth, month: monthKey, limit: SKYLINK_MONTHLY_LIMIT, pct,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp()
-  });
-  if (pct === 70 || pct === 90) {
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: 'NOTAM Intelligence <alerts@notamai.com>',
-        to: 'arslanni@gmail.com',
-        subject: pct === 90 ? '🚨 URGENT: SkyLink API at 90% — Upgrade Now' : '⚠️ SkyLink API at 70% — Plan Ahead',
-        html: `<div style="font-family:monospace;background:#060a0f;color:#cdd9e5;padding:24px;"><h2 style="color:${pct===90?'#e63946':'#f2c641'};">SkyLink API Usage: ${pct}%</h2><p>${skylinkUsageThisMonth} / ${SKYLINK_MONTHLY_LIMIT} requests used this month.</p><p style="margin-top:12px;">Upgrade at <a href="https://rapidapi.com" style="color:#4a9eff;">rapidapi.com</a></p></div>`
-      })
-    });
-    console.log('[SKYLINK WARNING] Sent ' + pct + '% alert email');
-  }
-  return pct;
-}
-
 // ─── NOTAM ALERT CHECK (Cache Architecture) ───────────────────────────────
 let alertCheckCycle = 0;
 
@@ -4565,7 +4637,6 @@ async function checkNotamAlerts() {
           method: 'GET',
           headers: { 'x-rapidapi-key': process.env.SKYLINK_KEY, 'x-rapidapi-host': 'skylink-api.p.rapidapi.com' }
         });
-        await incrementSkylinkUsage();
         notams = (data?.notams || data?.data || []).filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase());
         console.log('[ALERT CHECK]', icao, notams.length, 'NOTAMs');
       } catch(e) {
