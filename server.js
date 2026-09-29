@@ -4565,6 +4565,13 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             if (doneSent) return;
             doneSent = true;
             console.log('[BRIEFING STOP REASON]', { stop_reason: usageInfo?.stop_reason || 'unknown', output_tokens: usageInfo?.output_tokens || 0 });
+            // Fixed, server-authored note (not left to the model) about excluded trigger/PERM
+            // NOTAMs, so the wording and count are always accurate.
+            const totalExcluded = (notamDepResult.excludedAdminCount || 0) + (notamArrResult.excludedAdminCount || 0);
+            if (totalExcluded > 0) {
+              const note = `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;">ℹ ${totalExcluded} administrative/trigger NOTAM${totalExcluded > 1 ? 's' : ''} (incl. PERM) omitted from this briefing to keep it concise — view all NOTAMs, including these, in the NOTAM panel.</div>`;
+              res.write(`data: ${JSON.stringify({ type: 'chunk', text: note })}\n\n`);
+            }
             res.write('data: {"type":"done"}\n\n');
             res.end();
           },
