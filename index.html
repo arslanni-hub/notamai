@@ -7356,9 +7356,12 @@ async function fetchRawData() {
       notamSection.appendChild(empty);
       document.getElementById('rawTab-notam').textContent = 'NOTAMs';
     } else {
-      document.getElementById('rawTab-notam').textContent = 'NOTAMs (' + notamBlocks.length + ')';
+      const isAdminNotam = b => /\bTRIGGER\b/i.test(b) || /C\)\s*PERM/i.test(b);
+      const operationalBlocks = notamBlocks.filter(b => !isAdminNotam(b));
+      const adminBlocks = notamBlocks.filter(b => isAdminNotam(b));
+      document.getElementById('rawTab-notam').textContent = 'NOTAMs (' + operationalBlocks.length + (adminBlocks.length ? '+' + adminBlocks.length : '') + ')';
 
-      notamBlocks.forEach(block => {
+      function renderNotamBlock(block, targetSection) {
         const wrapper = document.createElement('div');
         wrapper.style.marginBottom = '8px';
 
@@ -7466,8 +7469,26 @@ async function fetchRawData() {
 
         wrapper.appendChild(notamBox);
         wrapper.appendChild(analysisDiv);
-        notamSection.appendChild(wrapper);
-      });
+        targetSection.appendChild(wrapper);
+      }
+
+      operationalBlocks.forEach(block => renderNotamBlock(block, notamSection));
+
+      if (adminBlocks.length) {
+        const adminToggle = document.createElement('div');
+        adminToggle.style.cssText = 'margin-top:12px;margin-bottom:4px;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;';
+        adminToggle.innerHTML = '<span class="adminArrow" style="transition:transform 0.2s;display:inline-block;transform:rotate(-90deg);">▼</span> ADMINISTRATIVE / TRIGGER NOTAMs (' + adminBlocks.length + ')';
+        const adminSection = document.createElement('div');
+        adminSection.style.display = 'none';
+        adminToggle.onclick = () => {
+          const open = adminSection.style.display !== 'none';
+          adminSection.style.display = open ? 'none' : 'block';
+          adminToggle.querySelector('.adminArrow').style.transform = open ? 'rotate(-90deg)' : 'rotate(0deg)';
+        };
+        notamSection.appendChild(adminToggle);
+        notamSection.appendChild(adminSection);
+        adminBlocks.forEach(block => renderNotamBlock(block, adminSection));
+      }
     }
     const futureNotamBanner = document.createElement('div');
     futureNotamBanner.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;padding:6px 10px;background:rgba(242,198,65,0.08);border:1px solid rgba(242,198,65,0.2);border-radius:4px;margin-bottom:8px;";
