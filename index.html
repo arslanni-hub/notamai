@@ -2872,17 +2872,23 @@ async function handleSend(silent = false) {
         (async () => {
           try {
             const uid = firebase.auth().currentUser?.uid;
-            if (!uid || !currentChatSessionId) return;
+            console.log('[UPLOAD DEBUG] uid:', uid, 'sessionId:', currentChatSessionId);
+            if (!uid || !currentChatSessionId) { console.log('[UPLOAD DEBUG] aborted — missing uid or sessionId'); return; }
             const path = `chat_uploads/${uid}/${currentChatSessionId}/${Date.now()}_${f.name}`;
+            console.log('[UPLOAD DEBUG] uploading to', path);
             const ref = firebase.storage().ref(path);
             await ref.put(f);
+            console.log('[UPLOAD DEBUG] put succeeded');
             const url = await ref.getDownloadURL();
+            console.log('[UPLOAD DEBUG] got url', url);
             const idx = currentChatMessages.length - 1;
+            console.log('[UPLOAD DEBUG] idx', idx, 'entry', JSON.stringify(currentChatMessages[idx]));
             if (currentChatMessages[idx] && currentChatMessages[idx].meta) {
               currentChatMessages[idx].meta.url = url;
               await db.collection('general_chats').doc(currentChatSessionId).update({ messages: currentChatMessages });
+              console.log('[UPLOAD DEBUG] firestore updated');
             }
-          } catch (e) { console.error('Chat image upload error:', e); }
+          } catch (e) { console.error('[UPLOAD DEBUG] error:', e.code || '', e.message); }
         })();
       } else {
         addFileBubble(`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:12px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${f.name}</span></div>`, { type: 'file', name: f.name });
