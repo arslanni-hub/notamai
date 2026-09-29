@@ -3617,20 +3617,53 @@ const ICAO_PHONETIC = {
   zero:'0', one:'1', two:'2', three:'3', four:'4', five:'5', six:'6',
   seven:'7', eight:'8', nine:'9', niner:'9'
 };
+// Levenshtein edit distance — measures how many single-letter edits separate two words,
+// so we can catch near-misses the speech engine makes (e.g. "leema" vs "lima").
+function editDistance(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+const ICAO_WORDS = Object.keys(ICAO_PHONETIC);
+// Fuzzy-match a single spoken word against the ICAO phonetic list. Allows up to 2 edits for
+// longer words (e.g. "november", "whiskey") and 1 edit for short ones (e.g. "papa", "zulu"),
+// so near-misses from the speech engine still resolve, without over-matching unrelated words.
+function fuzzyIcaoMatch(word) {
+  const w = word.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!w) return null;
+  if (ICAO_PHONETIC[w] !== undefined) return ICAO_PHONETIC[w];
+  let best = null, bestDist = Infinity;
+  for (const candidate of ICAO_WORDS) {
+    const maxAllowed = candidate.length <= 4 ? 1 : 2;
+    const dist = editDistance(w, candidate);
+    if (dist <= maxAllowed && dist < bestDist) { bestDist = dist; best = candidate; }
+  }
+  return best ? ICAO_PHONETIC[best] : null;
+}
 function applyIcaoPhonetics(text) {
   if (!text) return text;
   const words = text.trim().split(/[\s-]+/);
-  // Only convert if at least 3 consecutive words are recognized phonetic codewords —
-  // avoids mangling normal sentences that happen to contain "golf" or "india".
+  // Only convert a run once at least 3 consecutive words fuzzy-match phonetic codewords —
+  // avoids mangling normal sentences that happen to contain a word similar to "golf" or "india".
   let run = [];
+  let runLetters = [];
   const out = [];
   const flush = () => {
-    if (run.length >= 3) out.push(run.map(w => ICAO_PHONETIC[w.toLowerCase()]).join(''));
+    if (run.length >= 3) out.push(runLetters.join(''));
     else out.push(...run);
-    run = [];
+    run = []; runLetters = [];
   };
   for (const w of words) {
-    if (ICAO_PHONETIC[w.toLowerCase()] !== undefined) run.push(w);
+    const letter = fuzzyIcaoMatch(w);
+    if (letter !== null) { run.push(w); runLetters.push(letter); }
     else { flush(); out.push(w); }
   }
   flush();
