@@ -2846,22 +2846,26 @@ async function handleSend(silent = false) {
     const filesToSend = [...attachedFiles];
     removeFile();
 
-    // Show each file as separate bubble, and persist a lightweight record (not the raw image data)
+    // Show each file as its own bubble (built manually, not via addChatBubble, so we control exactly
+    // what gets persisted to Firestore and avoid the duplicate empty-text entry addChatBubble would add)
+    function addFileBubble(innerHtml, meta) {
+      const area = document.getElementById('chatMessagesArea');
+      const row = document.createElement('div');
+      row.className = 'chat-msg-row user';
+      const iconSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></svg>';
+      row.innerHTML = `<div class="chat-msg-icon">${iconSvg}</div><div style="display:flex;flex-direction:column;align-items:flex-end;"><div class="chat-msg-bubble" style="background:transparent;border:none;padding:0;">${innerHtml}</div></div>`;
+      area.appendChild(row);
+      area.scrollTop = area.scrollHeight;
+      appendChatMessageToFirestore('user', '', meta);
+      return row;
+    }
     for (const f of filesToSend) {
       if (f.type.startsWith('image/')) {
         const imgData = await readFileAsBase64(f);
         const fileDataUrl = `data:${f.type};base64,${imgData}`;
-        const fileBubbleRow = addChatBubble('user', '');
-        const fileBubble = fileBubbleRow.querySelector('.chat-msg-bubble');
-        fileBubble.innerHTML = `<div style="position:relative;display:inline-block;"><img src="${fileDataUrl}" onclick="openImageLightbox(this.src)" style="max-width:200px;max-height:160px;object-fit:cover;border-radius:8px;display:block;cursor:zoom-in;"></div>`;
-        fileBubble.style.cssText = 'background:transparent;border:none;padding:0;';
-        appendChatMessageToFirestore('user', '', { type: 'image', name: f.name });
+        addFileBubble(`<div style="position:relative;display:inline-block;"><img src="${fileDataUrl}" onclick="openImageLightbox(this.src)" style="max-width:200px;max-height:160px;object-fit:cover;border-radius:8px;display:block;cursor:zoom-in;"></div>`, { type: 'image', name: f.name });
       } else {
-        const fileBubbleRow = addChatBubble('user', '');
-        const fileBubble = fileBubbleRow.querySelector('.chat-msg-bubble');
-        fileBubble.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:12px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${f.name}</span></div>`;
-        fileBubble.style.cssText = 'background:transparent;border:none;padding:0;';
-        appendChatMessageToFirestore('user', '', { type: 'file', name: f.name });
+        addFileBubble(`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:12px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${f.name}</span></div>`, { type: 'file', name: f.name });
       }
     }
     if (displayQ) addChatBubble('user', displayQ);
