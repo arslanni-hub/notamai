@@ -2844,7 +2844,10 @@ async function handleSend(silent = false) {
     return;
   }
   if (activeMode === 'chat') {
-    if (!chatModeActive) enterChatMode();
+    if (!chatModeActive) {
+      enterChatMode();
+      await startChatFirestoreSession();
+    }
     const chatInput = document.getElementById('mainInput');
     const question = chatInput.value.trim();
     if (!question && attachedFiles.length === 0) return;
