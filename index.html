@@ -2087,8 +2087,16 @@ async function startChatFirestoreSession() {
   currentChatSessionId = null;
   currentChatMessages = [];
   const user = firebase.auth().currentUser;
-  const plan = window.currentUserPlan || 'free';
-  if (!user || plan === 'free') return; // Free plan: no chat history persistence, matches Archive being Free-locked
+  if (!user) return;
+  let plan = window.currentUserPlan;
+  if (!plan) {
+    // Plan not yet loaded client-side (e.g. chat opened right after page load) — read it directly
+    try {
+      const userDoc = await db.collection('users').doc(user.uid).get();
+      plan = userDoc.exists ? (userDoc.data().plan || 'free') : 'free';
+    } catch (e) { plan = 'free'; }
+  }
+  if (plan === 'free') return; // Free plan: no chat history persistence, matches Archive being Free-locked
   try {
     const docRef = await db.collection('general_chats').add({
       userId: user.uid,
