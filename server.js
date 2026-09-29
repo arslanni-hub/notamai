@@ -487,14 +487,20 @@ async function fetchNotams(icao) {
       return expDate > now;
     };
     const forThisIcao = n => !n.location || n.location.toUpperCase() === icao.toUpperCase();
-    const activeNotams = data.notams.filter(n => notExpired(n) && notInFuture(n) && forThisIcao(n));
+    // Content-based detection (not series-letter based, since letter meaning isn't standardized
+    // across FIRs): trigger and PERM NOTAMs rarely need direct crew action in a pre-flight
+    // briefing, so they're excluded here to save tokens — full text stays available in the
+    // NOTAM/MET panel, nothing is permanently hidden from the user.
+    const isAdminNotam = n => /\bTRIGGER\b/i.test(n.raw || n.body || '') || (n.expiration || '').toUpperCase() === 'PERM';
+    const activeNotams = data.notams.filter(n => notExpired(n) && notInFuture(n) && forThisIcao(n) && !isAdminNotam(n));
     // NOTAMs published for the future — not yet in effect, but worth surfacing so a crew
     // planning ahead (or checking again closer to departure) doesn't miss them.
-    const futureNotams = data.notams.filter(n => notExpired(n) && !notInFuture(n) && forThisIcao(n));
+    const futureNotams = data.notams.filter(n => notExpired(n) && !notInFuture(n) && forThisIcao(n) && !isAdminNotam(n));
     futureNotams.forEach(n => { n._isFuture = true; });
     const combinedNotams = [...activeNotams, ...futureNotams];
-    console.log('[FILTER]', icao, 'total:', data.notams.length, 'active:', activeNotams.length, 'future:', futureNotams.length);
-    if (combinedNotams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0 };
+    const excludedAdminCount = data.notams.filter(n => notExpired(n) && forThisIcao(n) && isAdminNotam(n)).length;
+    console.log('[FILTER]', icao, 'total:', data.notams.length, 'active:', activeNotams.length, 'future:', futureNotams.length, 'excluded admin:', excludedAdminCount);
+    if (combinedNotams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0, excludedAdminCount };
     const SORD = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
     const classified = combinedNotams.map(n => ({
       n, sev: classifyNotamSeverity(n.raw || n.body || ''), key: notamRecencyKey(n)
@@ -510,7 +516,7 @@ async function fetchNotams(icao) {
       const futureTag = n._isFuture ? ' [FUTURE — not yet effective]' : '';
       return `[${icao} NOTAM ${i+1}] [${sev}]${futureTag} ${n.notam_id || ''}:\n${raw}`;
     }).join('\n\n---\n\n');
-    return { text, total: combinedNotams.length, shown };
+    return { text, total: combinedNotams.length, shown, excludedAdminCount };
   } catch (e) { return { text: `Could not fetch NOTAMs for ${icao}: ${e.message}`, total: 0, shown: 0 }; }
 }
 
