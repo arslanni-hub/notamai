@@ -2115,7 +2115,7 @@ async function appendChatMessageToFirestore(role, text, meta) {
   const entry = { role, text, ts: Date.now() };
   if (meta) entry.meta = meta;
   currentChatMessages.push(entry);
-  if (!currentChatSessionId) return; // not persisting (free plan or save failed)
+  if (!currentChatSessionId) return entry; // not persisting (free plan or save failed)
   try {
     await db.collection('general_chats').doc(currentChatSessionId).update({
       messages: currentChatMessages,
@@ -2124,6 +2124,7 @@ async function appendChatMessageToFirestore(role, text, meta) {
   } catch(e) {
     console.error('Chat message append error:', e);
   }
+  return entry;
 }
 
 async function resumeChatSession(sessionId) {
@@ -2863,7 +2864,7 @@ async function handleSend(silent = false) {
 
     // Show each file as its own bubble (built manually, not via addChatBubble, so we control exactly
     // what gets persisted to Firestore and avoid the duplicate empty-text entry addChatBubble would add)
-    function addFileBubble(innerHtml, meta) {
+    async function addFileBubble(innerHtml, meta) {
       const area = document.getElementById('chatMessagesArea');
       const row = document.createElement('div');
       row.className = 'chat-msg-row user';
@@ -2871,38 +2872,33 @@ async function handleSend(silent = false) {
       row.innerHTML = `<div class="chat-msg-icon">${iconSvg}</div><div style="display:flex;flex-direction:column;align-items:flex-end;"><div class="chat-msg-bubble" style="background:transparent;border:none;padding:0;">${innerHtml}</div></div>`;
       area.appendChild(row);
       area.scrollTop = area.scrollHeight;
-      appendChatMessageToFirestore('user', '', meta);
-      return row;
+      const entry = await appendChatMessageToFirestore('user', '', meta);
+      return { row, entry };
     }
     for (const f of filesToSend) {
       if (f.type.startsWith('image/')) {
         const imgData = await readFileAsBase64(f);
         const fileDataUrl = `data:${f.type};base64,${imgData}`;
-        addFileBubble(`<div style="position:relative;display:inline-block;"><img src="${fileDataUrl}" onclick="openImageLightbox(this.src)" style="max-width:200px;max-height:160px;object-fit:cover;border-radius:8px;display:block;cursor:zoom-in;"></div>`, { type: 'image', name: f.name });
-        // Upload to Firebase Storage in the background so the image survives a reload
+        const { entry } = await addFileBubble(`<div style="position:relative;display:inline-block;"><img src="${fileDataUrl}" onclick="openImageLightbox(this.src)" style="max-width:200px;max-height:160px;object-fit:cover;border-radius:8px;display:block;cursor:zoom-in;"></div>`, { type: 'image', name: f.name });
+        // Upload to Firebase Storage in the background so the image survives a reload.
+        // We hold a direct reference to `entry` (not an array index) so this still finds the
+        // right message even after other messages (like the AI's placeholder) have been pushed.
         (async () => {
           try {
             const uid = firebase.auth().currentUser?.uid;
-            console.log('[UPLOAD DEBUG] uid:', uid, 'sessionId:', currentChatSessionId);
-            if (!uid || !currentChatSessionId) { console.log('[UPLOAD DEBUG] aborted — missing uid or sessionId'); return; }
+            if (!uid || !currentChatSessionId) return;
             const path = `chat_uploads/${uid}/${currentChatSessionId}/${Date.now()}_${f.name}`;
-            console.log('[UPLOAD DEBUG] uploading to', path);
             const ref = firebase.storage().ref(path);
             await ref.put(f);
-            console.log('[UPLOAD DEBUG] put succeeded');
             const url = await ref.getDownloadURL();
-            console.log('[UPLOAD DEBUG] got url', url);
-            const idx = currentChatMessages.length - 1;
-            console.log('[UPLOAD DEBUG] idx', idx, 'entry', JSON.stringify(currentChatMessages[idx]));
-            if (currentChatMessages[idx] && currentChatMessages[idx].meta) {
-              currentChatMessages[idx].meta.url = url;
+            if (entry && entry.meta) {
+              entry.meta.url = url;
               await db.collection('general_chats').doc(currentChatSessionId).update({ messages: currentChatMessages });
-              console.log('[UPLOAD DEBUG] firestore updated');
             }
-          } catch (e) { console.error('[UPLOAD DEBUG] error:', e.code || '', e.message); }
+          } catch (e) { console.error('Chat image upload error:', e.code || '', e.message); }
         })();
       } else {
-        addFileBubble(`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:12px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${f.name}</span></div>`, { type: 'file', name: f.name });
+        await addFileBubble(`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:12px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${f.name}</span></div>`, { type: 'file', name: f.name });
       }
     }
     if (displayQ) addChatBubble('user', displayQ);
