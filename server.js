@@ -3287,7 +3287,7 @@ MANDATORY:
           return;
         }
         const now = new Date();
-        const active = data.notams.filter(n => {
+        const notExpired = n => {
           if (!n.expiration || n.expiration.length < 12) return true;
           const e = n.expiration;
           const expDate = new Date(Date.UTC(
@@ -3295,22 +3295,24 @@ MANDATORY:
             parseInt(e.slice(8,10)), parseInt(e.slice(10,12))
           ));
           return expDate > now;
-        }).filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase())
-        .sort((a, b) => {
-          const dateA = a.effective || '0';
-          const dateB = b.effective || '0';
-          return dateB.localeCompare(dateA);
-        });
-        const allNotams = data.notams.filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase());
-        const futureNotams = allNotams.filter(n => {
+        };
+        const isFutureEffective = n => {
           if (!n.effective || n.effective.length < 12) return false;
           const eff = n.effective;
           const effDate = new Date(Date.UTC(
             parseInt(eff.slice(0,4)), parseInt(eff.slice(4,6)) - 1, parseInt(eff.slice(6,8)),
             parseInt(eff.slice(8,10)), parseInt(eff.slice(10,12))
           ));
-          return effDate > now && !active.find(a => a.notam_id === n.notam_id);
+          return effDate > now;
+        };
+        const forThisIcao = n => !n.location || n.location.toUpperCase() === icao.toUpperCase();
+        const active = data.notams.filter(n => notExpired(n) && !isFutureEffective(n) && forThisIcao(n))
+        .sort((a, b) => {
+          const dateA = a.effective || '0';
+          const dateB = b.effective || '0';
+          return dateB.localeCompare(dateA);
         });
+        const futureNotams = data.notams.filter(n => notExpired(n) && isFutureEffective(n) && forThisIcao(n));
         const combined = [...active, ...futureNotams];
         const notamText = combined.map(n => {
           const isFuture = futureNotams.find(f => f.notam_id === n.notam_id);
