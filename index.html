@@ -3605,6 +3605,38 @@ function renderChatFilePreview() {
   previewEl.style.display = chatAttachedFiles.length > 0 ? 'flex' : 'none';
 }
 
+// ICAO/NATO phonetic alphabet — converts spoken letter names to their actual letters,
+// so "Lima Tango Foxtrot Mike" or "Lima-Tango-Foxtrot-Mike" becomes "LTFM".
+// Free, local, no API cost — just text post-processing on the browser's own transcript.
+const ICAO_PHONETIC = {
+  alpha:'A', alfa:'A', bravo:'B', charlie:'C', delta:'D', echo:'E', foxtrot:'F',
+  golf:'G', hotel:'H', india:'I', juliet:'J', juliett:'J', kilo:'K', lima:'L',
+  mike:'M', november:'N', oscar:'O', papa:'P', quebec:'Q', romeo:'R', sierra:'S',
+  tango:'T', uniform:'U', victor:'V', whiskey:'W', xray:'X', 'x-ray':'X',
+  yankee:'Y', zulu:'Z',
+  zero:'0', one:'1', two:'2', three:'3', four:'4', five:'5', six:'6',
+  seven:'7', eight:'8', nine:'9', niner:'9'
+};
+function applyIcaoPhonetics(text) {
+  if (!text) return text;
+  const words = text.trim().split(/[\s-]+/);
+  // Only convert if at least 3 consecutive words are recognized phonetic codewords —
+  // avoids mangling normal sentences that happen to contain "golf" or "india".
+  let run = [];
+  const out = [];
+  const flush = () => {
+    if (run.length >= 3) out.push(run.map(w => ICAO_PHONETIC[w.toLowerCase()]).join(''));
+    else out.push(...run);
+    run = [];
+  };
+  for (const w of words) {
+    if (ICAO_PHONETIC[w.toLowerCase()] !== undefined) run.push(w);
+    else { flush(); out.push(w); }
+  }
+  flush();
+  return out.join(' ').replace(/\s+/g, ' ').trim();
+}
+
 // Voice input
 function toggleVoiceInput() {
   if (isRecording) { stopRecording(); } else { startRecording(); }
@@ -3612,13 +3644,13 @@ function toggleVoiceInput() {
 
 function startRecording() {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    addChatMessage('ai', 'Voice input is not supported in your browser. Please use Chrome.');
+    addChatMessage('ai', 'Voice input isn\'t available in this browser (works in Chrome and Edge). Please type your question instead.');
     return;
   }
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRecognition();
   recognition.continuous = false;
-  recognition.interimResults = false;
+  recognition.interimResults = true;
   recognition.lang = navigator.language || 'en-US';
 
   recognition.onstart = function() {
@@ -3629,11 +3661,21 @@ function startRecording() {
     document.getElementById('aiChatTextInput').placeholder = 'Listening...';
   };
   recognition.onresult = function(event) {
-    document.getElementById('aiChatTextInput').value = event.results[0][0].transcript;
-    stopRecording();
-    sendAIChat();
+    const transcript = event.results[0][0].transcript;
+    // Live preview while speaking; final ICAO-phonetic cleanup happens once speech ends
+    document.getElementById('aiChatTextInput').value = transcript;
+    if (event.results[0].isFinal) {
+      document.getElementById('aiChatTextInput').value = applyIcaoPhonetics(transcript);
+      document.getElementById('aiChatTextInput').focus();
+      // No auto-send — same as the main input, so a misheard word can be corrected first
+    }
   };
-  recognition.onerror = function() { stopRecording(); };
+  recognition.onerror = function(e) {
+    stopRecording();
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      addChatMessage('ai', 'Microphone access was blocked. Please allow microphone access in your browser settings and try again.');
+    }
+  };
   recognition.onend   = function() { stopRecording(); };
   recognition.start();
 }
@@ -4008,14 +4050,14 @@ function toggleMainVoice() {
 
 function startMainVoice() {
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    alert('Voice input not supported in this browser. Please use Chrome.');
+    showToast('Voice input isn\'t available in this browser (works in Chrome and Edge). Please type instead.');
     return;
   }
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   mainRecognition = new SpeechRecognition();
   mainRecognition.continuous = false;
-  mainRecognition.interimResults = false;
+  mainRecognition.interimResults = true;
   mainRecognition.lang = navigator.language || 'en-US';
 
   mainRecognition.onstart = function() {
@@ -4027,7 +4069,12 @@ function startMainVoice() {
   };
 
   mainRecognition.onresult = async function(event) {
-    const transcript = event.results[0][0].transcript;
+    const result = event.results[0];
+    const liveTranscript = result[0].transcript;
+    document.getElementById('mainInput').value = liveTranscript;
+    if (!result.isFinal) return; // show live preview, wait for the final result to act on it
+
+    const transcript = applyIcaoPhonetics(liveTranscript);
     stopMainVoice();
 
     document.getElementById('mainInput').value = transcript;
@@ -4069,7 +4116,12 @@ function startMainVoice() {
     }
   };
 
-  mainRecognition.onerror = function() { stopMainVoice(); };
+  mainRecognition.onerror = function(e) {
+    stopMainVoice();
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      showToast('Microphone access was blocked. Please allow it in your browser settings and try again.');
+    }
+  };
   mainRecognition.onend = function() { stopMainVoice(); };
   mainRecognition.start();
 }
