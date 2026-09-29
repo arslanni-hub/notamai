@@ -493,16 +493,35 @@ async function fetchNotams(icao) {
     // NOTAM/MET panel, nothing is permanently hidden from the user.
     const isAdminNotam = n => /\bTRIGGER\b/i.test(n.raw || n.body || '') || (n.expiration || '').toUpperCase() === 'PERM';
     const activeNotams = data.notams.filter(n => notExpired(n) && notInFuture(n) && forThisIcao(n) && !isAdminNotam(n));
-    // NOTAMs published for the future — not yet in effect, but worth surfacing so a crew
-    // planning ahead (or checking again closer to departure) doesn't miss them.
-    const futureNotams = data.notams.filter(n => notExpired(n) && !notInFuture(n) && forThisIcao(n) && !isAdminNotam(n));
-    futureNotams.forEach(n => { n._isFuture = true; });
-    const combinedNotams = [...activeNotams, ...futureNotams];
     const excludedAdminCount = data.notams.filter(n => notExpired(n) && forThisIcao(n) && isAdminNotam(n)).length;
-    console.log('[FILTER]', icao, 'total:', data.notams.length, 'active:', activeNotams.length, 'future:', futureNotams.length, 'excluded admin:', excludedAdminCount);
-    if (combinedNotams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0, excludedAdminCount };
+
+    // Future (not-yet-effective) NOTAMs are kept OUT of the AI-written briefing entirely — mixing
+    // them into the same severity/recency ranking as active NOTAMs risks a burst of future NOTAMs
+    // crowding a currently-active CRITICAL one out of the shown slots. Instead: NOTAMs starting
+    // within the next 24h get a short, server-authored one-liner each; anything further out is
+    // just counted. Both are appended as fixed text, not left to the model to format.
+    const NEAR_FUTURE_MS = 24 * 60 * 60 * 1000;
+    const futureNotams = data.notams.filter(n => notExpired(n) && !notInFuture(n) && forThisIcao(n) && !isAdminNotam(n));
+    const nearFuture = [], laterFuture = [];
+    futureNotams.forEach(n => {
+      const eff = n.effective;
+      const effDate = new Date(Date.UTC(
+        parseInt(eff.slice(0,4)), parseInt(eff.slice(4,6)) - 1, parseInt(eff.slice(6,8)),
+        parseInt(eff.slice(8,10)), parseInt(eff.slice(10,12))
+      ));
+      (effDate.getTime() - now.getTime() <= NEAR_FUTURE_MS ? nearFuture : laterFuture).push(n);
+    });
+    nearFuture.sort((a, b) => (a.effective || '').localeCompare(b.effective || ''));
+    const nearFutureLines = nearFuture.map(n => {
+      const eff = n.effective ? n.effective.slice(2) : '?';
+      const oneLine = (n.raw || n.body || '').replace(/\s+/g, ' ').trim().slice(0, 90);
+      return `${n.notam_id || ''} (from ${eff}Z): ${oneLine}`;
+    });
+
+    console.log('[FILTER]', icao, 'total:', data.notams.length, 'active:', activeNotams.length, 'near-future:', nearFuture.length, 'later-future:', laterFuture.length, 'excluded admin:', excludedAdminCount);
+    if (activeNotams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0, excludedAdminCount, nearFutureLines, laterFutureCount: laterFuture.length };
     const SORD = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
-    const classified = combinedNotams.map(n => ({
+    const classified = activeNotams.map(n => ({
       n, sev: classifyNotamSeverity(n.raw || n.body || ''), key: notamRecencyKey(n)
     }));
     classified.sort((a, b) => {
@@ -513,10 +532,9 @@ async function fetchNotams(icao) {
     const shown = Math.min(eligible.length, 8);
     const text = eligible.slice(0, shown).map(({ n, sev }, i) => {
       const raw = (n.raw || n.body || '').trim().slice(0, 500);
-      const futureTag = n._isFuture ? ' [FUTURE — not yet effective]' : '';
-      return `[${icao} NOTAM ${i+1}] [${sev}]${futureTag} ${n.notam_id || ''}:\n${raw}`;
+      return `[${icao} NOTAM ${i+1}] [${sev}] ${n.notam_id || ''}:\n${raw}`;
     }).join('\n\n---\n\n');
-    return { text, total: combinedNotams.length, shown, excludedAdminCount };
+    return { text, total: activeNotams.length, shown, excludedAdminCount, nearFutureLines, laterFutureCount: laterFuture.length };
   } catch (e) { return { text: `Could not fetch NOTAMs for ${icao}: ${e.message}`, total: 0, shown: 0 }; }
 }
 
@@ -4565,11 +4583,23 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             if (doneSent) return;
             doneSent = true;
             console.log('[BRIEFING STOP REASON]', { stop_reason: usageInfo?.stop_reason || 'unknown', output_tokens: usageInfo?.output_tokens || 0 });
-            // Fixed, server-authored note (not left to the model) about excluded trigger/PERM
-            // NOTAMs, so the wording and count are always accurate.
-            const totalExcluded = (notamDepResult.excludedAdminCount || 0) + (notamArrResult.excludedAdminCount || 0);
-            if (totalExcluded > 0) {
-              const note = `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;">ℹ ${totalExcluded} administrative/trigger NOTAM${totalExcluded > 1 ? 's' : ''} (incl. PERM) omitted from this briefing to keep it concise — view all NOTAMs, including these, in the NOTAM panel.</div>`;
+            // Fixed, server-authored notes (not left to the model) about NOTAMs not included in
+            // the main briefing, so the wording and counts are always accurate.
+            const allNearFuture = [...(notamDepResult.nearFutureLines || []), ...(notamArrResult.nearFutureLines || [])];
+            const totalLaterFuture = (notamDepResult.laterFutureCount || 0) + (notamArrResult.laterFutureCount || 0);
+            const totalExcludedAdmin = (notamDepResult.excludedAdminCount || 0) + (notamArrResult.excludedAdminCount || 0);
+            const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+            if (allNearFuture.length > 0) {
+              const upcomingList = allNearFuture.map(l => `<li style="margin-bottom:4px;">${esc(l)}</li>`).join('');
+              const upcoming = `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;"><strong>⏳ Upcoming NOTAMs (next 24h, not yet effective):</strong><ul style="margin:6px 0 0;padding-left:18px;">${upcomingList}</ul></div>`;
+              res.write(`data: ${JSON.stringify({ type: 'chunk', text: upcoming })}\n\n`);
+            }
+            const otherParts = [];
+            if (totalLaterFuture > 0) otherParts.push(`${totalLaterFuture} future NOTAM${totalLaterFuture > 1 ? 's' : ''} starting beyond 24h`);
+            if (totalExcludedAdmin > 0) otherParts.push(`${totalExcludedAdmin} administrative/trigger NOTAM${totalExcludedAdmin > 1 ? 's' : ''} (incl. PERM)`);
+            if (otherParts.length > 0) {
+              const note = `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;">ℹ ${otherParts.join(' and ')} not shown here — view all NOTAMs in the NOTAM panel.</div>`;
               res.write(`data: ${JSON.stringify({ type: 'chunk', text: note })}\n\n`);
             }
             res.write('data: {"type":"done"}\n\n');
