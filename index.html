@@ -7342,7 +7342,12 @@ async function fetchRawData() {
         const yr = idm[2].length === 2 ? 2000 + parseInt(idm[2]) : parseInt(idm[2]);
         return yr * 100000 + parseInt(idm[1]);
       };
-      return getKey(b) - getKey(a);
+      const keyA = getKey(a), keyB = getKey(b);
+      if (keyA !== keyB) return keyB - keyA;
+      // Same effective time — tie-break by NOTAM number (higher = more recently issued)
+      const numA = (a.match(/[A-Z](\d+)\//) || [0,0])[1];
+      const numB = (b.match(/[A-Z](\d+)\//) || [0,0])[1];
+      return parseInt(numB) - parseInt(numA);
     });
     if (notamBlocks.length === 0 || notamText.includes('No active')) {
       const empty = document.createElement('div');
