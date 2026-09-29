@@ -2198,7 +2198,6 @@ async function resumeChatSession(sessionId) {
 function enterChatMode(skipNewSession) {
   if (chatModeActive) return;
   chatModeActive = true;
-  if (!skipNewSession) startChatFirestoreSession();
   document.getElementById('mainContent').classList.add('chat-active');
   document.querySelector('.logo').style.display = 'none';
   document.querySelector('.logo-line').style.display = 'none';
