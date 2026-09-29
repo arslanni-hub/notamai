@@ -7322,9 +7322,26 @@ async function fetchRawData() {
     const notamSection = document.createElement('div');
     notamSection.style.marginBottom = '20px';
     const notamBlocks = notamText.trim().split('\n===NOTAM===\n').filter(n => n.trim());
-    // Sort newest NOTAM first by NOTAM sequence number (e.g. B1234/26 → 1234)
+    // Sort newest NOTAM first by actual effective (B) date/time — reliable across NOTAM series
+    // (A/B/C...), since each series has independent numbering and comparing numbers across
+    // series (e.g. A0373 vs B0021) gives a meaningless order.
     notamBlocks.sort((a, b) => {
-      const getKey = s => { const m = s.match(/[A-Z](\d+)\/(\d{2,4})/); if (!m) return 0; const yr = m[2].length === 2 ? 2000 + parseInt(m[2]) : parseInt(m[2]); return yr * 100000 + parseInt(m[1]); };
+      const getKey = s => {
+        const m = s.match(/B\)\s*(\d{10,12})/);
+        if (m) {
+          const e = m[1].length === 10 ? '20' + m[1] : m[1]; // 10-digit = YYMMDDHHmm
+          const t = Date.UTC(
+            parseInt(e.slice(0,4)), parseInt(e.slice(4,6)) - 1, parseInt(e.slice(6,8)),
+            parseInt(e.slice(8,10)), parseInt(e.slice(10,12))
+          );
+          if (!isNaN(t)) return t;
+        }
+        // Fallback when B) is missing/malformed: same-series NOTAM number as a rough proxy
+        const idm = s.match(/[A-Z](\d+)\/(\d{2,4})/);
+        if (!idm) return 0;
+        const yr = idm[2].length === 2 ? 2000 + parseInt(idm[2]) : parseInt(idm[2]);
+        return yr * 100000 + parseInt(idm[1]);
+      };
       return getKey(b) - getKey(a);
     });
     if (notamBlocks.length === 0 || notamText.includes('No active')) {
@@ -7342,7 +7359,17 @@ async function fetchRawData() {
 
         const notamBox = document.createElement('div');
         notamBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;position:relative;transition:border-color 0.2s;cursor:default;';
-        notamBox.textContent = block;
+        const isFutureBlock = block.startsWith('[FUTURE NOTAM - NOT YET ACTIVE]');
+        const blockBody = isFutureBlock ? block.replace('[FUTURE NOTAM - NOT YET ACTIVE]\n', '') : block;
+        if (isFutureBlock) {
+          notamBox.style.borderLeft = '3px solid #f2c641';
+          const badge = document.createElement('span');
+          badge.textContent = 'FUTURE — not yet effective';
+          badge.style.cssText = 'display:inline-block;margin-bottom:6px;padding:2px 8px;border-radius:3px;background:rgba(242,198,65,0.15);border:1px solid rgba(242,198,65,0.4);color:#f2c641;font-size:9px;letter-spacing:0.5px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Arial,sans-serif;';
+          notamBox.appendChild(badge);
+          notamBox.appendChild(document.createElement('br'));
+        }
+        notamBox.appendChild(document.createTextNode(blockBody));
 
         // Corner icon
         const cornerIcon = document.createElement('div');
