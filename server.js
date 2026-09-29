@@ -450,7 +450,9 @@ function notamRecencyKey(n) {
 async function fetchNotams(icao) {
   if (!icao) return { text: '', total: 0, shown: 0 };
   try {
-    const url = `https://skylink-api.p.rapidapi.com/notams/${icao}`;
+    // include_future=true — without this, SkyLink's API silently omits NOTAMs whose effective
+    // (start) time hasn't arrived yet, even though they're published and will become active soon.
+    const url = `https://skylink-api.p.rapidapi.com/notams/${icao}?include_future=true`;
     const data = await fetchURL(url, {
       method: 'GET',
       headers: {
@@ -462,7 +464,16 @@ async function fetchNotams(icao) {
     console.log('[NOTAM fetchNotams SAMPLE]', JSON.stringify(data).slice(0, 500));
     if (data.error || !data.notams || data.notams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0 };
     const now = new Date();
-    const activeNotams = data.notams.filter(n => {
+    const notInFuture = n => {
+      if (!n.effective || n.effective.length < 12) return true;
+      const eff = n.effective;
+      const effDate = new Date(Date.UTC(
+        parseInt(eff.slice(0,4)), parseInt(eff.slice(4,6)) - 1, parseInt(eff.slice(6,8)),
+        parseInt(eff.slice(8,10)), parseInt(eff.slice(10,12))
+      ));
+      return effDate <= now;
+    };
+    const notExpired = n => {
       if (!n.expiration) return true;
       if (n.expiration.length < 12) return true;
       const e = n.expiration;
@@ -474,11 +485,18 @@ async function fetchNotams(icao) {
         parseInt(e.slice(10,12))
       ));
       return expDate > now;
-    }).filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase());
-    console.log('[FILTER]', icao, 'total:', data.notams.length, 'active after filter:', activeNotams.length);
-    if (activeNotams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0 };
+    };
+    const forThisIcao = n => !n.location || n.location.toUpperCase() === icao.toUpperCase();
+    const activeNotams = data.notams.filter(n => notExpired(n) && notInFuture(n) && forThisIcao(n));
+    // NOTAMs published for the future — not yet in effect, but worth surfacing so a crew
+    // planning ahead (or checking again closer to departure) doesn't miss them.
+    const futureNotams = data.notams.filter(n => notExpired(n) && !notInFuture(n) && forThisIcao(n));
+    futureNotams.forEach(n => { n._isFuture = true; });
+    const combinedNotams = [...activeNotams, ...futureNotams];
+    console.log('[FILTER]', icao, 'total:', data.notams.length, 'active:', activeNotams.length, 'future:', futureNotams.length);
+    if (combinedNotams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0 };
     const SORD = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
-    const classified = activeNotams.map(n => ({
+    const classified = combinedNotams.map(n => ({
       n, sev: classifyNotamSeverity(n.raw || n.body || ''), key: notamRecencyKey(n)
     }));
     classified.sort((a, b) => {
@@ -489,9 +507,10 @@ async function fetchNotams(icao) {
     const shown = Math.min(eligible.length, 8);
     const text = eligible.slice(0, shown).map(({ n, sev }, i) => {
       const raw = (n.raw || n.body || '').trim().slice(0, 500);
-      return `[${icao} NOTAM ${i+1}] [${sev}] ${n.notam_id || ''}:\n${raw}`;
+      const futureTag = n._isFuture ? ' [FUTURE — not yet effective]' : '';
+      return `[${icao} NOTAM ${i+1}] [${sev}]${futureTag} ${n.notam_id || ''}:\n${raw}`;
     }).join('\n\n---\n\n');
-    return { text, total: activeNotams.length, shown };
+    return { text, total: combinedNotams.length, shown };
   } catch (e) { return { text: `Could not fetch NOTAMs for ${icao}: ${e.message}`, total: 0, shown: 0 }; }
 }
 
@@ -730,7 +749,7 @@ async function getEnrouteNotams(dep, arr) {
     // Oceanic FIRs: SkyLink may not cover them — use informational fallback
     if (OCEANIC_FIRS.has(fir)) {
       try {
-        const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + fir, {
+        const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + fir + '?include_future=true', {
           method: 'GET',
           headers: {
             'x-rapidapi-key': process.env.SKYLINK_KEY,
@@ -762,7 +781,7 @@ async function getEnrouteNotams(dep, arr) {
 
     // Standard FIR fetch
     try {
-      const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + fir, {
+      const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + fir + '?include_future=true', {
         method: 'GET',
         headers: {
           'x-rapidapi-key': process.env.SKYLINK_KEY,
@@ -2595,7 +2614,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
 
         console.log('[VIDEO] Fetching NOTAMs for DEP:', depIcao, 'ARR:', arrIcao);
         try {
-          const depData = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + depIcao, {
+          const depData = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + depIcao + '?include_future=true', {
             headers: {
               'X-RapidAPI-Key': process.env.SKYLINK_KEY,
               'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
@@ -2608,7 +2627,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         }
 
         try {
-          const arrData = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + arrIcao, {
+          const arrData = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + arrIcao + '?include_future=true', {
             headers: {
               'X-RapidAPI-Key': process.env.SKYLINK_KEY,
               'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
@@ -3252,7 +3271,7 @@ MANDATORY:
 
     if (type === 'notam') {
       try {
-        const skyUrl = 'https://skylink-api.p.rapidapi.com/notams/' + icao;
+        const skyUrl = 'https://skylink-api.p.rapidapi.com/notams/' + icao + '?include_future=true';
         const data = await fetchURL(skyUrl, {
           method: 'GET',
           headers: {
@@ -3928,7 +3947,7 @@ MANDATORY:
         if (needsLiveNotam && icaoCodes.length > 0) {
           for (const icao of icaoCodes.slice(0, 2)) {
             try {
-              const skyUrl = 'https://skylink-api.p.rapidapi.com/notams/' + icao;
+              const skyUrl = 'https://skylink-api.p.rapidapi.com/notams/' + icao + '?include_future=true';
               const data = await fetchURL(skyUrl, {
                 method: 'GET',
                 headers: {
@@ -4690,7 +4709,7 @@ async function checkNotamAlerts() {
     for (const icao of uniqueIcaos) {
       let notams = [];
       try {
-        const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + icao, {
+        const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + icao + '?include_future=true', {
           method: 'GET',
           headers: { 'x-rapidapi-key': process.env.SKYLINK_KEY, 'x-rapidapi-host': 'skylink-api.p.rapidapi.com' }
         });
