@@ -3376,10 +3376,7 @@ async function downloadPDF() {
     margin: 0,
     filename: filename,
     image: { type: 'jpeg', quality: 0.98 },
-    // Fixed windowWidth so the PDF always renders at the same proportions regardless of the
-    // browser window's current width (sidebar open/closed, monitor size, etc.) — without this,
-    // content captured from a wide screen looks "zoomed in" once squeezed into a narrow A4 page.
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#060a0f', windowWidth: 900 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#060a0f' },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     // 'css' mode makes html2pdf.js actually respect the `avoid` selector list below (rather than
     // slicing wherever the page height happens to fall) — this is the real API for preventing
@@ -3394,10 +3391,8 @@ async function downloadPDF() {
   // backgroundColor option doesn't always reliably substitute for a genuinely transparent node.
   const prevContentBg = content.style.backgroundColor;
   const prevContentPadding = content.style.padding;
-  const prevContentWidth = content.style.width;
   content.style.backgroundColor = '#060a0f';
   content.style.padding = '16px';
-  content.style.width = '900px';
   const pdfHeader = document.createElement('div');
   pdfHeader.style.cssText = 'display:flex;align-items:center;gap:8px;padding-bottom:12px;margin-bottom:16px;border-bottom:1px solid #1a2a3a;background:#060a0f;';
   pdfHeader.innerHTML = '<img src="/favicon.png" style="width:30px;height:30px;border-radius:7px;"><span style="font-family:\'Orbitron\',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#ffffff;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></span>';
@@ -3408,7 +3403,6 @@ async function downloadPDF() {
   pdfHeader.remove();
   content.style.backgroundColor = prevContentBg;
   content.style.padding = prevContentPadding;
-  content.style.width = prevContentWidth;
   btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Pdf';
   btn.disabled = false;
 }
