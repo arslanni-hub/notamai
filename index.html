@@ -1403,9 +1403,9 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     <span id="chatUsageBannerText"></span>
     <button class="upgrade-pill" id="chatUpgradePill" style="display:none;" onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'">Get more usage</button>
   </div>
-  <div class="logo" onclick="window.location.reload()" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:14px;">
-    <img src="/favicon.png" alt="" style="width:48px;height:48px;border-radius:10px;flex-shrink:0;">
-    <span>NOTAM <em>INTELLIGENCE</em></span>
+  <div style="position:relative;display:flex;justify-content:center;">
+    <div class="logo" onclick="window.location.reload()" style="cursor:pointer;margin:0;">NOTAM <em>INTELLIGENCE</em></div>
+    <img src="/favicon.png" alt="" onclick="window.location.reload()" style="position:absolute;left:calc(50% - 130px);top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:10px;cursor:pointer;">
   </div>
   <div class="logo-line">AI-POWERED PRE-FLIGHT BRIEFING SYSTEM</div>
 
