@@ -452,40 +452,6 @@ canvas#sky {
 .send-btn:hover { background: #378add; transform: scale(1.05); }
 .send-btn:active { transform: scale(0.97); }
 
-.ask-notam-ai-btn {
-  position: fixed;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  overflow: visible;
-}
-.ask-notam-ai-btn::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  z-index: 1;
-  border-radius: 16px;
-  padding: 2px;
-  background: linear-gradient(90deg, #4a9eff, #9b5de5, #4a9eff, #9b5de5);
-  background-size: 300% 300%;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 0.25s;
-  pointer-events: none;
-}
-.ask-notam-ai-btn:hover {
-  border-color: transparent;
-  transform: scale(1.05);
-}
-.ask-notam-ai-btn:hover::before {
-  opacity: 1;
-  animation: askAiBorderFlow 2.5s linear infinite;
-}
-@keyframes askAiBorderFlow {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 300% 50%; }
-}
 
 /* ═══ FILE PREVIEW ═══ */
 .file-preview {
@@ -1562,8 +1528,8 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
 
 <!-- AI Assistant — Ask NOTAM AI -->
 <!-- Floating Ask NOTAM AI Button -->
-<button id="askNotamAiBtn" onclick="openAIChat()" aria-label="Ask NOTAM AI" class="ask-notam-ai-btn" style="display:none;position:fixed;bottom:24px;right:24px;z-index:550;width:56px;height:56px;padding:0;background:rgba(10,15,24,0.92);border:1px solid rgba(74,158,255,0.4);border-radius:14px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 4px 24px rgba(0,0,0,0.5);transition:border-color 0.2s,transform 0.15s;">
-  <img src="/favicon.png" alt="" style="width:38px;height:38px;border-radius:8px;display:block;pointer-events:none;position:relative;z-index:2;">
+<button id="askNotamAiBtn" onclick="openAIChat()" aria-label="Ask NOTAM AI" style="display:none;position:fixed;bottom:24px;right:24px;z-index:550;width:56px;height:56px;padding:0;background:rgba(10,15,24,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(74,158,255,0.4);border-radius:14px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 4px 24px rgba(0,0,0,0.5);transition:border-color 0.2s,transform 0.15s,background 0.2s;" onmouseover="this.style.borderColor='rgba(74,158,255,0.8)';this.style.transform='scale(1.05)';" onmouseout="this.style.borderColor='rgba(74,158,255,0.4)';this.style.transform='scale(1)';">
+  <img src="/favicon.png" alt="" style="width:38px;height:38px;border-radius:8px;display:block;pointer-events:none;">
 </button>
 
 <div id="aiChatContainer" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#0a0f18;border-left:1px solid #1a2a3a;z-index:600;flex-direction:column;transition:transform 0.3s ease;transform:translateX(100%);">
