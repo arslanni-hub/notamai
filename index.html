@@ -1403,11 +1403,13 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     <span id="chatUsageBannerText"></span>
     <button class="upgrade-pill" id="chatUpgradePill" style="display:none;" onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'">Get more usage</button>
   </div>
-  <div class="logo" onclick="window.location.reload()" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;">
-    <img src="/favicon.png" alt="" style="width:40px;height:40px;border-radius:9px;flex-shrink:0;">
-    <span>NOTAM <em>INTELLIGENCE</em></span>
+  <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
+    <img src="/favicon.png" alt="" onclick="window.location.reload()" style="width:40px;height:40px;border-radius:9px;flex-shrink:0;cursor:pointer;">
+    <div>
+      <div class="logo" onclick="window.location.reload()" style="cursor:pointer;margin-bottom:0;">NOTAM <em>INTELLIGENCE</em></div>
+      <div class="logo-line" style="margin-top:4px;">AI-POWERED PRE-FLIGHT BRIEFING SYSTEM</div>
+    </div>
   </div>
-  <div class="logo-line">AI-POWERED PRE-FLIGHT BRIEFING SYSTEM</div>
 
   <div class="greeting" id="greeting">Good evening, Captain!</div>
   <div class="greeting-sub" style="visibility:hidden;">Enter an ICAO code, a route, or paste your aviation data</div>
