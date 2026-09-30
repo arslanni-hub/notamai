@@ -5352,7 +5352,8 @@ async function sendAdminNotification(subject, html) {
         html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f4f8;font-family:monospace;">
 <div style="max-width:520px;margin:0 auto;padding:24px 20px;">
   <div style="text-align:center;padding-bottom:12px;border-bottom:1px solid #e2e8f0;margin-bottom:16px;">
-    <div style="font-size:13px;font-weight:700;letter-spacing:3px;color:#0f172a;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+    <img src="https://notamai.onrender.com/favicon.png" alt="" width="30" height="30" style="width:30px;height:30px;border-radius:7px;display:inline-block;vertical-align:middle;margin-right:8px;">
+    <span style="font-size:13px;font-weight:700;letter-spacing:3px;color:#0f172a;vertical-align:middle;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></span>
   </div>
   ${html}
   <div style="text-align:center;border-top:1px solid #e2e8f0;padding-top:14px;margin-top:16px;">
