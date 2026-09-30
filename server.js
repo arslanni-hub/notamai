@@ -4682,10 +4682,8 @@ async function sendNotamAlert(userEmail, icao, notamText) {
 
     <!-- Logo -->
     <div style="text-align:center;margin-bottom:28px;padding:20px 0;border-bottom:1px solid #1a2a3a;">
-      <img src="https://i.imgur.com/HzLqV9P.png"
-           alt="NOTAM INTELLIGENCE"
-           width="400"
-           style="width:400px;max-width:100%;height:auto;display:inline-block;border:0;" />
+      <img src="https://notamai.onrender.com/favicon.png" alt="" width="30" height="30" style="width:30px;height:30px;border-radius:7px;display:inline-block;vertical-align:middle;margin-right:8px;">
+      <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#ffffff;vertical-align:middle;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></span>
     </div>
 
     <!-- Alert header -->
