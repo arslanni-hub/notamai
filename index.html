@@ -495,13 +495,16 @@ canvas#sky {
   border: 1px solid rgba(74,158,255,0.3);
   background: transparent;
   cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
+  transition: color 0.2s, border-color 0.2s, transform 0.15s ease, background 0.2s;
   font-family: 'Rajdhani', sans-serif;
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 2px;
   color: #8a9bb0;
+  transform: scale(1);
 }
+.mode-pill:hover { transform: scale(1.05); }
+.mode-pill.active { transform: scale(1.05); }
 .mode-pill svg { flex-shrink: 0; stroke: #8a9bb0; transition: stroke 0.2s; }
 .mode-pill:hover { color: #c8daf0; border-color: rgba(74,158,255,0.6); }
 .mode-pill:hover svg { stroke: #c8daf0; }
