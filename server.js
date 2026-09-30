@@ -4585,27 +4585,28 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             if (doneSent) return;
             doneSent = true;
             console.log('[BRIEFING STOP REASON]', { stop_reason: usageInfo?.stop_reason || 'unknown', output_tokens: usageInfo?.output_tokens || 0 });
-            // Build server-authored NOTAM notes and inject them at the <!--NOTAM_NOTES-->
-            // placeholder the model emits inline — so they appear at the right place in the
-            // document rather than appended at the very bottom.
+            // Fixed, server-authored notes (not left to the model) about NOTAMs not included in
+            // the main briefing, so the wording and counts are always accurate. Sent as part of
+            // the 'done' event (notamNotesHtml) so the client can splice it in right after the
+            // NOTAM section — at the <!--NOTAM_NOTES--> placeholder Claude was told to leave —
+            // instead of it landing at the very end of the whole document, after the closing
+            // signature.
             const allNearFuture = [...(notamDepResult.nearFutureLines || []), ...(notamArrResult.nearFutureLines || [])];
             const totalLaterFuture = (notamDepResult.laterFutureCount || 0) + (notamArrResult.laterFutureCount || 0);
             const totalExcludedAdmin = (notamDepResult.excludedAdminCount || 0) + (notamArrResult.excludedAdminCount || 0);
             const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-            let notesHtml = '';
+            let notamNotesHtml = '';
             if (allNearFuture.length > 0) {
               const upcomingList = allNearFuture.map(l => `<li style="margin-bottom:4px;">${esc(l)}</li>`).join('');
-              notesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;"><strong>⏳ Upcoming NOTAMs (next 24h, not yet effective):</strong><ul style="margin:6px 0 0;padding-left:18px;">${upcomingList}</ul></div>`;
+              notamNotesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;"><strong>⏳ Upcoming NOTAMs (next 24h, not yet effective):</strong><ul style="margin:6px 0 0;padding-left:18px;">${upcomingList}</ul></div>`;
             }
             const otherParts = [];
             if (totalLaterFuture > 0) otherParts.push(`${totalLaterFuture} future NOTAM${totalLaterFuture > 1 ? 's' : ''} starting beyond 24h`);
             if (totalExcludedAdmin > 0) otherParts.push(`${totalExcludedAdmin} administrative/trigger NOTAM${totalExcludedAdmin > 1 ? 's' : ''} (incl. PERM)`);
             if (otherParts.length > 0) {
-              notesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;padding:8px 12px;margin-top:4px;border-top:1px solid #1a2a3a;">ℹ ${otherParts.join(' and ')} not shown here — view all NOTAMs in the NOTAM panel.</div>`;
+              notamNotesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;padding:8px 12px;margin-top:6px;">ℹ ${otherParts.join(' and ')} not shown here — view all NOTAMs in the NOTAM panel.</div>`;
             }
-            res.write(`data: ${JSON.stringify({ type: 'replace', placeholder: '<!--NOTAM_NOTES-->', html: notesHtml })}\n\n`);
-            res.write('data: {"type":"done"}\n\n');
+            res.write(`data: ${JSON.stringify({ type: 'done', notamNotesHtml })}\n\n`);
             res.end();
           },
           (err) => { if (!doneSent) { doneSent = true; res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`); res.end(); } }

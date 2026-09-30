@@ -3041,7 +3041,6 @@ async function handleSend(silent = false) {
     let htmlFoot = '';
     let accumulated = '';
     let lastRenderLen = 0;
-    const pendingReplacements = [];
 
     // After exactly 10s: hide loading and reveal content regardless of stream state
     if (!silent) setTimeout(() => {
@@ -3073,14 +3072,14 @@ async function handleSend(silent = false) {
               lastRenderLen = accumulated.length;
               content.innerHTML = htmlHead + accumulated + htmlFoot;
             }
-          } else if (evt.type === 'replace') {
-            pendingReplacements.push({ from: evt.placeholder, to: evt.html || '' });
           } else if (evt.type === 'done') {
-            // Apply server-injected placeholder replacements before final render
-            let withReplacements = accumulated;
-            pendingReplacements.forEach(r => { withReplacements = withReplacements.split(r.from).join(r.to); });
+            // Splice server-authored NOTAM notes at the inline placeholder before final render
+            const notamNotes = evt.notamNotesHtml || '';
+            const withNotes = notamNotes
+              ? accumulated.split('<!--NOTAM_NOTES-->').join(notamNotes)
+              : accumulated.split('<!--NOTAM_NOTES-->').join('');
             // Final render with backtick fix
-            const final = withReplacements.replace(/```[\w]*\n([\s\S]*?)```/g,
+            const final = withNotes.replace(/```[\w]*\n([\s\S]*?)```/g,
               "<pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>$1</pre>"
             );
             const riskMatch = (htmlHead + final).match(/\b(CRITICAL|HIGH|MEDIUM|LOW)\b/);
