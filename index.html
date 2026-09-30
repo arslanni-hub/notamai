@@ -453,6 +453,9 @@ canvas#sky {
 .send-btn:active { transform: scale(0.97); }
 
 
+.sidebar-plane-icon { transform: rotate(45deg); transition: transform 0.2s ease; }
+#sidebarLogoCollapsed:hover .sidebar-plane-icon { transform: rotate(45deg) scale(1.15); }
+
 /* ═══ FILE PREVIEW ═══ */
 .file-preview {
   display: none;
@@ -6302,7 +6305,7 @@ function pricing_toggleBilling() {
 
   <!-- COLLAPSED HEADER (visible when collapsed) -->
   <div id="sidebarLogoCollapsed" onclick="toggleSidebar()" onmouseenter="showSidebarTooltip('Open Sidebar',this)" onmouseleave="hideSidebarTooltip()" style="display:none;flex-direction:column;align-items:center;padding:14px 0;cursor:pointer;flex-shrink:0;">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="#4a9eff" style="transform: rotate(45deg);">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="#4a9eff" class="sidebar-plane-icon">
       <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
     </svg>
   </div>
