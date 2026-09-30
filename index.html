@@ -453,6 +453,7 @@ canvas#sky {
 .send-btn:active { transform: scale(0.97); }
 
 
+.result-topbar-btn:hover { transform: scale(1.05); }
 .sidebar-plane-icon { transform: rotate(45deg); transition: transform 0.2s ease; }
 #sidebarLogoCollapsed:hover .sidebar-plane-icon { transform: rotate(45deg) scale(1.15); }
 
@@ -1505,7 +1506,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     <div class="live-dot"></div>
     <div class="result-status" id="resultStatus">GENERATING BRIEFING...</div>
     <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-      <button onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;padding:7px 18px;border-radius:6px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)';this.querySelector('svg').style.stroke='#c8daf0'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)';this.querySelector('svg').style.stroke='#8a9bb0'">
+      <button class="result-topbar-btn" onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;padding:7px 18px;border-radius:6px;cursor:pointer;transition:color 0.2s,border-color 0.2s,transform 0.15s ease;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)';this.querySelector('svg').style.stroke='#c8daf0'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)';this.querySelector('svg').style.stroke='#8a9bb0'">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg>
         Upgrade
       </button>
