@@ -3386,14 +3386,23 @@ async function downloadPDF() {
       avoid: ['.notam-card', '.notam-compact', '.risk-badge', '.exec-summary', '.section-header', '.meta-item', '.footer-sig', 'table', 'tr']
     }
   };
+  // Explicitly set the background on the actual DOM node being captured — resultContent has no
+  // background-color of its own (it inherits visually from ancestors on screen), and html2canvas's
+  // backgroundColor option doesn't always reliably substitute for a genuinely transparent node.
+  const prevContentBg = content.style.backgroundColor;
+  const prevContentPadding = content.style.padding;
+  content.style.backgroundColor = '#060a0f';
+  content.style.padding = '16px';
   const pdfHeader = document.createElement('div');
-  pdfHeader.style.cssText = 'display:flex;align-items:center;gap:8px;padding-bottom:12px;margin-bottom:16px;border-bottom:1px solid #1a2a3a;';
+  pdfHeader.style.cssText = 'display:flex;align-items:center;gap:8px;padding-bottom:12px;margin-bottom:16px;border-bottom:1px solid #1a2a3a;background:#060a0f;';
   pdfHeader.innerHTML = '<img src="/favicon.png" style="width:30px;height:30px;border-radius:7px;"><span style="font-family:\'Orbitron\',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#ffffff;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></span>';
   content.insertBefore(pdfHeader, content.firstChild);
   btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> GENERATING...';
   btn.disabled = true;
   await html2pdf().set(opt).from(content).save();
   pdfHeader.remove();
+  content.style.backgroundColor = prevContentBg;
+  content.style.padding = prevContentPadding;
   btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Pdf';
   btn.disabled = false;
 }
