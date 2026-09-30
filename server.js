@@ -1116,6 +1116,7 @@ const HTML_FOOT = `</div></body></html>`;
 
 const systemPrompt = `MANDATORY RULES:
 - Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them using the appropriate format (full card for CRITICAL/HIGH, compact for MEDIUM/LOW)
+- Immediately after the closing </div> of the notam-list section (right after the last NOTAM card, before starting the next section such as Weather), insert this exact placeholder on its own line: <!--NOTAM_NOTES--> — always include it whenever a NOTAM section is present, even if you believe there's nothing to add there; the server will fill it in automatically. Do not add any text of your own at that spot.
 - Each NOTAM card must have correct risk color class: crit (red) for runway closures/GNSS/safety critical, high (orange) for navigation aids/UAS/obstacles, med (yellow) for taxiway/procedures, low (green) for administrative
 - Show the airport ICAO code for each NOTAM in the notam-id field
 - CRITICAL NOTAMs include: runway closures, GNSS jamming, dual runway closures, emergency-only airports
@@ -1315,6 +1316,7 @@ NOTAM LIMITS: Render every NOTAM provided in the data — they are already pre-s
 
 const singleAirportSystemPrompt = `MANDATORY RULES:
 - Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them using the appropriate format (full card for CRITICAL/HIGH, compact for MEDIUM/LOW)
+- Immediately after the closing </div> of the notam-list section (right after the last NOTAM card, before starting the next section such as Weather), insert this exact placeholder on its own line: <!--NOTAM_NOTES--> — always include it whenever a NOTAM section is present, even if you believe there's nothing to add there; the server will fill it in automatically. Do not add any text of your own at that spot.
 - Each NOTAM card must have correct risk color class: crit (red) for runway closures/GNSS/safety critical, high (orange) for navigation aids/UAS/obstacles, med (yellow) for taxiway/procedures, low (green) for administrative
 - Show the airport ICAO code for each NOTAM in the notam-id field
 - CRITICAL NOTAMs include: runway closures, GNSS jamming, dual runway closures, emergency-only airports
@@ -4583,25 +4585,26 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             if (doneSent) return;
             doneSent = true;
             console.log('[BRIEFING STOP REASON]', { stop_reason: usageInfo?.stop_reason || 'unknown', output_tokens: usageInfo?.output_tokens || 0 });
-            // Fixed, server-authored notes (not left to the model) about NOTAMs not included in
-            // the main briefing, so the wording and counts are always accurate.
+            // Build server-authored NOTAM notes and inject them at the <!--NOTAM_NOTES-->
+            // placeholder the model emits inline — so they appear at the right place in the
+            // document rather than appended at the very bottom.
             const allNearFuture = [...(notamDepResult.nearFutureLines || []), ...(notamArrResult.nearFutureLines || [])];
             const totalLaterFuture = (notamDepResult.laterFutureCount || 0) + (notamArrResult.laterFutureCount || 0);
             const totalExcludedAdmin = (notamDepResult.excludedAdminCount || 0) + (notamArrResult.excludedAdminCount || 0);
             const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
+            let notesHtml = '';
             if (allNearFuture.length > 0) {
               const upcomingList = allNearFuture.map(l => `<li style="margin-bottom:4px;">${esc(l)}</li>`).join('');
-              const upcoming = `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;"><strong>⏳ Upcoming NOTAMs (next 24h, not yet effective):</strong><ul style="margin:6px 0 0;padding-left:18px;">${upcomingList}</ul></div>`;
-              res.write(`data: ${JSON.stringify({ type: 'chunk', text: upcoming })}\n\n`);
+              notesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;"><strong>⏳ Upcoming NOTAMs (next 24h, not yet effective):</strong><ul style="margin:6px 0 0;padding-left:18px;">${upcomingList}</ul></div>`;
             }
             const otherParts = [];
             if (totalLaterFuture > 0) otherParts.push(`${totalLaterFuture} future NOTAM${totalLaterFuture > 1 ? 's' : ''} starting beyond 24h`);
             if (totalExcludedAdmin > 0) otherParts.push(`${totalExcludedAdmin} administrative/trigger NOTAM${totalExcludedAdmin > 1 ? 's' : ''} (incl. PERM)`);
             if (otherParts.length > 0) {
-              const note = `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;">ℹ ${otherParts.join(' and ')} not shown here — view all NOTAMs in the NOTAM panel.</div>`;
-              res.write(`data: ${JSON.stringify({ type: 'chunk', text: note })}\n\n`);
+              notesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;padding:8px 12px;margin-top:4px;border-top:1px solid #1a2a3a;">ℹ ${otherParts.join(' and ')} not shown here — view all NOTAMs in the NOTAM panel.</div>`;
             }
+            res.write(`data: ${JSON.stringify({ type: 'replace', placeholder: '<!--NOTAM_NOTES-->', html: notesHtml })}\n\n`);
             res.write('data: {"type":"done"}\n\n');
             res.end();
           },
