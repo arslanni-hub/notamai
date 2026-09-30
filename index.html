@@ -1505,7 +1505,10 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
 <!-- RESULT OVERLAY -->
 <div class="result-overlay" id="resultOverlay">
   <div class="result-topbar">
-    <div class="result-topbar-logo" onclick="closeResult()" style="cursor:pointer">NOTAM <em>INTELLIGENCE</em></div>
+    <div class="result-topbar-logo" onclick="closeResult()" style="cursor:pointer;display:flex;align-items:center;gap:8px;">
+      <img src="/favicon.png" alt="" style="width:20px;height:20px;border-radius:5px;">
+      <span>NOTAM <em>INTELLIGENCE</em></span>
+    </div>
     <div class="live-dot"></div>
     <div class="result-status" id="resultStatus">GENERATING BRIEFING...</div>
     <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
