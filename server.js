@@ -1815,9 +1815,12 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
 <div id="briefingContent" style="display:none;">
   <div style="position:sticky;top:0;z-index:100;background:rgba(6,10,15,0.95);border-bottom:1px solid #1a2a3a;padding:0 24px;height:48px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(8px);">
     <div style="display:flex;align-items:center;gap:12px;">
-      <a href="https://notamai.onrender.com" style="text-decoration:none;display:flex;align-items:center;gap:4px;">
-        <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#ffffff;">NOTAM</span>
-        <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#4a9eff;">INTELLIGENCE</span>
+      <a href="https://notamai.onrender.com" style="text-decoration:none;display:flex;align-items:center;gap:8px;">
+        <img src="https://notamai.onrender.com/favicon.png" alt="" style="width:30px;height:30px;border-radius:7px;">
+        <span>
+          <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#ffffff;">NOTAM</span>
+          <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#4a9eff;">INTELLIGENCE</span>
+        </span>
       </a>
       <span style="color:#1a2a3a;">|</span>
       <div style="display:flex;align-items:center;gap:8px;">
@@ -1912,9 +1915,12 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
 <div id="chatContent" style="display:none;">
   <div style="position:sticky;top:0;z-index:100;background:rgba(6,10,15,0.95);border-bottom:1px solid #1a2a3a;padding:0 24px;height:48px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(8px);">
     <div style="display:flex;align-items:center;gap:12px;">
-      <a href="https://notamai.onrender.com" style="text-decoration:none;display:flex;align-items:center;gap:4px;">
-        <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#ffffff;">NOTAM</span>
-        <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#4a9eff;">INTELLIGENCE</span>
+      <a href="https://notamai.onrender.com" style="text-decoration:none;display:flex;align-items:center;gap:8px;">
+        <img src="https://notamai.onrender.com/favicon.png" alt="" style="width:30px;height:30px;border-radius:7px;">
+        <span>
+          <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#ffffff;">NOTAM</span>
+          <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#4a9eff;">INTELLIGENCE</span>
+        </span>
       </a>
       <span style="color:#1a2a3a;">|</span>
       <div style="display:flex;align-items:center;gap:8px;">
