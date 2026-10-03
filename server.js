@@ -63,6 +63,30 @@ const PLAN_LIMITS = {
   admin:   { briefings: 9999, chat: 9999, analysis: 9999 }
 };
 
+const FREE_DAILY_BRIEFING_CAP = parseInt(process.env.FREE_DAILY_BRIEFING_CAP || '20', 10);
+// Global circuit breaker: total Free-plan briefings allowed per UTC day across ALL users.
+async function reserveFreeBriefingSlot() {
+  const day = new Date().toISOString().slice(0, 10);
+  const ref = adminDb.collection('system').doc('free_briefings_' + day);
+  try {
+    const result = await adminDb.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const count = snap.exists ? (snap.data().count || 0) : 0;
+      if (count >= FREE_DAILY_BRIEFING_CAP) return { ok: false, count };
+      tx.set(ref, { count: count + 1, day, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      return { ok: true, count: count + 1 };
+    });
+    if (result.ok && result.count === FREE_DAILY_BRIEFING_CAP) {
+      sendAdminNotification('⚠️ Free daily briefing cap reached (' + FREE_DAILY_BRIEFING_CAP + ')',
+        '<div style="font-size:13px;color:#1e293b;">The global Free-plan cap of ' + FREE_DAILY_BRIEFING_CAP + ' briefings/day was reached on ' + day + '. Further Free briefings are paused until 00:00 UTC. If this is organic demand, raise FREE_DAILY_BRIEFING_CAP in Render; if it looks like abuse, check new signups.</div>').catch(() => {});
+    }
+    return result.ok;
+  } catch (e) {
+    console.log('[FREE CAP] transaction error, allowing request:', e.message);
+    return true;
+  }
+}
+
 // General Aviation Expert Chat — separate from the briefing-specific "Ask NOTAM AI" above.
 // Uses a 3-hour rolling window, mirroring Claude's own usage-limit UX: soft limits that
 // downgrade the model rather than hard-block (except Free, which hard-stops since it's
@@ -4439,6 +4463,11 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           if (usage >= limit) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'limit_reached', plan, usage, limit }));
+            return;
+          }
+          if (plan === 'free' && !(await reserveFreeBriefingSlot())) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'free_capacity', plan }));
             return;
           }
           await incrementUsage(userId, 'briefings');
