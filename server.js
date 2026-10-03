@@ -4216,7 +4216,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         // Detect NOTAM production/drafting requests — use Opus 5 for accuracy
         const isNotamProduction = /notam.*hazırla|notam.*yaz|notam.*üret|yayına hazırla|notam talep.*form|produce.*notam|draft.*notam|generate.*notam|notam.*draft|icao.*format.*notam|q.?line.*oluştur/i.test(effectiveQuestion);
         const opusAllowed = isNotamProduction && ['pro', 'max', 'admin'].includes(plan) && !pastSoftLimit;
-        const chatModel = opusAllowed ? 'claude-opus-5' : modelToUse;
+        const chatModel = opusAllowed ? 'claude-opus-5-5' : modelToUse;
         if (opusAllowed) console.log('[NOTAM PRODUCTION] Using Opus 5 for NOTAM drafting');
         if (isNotamProduction) console.log('[NOTAM PRODUCTION] Using Opus 5 for NOTAM drafting');
 
