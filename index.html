@@ -2473,22 +2473,25 @@ function renderChatSearchStatus(query) {
 }
 
 async function mockChatResponse(question, filePayload = {}) {
-  const isNotamDraft = /notam.*hazırla|notam.*yaz|notam.*üret|notam.*format|yayına hazırla|notam talep.*form|produce.*notam|draft.*notam|generate.*notam|notam.*draft|format.*notam|icao.*format.*notam|q.?line.*oluştur/i.test(question || '');
+  const isNotamDraft = /notam.*hazırla|notam.*yaz|notam.*üret|yayına hazırla|notam talep.*form|produce.*notam|draft.*notam|generate.*notam|notam.*draft|icao.*format.*notam|q.?line.*oluştur/i.test(question || '');
+  const hasAttachment = !!(filePayload && ((filePayload.images && filePayload.images.length) || filePayload.image_base64 || filePayload.pdf_base64 || filePayload.extra_text));
   const row = addChatBubble('ai', '');
   const bubble = row.querySelector('.chat-msg-bubble');
   const messagesArea = document.getElementById('chatMessagesArea');
 
   // Animated cycling thinking indicator
-  const thinkWords = isNotamDraft ? ['Thinking', 'Analyzing', 'Drafting NOTAM'] : ['Thinking', 'Analyzing'];
+  const thinkWords = isNotamDraft ? ['Thinking', 'Analyzing', 'Drafting NOTAM']
+                   : hasAttachment ? ['Thinking', 'Analyzing']
+                   : ['Thinking'];
   let thinkIdx = 0;
   const renderThinking = () => {
     bubble.innerHTML = `${thinkWords[thinkIdx]}<span class="thinking-dots">.</span><span class="thinking-dots" style="animation-delay:0.2s;">.</span><span class="thinking-dots" style="animation-delay:0.4s;">.</span>`;
   };
   renderThinking();
-  const thinkInterval = setInterval(() => {
+  const thinkInterval = thinkWords.length > 1 ? setInterval(() => {
     thinkIdx = (thinkIdx + 1) % thinkWords.length;
     renderThinking();
-  }, 1800);
+  }, 1800) : null;
 
   try {
     const historyForApi = currentChatMessages.slice(0, -1).map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
