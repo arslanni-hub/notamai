@@ -5025,8 +5025,9 @@ Write 2-3 sentences of actionable growth insight. Be specific and practical. Foc
 <div style="max-width:600px;margin:0 auto;padding:28px 20px;">
 
   <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid #e2e8f0;margin-bottom:20px;">
-    <div style="font-size:14px;font-weight:700;letter-spacing:3px;color:#0f172a;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
-    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-top:3px;">WEEKLY GROWTH REPORT · ${now.toISOString().split('T')[0]}</div>
+    <img src="https://notamai.onrender.com/favicon.png" alt="" width="32" height="32" style="width:32px;height:32px;border-radius:7px;display:inline-block;vertical-align:middle;margin-right:8px;">
+    <span style="font-size:14px;font-weight:700;letter-spacing:3px;color:#0f172a;vertical-align:middle;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></span>
+    <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-top:6px;">WEEKLY GROWTH REPORT · ${now.toISOString().split('T')[0]}</div>
   </div>
 
   ${aiInsight ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 16px;margin-bottom:20px;border-left:4px solid #4a9eff;">
@@ -5509,7 +5510,8 @@ Respond ONLY with a valid JSON object, no other text before or after:
 <div style="max-width:640px;margin:0 auto;padding:28px 20px;">
 
   <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid #e2e8f0;margin-bottom:20px;">
-    <div style="font-size:14px;font-weight:700;letter-spacing:3px;color:#0f172a;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+    <img src="https://notamai.onrender.com/favicon.png" alt="" width="32" height="32" style="width:32px;height:32px;border-radius:7px;display:inline-block;vertical-align:middle;margin-right:8px;">
+    <span style="font-size:14px;font-weight:700;letter-spacing:3px;color:#0f172a;vertical-align:middle;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></span>
     <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-top:3px;">🎯 SALES AGENT — ENTERPRISE LEAD</div>
   </div>
 
@@ -5748,7 +5750,8 @@ SUGGESTED_REPLY:
 <div style="max-width:600px;margin:0 auto;padding:28px 20px;">
 
   <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid #e2e8f0;margin-bottom:20px;">
-    <div style="font-size:14px;font-weight:700;letter-spacing:3px;color:#0f172a;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+    <img src="https://notamai.onrender.com/favicon.png" alt="" width="32" height="32" style="width:32px;height:32px;border-radius:7px;display:inline-block;vertical-align:middle;margin-right:8px;">
+    <span style="font-size:14px;font-weight:700;letter-spacing:3px;color:#0f172a;vertical-align:middle;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></span>
     <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-top:3px;">SUPPORT AGENT</div>
   </div>
 
@@ -5872,7 +5875,8 @@ async function sendWeeklySummaries() {
 <body style="margin:0;padding:0;background:#060a0f;">
   <div style="max-width:560px;margin:0 auto;padding:32px 24px;font-family:'Rajdhani',Helvetica,Arial,sans-serif;">
     <div style="text-align:center;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid #1a2a3a;">
-      <div style="font-family:Georgia,serif;font-size:16px;font-weight:700;letter-spacing:4px;color:#ffffff;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+      <img src="https://notamai.onrender.com/favicon.png" alt="" width="37" height="37" style="width:37px;height:37px;border-radius:8px;display:inline-block;vertical-align:middle;margin-right:8px;">
+      <span style="font-family:Georgia,serif;font-size:16px;font-weight:700;letter-spacing:4px;color:#ffffff;vertical-align:middle;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></span>
       <div style="font-family:monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-top:6px;">WEEKLY ACTIVITY SUMMARY</div>
     </div>
     <div style="margin-bottom:24px;">
