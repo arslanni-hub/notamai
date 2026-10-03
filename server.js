@@ -75,8 +75,8 @@ const PLAN_LIMITS = {
 // at 100% of its small token budget.
 const GENERAL_CHAT_LIMITS = {
   free:    { windowMinutes: 300, limit: 470,    mode: 'tokens', model: 'claude-haiku-4-5' },
-  pro:     { windowMinutes: 300, limit: 12000,  mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 },
-  max: { windowMinutes: 300, limit: 24000,  mode: 'tokens', model: 'claude-sonnet-4-6', softLimitRatio: 0.70 },
+  pro:     { windowMinutes: 300, limit: 12000,  mode: 'tokens', model: 'claude-sonnet-5-5', softLimitRatio: 0.70 },
+  max: { windowMinutes: 300, limit: 24000,  mode: 'tokens', model: 'claude-sonnet-5-5', softLimitRatio: 0.70 },
   admin:   { windowMinutes: 300, limit: 999999, mode: 'tokens', model: 'claude-sonnet-5-5' }
 };
 const GENERAL_CHAT_FALLBACK_MODEL = 'claude-haiku-4-5';
