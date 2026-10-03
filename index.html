@@ -3042,6 +3042,11 @@ async function handleSend(silent = false) {
         document.getElementById('mainNavbar').style.display = 'flex';
         if (data.error === 'limit_reached') {
           showLimitModal(data.plan, 'briefing', data.usage, data.limit);
+        } else if (data.error === 'email_not_verified') {
+          showEmailVerifyBanner();
+          showToast('Please verify your email first — check your inbox.');
+        } else if (data.error === 'free_capacity') {
+          showToast("Today's free briefings are fully booked. Try again tomorrow, or start a 7-day free trial for instant access.");
         }
       }
       return;
@@ -3977,6 +3982,62 @@ async function openBillingPortal() {
   } catch (e) { alert('Could not open the billing portal. Please try again.'); }
 }
 
+// Any API call rejected with email_not_verified surfaces the verification banner.
+(function () {
+  const origFetch = window.fetch;
+  window.fetch = async function (...args) {
+    const res = await origFetch.apply(this, args);
+    if (res.status === 403) {
+      res.clone().json().then(j => { if (j && j.error === 'email_not_verified') showEmailVerifyBanner(); }).catch(() => {});
+    }
+    return res;
+  };
+})();
+
+let emailVerifyPoll = null;
+function needsEmailVerification(user) {
+  return !!user && !user.emailVerified && user.providerData.some(p => p.providerId === 'password');
+}
+function showEmailVerifyBanner() {
+  const user = firebase.auth().currentUser;
+  if (!needsEmailVerification(user)) return;
+  let b = document.getElementById('emailVerifyBanner');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'emailVerifyBanner';
+    b.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9000;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;padding:10px 16px;background:rgba(10,15,24,0.96);border-bottom:1px solid rgba(242,198,65,0.4);color:#f2c641;font-family:'Rajdhani',sans-serif;font-size:13px;letter-spacing:0.5px;";
+    document.body.appendChild(b);
+  }
+  b.innerHTML = '';
+  const msg = document.createElement('span');
+  msg.textContent = 'Verify your email to use NOTAM Intelligence — we sent a link to ' + user.email + '.';
+  const resend = document.createElement('button');
+  resend.textContent = 'Resend email';
+  resend.style.cssText = "background:transparent;border:1px solid rgba(242,198,65,0.5);color:#f2c641;border-radius:6px;padding:4px 12px;cursor:pointer;font-family:inherit;font-size:12px;";
+  resend.onclick = async () => {
+    try { await user.sendEmailVerification(); showToast('Verification email sent'); }
+    catch (e) { showToast('Please wait a moment before requesting another email'); }
+  };
+  b.appendChild(msg);
+  b.appendChild(resend);
+  if (!emailVerifyPoll) {
+    emailVerifyPoll = setInterval(async () => {
+      const u = firebase.auth().currentUser;
+      if (!u) { hideEmailVerifyBanner(); return; }
+      try { await u.reload(); } catch (e) { return; }
+      if (u.emailVerified) {
+        await u.getIdToken(true); // refresh so the server sees email_verified=true
+        hideEmailVerifyBanner();
+        showToast("Email verified — you're all set");
+      }
+    }, 5000);
+  }
+}
+function hideEmailVerifyBanner() {
+  document.getElementById('emailVerifyBanner')?.remove();
+  if (emailVerifyPoll) { clearInterval(emailVerifyPoll); emailVerifyPoll = null; }
+}
+
 function showToast(message) {
   const toast = document.createElement('div');
   toast.style.cssText = 'position:fixed;bottom:80px;background:rgba(244,132,26,0.1);border:1px solid rgba(244,132,26,0.3);color:#f4a04a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-size:13px;font-weight:500;padding:10px 18px;border-radius:10px;z-index:9999;white-space:nowrap;pointer-events:auto;';
@@ -4518,7 +4579,7 @@ function signInWithEmail() {
     .catch(err => {
       if (err.code === 'auth/user-not-found') {
         auth.createUserWithEmailAndPassword(email, password)
-          .then(() => { closeAuthModal(); })
+          .then(cred => { cred.user.sendEmailVerification().catch(() => {}); closeAuthModal(); })
           .catch(e => { alert(e.message); });
       } else {
         alert(err.message);
@@ -4782,6 +4843,7 @@ function deleteBriefing(e, id) {
 
 firebase.auth().onAuthStateChanged(async user => {
   console.log('onAuthStateChanged fired, user:', user ? user.email : 'null');
+  if (user && needsEmailVerification(user)) showEmailVerifyBanner(); else hideEmailVerifyBanner();
   const sidebar = document.getElementById('appSidebar');
   const navbar  = document.getElementById('mainNavbar');
   const mainContent = document.getElementById('mainContent');
@@ -4991,6 +5053,7 @@ async function createAccount() {
       referredBy: referralCode || null,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+    result.user.sendEmailVerification().catch(() => {});
     gtag('event', 'sign_up', { method: 'email' });
     closeSignupModal();
   } catch(e) {
