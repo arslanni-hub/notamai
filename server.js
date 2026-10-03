@@ -485,6 +485,17 @@ function notamRecencyKey(n) {
   return yr * 100000 + parseInt(m[1]);
 }
 
+// SkyLink returns an object with a `notams` ARRAY on success (an empty array means genuinely no NOTAMs).
+// Anything else (quota exceeded, upstream error, non-JSON) is a PROVIDER FAILURE and must never be shown as "no NOTAMs".
+function skylinkNotamsOk(data) { return !!data && typeof data === 'object' && Array.isArray(data.notams); }
+let lastSkylinkFailMail = 0;
+function notifySkylinkFailure(icao) {
+  if (Date.now() - lastSkylinkFailMail < 6 * 60 * 60 * 1000) return;
+  lastSkylinkFailMail = Date.now();
+  sendAdminNotification('🚨 SkyLink returned no NOTAM data',
+    '<div style="font-size:13px;color:#1e293b;">SkyLink returned no NOTAM data for ' + icao + '. Likely the monthly RapidAPI quota is exhausted or the provider is down. Briefings and the NOTAM panel now show "NOTAM DATA UNAVAILABLE". Check RapidAPI usage and upgrade the plan if needed.</div>').catch(() => {});
+}
+
 async function fetchNotams(icao) {
   if (!icao) return { text: '', total: 0, shown: 0 };
   try {
@@ -500,7 +511,12 @@ async function fetchNotams(icao) {
     });
     console.log('[NOTAM fetchNotams TYPE]', typeof data);
     console.log('[NOTAM fetchNotams SAMPLE]', JSON.stringify(data).slice(0, 500));
-    if (data.error || !data.notams || data.notams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0 };
+    if (data.error || !skylinkNotamsOk(data)) {
+      console.log('[NOTAM DATA UNAVAILABLE]', icao, JSON.stringify(data).slice(0, 200));
+      notifySkylinkFailure(icao);
+      return { text: `[NOTAM DATA UNAVAILABLE for ${icao}] The NOTAM data provider did not return data for this airport (possible quota limit or outage). Do NOT state or imply that there are no NOTAMs. In the NOTAM section, state clearly that NOTAM data could not be retrieved and must be checked with the official AIS/NOTAM office before flight.`, total: 0, shown: 0, unavailable: true };
+    }
+    if (data.notams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0 };
     const now = new Date();
     const notInFuture = n => {
       if (!n.effective || n.effective.length < 12) return true;
@@ -573,7 +589,7 @@ async function fetchNotams(icao) {
       return `[${icao} NOTAM ${i+1}] [${sev}] ${n.notam_id || ''}:\n${raw}`;
     }).join('\n\n---\n\n');
     return { text, total: activeNotams.length, shown, excludedAdminCount, nearFutureLines, laterFutureCount: laterFuture.length };
-  } catch (e) { return { text: `Could not fetch NOTAMs for ${icao}: ${e.message}`, total: 0, shown: 0 }; }
+  } catch (e) { return { text: `[NOTAM DATA UNAVAILABLE for ${icao}] Could not fetch NOTAMs: ${e.message}. Do NOT state or imply that there are no NOTAMs; they must be checked with the official AIS/NOTAM office.`, total: 0, shown: 0, unavailable: true }; }
 }
 
 // Oceanic FIRs that use SkyLink fallback messaging
@@ -3351,7 +3367,13 @@ MANDATORY:
         });
         console.log('[NOTAM RAW RESPONSE TYPE]', typeof data);
         console.log('[NOTAM RAW RESPONSE SAMPLE]', JSON.stringify(data).slice(0, 500));
-        if (!data || !data.notams || data.notams.length === 0) {
+        if (!skylinkNotamsOk(data)) {
+          notifySkylinkFailure(icao);
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
+          res.end('NOTAM DATA UNAVAILABLE for ' + icao + ' — the data provider returned no data (possible quota limit or outage). Do NOT assume there are no NOTAMs; check the official AIS/NOTAM office.');
+          return;
+        }
+        if (data.notams.length === 0) {
           res.writeHead(200, { 'Content-Type': 'text/plain' });
           res.end('No active NOTAMs for ' + icao);
           return;
@@ -4648,6 +4670,10 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             const totalExcludedAdmin = (notamDepResult.excludedAdminCount || 0) + (notamArrResult.excludedAdminCount || 0);
             const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             let notamNotesHtml = '';
+            if (notamDepResult.unavailable || notamArrResult.unavailable) {
+              const which = [notamDepResult.unavailable ? icao_dep : null, notamArrResult.unavailable ? icao_arr : null].filter(Boolean).join(', ');
+              notamNotesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#ff6b6b;padding:12px 14px;margin:12px 0;border:1px solid rgba(255,107,107,0.5);border-left:4px solid #ff4d4d;background:rgba(255,77,77,0.08);"><strong>⚠ NOTAM DATA UNAVAILABLE for ${esc(which)}.</strong> The NOTAM data provider did not return data. This briefing is INCOMPLETE and must not be treated as "no NOTAMs". Check the official AIS/NOTAM office before flight.</div>`;
+            }
             if (allNearFuture.length > 0) {
               const upcomingList = allNearFuture.map(l => `<li style="margin-bottom:4px;">${esc(l)}</li>`).join('');
               notamNotesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;"><strong>⏳ Upcoming NOTAMs (next 24h, not yet effective):</strong><ul style="margin:6px 0 0;padding-left:18px;">${upcomingList}</ul></div>`;
@@ -4812,6 +4838,11 @@ async function checkNotamAlerts() {
           method: 'GET',
           headers: { 'x-rapidapi-key': process.env.SKYLINK_KEY, 'x-rapidapi-host': 'skylink-api.p.rapidapi.com' }
         });
+        if (!skylinkNotamsOk(data) && !Array.isArray(data?.data)) {
+          console.log('[ALERT CHECK ERROR] SkyLink returned no NOTAM data for', icao, JSON.stringify(data).slice(0, 200));
+          notifySkylinkFailure(icao);
+          continue;
+        }
         notams = (data?.notams || data?.data || []).filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase());
         console.log('[ALERT CHECK]', icao, notams.length, 'NOTAMs');
       } catch(e) {
