@@ -4217,8 +4217,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         const isNotamProduction = /notam.*hazırla|notam.*yaz|notam.*üret|yayına hazırla|notam talep.*form|produce.*notam|draft.*notam|generate.*notam|notam.*draft|icao.*format.*notam|q.?line.*oluştur/i.test(effectiveQuestion);
         const opusAllowed = isNotamProduction && ['pro', 'max', 'admin'].includes(plan) && !pastSoftLimit;
         const chatModel = opusAllowed ? 'claude-opus-5-5' : modelToUse;
-        if (opusAllowed) console.log('[NOTAM PRODUCTION] Using Opus 5 for NOTAM drafting');
-        if (isNotamProduction) console.log('[NOTAM PRODUCTION] Using Opus 5 for NOTAM drafting');
+        if (opusAllowed) console.log('[NOTAM PRODUCTION] Using Opus 5.5 for NOTAM drafting');
 
         const systemPrompt = `You are a world-class aviation expert assistant and certified AIM (Aeronautical Information Management) specialist embedded in NOTAM Intelligence, a professional pre-flight briefing platform used by pilots and flight dispatchers. You have the depth of knowledge of a senior airline captain, a flight dispatcher, an AIM specialist working under DHMI/EUROCONTROL standards, and an aviation safety instructor combined.
 
