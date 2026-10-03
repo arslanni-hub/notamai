@@ -156,9 +156,23 @@ async function getUserPlan(userId) {
 async function getVerifiedUserId(req) {
   const h = req.headers['authorization'] || '';
   if (!h.startsWith('Bearer ')) return null;
-  try { return (await admin.auth().verifyIdToken(h.slice(7))).uid; } catch (e) { return null; }
+  try {
+    const decoded = await admin.auth().verifyIdToken(h.slice(7));
+    // Email/password accounts must verify their address before using any metered feature.
+    // Google sign-in accounts arrive with email_verified=true, so they pass untouched.
+    if (decoded.firebase?.sign_in_provider === 'password' && !decoded.email_verified) {
+      req._authError = 'email_not_verified';
+      return null;
+    }
+    return decoded.uid;
+  } catch (e) { return null; }
 }
-function sendUnauthorized(res) {
+function sendUnauthorized(res, req) {
+  if (req && req._authError === 'email_not_verified') {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'email_not_verified' }));
+    return;
+  }
   res.writeHead(401, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'unauthorized' }));
 }
@@ -2614,7 +2628,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
       try {
         const { route, briefingId } = JSON.parse(body);
         const userId = await getVerifiedUserId(req);
-        if (!userId) { sendUnauthorized(res); return; }
+        if (!userId) { sendUnauthorized(res, req); return; }
 
         const vPlan = await getUserPlan(userId);
         if (vPlan !== 'max' && vPlan !== 'admin') {
@@ -2828,7 +2842,7 @@ MANDATORY:
       try {
         const { route, briefingId } = JSON.parse(body);
         const userId = await getVerifiedUserId(req);
-        if (!userId) { sendUnauthorized(res); return; }
+        if (!userId) { sendUnauthorized(res, req); return; }
 
         // Same logic as generate-video-briefing but without WaveSpeed call
         let briefingContent = '';
@@ -3527,7 +3541,7 @@ MANDATORY:
     req.on('end', async () => {
       try {
         const userId = await getVerifiedUserId(req);
-        if (!userId) { sendUnauthorized(res); return; }
+        if (!userId) { sendUnauthorized(res, req); return; }
         if (!stripe) { res.writeHead(503, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'payments_not_configured' })); return; }
         const { plan, interval } = JSON.parse(body);
         const iv = interval === 'year' ? 'year' : 'month';
@@ -3571,7 +3585,7 @@ MANDATORY:
     req.on('end', async () => {
       try {
         const userId = await getVerifiedUserId(req);
-        if (!userId) { sendUnauthorized(res); return; }
+        if (!userId) { sendUnauthorized(res, req); return; }
         const snap = await adminDb.collection('users').doc(userId).get();
         const u = snap.exists ? snap.data() : {};
         if (!stripe || !u.stripeCustomerId) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'no_subscription' })); return; }
@@ -3713,7 +3727,7 @@ MANDATORY:
     req.on('end', async () => {
       try {
         const userId = await getVerifiedUserId(req);
-        if (!userId) { sendUnauthorized(res); return; }
+        if (!userId) { sendUnauthorized(res, req); return; }
         {
           const plan = await getUserPlan(userId);
           if (plan === 'free') {
@@ -3903,7 +3917,7 @@ MANDATORY:
     req.on('end', async () => {
       try {
         const userId = await getVerifiedUserId(req);
-        if (!userId) { sendUnauthorized(res); return; }
+        if (!userId) { sendUnauthorized(res, req); return; }
         {
           const plan = await getUserPlan(userId);
           if (plan === 'free') {
@@ -4136,7 +4150,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
     req.on('end', async () => {
       try {
         const userId = await getVerifiedUserId(req);
-        if (!userId) { sendUnauthorized(res); return; }
+        if (!userId) { sendUnauthorized(res, req); return; }
 
         const plan = await getUserPlan(userId);
         const cfg = GENERAL_CHAT_LIMITS[plan] || GENERAL_CHAT_LIMITS.free;
@@ -4417,7 +4431,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
       try {
         // Plan check before any heavy fetching
         const userId = await getVerifiedUserId(req);
-        if (!userId) { sendUnauthorized(res); return; }
+        if (!userId) { sendUnauthorized(res, req); return; }
         {
           const plan = await getUserPlan(userId);
           const usage = await getUserUsage(userId, 'briefings');
