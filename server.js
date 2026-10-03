@@ -166,7 +166,7 @@ async function getUserPlan(userId) {
   try {
     const userRecord = await admin.auth().getUser(userId);
     const ADMIN_EMAILS = ['arslanni@gmail.com', 'admin@notamai.com'];
-    if (ADMIN_EMAILS.includes(userRecord.email)) return 'admin';
+    if (ADMIN_EMAILS.includes(userRecord.email) && userRecord.emailVerified) return 'admin';
     const doc = await adminDb.collection('users').doc(userId).get();
     const plan = doc.exists ? (doc.data().plan || 'free') : 'free';
     console.log('[PLAN CHECK]', userId, 'plan:', plan);
