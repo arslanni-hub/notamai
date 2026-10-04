@@ -1169,6 +1169,19 @@ const HTML_HEAD = `<!DOCTYPE html>
 
 const HTML_FOOT = `</div></body></html>`;
 
+// Appended to the briefing system prompt ONLY when running on Sonnet 5.5. It deliberately overrides the older
+// brevity limits that Sonnet 5.5 (medium effort) follows literally, restoring operational depth where it matters.
+const BRIEFING_DEPTH_RULES_55 = `DEPTH AND SPECIFICITY RULES — these OVERRIDE any earlier length limit that conflicts with them (the "3-4 sentences", "1-2 sentences max" and "1-2 tight sentences" limits and the "Be concise" instruction). Anything not listed here keeps its existing cap. Concise is good; vague is not: every sentence must carry a specific fact (NOTAM ID, runway, value, time, quantity) and what it means for the crew.
+
+1. EXECUTIVE SUMMARY: first paragraph of 5-6 sentences. Name the 2-3 most critical hazards with their NOTAM IDs and state the operational consequence of each (what the crew can no longer do, or must now do). Second paragraph: the classification and the one-sentence reason for it.
+2. COMPOUNDING RISK MATRIX: each compound-item starts with a short bold label naming the interacting hazards, for example <strong>RWY CLOSURE × LLWAS U/S:</strong>, followed by 2 sentences explaining the specific interaction effect. Max 4 items.
+3. FULL NOTAM CARDS: Operational Impact must state the concrete effect with values (runway, minima, times). The REQUIRED CREW ACTION must be 2-3 sentences: the specific action, the specific value/time/runway it applies to, and why. Add the COMPOUNDS WITH banner whenever the NOTAM interacts with another NOTAM in this briefing, citing the NOTAM IDs. The compact one-line format stays as specified.
+4. ALTERNATE ASSESSMENT (route briefings, Dispatch Notes - ALTERNATE AERODROME): explicitly assess whether the departure and arrival aerodromes could serve as alternates under the NOTAMs in this data, and say so plainly when one cannot (for example because of runway closures or lost approach capability). For each recommended alternate give a one-clause reason (approach capability, location, NOTAM state) and state that its weather and NOTAMs must still be verified when none were provided. Never recommend an alternate on the basis of data you do not have.
+5. ACTION ITEMS (Pilot Action Items, or Airport Operational Considerations in single-airport briefings): 8-10 items, each 2 sentences, each containing at least one concrete parameter (value, time, runway, procedure ID or NOTAM ID) plus the reason.
+6. GO/NO-GO (or the airport operational status verdict): conditions must be measurable and specific (time windows, minima or amended values, fuel items, named procedures). NO-GO IF / AVOID IF triggers must combine the real compounding factors of this briefing, not generic statements.
+7. NO FILLER: do not write "none were supplied", "no slot data provided" or similar lines inside individual sections; omit what has no data. List missing inputs (alternate METAR/TAF, slot data) ONCE, in one short line at the end of the last notes grid (Dispatch Notes, or Ground and ATC Notes), as <div class="notam-overflow-note">DATA GAPS: [comma-separated list]</div>, and omit that line when nothing is missing. The statement about en-route FIR NOTAMs not being retrieved stays in the Airspace section as already required and is not repeated in DATA GAPS.
+8. The Go/No-Go box (or the airport status verdict box) and the Footer remain mandatory and must never be cut for space.`;
+
 const systemPrompt = `MANDATORY RULES:
 - Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them using the appropriate format (full card for CRITICAL/HIGH, compact for MEDIUM/LOW)
 - Immediately after the closing </div> of the notam-list section (right after the last NOTAM card, before starting the next section such as Weather), insert this exact placeholder on its own line: <!--NOTAM_NOTES--> — always include it whenever a NOTAM section is present, even if you believe there's nothing to add there; the server will fill it in automatically. Do not add any text of your own at that spot.
@@ -4643,10 +4656,10 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         console.log('[BRIEFING MODEL]', { model: briefingModel, plan: briefingPlan });
         const claudeBody = JSON.stringify({
           model: briefingModel,
-          max_tokens: 16000,
+          max_tokens: briefingModel === 'claude-sonnet-5-5' ? 20000 : 16000,
           ...(briefingModel === 'claude-sonnet-5-5' ? { output_config: { effort: 'medium' } } : {}),
           stream: true,
-          system: [{ type: 'text', text: isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt), cache_control: { type: 'ephemeral' } }],
+          system: [{ type: 'text', text: (isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt)) + ((briefingModel === 'claude-sonnet-5-5' && !isQuickAnalysis) ? '\n\n' + BRIEFING_DEPTH_RULES_55 : ''), cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: contentBlocks }]
         });
 
