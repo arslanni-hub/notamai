@@ -4432,6 +4432,9 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           model: chatModel,
           max_tokens: opusAllowed ? 8000 : (chatModel === 'claude-sonnet-5-5' ? 6000 : 4000),
           ...(chatModel === 'claude-sonnet-5-5' ? { output_config: { effort: 'medium' } } : {}),
+          // Sonnet 5.5 rejects thinking:disabled; 'between_tools' turns off up-front thinking (thinking between web searches stays).
+          // Toggle with Render env CHAT_THINKING_OFF=1 to A/B cost, budget use and quality.
+          ...(chatModel === 'claude-sonnet-5-5' && process.env.CHAT_THINKING_OFF === '1' ? { thinking: { type: 'between_tools' } } : {}),
           stream: true,
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           messages,
@@ -4457,7 +4460,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
             if (doneSent) return;
             doneSent = true;
             const totalTokens = (usageInfo?.input_tokens || 0) + (usageInfo?.output_tokens || 0);
-            console.log('[GENERAL CHAT USAGE]', { plan, model: chatModel, input: usageInfo?.input_tokens || 0, output: usageInfo?.output_tokens || 0, stop: usageInfo?.stop_reason || 'unknown' });
+            console.log('[GENERAL CHAT USAGE]', { plan, model: chatModel, input: usageInfo?.input_tokens || 0, output: usageInfo?.output_tokens || 0, stop: usageInfo?.stop_reason || 'unknown', text_chars: usageInfo?.text_chars || 0, thinking_blocks: usageInfo?.thinking_blocks || 0, thinkingOff: process.env.CHAT_THINKING_OFF === '1' });
             const searchCount = usageInfo?.web_search_requests || 0;
             if (searchCount > 0) {
               console.log('[GENERAL CHAT] Web search used', { userId, plan, searchCount });
