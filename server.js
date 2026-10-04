@@ -568,7 +568,8 @@ async function fetchNotams(icao) {
     nearFuture.sort((a, b) => (a.effective || '').localeCompare(b.effective || ''));
     const nearFutureLines = nearFuture.map(n => {
       const eff = n.effective ? n.effective.slice(2) : '?';
-      const oneLine = (n.raw || n.body || '').replace(/\s+/g, ' ').trim().slice(0, 90);
+      const bodyText = (n.body || n.raw || '').replace(/\s+/g, ' ').trim();
+      const oneLine = bodyText.length > 140 ? bodyText.slice(0, 137).replace(/\s+\S*$/, '') + '…' : bodyText;
       return `${n.notam_id || ''} (from ${eff}Z): ${oneLine}`;
     });
 
@@ -1267,7 +1268,7 @@ REQUIRED SECTIONS IN ORDER:
   </div>
 
   [If the user message includes an overflow note ("[N additional NOTAMs not shown...]"), emit it at the end of the NOTAM list as:]
-  <div class="notam-overflow-note">+N NOTAMs not shown (includes lower-priority administrative items). Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list, or use Single NOTAM Analysis to examine any in detail.</div>
+  <div class="notam-overflow-note">+N NOTAMs not shown (lower priority by severity/recency). Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list, or use Single NOTAM Analysis to examine any in detail.</div>
 </div>
 
 5. AIRSPACE AND RESTRICTIONS:
@@ -4635,9 +4636,15 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
           contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 } });
         }
 
+        // Canary: admin accounts run the briefing on Sonnet 5.5 (medium effort) so cost and quality can be
+        // compared with Sonnet 4.6 on identical routes before any rollout to paying plans.
+        const briefingPlan = userId ? await getUserPlan(userId) : 'free';
+        const briefingModel = briefingPlan === 'admin' ? 'claude-sonnet-5-5' : 'claude-sonnet-4-6';
+        console.log('[BRIEFING MODEL]', { model: briefingModel, plan: briefingPlan });
         const claudeBody = JSON.stringify({
-          model: 'claude-sonnet-4-6',
+          model: briefingModel,
           max_tokens: 16000,
+          ...(briefingModel === 'claude-sonnet-5-5' ? { output_config: { effort: 'medium' } } : {}),
           stream: true,
           system: [{ type: 'text', text: isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt), cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: contentBlocks }]
