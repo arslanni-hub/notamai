@@ -4657,7 +4657,8 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         // Canary: admin accounts run the briefing on Sonnet 5.5 (medium effort) so cost and quality can be
         // compared with Sonnet 4.6 on identical routes before any rollout to paying plans.
         const briefingPlan = userId ? await getUserPlan(userId) : 'free';
-        const briefingModel = briefingPlan === 'admin' ? 'claude-sonnet-5-5' : 'claude-sonnet-4-6';
+        // BRIEFING_MODEL (Render env) selects the model for non-admin plans; admin always runs the newest.
+        const briefingModel = briefingPlan === 'admin' ? 'claude-sonnet-5-5' : (process.env.BRIEFING_MODEL || 'claude-sonnet-4-6');
         console.log('[BRIEFING MODEL]', { model: briefingModel, plan: briefingPlan, thinkingOff: process.env.BRIEFING_THINKING_OFF === '1' });
         const claudeBody = JSON.stringify({
           model: briefingModel,
