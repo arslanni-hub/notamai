@@ -4658,11 +4658,14 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         // compared with Sonnet 4.6 on identical routes before any rollout to paying plans.
         const briefingPlan = userId ? await getUserPlan(userId) : 'free';
         const briefingModel = briefingPlan === 'admin' ? 'claude-sonnet-5-5' : 'claude-sonnet-4-6';
-        console.log('[BRIEFING MODEL]', { model: briefingModel, plan: briefingPlan });
+        console.log('[BRIEFING MODEL]', { model: briefingModel, plan: briefingPlan, thinkingOff: process.env.BRIEFING_THINKING_OFF === '1' });
         const claudeBody = JSON.stringify({
           model: briefingModel,
           max_tokens: briefingModel === 'claude-sonnet-5-5' ? 24000 : 16000,
           ...(briefingModel === 'claude-sonnet-5-5' ? { output_config: { effort: 'medium' } } : {}),
+          // Sonnet 5.5 rejects thinking:disabled; 'between_tools' is its lowest setting (no up-front thinking).
+          // Toggle with Render env BRIEFING_THINKING_OFF=1 to A/B cost vs quality.
+          ...(briefingModel === 'claude-sonnet-5-5' && process.env.BRIEFING_THINKING_OFF === '1' ? { thinking: { type: 'between_tools' } } : {}),
           stream: true,
           system: [{ type: 'text', text: (isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt)) + ((briefingModel === 'claude-sonnet-5-5' && !isQuickAnalysis) ? '\n\n' + BRIEFING_DEPTH_RULES_55 : ''), cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: contentBlocks }]
