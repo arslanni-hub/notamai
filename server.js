@@ -3845,8 +3845,8 @@ MANDATORY:
           'LTAI': 'Antalya Airport, Antalya, Turkey',
           'LTAC': 'Ankara Esenboğa International Airport, Ankara, Turkey',
           'LTBJ': 'İzmir Adnan Menderes Airport, İzmir, Turkey',
-          'LTFE': 'Dalaman Airport, Muğla, Turkey',
-          'LTBS': 'Bodrum Milas Airport, Muğla, Turkey',
+          'LTFE': 'Milas-Bodrum Airport, Muğla, Turkey',
+          'LTBS': 'Dalaman Airport, Muğla, Turkey',
           'LTCG': 'Trabzon Airport, Trabzon, Turkey',
           'LTCE': 'Erzurum Airport, Erzurum, Turkey',
           'LTCA': 'Elazığ Airport, Elazığ, Turkey',
@@ -4344,7 +4344,7 @@ G) [UPPER LIMIT - if applicable]
 - You cover ALL countries worldwide — not just Turkey
 - For ANY airport/FIR ICAO code, use web search to verify if not 100% certain
 - Common prefixes: LT* = Turkey, EG* = UK, ED* = Germany, LF* = France, K* = USA, Y* = Australia, Z* = China, etc.
-- Turkish airports are common in your usage context — extra caution: LTFD=Balıkesir Koca Seyit, LTFE=Dalaman, LTBS=Bodrum (these are commonly confused)
+- Turkish airports are common in your usage context — extra caution: LTFD=Balıkesir Koca Seyit, LTFE=Milas-Bodrum, LTBS=Dalaman, LTBF=Balıkesir Merkez (these are commonly confused)
 - For any other country: ALWAYS verify via web search before using
 
 ### COORDINATE FORMAT (ICAO):
