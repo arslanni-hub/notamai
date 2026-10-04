@@ -915,7 +915,7 @@ async function fetchTaf(icao) {
 }
 
 function streamClaude(requestBody, onChunk, onDone, onError, onSearchStart) {
-  let usageInfo = { input_tokens: 0, output_tokens: 0 };
+  let usageInfo = { input_tokens: 0, output_tokens: 0, text_chars: 0, thinking_chars: 0, thinking_blocks: 0 };
   const searchBlocks = {};
   const req = https.request({
     hostname: 'api.anthropic.com',
@@ -961,7 +961,12 @@ function streamClaude(requestBody, onChunk, onDone, onError, onSearchStart) {
             searchBlocks[evt.index] = '';
           } else if (evt.type === 'content_block_delta' && evt.delta?.type === 'input_json_delta' && searchBlocks[evt.index] !== undefined) {
             searchBlocks[evt.index] += evt.delta.partial_json || '';
+          } else if (evt.type === 'content_block_start' && evt.content_block?.type === 'thinking') {
+            usageInfo.thinking_blocks += 1;
+          } else if (evt.type === 'content_block_delta' && evt.delta?.type === 'thinking_delta') {
+            usageInfo.thinking_chars += (evt.delta.thinking || '').length;
           } else if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+            usageInfo.text_chars += (evt.delta.text || '').length;
             onChunk(evt.delta.text);
           } else if (evt.type === 'content_block_stop' && searchBlocks[evt.index] !== undefined) {
             try {
@@ -4656,7 +4661,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         console.log('[BRIEFING MODEL]', { model: briefingModel, plan: briefingPlan });
         const claudeBody = JSON.stringify({
           model: briefingModel,
-          max_tokens: briefingModel === 'claude-sonnet-5-5' ? 20000 : 16000,
+          max_tokens: briefingModel === 'claude-sonnet-5-5' ? 24000 : 16000,
           ...(briefingModel === 'claude-sonnet-5-5' ? { output_config: { effort: 'medium' } } : {}),
           stream: true,
           system: [{ type: 'text', text: (isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt)) + ((briefingModel === 'claude-sonnet-5-5' && !isQuickAnalysis) ? '\n\n' + BRIEFING_DEPTH_RULES_55 : ''), cache_control: { type: 'ephemeral' } }],
@@ -4678,7 +4683,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
           (usageInfo) => {
             if (doneSent) return;
             doneSent = true;
-            console.log('[BRIEFING STOP REASON]', { stop_reason: usageInfo?.stop_reason || 'unknown', output_tokens: usageInfo?.output_tokens || 0 });
+            console.log('[BRIEFING STOP REASON]', { stop_reason: usageInfo?.stop_reason || 'unknown', output_tokens: usageInfo?.output_tokens || 0, text_chars: usageInfo?.text_chars || 0, thinking_blocks: usageInfo?.thinking_blocks || 0, thinking_chars: usageInfo?.thinking_chars || 0 });
             // Fixed, server-authored notes (not left to the model) about NOTAMs not included in
             // the main briefing, so the wording and counts are always accurate. Sent as part of
             // the 'done' event (notamNotesHtml) so the client can splice it in right after the
