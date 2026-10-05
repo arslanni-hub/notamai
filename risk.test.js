@@ -171,24 +171,28 @@ test('assessRisk uses runwaySources: 2 of 5 closed -> Tier 2; same closures with
 
 console.log('\n── v0.3: simultaneity, disputed data, closed fraction, route relevance ──');
 const dClosure = (id, rwy, d) => N(id, 'XXXX', '2609010000', '2611010000', `RWY ${rwy} CLSD.`, { d });
-const sweepRisk = (list, count) => R.assessRisk({ now: NOW, airports: [{ icao: 'XXXX', role: 'APT', notams: list, runwayInfo: { count, trusted: true } }] });
-test('sweep: two runways closed at DIFFERENT hours are never closed together -> only one remains, one tier lighter', () => {
-  const r = sweepRisk([dClosure('A1', '09L/27R', 'DAILY 2200-0500'), dClosure('A2', '09R/27L', 'DAILY 0600-1000')], 2);
-  const f = r.factors.find(x => x.key === 'XXXX:RWY');
-  assert.strictEqual(r.override, false);
-  assert.strictEqual(f.tier, 2, f.label);
-  assert.ok(/during scheduled windows/.test(f.label));
+const sweepRisk = (list, count, cfg) => R.assessRisk({ now: NOW, airports: [{ icao: 'XXXX', role: 'APT', notams: list, runwayInfo: { count, trusted: true } }] }, cfg);
+const LIGHTER = { scheduledDowngrade: true };
+test('sweep: two runways closed at DIFFERENT hours are never closed together (only one closed at a time)', () => {
+  const list = [dClosure('A1', '09L/27R', 'DAILY 2200-0500'), dClosure('A2', '09R/27L', 'DAILY 0600-1000')];
+  const full = sweepRisk(list, 2);                       // default: windows count at full strength (safety first)
+  const f = full.factors.find(x => x.key === 'XXXX:RWY');
+  assert.strictEqual(full.override, false);              // never both closed together
+  assert.strictEqual(f.tier, 1, f.label);                // 1 of 2 closed -> 1 remains
+  const light = sweepRisk(list, 2, LIGHTER).factors.find(x => x.key === 'XXXX:RWY');
+  assert.strictEqual(light.tier, 2, light.label); assert.ok(/during scheduled windows/.test(light.label));
 });
-test('sweep: two runways closed at OVERLAPPING hours -> both closed together (scheduled: Tier 1, no NO-GO override)', () => {
-  const r = sweepRisk([dClosure('A1', '09L/27R', 'DAILY 2200-0500'), dClosure('A2', '09R/27L', 'DAILY 2300-0300')], 2);
-  const f = r.factors.find(x => x.key === 'XXXX:RWY');
-  assert.strictEqual(f.tier, 1, f.label); assert.strictEqual(r.override, false);
+test('sweep: two runways closed at OVERLAPPING hours -> both closed together', () => {
+  const list = [dClosure('A1', '09L/27R', 'DAILY 2200-0500'), dClosure('A2', '09R/27L', 'DAILY 2300-0300')];
+  assert.strictEqual(sweepRisk(list, 2).override, true);                         // default: aerodrome closed in the overlap
+  const light = sweepRisk(list, 2, LIGHTER);
+  assert.strictEqual(light.factors.find(x => x.key === 'XXXX:RWY').tier, 1); assert.strictEqual(light.override, false);
 });
-test('sweep: continuous closure + scheduled second closure -> baseline stays, extra severity only in windows', () => {
+test('sweep: continuous closure + scheduled second closure', () => {
   const cont = N('A1', 'XXXX', '2609010000', '2611010000', 'RWY 09L/27R CLSD.');
-  const r = sweepRisk([cont, dClosure('A2', '09R/27L', 'DAILY 2300-0300')], 3);
-  const f = r.factors.find(x => x.key === 'XXXX:RWY');
-  assert.strictEqual(f.tier, 2, f.label);   // 1 of 3 closed continuously (T2); 2 of 3 in a window (T1 -> lighter = T2)
+  const list = [cont, dClosure('A2', '09R/27L', 'DAILY 2300-0300')];
+  assert.strictEqual(sweepRisk(list, 3).factors.find(x => x.key === 'XXXX:RWY').tier, 1);          // 2 of 3 closed in the window
+  assert.strictEqual(sweepRisk(list, 3, LIGHTER).factors.find(x => x.key === 'XXXX:RWY').tier, 2); // lighter mode
 });
 test('closed fraction: 3 of 5 closed is Tier 1 (2 remain); 2 of 5 stays Tier 2', () => {
   const c = (i, k) => N('A' + i, 'XXXX', '2609010000', '2611010000', `RWY ${k} CLSD.`);
@@ -203,10 +207,26 @@ test('disputed runway count never produces a NO-GO override (stale source cannot
   const f = r.factors.find(x => x.key === 'XXXX:RWY');
   assert.strictEqual(f.tier, 1); assert.ok(/possibly no usable runway/.test(f.label), f.label);
 });
-test('LTFM live case: 3 of 5 closed with disputed count (6 vs 5) -> Tier 1, no override', () => {
+test('LTFM (expert roles): 3 of 4 main runways closed -> Tier 1, no override', () => {
   const c = (id, k) => N(id, 'LTFM', '2607291506', '2611291400', `RWY ${k} CLSD TO LANDING TFC DUE TO CONST.`);
-  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'APT', notams: [c('B2991', '16L/34R'), c('B2990', '17R/35L'), c('B3742', '16R/34L')], runwaySources: [{ name: 'ourairports', count: 6 }, { name: 'awc', count: 5 }] }] });
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'APT', notams: [c('B2991', '16L/34R'), c('B2990', '17R/35L'), c('B3742', '16R/34L')] }] });
   const f = r.factors.find(x => x.key === 'LTFM:RWY');
+  assert.strictEqual(f.tier, 1); assert.strictEqual(r.override, false);
+  assert.ok(/3 of 4 main runways closed \(1 main \+ 2 backup remain\)/.test(f.label), f.label);
+});
+test('LTFM roles: backup closed = Tier 3; one main = Tier 2; two main = Tier 1; all main = Tier 1; all six = override', () => {
+  const t = list => { const c = (i, k) => N('R' + i, 'LTFM', '2609010000', '2611010000', `RWY ${k} CLSD.`); const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'APT', notams: list.map((k, i) => c(i, k)) }] }); return { tier: (r.factors.find(x => x.key === 'LTFM:RWY') || {}).tier, override: r.override }; };
+  assert.strictEqual(t(['18/36']).tier, 3);
+  assert.strictEqual(t(['17L/35R', '18/36']).tier, 3);
+  assert.strictEqual(t(['16R/34L']).tier, 2);
+  assert.strictEqual(t(['16R/34L', '09/27']).tier, 1);
+  const allMain = t(['16R/34L', '16L/34R', '17R/35L', '09/27']); assert.strictEqual(allMain.tier, 1); assert.strictEqual(allMain.override, false);
+  assert.strictEqual(t(['16R/34L', '16L/34R', '17R/35L', '09/27', '17L/35R', '18/36']).override, true);
+});
+test('disputed count (non-roles aerodrome): 3 of min(6,5)=5 closed -> Tier 1 by closed fraction, no override', () => {
+  const c = (id, k) => N(id, 'XXXX', '2607291506', '2611291400', `RWY ${k} CLSD TO LANDING TFC DUE TO CONST.`);
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'XXXX', role: 'APT', notams: [c('B1', '16L/34R'), c('B2', '17R/35L'), c('B3', '16R/34L')], runwaySources: [{ name: 'ourairports', count: 6 }, { name: 'awc', count: 5 }] }] });
+  const f = r.factors.find(x => x.key === 'XXXX:RWY');
   assert.strictEqual(f.tier, 1); assert.strictEqual(r.override, false);
   assert.ok(/3 of 5 runways closed, 2 remain/.test(f.label), f.label);
 });
@@ -300,11 +320,11 @@ const FIR_OMDB = [
     mk('A4317', 'LTBB', '2610010000', '2610311400', 'VOR/DME BIG U/S.') ] },
 ];
 
-test('LTFM single airport (5 runways, 2 closed to landing) -> HIGH 6, OPEN WITH CONSTRAINTS', () => {
+test('LTFM single airport (expert roles: 2 of 4 main runways closed to landing) -> HIGH 7, OPEN WITH CONSTRAINTS', () => {
   const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'APT', notams: LTFM, metar: 'LTFM 041650Z 36008KT 9999 FEW040 18/10 Q1020 NOSIG' }] });
   console.log('        ->', r.level, r.score, r.verdict, JSON.stringify(r.counts));
-  assert.strictEqual(r.counts.t1, 0);
-  assert.strictEqual(r.level, 'HIGH'); assert.strictEqual(r.score, 6); assert.strictEqual(r.verdict, 'OPEN WITH CONSTRAINTS');
+  assert.strictEqual(r.counts.t1, 1);
+  assert.strictEqual(r.level, 'HIGH'); assert.strictEqual(r.score, 7); assert.strictEqual(r.verdict, 'OPEN WITH CONSTRAINTS');
 });
 test('LTFM -> LTAI route -> CRITICAL 9 (LLWAS fully out + concentration at LTAI)', () => {
   const r = R.assessRisk({ now: NOW, airports: [
@@ -319,11 +339,13 @@ test('LTFJ -> OMDB at 19:30Z -> CRITICAL 9 (two FIRs with GNSS interference)', (
   assert.strictEqual(r.level, 'CRITICAL'); assert.strictEqual(r.score, 9);
   assert.ok(!r.factors.some(f => (f.ids || []).includes('A3039/2026')), 'closure window already passed -> must not be scored');
 });
-test('OMDB at 09:00Z: runway closure window (11:30-13:00Z) is in the next 24h -> scored one tier lighter', () => {
-  const r = R.assessRisk({ now: NOW_AM, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB });
-  const rw = r.factors.find(f => f.key === 'OMDB:RWY');
-  console.log('        ->', r.level, r.score, '| OMDB:RWY tier', rw && rw.tier, '|', rw && rw.label);
-  assert.ok(rw); assert.strictEqual(rw.tier, 2);   // 1 of 2 runways closed in a window: T1 downgraded to T2
+test('OMDB at 09:00Z: runway closure window (11:30-13:00Z) is in the next 24h -> counted at full strength by default', () => {
+  const input = { now: NOW_AM, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB };
+  const rw = R.assessRisk(input).factors.find(f => f.key === 'OMDB:RWY');
+  console.log('        ->', 'OMDB:RWY tier', rw && rw.tier, '|', rw && rw.label);
+  assert.ok(rw); assert.strictEqual(rw.tier, 1);
+  const light = R.assessRisk(input, { scheduledDowngrade: true }).factors.find(f => f.key === 'OMDB:RWY');
+  assert.strictEqual(light.tier, 2);
 });
 test('display severity: taxiway lights are not CRITICAL; LLWAS full is', () => {
   const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTAI', role: 'APT', notams: LTAI }] });
@@ -334,11 +356,79 @@ test('display severity: taxiway lights are not CRITICAL; LLWAS full is', () => {
 test('promptBlock renders level, score, verdict and factors', () => {
   const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'APT', notams: LTFM }] });
   const b = R.promptBlock(r);
-  assert.ok(/LEVEL: HIGH/.test(b) && /SCORE: 6/.test(b) && /TIER 2 FACTORS/.test(b));
+  assert.ok(/LEVEL: HIGH/.test(b) && /SCORE: 7/.test(b) && /TIER 1 FACTORS/.test(b) && /TIER 2 FACTORS/.test(b));
 });
 test('no NOTAMs -> LOW 0, GO', () => {
   const r = R.assessRisk({ now: NOW, airports: [{ icao: 'AAAA', role: 'DEP', notams: [] }, { icao: 'BBBB', role: 'ARR', notams: [] }] });
   assert.strictEqual(r.level, 'LOW'); assert.strictEqual(r.score, 0); assert.strictEqual(r.verdict, 'GO');
+});
+
+
+console.log('\n── v3: TAF, watchlist, model hand-over block, client finalisation ──');
+test('TAF: severe TEMPO is Tier 2, severe PROB30 is only Tier 3, benign TAF is nothing', () => {
+  const W = R.CONFIG.weather;
+  const a = R.assessTaf('TAF LTAI 041100Z 0412/0518 18008KT 9999 SCT030 TEMPO 0503/0506 0300 FG VV001', W);
+  assert.strictEqual(a.tier, 2); assert.ok(/TEMPO 0503\/0506Z/.test(a.label), a.label);
+  assert.ok(/VIS 300 m/.test(a.label) && /CIG 100 ft/.test(a.label), 'TEMPO visibility must be read: ' + a.label);
+  const v = R.assessTaf('TAF EGLL 041100Z 0412/0518 24008KT 9999 TEMPO 0503/0506 0200 FG', W);
+  assert.strictEqual(v.tier, 2); assert.ok(/VIS 200 m/.test(v.label), v.label);
+  const b = R.assessTaf('TAF LTAI 041100Z 0412/0518 18008KT 9999 SCT030 PROB30 TEMPO 0520/0524 TSRA BKN025CB', W);
+  assert.strictEqual(b.tier, 3);
+  const c = R.assessTaf('TAF LTFM 041100Z 0412/0518 05018G28KT 9999 SCT030 BKN040 TEMPO 0503/0506 BKN028 PROB30 TEMPO 0520/0524 -SHRA BKN025', W);
+  assert.strictEqual(c, null);
+  assert.strictEqual(R.assessTaf('', W), null);
+});
+test('airport weather factor names current and forecast conditions', () => {
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTAI', role: 'APT', notams: [], metar: 'METAR LTAI 041750Z 18008KT 9999 SCT030 20/10 Q1012', taf: 'TAF LTAI 041100Z 0412/0518 18008KT 9999 TEMPO 0503/0506 0300 FG VV001' }] });
+  const f = r.factors.find(x => x.key === 'LTAI:WX');
+  assert.ok(f && f.tier === 2 && /forecast TEMPO/.test(f.label), JSON.stringify(f));
+});
+test('watchlist: alarm wording on an unrecognised NOTAM is detected', () => {
+  assert.ok(R.watchReason({ raw: 'X/26 NOTAMN\nA) LTXX B) 2610040000 C) 2610301400\nE) VOLCANIC ASH REPORTED NEAR AD. EXERCISE CAUTION.' }));
+  assert.strictEqual(R.watchReason({ raw: 'X/26 NOTAMN\nA) LTXX B) 2610040000 C) 2610301400\nE) AIP SUPPLEMENT 12/26 PUBLISHED.' }), null);
+});
+
+const blockInput = () => ({ now: NOW, airports: [
+  { icao: 'LTFM', role: 'DEP', notams: LTFM, shownIds: ['B3951/2026', 'B2991/2026'], metar: 'METAR LTFM 041750Z 05014KT 9999 SCT032 18/09 Q1026 NOSIG' },
+  { icao: 'LTAI', role: 'ARR', notams: LTAI.concat([mk('X77', 'LTAI', '2610010000', '2611010000', 'BIRDS CONCENTRATION IN THE APPROACH AREA RWY 36R. CAUTION.')]), shownIds: ['J3165/2026'] }] });
+test('model block: floor, runway roles, coverage, additional NOTAMs, watchlist', () => {
+  const inp = blockInput(); const r = R.assessRisk(inp); const b = R.buildModelBlock(inp, r);
+  assert.ok(/FLOOR LEVEL: CRITICAL/.test(b) && /FLOOR SCORE: 9/.test(b));
+  assert.ok(/LTFM: 6 runways — main: 16R\/34L, 16L\/34R, 17R\/35L, 09\/27; backup/.test(b), 'roles missing');
+  assert.ok(/COVERAGE:[\s\S]*LTFM: \d+ active NOTAMs evaluated; METAR yes, TAF NO/.test(b));
+  assert.ok(/ADDITIONAL ACTIVE NOTAMs NOT SHOWN AS FULL CARDS/.test(b));
+  assert.ok(/- D1950\/2026 \[T2 RWY_CLOSURE\]/.test(b), 'non-card NOTAM line missing');
+  assert.ok(!/- B3951\/2026 \[/.test(b), 'card NOTAM must not be repeated in the additional list');
+  assert.ok(/WATCHLIST[\s\S]*X77\/2026 \[BIRDS\]/.test(b), 'watchlist item missing');
+  assert.ok(/En-route FIR NOTAMs: NOT retrieved/.test(b));
+});
+test('model block: en-route relevant NOTAMs appear with their FIR; override is stated', () => {
+  const inp = { now: NOW, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB };
+  const r = R.assessRisk(inp); const b = R.buildModelBlock(inp, r);
+  assert.ok(/EN-ROUTE NOTAMs RELEVANT TO THE ROUTE[\s\S]*ORBB A0403\/2026 \[GNSS_INTERFERENCE\]/.test(b));
+  assert.ok(/FIR ORBB: 1 NOTAMs/.test(b));
+  const ov = R.assessRisk({ now: NOW, airports: [{ icao: 'XXXX', role: 'APT', notams: [closure('A1', '09/27', 'XXXX')], runwayInfo: { count: 1, trusted: true } }] });
+  assert.ok(/OVERRIDE[\s\S]*MUST be NO-GO/.test(R.buildModelBlock({ airports: [{ icao: 'XXXX' }] }, ov)));
+});
+test('model block stays bounded when there are very many NOTAMs', () => {
+  const many = Array.from({ length: 300 }, (_, i) => mk('T' + (1000 + i), 'LTFM', '2609010000', '2611010000', `TWY T${i} CLSD DUE TO MAINTENANCE WORK IN PROGRESS`));
+  const inp = { now: NOW, airports: [{ icao: 'LTFM', role: 'APT', notams: many }] };
+  const b = R.buildModelBlock(inp, R.assessRisk(inp));
+  assert.ok(b.length < 20000, 'block too large: ' + b.length);
+  assert.ok(/… \d+ more \(see the NOTAM panel\)/.test(b));
+});
+test('finalizeForClient: never below the floor; raised ratings are kept; unparseable header falls back to the floor', () => {
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'DEP', notams: LTFM }, { icao: 'LTAI', role: 'ARR', notams: LTAI }] });   // floor CRITICAL 9
+  const head = n => `<div class="risk-score">📊 RISK SCORE ${n} / 10</div>`;
+  const low = R.finalizeForClient(r, head(7));
+  assert.strictEqual(low.riskFix.score, 9); assert.strictEqual(low.riskFix.cls, 'crit'); assert.ok(/header has been set to the floor/.test(low.riskBasisHtml));
+  const up = R.finalizeForClient(r, head(10));
+  assert.strictEqual(up.riskFix.score, 10); assert.ok(/raised above the floor/.test(up.riskBasisHtml));
+  const none = R.finalizeForClient(r, 'no header here');
+  assert.strictEqual(none.riskFix.score, 9);
+  const mid = R.assessRisk({ now: NOW, airports: [{ icao: 'XXXX', role: 'APT', notams: [] }] });                                              // floor LOW 0
+  const hi = R.finalizeForClient(mid, head(7));
+  assert.strictEqual(hi.riskFix.cls, 'high'); assert.strictEqual(hi.riskFix.label, '🟠 HIGH');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

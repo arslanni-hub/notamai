@@ -29,8 +29,15 @@ const CONFIG = {
   // Example:  LTFM: 5, OMDB: 2
   runwayCountOverrides: {},
 
+  // Expert-verified runway roles. "main" runways carry the planned traffic; "backup" runways are used depending
+  // on traffic density. The runway count of such an aerodrome is main + backup and is TRUSTED.
+  // LTFM (Istanbul Airport): 6 runways, the 09/27 opened in September 2026.
+  runwayRoles: {
+    LTFM: { main: ['16R/34L', '16L/34R', '17R/35L', '09/27'], backup: ['17L/35R', '18/36'] },
+  },
+
   // A runway closure that only applies during scheduled windows (NOTAM line D) is one tier lighter.
-  scheduledDowngrade: true,
+  scheduledDowngrade: false,   // safety first: a closure inside the window counts at full strength (ETA is unknown)
 
   // Runway capacity: if this fraction (or more) of an aerodrome's runways is closed, the situation is Tier 1
   // even when more than one runway remains (e.g. 3 of 5 closed). Set to 1.01 to disable.
@@ -314,34 +321,69 @@ function extractFact(n, scope) {
   return null;
 }
 
-// ───────────────────────── weather ─────────────────────────
+// ───────────────────────── weather (METAR + TAF) ─────────────────────────
+function scanWx(toks) {
+  let vis = null, ceil = null, ts = false, fz = false, gust = 0, wind = 0, m;
+  toks.forEach((tk, i) => {
+    if ((m = /^(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?KT$/.exec(tk))) { wind = Math.max(wind, +m[2]); gust = Math.max(gust, m[3] ? +m[3] : 0); }
+    else if (tk === 'CAVOK') { if (vis === null) vis = 10000; }
+    else if (/^\d{4}$/.test(tk) && vis === null) vis = +tk;
+    else if ((m = /^(\d+(?:\/\d)?)SM$/.exec(tk))) { const [x, y] = m[1].split('/'); vis = Math.round((y ? +x / +y : +x) * 1609); }
+    else if ((m = /^(BKN|OVC|VV)(\d{3})/.exec(tk))) { const h = +m[2] * 100; if (ceil === null || h < ceil) ceil = h; }
+    else if (/^[-+]?(VC)?TS/.test(tk)) ts = true;
+    else if (/^[-+]?FZ(RA|DZ|FG)$/.test(tk)) fz = true;
+  });
+  return { vis, ceil, ts, fz, gust, wind };
+}
+function classifyWx(sc, cfg) {
+  const severe = [];
+  if (sc.vis !== null && sc.vis < cfg.lifrVisM) severe.push(`VIS ${sc.vis} m`);
+  if (sc.ceil !== null && sc.ceil < cfg.lifrCeilFt) severe.push(`CIG ${sc.ceil} ft`);
+  if (sc.ts) severe.push('thunderstorm');
+  if (sc.fz) severe.push('freezing precipitation/fog');
+  const w = Math.max(sc.gust, sc.wind);
+  if (w >= cfg.gustKt) severe.push(`wind ${w} kt`);
+  if (severe.length) return { tier: 2, reasons: severe, severe: true };
+  const mild = [];
+  if (sc.vis !== null && sc.vis < cfg.ifrVisM) mild.push(`VIS ${sc.vis} m`);
+  if (sc.ceil !== null && sc.ceil < cfg.ifrCeilFt) mild.push(`CIG ${sc.ceil} ft`);
+  return mild.length ? { tier: 3, reasons: mild, severe: false } : null;
+}
 function assessWeather(metar, cfg) {
   if (!metar) return null;
-  const toks = String(metar).toUpperCase().split(/\s+/);
-  let vis = null, ceil = null, ts = false, fz = false, gust = 0, wind = 0;
-  for (const tk of toks) {
-    let m;
-    if ((m = /^(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?KT$/.exec(tk))) { wind = +m[2]; gust = m[3] ? +m[3] : 0; }
-    else if (tk === 'CAVOK') { vis = 10000; }
-    else if (/^\d{4}$/.test(tk) && vis === null && toks.indexOf(tk) > 1) vis = +tk;
-    else if ((m = /^(\d+(?:\/\d)?)SM$/.exec(tk))) { const [a, b] = m[1].split('/'); vis = Math.round((b ? +a / +b : +a) * 1609); }
-    else if ((m = /^(BKN|OVC|VV)(\d{3})/.exec(tk))) { const h = +m[2] * 100; if (ceil === null || h < ceil) ceil = h; }
-    else if (/^[-+]?(VC)?(TS|TSRA|TSSN|TSGR)/.test(tk)) ts = true;
-    else if (/^[-+]?FZ(RA|DZ|FG)$/.test(tk)) fz = true;
-  }
-  const reasons = [];
-  if (vis !== null && vis < cfg.lifrVisM) reasons.push(`VIS ${vis} m`);
-  if (ceil !== null && ceil < cfg.lifrCeilFt) reasons.push(`CIG ${ceil} ft`);
-  if (ts) reasons.push('thunderstorm');
-  if (fz) reasons.push('freezing precipitation/fog');
-  if (Math.max(gust, wind) >= cfg.gustKt) reasons.push(`wind ${Math.max(gust, wind)} kt`);
-  if (reasons.length) return { tier: 2, label: 'adverse weather (' + reasons.join(', ') + ')' };
-  const mild = [];
-  if (vis !== null && vis < cfg.ifrVisM) mild.push(`VIS ${vis} m`);
-  if (ceil !== null && ceil < cfg.ifrCeilFt) mild.push(`CIG ${ceil} ft`);
-  if (mild.length) return { tier: 3, label: 'IFR conditions (' + mild.join(', ') + ')' };
-  return null;
+  const c = classifyWx(scanWx(String(metar).toUpperCase().split(/\s+/)), cfg);
+  if (!c) return null;
+  return c.severe ? { tier: 2, label: 'adverse weather (' + c.reasons.join(', ') + ')' } : { tier: 3, label: 'IFR conditions (' + c.reasons.join(', ') + ')' };
 }
+// TAF: every change group is evaluated. PROB30/40 events are watch items (Tier 3) even when severe.
+function assessTaf(taf, cfg) {
+  if (!taf) return null;
+  const toks = String(taf).toUpperCase().split(/\s+/);
+  const groups = []; let cur = { type: 'MAIN', toks: [] };
+  for (let i = 0; i < toks.length; i++) {
+    const t = toks[i];
+    if (t === 'TEMPO' || t === 'BECMG') { groups.push(cur); cur = { type: t, toks: [] }; }
+    else if (/^FM\d{6}$/.test(t)) { groups.push(cur); cur = { type: 'FM', toks: [] }; }
+    else if (/^PROB(30|40)$/.test(t)) { groups.push(cur); cur = { type: t, toks: [] }; if (toks[i + 1] === 'TEMPO') i++; }
+    else cur.toks.push(t);
+  }
+  groups.push(cur);
+  let best = null;
+  for (const g of groups) {
+    const c = classifyWx(scanWx(g.toks), cfg);
+    if (!c) continue;
+    const prob = /^PROB/.test(g.type);
+    const tier = prob ? 3 : c.tier;
+    const win = (g.toks.find(x => /^\d{4}\/\d{4}$/.test(x)) || '');
+    const cand = { tier, label: `forecast ${g.type}${win ? ' ' + win + 'Z' : ''}: ${c.reasons.join(', ')}` };
+    if (!best || cand.tier < best.tier) best = cand;
+  }
+  return best;
+}
+
+// Wording that signals a hazard the rubric has no factor for -> handed to the model as a WATCHLIST item.
+const WATCH_RX = /\b(VOLCAN\w*|ASH|RADIOACTIV\w*|NUCLEAR|CHEMICAL|BIOLOGICAL|EMERGENCY|EVACUAT\w*|SECURITY|THREAT|BOMB|HIJACK\w*|WAR|CONFLICT|HOSTIL\w*|MISSILE|ROCKET|LASER|DRONE|UAS|BIRDS?|BIRDSTRIKE|WILDLIFE|DEBRIS|FOD|CONTAMINAT\w*|FLOOD\w*|SNOW|ICE|ICING|SLUSH|BRAKING\s+ACTION|FRICTION|STRIKE|INDUSTRIAL\s+ACTION|FIRE|SMOKE|DISRUPT\w*|UNSAFE|HAZARD\w*|CAUTION|WARNING|SUSPENDED)\b/;
+function watchReason(n) { const m = WATCH_RX.exec(eText(n)); return m ? m[1] : null; }
 
 // ───────────────────────── aerodrome assessment ─────────────────────────
 const idOf = n => n.notam_id || (rawOf(n).match(/[A-Z]\d{3,5}\/\d{2}/) || [''])[0];
@@ -378,6 +420,27 @@ function runwayTier(closedLanding, closedTakeoff, info, cfg) {
   const closed = Math.max(closedLanding.size, closedTakeoff.size);
   if (!closed) return null;
   const frac = (cfg && cfg.runwayClosedFractionT1) || 0.5;
+
+  // Roles known (expert data): main runways matter most, backup runways add surge capacity.
+  if (info && info.main && info.backup) {
+    const N = info.count, M = info.main.size;
+    const one = S => {
+      const cb = [...S].filter(k => info.backup.has(k)).length;       // closed backup runways
+      const cm = S.size - cb;                                         // closed main (unknown designators count as main)
+      const remTotal = N - S.size, remMain = Math.max(0, M - cm);
+      if (!S.size) return null;
+      if (remTotal <= 0) return { tier: 1, override: true, remaining: 0, note: `no usable runway remains (all ${N} closed)` };
+      if (remMain <= 0) return { tier: 1, override: false, remaining: remTotal, note: `all ${M} main runways closed, only ${remTotal} backup runway(s) remain` };
+      if ((remTotal === 1 && N >= 2) || cm / M >= frac)
+        return { tier: 1, override: false, remaining: remTotal, note: `${cm} of ${M} main runways closed (${remMain} main + ${remTotal - remMain} backup remain)` };
+      if (cm >= 1) return { tier: 2, override: false, remaining: remTotal, note: `${cm} of ${M} main runways closed (${remMain} main + ${remTotal - remMain} backup remain)` };
+      return { tier: 3, override: false, remaining: remTotal, note: `${cb} backup runway(s) closed (all main runways open)` };
+    };
+    const a = one(closedLanding), b = one(closedTakeoff);
+    if (!a) return b; if (!b) return a;
+    return MORE_SEVERE(a, b) ? a : b;
+  }
+
   if (info && info.count >= 1 && (info.trusted || info.disputed)) {
     const N = info.count, remaining = N - closed;
     const tag = info.disputed ? ` (${info.note})` : '';
@@ -395,7 +458,7 @@ function runwayTier(closedLanding, closedTakeoff, info, cfg) {
     : { tier: 2, override: false, remaining: null, note: '1 runway closed (runway count unverified)' };
 }
 
-const MORE_SEVERE = (x, y) => !y || (x.override && !y.override) || (!!x.override === !!y.override && x.tier < y.tier);
+function MORE_SEVERE(x, y) { return !y || (x.override && !y.override) || (!!x.override === !!y.override && x.tier < y.tier); }
 
 // Sweeps the look-ahead window hour by hour of change: only closures that are in force AT THE SAME TIME count together.
 // Closures that exist only during scheduled windows are one tier lighter (cfg.scheduledDowngrade).
@@ -442,8 +505,13 @@ function assessAirport(a, now, cfg) {
   // runway info: override > trusted data > NOTAM lower bound (untrusted)
   const mentioned = runwaysMentioned(all).size;
   const ov = cfg.runwayCountOverrides[a.icao];
+  const roles = (cfg.runwayRoles || {})[a.icao];
   let info;
-  if (ov) info = { count: ov, trusted: true, source: 'override' };
+  if (roles) {
+    const norm = list => new Set(list.map(x => rwyKey(x.split('/')[0])));
+    const main = norm(roles.main), backup = norm(roles.backup);
+    info = { count: main.size + backup.size, trusted: true, source: 'expert', main, backup, note: `${main.size} main + ${backup.size} backup` };
+  } else if (ov) info = { count: ov, trusted: true, source: 'override' };
   else if (a.runwayInfo) { info = Object.assign({}, a.runwayInfo); if (info.trusted) info.count = Math.max(info.count, mentioned); }
   else info = resolveRunwayCount(a.runwaySources, mentioned);
 
@@ -489,9 +557,9 @@ function assessAirport(a, now, cfg) {
   ];
   simple.forEach(([type, tier, label]) => { const i = ids(type); if (i.length) add(type, tier, label + (i.length > 1 ? ` (${i.length} NOTAMs)` : ''), i); });
 
-  // weather
-  const wx = assessWeather(a.metar, cfg.weather);
-  if (wx) add('WX', wx.tier, wx.label, []);
+  // weather: current (METAR) and forecast (TAF) — the more severe one sets the tier, both are named
+  const wxs = [assessWeather(a.metar, cfg.weather) && Object.assign({}, assessWeather(a.metar, cfg.weather), { label: 'current ' + assessWeather(a.metar, cfg.weather).label }), assessTaf(a.taf, cfg.weather)].filter(Boolean);
+  if (wxs.length) add('WX', Math.min(...wxs.map(x => x.tier)), wxs.map(x => x.label).join('; '), []);
 
   // display severity per NOTAM (drives card format/order); out-of-window items are shown compactly
   const rwFactor = factors.find(f => f.key.endsWith(':RWY'));
@@ -508,7 +576,11 @@ function assessAirport(a, now, cfg) {
     }
     severityById.set(r.id, sev);
   }
-  return { factors, override, info, severityById };
+  const rowsOut = rows.map(r => ({
+    id: r.id, type: r.fact ? r.fact.type : null, sev: severityById.get(r.id), inWindow: r.win.inWindow,
+    text: eText(r.n), watch: (!r.fact && r.win.inWindow) ? watchReason(r.n) : null,
+  }));
+  return { factors, override, info, severityById, rows: rowsOut };
 }
 
 // ───────────────────────── level / score ─────────────────────────
@@ -538,16 +610,27 @@ function assessRisk(input, userCfg) {
 
   // en-route (FIR) factors — aggregated so that one FIR with many NOTAMs cannot inflate the score
   const enIds = { AIRSPACE: [], NAVAID_ENROUTE: [], GNSS_OUTAGE: [] };
+  const enrouteList = [], enrouteWatch = [], coverage = [];
   for (const f of (input.enroute || [])) {
     const gn = [];
+    let total = 0, inWin = 0, rel = 0;
     for (const n of (f.notams || []).filter(n => !isAdminNotam(n))) {
+      total++;
       if (!windowStatus(n, now, cfg).inWindow) continue;
+      inWin++;
       const fact = extractFact(n, 'FIR');
-      if (!fact) continue;
+      if (!fact) {
+        const wr = watchReason(n);
+        if (wr && routeRelevant(n, input.route, cfg)) enrouteWatch.push({ fir: f.fir, id: idOf(n), reason: wr, text: eText(n) });
+        continue;
+      }
       if (!routeRelevant(n, input.route, cfg)) continue;   // restriction nowhere near the planned route
+      rel++;
+      enrouteList.push({ fir: f.fir, id: idOf(n), type: fact.type, text: eText(n) });
       if (fact.type === 'GNSS_INTERFERENCE') gn.push(idOf(n));
       else if (enIds[fact.type]) enIds[fact.type].push(idOf(n));
     }
+    coverage.push({ fir: f.fir, total, inWindow: inWin, relevant: rel });
     if (gn.length) factors.push({ key: `${f.fir}:GNSS`, tier: 1, scope: f.fir, label: `${f.fir}: GNSS interference/jamming reported`, ids: gn });
   }
   if (enIds.AIRSPACE.length) factors.push({ key: 'ROUTE:AIRSPACE', tier: 2, scope: 'ROUTE', label: `en-route: prohibited/restricted/danger area activity (${enIds.AIRSPACE.length} NOTAMs)`, ids: enIds.AIRSPACE });
@@ -575,6 +658,9 @@ function assessRisk(input, userCfg) {
     level, score, headerClass: CLASS_OF[level], label: LABEL_OF[level], verdict, override,
     concentration, counts: { t1, t2, t3 }, factors: sorted, severityById,
     runwayInfo: Object.fromEntries(airports.map((a, i) => [input.airports[i].icao, a.info])),
+    airportRows: Object.fromEntries(airports.map((a, i) => [input.airports[i].icao, a.rows])),
+    enrouteList, enrouteWatch, coverage,
+    hasWeather: Object.fromEntries((input.airports || []).map(a => [a.icao, { metar: !!a.metar, taf: !!a.taf }])),
     unverifiedRunwayCount: unverified,
   };
 }
@@ -597,4 +683,99 @@ function promptBlock(r) {
   return lines.join('\n');
 }
 
-module.exports = { CONFIG, parseGeo, gcDist, trackDistances, routeRelevant, evaluateRunways, resolveRunwayCount, assessRisk, assessAirport, promptBlock, assessWeather, windowStatus, parseRunwayClosures, extractFact, rwyKey, levelFromCounts, runwaysMentioned, isAdminNotam, idOf };
+// ───────────────────────── model hand-over and client finalisation ─────────────────────────
+const SEV_TAG = { CRITICAL: 'T1', HIGH: 'T2', MEDIUM: 'T3', LOW: 'not scored' };
+const clip = (t, n) => (t.length > n ? t.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : t);
+const levelOfScore = sc => (sc >= 9 ? 'CRITICAL' : sc >= 6 ? 'HIGH' : sc >= 3 ? 'MEDIUM' : 'LOW');
+
+// Everything the language model needs to rate the briefing WITHOUT information gaps: the floor, all factors,
+// runway data, every active aerodrome NOTAM (tier-tagged), route-relevant en-route NOTAMs and a watchlist.
+function buildModelBlock(input, r, opts) {
+  const o = Object.assign({ maxPerAirport: 60, maxEnroute: 40, maxWatch: 20, textLen: 160 }, opts || {});
+  const L = [];
+  L.push([
+    'RISK FLOOR — computed by the server from NOTAM, weather and route data. This is the MINIMUM rating (see RISK RATING RULES).',
+    `FLOOR LEVEL: ${r.level}`,
+    `FLOOR SCORE: ${r.score}`,
+    `VERDICT FLOOR: ${r.override ? r.verdict + ' — OVERRIDE: an aerodrome has no usable runway or is closed; the verdict MUST be NO-GO' : r.verdict}`,
+  ].join('\n'));
+  [1, 2, 3].forEach(t => {
+    const f = r.factors.filter(x => x.tier === t);
+    if (f.length) L.push(`TIER ${t} FACTORS:\n` + f.map(x => `- ${x.label}${x.ids && x.ids.length ? ' [' + x.ids.slice(0, 8).join(', ') + (x.ids.length > 8 ? ` +${x.ids.length - 8} more` : '') + ']' : ''}`).join('\n'));
+  });
+  if (!r.factors.length) L.push('No scored factors are active in the next 24 hours.');
+
+  // runway data
+  const rw = Object.entries(r.runwayInfo || {}).map(([icao, inf]) => {
+    if (inf.main && inf.backup) return `${icao}: ${inf.count} runways — main: ${[...inf.main].join(', ')}; backup (used depending on traffic): ${[...inf.backup].join(', ')} [expert-verified]`;
+    return `${icao}: ${inf.count || 'unknown'} runways [${inf.source || 'unknown'}${inf.disputed ? ', DISPUTED' : ''}${inf.trusted ? '' : ', unverified'}]`;
+  });
+  if (rw.length) L.push('RUNWAY DATA:\n' + rw.map(x => '- ' + x).join('\n'));
+
+  // coverage statement
+  const cov = [];
+  (input.airports || []).forEach(a => {
+    const rows = (r.airportRows || {})[a.icao] || [];
+    const hw = (r.hasWeather || {})[a.icao] || {};
+    cov.push(`${a.icao}: ${rows.length} active NOTAMs evaluated; METAR ${hw.metar ? 'yes' : 'NO'}, TAF ${hw.taf ? 'yes' : 'NO'}`);
+  });
+  (r.coverage || []).forEach(c => cov.push(`FIR ${c.fir}: ${c.total} NOTAMs, ${c.inWindow} in force within 24 h, ${c.relevant} recognised and relevant to the route`));
+  if (!(r.coverage || []).length && (input.airports || []).length > 1) cov.push('En-route FIR NOTAMs: NOT retrieved — the rating covers aerodromes and weather only');
+  L.push('COVERAGE:\n' + cov.map(x => '- ' + x).join('\n'));
+
+  // per-aerodrome NOTAMs
+  (input.airports || []).forEach(a => {
+    const rows = (r.airportRows || {})[a.icao] || [];
+    const shown = new Set(a.shownIds || []);
+    const tag = x => SEV_TAG[x.sev] || 'not scored';
+    const cards = rows.filter(x => shown.has(x.id));
+    if (cards.length) L.push(`${a.icao} — rubric tier of the NOTAMs shown as full cards below (the [CRITICAL]/[HIGH] card tags are only ordering hints):\n` + cards.map(x => `- ${x.id} ${tag(x)}${x.type ? ' ' + x.type : ''}${x.inWindow ? '' : ' (not in force during the next 24 h)'}`).join('\n'));
+    const rest = rows.filter(x => !shown.has(x.id)).sort((x, y) => String(tag(x)).localeCompare(String(tag(y))) || String(x.id).localeCompare(String(y.id)));
+    if (rest.length) L.push(`${a.icao} — ADDITIONAL ACTIVE NOTAMs NOT SHOWN AS FULL CARDS (one line each; evaluate them for the rating):\n` +
+      rest.slice(0, o.maxPerAirport).map(x => `- ${x.id} [${tag(x)}${x.type ? ' ' + x.type : ''}${x.inWindow ? '' : '; not in force during the next 24 h'}] ${clip(x.text, o.textLen)}`).join('\n') +
+      (rest.length > o.maxPerAirport ? `\n- … ${rest.length - o.maxPerAirport} more (see the NOTAM panel)` : ''));
+  });
+
+  if ((r.enrouteList || []).length) {
+    const e = r.enrouteList;
+    L.push('EN-ROUTE NOTAMs RELEVANT TO THE ROUTE (server-filtered by geography and validity):\n' +
+      e.slice(0, o.maxEnroute).map(x => `- ${x.fir} ${x.id} [${x.type}] ${clip(x.text, o.textLen)}`).join('\n') +
+      (e.length > o.maxEnroute ? `\n- … ${e.length - o.maxEnroute} more` : ''));
+  }
+  const watch = [];
+  (input.airports || []).forEach(a => ((r.airportRows || {})[a.icao] || []).filter(x => x.watch).forEach(x => watch.push(`${a.icao} ${x.id} [${x.watch}] ${clip(x.text, o.textLen)}`)));
+  (r.enrouteWatch || []).forEach(x => watch.push(`${x.fir} ${x.id} [${x.reason}] ${clip(x.text, o.textLen)}`));
+  if (watch.length) L.push('WATCHLIST — NOT RECOGNISED BY THE RUBRIC BUT CONTAINING ALARM WORDING (assess each one yourself):\n' + watch.slice(0, o.maxWatch).map(x => '- ' + x).join('\n') + (watch.length > o.maxWatch ? `\n- … ${watch.length - o.maxWatch} more` : ''));
+  return L.join('\n\n');
+}
+
+const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const LEVEL_COLOR = { LOW: '#2ec4b6', MEDIUM: '#f2c641', HIGH: '#f4841a', CRITICAL: '#e63946' };
+
+// Server-authored box shown under the master header.
+function basisHtml(r, finalScore, finalLevel, flags) {
+  const top = r.factors.slice(0, 6).map(f => `T${f.tier}: ${esc(f.label)}`).join(' · ');
+  const parts = [`<strong>RISK BASIS</strong> — rubric floor <strong>${r.level} ${r.score}/10</strong> (T1 ${r.counts.t1} · T2 ${r.counts.t2} · T3 ${r.counts.t3})`];
+  if (top) parts.push(top);
+  parts.push(`Final rating: <strong>${finalLevel} ${finalScore}/10</strong>${flags && flags.raised ? ' — raised above the floor by the assessment' : ''}`);
+  if (r.override) parts.push('⚠ Aerodrome closed or no usable runway — NO-GO.');
+  if (flags && flags.lowered) parts.push('⚠ The narrative was rated below the rubric floor; the header has been set to the floor value.');
+  if (r.unverifiedRunwayCount && r.unverifiedRunwayCount.length) parts.push('Runway count unverified for ' + esc(r.unverifiedRunwayCount.join(', ')) + ' — conservative rule applied.');
+  const c = LEVEL_COLOR[finalLevel] || '#4a9eff';
+  return `<div style="font-family:'Share Tech Mono',monospace;font-size:11px;line-height:1.7;color:#8a9bb0;padding:10px 14px;margin:10px 0;border:1px solid #1a2a3a;border-left:3px solid ${c};background:rgba(10,15,24,0.6);">${parts.join('<br>')}</div>`;
+}
+
+// Final header values for the client: never below the floor, and always internally consistent (class / label / score).
+function finalizeForClient(r, headText) {
+  const m = /RISK\s*SCORE\s*(?:<[^>]*>)?\s*(\d+)\s*\/\s*10/i.exec(headText || '');
+  const modelScore = m ? Math.min(10, parseInt(m[1], 10)) : null;
+  const finalScore = Math.max(r.score, modelScore === null ? 0 : modelScore);
+  const finalLevel = levelOfScore(finalScore);
+  return {
+    riskFix: { cls: CLASS_OF[finalLevel], label: LABEL_OF[finalLevel], score: finalScore },
+    riskBasisHtml: basisHtml(r, finalScore, finalLevel, { raised: modelScore !== null && modelScore > r.score, lowered: modelScore === null || modelScore < r.score }),
+    modelScore,
+  };
+}
+
+module.exports = { CONFIG, assessTaf, watchReason, buildModelBlock, finalizeForClient, basisHtml, levelOfScore, parseGeo, gcDist, trackDistances, routeRelevant, evaluateRunways, resolveRunwayCount, assessRisk, assessAirport, promptBlock, assessWeather, windowStatus, parseRunwayClosures, extractFact, rwyKey, levelFromCounts, runwaysMentioned, isAdminNotam, idOf };

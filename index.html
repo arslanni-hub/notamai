@@ -3112,6 +3112,16 @@ async function handleSend(silent = false) {
             } else {
               accumulated = accumulated.replace('<!--NOTAM_NOTES-->', '');
             }
+            // Risk rubric (when active): fill the server-authored basis box and make the header consistent with —
+            // and never below — the rubric floor.
+            if (evt.riskBasisHtml) {
+              accumulated = accumulated.includes('<!--RISK_BASIS-->')
+                ? accumulated.replace('<!--RISK_BASIS-->', evt.riskBasisHtml)
+                : accumulated.replace('<div class="exec-summary"', evt.riskBasisHtml + '<div class="exec-summary"');
+            } else {
+              accumulated = accumulated.replace('<!--RISK_BASIS-->', '');
+            }
+            if (evt.riskFix) accumulated = applyRiskFix(accumulated, evt.riskFix);
             // Final render with backtick fix
             const final = accumulated.replace(/```[\w]*\n([\s\S]*?)```/g,
               "<pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>$1</pre>"
@@ -4040,6 +4050,17 @@ function showEmailVerifyBanner() {
 function hideEmailVerifyBanner() {
   document.getElementById('emailVerifyBanner')?.remove();
   if (emailVerifyPoll) { clearInterval(emailVerifyPoll); emailVerifyPoll = null; }
+}
+
+// Sets the briefing header (class, label, score, pips) to the given values; used by the risk rubric so the header
+// is never below the rubric floor and always internally consistent.
+function applyRiskFix(html, fix) {
+  html = html.replace(/(class="master-header\s+)(low|med|high|crit)(")/, '$1' + fix.cls + '$3');
+  html = html.replace(/(<div class="risk-label">)[\s\S]*?(<\/div>)/, '$1' + fix.label + '$2');
+  html = html.replace(/(RISK\s*SCORE\s*)\d+(\s*\/\s*10)/i, '$1' + fix.score + '$2');
+  let i = 0;
+  html = html.replace(/<div class="score-pip[^"]*">\s*<\/div>/g, m => (++i <= 10 ? '<div class="score-pip' + (i <= fix.score ? ' active' : '') + '"></div>' : m));
+  return html;
 }
 
 function showToast(message) {

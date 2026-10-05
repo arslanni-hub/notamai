@@ -25,6 +25,11 @@ const CSV = [
   row(9, 'LTFJ', 'GRASS', 0, 'H1', ''),          // helipad -> ignored
   row(10, 'LTFJ', 'ASP', 0, '24R', '06L'),       // duplicate pair written the other way round -> not double counted
   row(11, 'XXXX', 'ASP', 0, '09', '27'),
+  row(12, 'ZZZZ', 'ASP', 0, '16L', '34R'),
+  row(13, 'ZZZZ', 'ASP', 0, '16R', '34L'),
+  row(14, 'ZZZZ', 'ASP', 0, '17L', '35R'),
+  row(15, 'ZZZZ', 'ASP', 0, '17R', '35L'),
+  row(16, 'ZZZZ', 'ASP', 0, '18', '36'),
 ].join('\n') + '\n';
 
 (async () => {
@@ -66,7 +71,7 @@ const CSV = [
   });
   await test('getRunwaySources: unknown aerodrome -> no sources (rubric then uses conservative rule)', async () => {
     RD._setTable(RD._buildTable(CSV)); RD._clearAwcCache();
-    const s = await RD.getRunwaySources('ZZZZ', { fetchJson: async () => [] });
+    const s = await RD.getRunwaySources('QQQQ', { fetchJson: async () => [] });
     assert.deepStrictEqual(s, []);
   });
   await test('getRunwaySources: disagreeing sources are reported as-is and resolved safely', async () => {
@@ -75,14 +80,13 @@ const CSV = [
     const res = R.resolveRunwayCount(s, 3);
     assert.strictEqual(res.disputed, true); assert.strictEqual(res.trusted, false); assert.strictEqual(res.count, 3);
   });
-  await test('end to end: LTFM with live-style sources scores like the golden case (2 of 5 closed -> Tier 2)', async () => {
+  await test('end to end: an aerodrome with 5 runways (live-style sources), 2 closed to landing -> Tier 2 (not Tier 1)', async () => {
     RD._setTable(RD._buildTable(CSV)); RD._clearAwcCache();
-    const sources = await RD.getRunwaySources('LTFM', { fetchJson: async () => [{ runways: ['16L/34R', '16R/34L', '17L/35R', '17R/35L', '18/36'].map(id => ({ id })) }] });
-    const cl = (id, k) => ({ notam_id: id + '/2026', location: 'LTFM', effective: '202607291506', expiration: '202610291400', raw: `${id}/26 NOTAMN\nA) LTFM B) 2607291506 C) 2610291400\nE) RWY ${k} CLSD TO LANDING TFC DUE TO CONST.` });
-    const r = R.assessRisk({ now: new Date(Date.UTC(2026, 9, 4, 19, 30)), airports: [{ icao: 'LTFM', role: 'APT', notams: [cl('B2991', '16L/34R'), cl('B2990', '17R/35L')], runwaySources: sources }] });
+    const sources = await RD.getRunwaySources('ZZZZ', { fetchJson: async () => [{ runways: ['16L/34R', '16R/34L', '17L/35R', '17R/35L', '18/36'].map(id => ({ id })) }] });
+    const cl = (id, k) => ({ notam_id: id + '/2026', location: 'ZZZZ', effective: '202607291506', expiration: '202610291400', raw: `${id}/26 NOTAMN\nA) ZZZZ B) 2607291506 C) 2610291400\nE) RWY ${k} CLSD TO LANDING TFC DUE TO CONST.` });
+    const r = R.assessRisk({ now: new Date(Date.UTC(2026, 9, 4, 19, 30)), airports: [{ icao: 'ZZZZ', role: 'APT', notams: [cl('B2991', '16L/34R'), cl('B2990', '17R/35L')], runwaySources: sources }] });
     assert.strictEqual(r.counts.t1, 0); assert.strictEqual(r.counts.t2, 1);
   });
-
   await test('disputed sources: note names the runway that only one source lists', async () => {
     RD._setTable(RD._buildTable(CSV)); RD._clearAwcCache();
     const s = await RD.getRunwaySources('LTFM', { fetchJson: async () => [{ runways: ['16L/34R', '16R/34L', '17L/35R', '17R/35L'].map(id => ({ id })) }] });
@@ -98,7 +102,7 @@ const CSV = [
     assert.ok(Math.abs(p1.lat - 41.1) < 1e-9 && Math.abs(p1.lon - 28.1) < 1e-9);
     const p2 = await RD.getAirportPosition('EGLL', { fetchJson: async () => [{ lat: 51.47, lon: -0.46, runways: [] }] });
     assert.deepStrictEqual(p2, { lat: 51.47, lon: -0.46 });
-    assert.strictEqual(await RD.getAirportPosition('ZZZZ', { fetchJson: async () => [] }), null);
+    assert.strictEqual(await RD.getAirportPosition('QQQQ', { fetchJson: async () => [] }), null);
   });
 
   console.log(`\n${pass} passed, ${fail} failed`);

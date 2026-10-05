@@ -22,6 +22,9 @@ const path = require('path');
 const admin = require('firebase-admin');
 const risk = require('./risk');
 const runwayData = require('./runway-data');
+// RISK_MODE (Render env): 'shadow' (default) = compute + log only; 'active' = the rubric sets the rating floor, the model
+// receives the complete information and the client header is corrected to never fall below the floor.
+const RISK_MODE = (process.env.RISK_MODE || 'shadow').toLowerCase();
 
 if (!admin.apps.length) {
   try {
@@ -498,17 +501,18 @@ function notifySkylinkFailure(icao) {
     '<div style="font-size:13px;color:#1e293b;">SkyLink returned no NOTAM data for ' + icao + '. Likely the monthly RapidAPI quota is exhausted or the provider is down. Briefings and the NOTAM panel now show "NOTAM DATA UNAVAILABLE". Check RapidAPI usage and upgrade the plan if needed.</div>').catch(() => {});
 }
 
-// Risk rubric wiring: runs after NOTAM / METAR / FIR data has been fetched. Never throws into the briefing flow.
-async function computeBriefingRisk({ icao_dep, icao_arr, isSingleAirport, notamDepResult, notamArrResult, enrouteCollector, metarDep, metarArr }) {
+// Risk rubric wiring: runs after NOTAM / METAR / TAF / FIR data has been fetched. Never throws into the briefing flow.
+async function computeBriefingRisk({ icao_dep, icao_arr, isSingleAirport, notamDepResult, notamArrResult, enrouteCollector, metarDep, metarArr, tafDep, tafArr }) {
   const unavailable = (notamDepResult && notamDepResult.unavailable) || (!isSingleAirport && notamArrResult && notamArrResult.unavailable);
   if (unavailable) { console.log('[RISK] skipped — NOTAM data unavailable'); return null; }
-  const build = async (icao, role, res, metar) => ({
-    icao, role, metar,
+  const build = async (icao, role, res, metar, taf) => ({
+    icao, role, metar, taf,
     notams: [...((res && res.activeItems) || []), ...((res && res.nearFutureItems) || [])],
+    shownIds: (res && res.shownIds) || [],
     runwaySources: await runwayData.getRunwaySources(icao, { fetchJson: fetchURL }),
   });
-  const jobs = [build(icao_dep, isSingleAirport ? 'APT' : 'DEP', notamDepResult, metarDep)];
-  if (!isSingleAirport) jobs.push(build(icao_arr, 'ARR', notamArrResult, metarArr));
+  const jobs = [build(icao_dep, isSingleAirport ? 'APT' : 'DEP', notamDepResult, metarDep, tafDep)];
+  if (!isSingleAirport) jobs.push(build(icao_arr, 'ARR', notamArrResult, metarArr, tafArr));
   const airports = await Promise.all(jobs);
   // Aerodrome positions let the rubric ignore en-route restrictions that are nowhere near the planned route.
   let route = null;
@@ -519,16 +523,22 @@ async function computeBriefingRisk({ icao_dep, icao_arr, isSingleAirport, notamD
     ]);
     if (pd && pa) route = { dep: pd, arr: pa };
   }
-  const r = risk.assessRisk({ now: new Date(), airports, enroute: enrouteCollector || [], route });
+  const input = { now: new Date(), airports, enroute: enrouteCollector || [], route };
+  const r = risk.assessRisk(input);
+  r.modelBlock = risk.buildModelBlock(input, r);
   console.log('[RISK]', JSON.stringify({
+    mode: RISK_MODE,
     route: icao_dep + (isSingleAirport ? '' : '-' + icao_arr),
     level: r.level, score: r.score, verdict: r.verdict, override: r.override, concentration: r.concentration, counts: r.counts,
     runway: r.runwayInfo,
     runwaySources: Object.fromEntries(airports.map(a => [a.icao, (a.runwaySources || []).map(x => x.name + ' ' + x.count + ': ' + (x.keys || []).join('|'))])),
     routeGeometry: !!route,
     fir: (enrouteCollector || []).map(x => x.fir + ':' + (x.notams || []).length),
+    watch: (r.enrouteWatch || []).length + airports.reduce((n, a) => n + (((r.airportRows || {})[a.icao] || []).filter(x => x.watch).length), 0),
+    blockChars: r.modelBlock.length,
     factors: r.factors.slice(0, 30).map(f => `T${f.tier} ${f.label}${f.ids && f.ids.length ? ' [' + f.ids.slice(0, 6).join(',') + (f.ids.length > 6 ? ' +' + (f.ids.length - 6) + ' more' : '') + ']' : ''}`),
   }));
+  console.log('[RISK BLOCK]\n' + r.modelBlock.slice(0, 3500));
   return r;
 }
 
@@ -625,7 +635,7 @@ async function fetchNotams(icao) {
       const raw = (n.raw || n.body || '').trim().slice(0, 500);
       return `[${icao} NOTAM ${i+1}] [${sev}] ${n.notam_id || ''}:\n${raw}`;
     }).join('\n\n---\n\n');
-    return { text, total: activeNotams.length, shown, excludedAdminCount, nearFutureLines, laterFutureCount: laterFuture.length, activeItems: activeNotams, nearFutureItems: nearFuture };
+    return { text, total: activeNotams.length, shown, excludedAdminCount, nearFutureLines, laterFutureCount: laterFuture.length, activeItems: activeNotams, nearFutureItems: nearFuture, shownIds: eligible.slice(0, shown).map(c => c.n.notam_id || '') };
   } catch (e) { return { text: `[NOTAM DATA UNAVAILABLE for ${icao}] Could not fetch NOTAMs: ${e.message}. Do NOT state or imply that there are no NOTAMs; they must be checked with the official AIS/NOTAM office.`, total: 0, shown: 0, unavailable: true }; }
 }
 
@@ -633,7 +643,17 @@ async function fetchNotams(icao) {
 const OCEANIC_FIRS = new Set(['KZNY', 'CZQX', 'EGGX', 'KZAK']);
 
 // Fetch en-route FIR NOTAMs based on dep/arr ICAO pair
-async function getEnrouteNotams(dep, arr, collector) {
+// FIR NOTAM lists change slowly and are shared by many briefings: cache the SkyLink response for 30 minutes.
+const firNotamCache = new Map();
+async function fetchFirCached(url, options) {
+  const hit = firNotamCache.get(url);
+  if (hit && Date.now() - hit.t < 30 * 60 * 1000) return hit.data;
+  const data = await fetchURL(url, options);
+  if (skylinkNotamsOk(data)) firNotamCache.set(url, { t: Date.now(), data });
+  return data;
+}
+
+async function getEnrouteNotams(dep, arr, collector, opts) {
   const firMap = {
     // EUROPE
     'EG': 'EGTT', 'EI': 'EISN', 'EB': 'EBUR', 'EH': 'EHAA',
@@ -777,10 +797,15 @@ async function getEnrouteNotams(dep, arr, collector) {
   const arrPrefix = arr ? arr.slice(0, 2) : '';
   if (arr && firMap[arrPrefix]) firs.add(firMap[arrPrefix]);
 
-  // Short/domestic route - no en-route FIRs needed
+  // Short/domestic route - no en-route FIRs needed, unless the risk rubric is active: then the FIR(s) the two
+  // aerodromes sit in are fetched as well so that the rating has no information gap.
   if (dep && arr && isShortDomesticRoute(dep, arr)) {
-    console.log('[ENROUTE] Short/domestic route, skipping FIR fetch');
-    return '';
+    if (!(opts && opts.includeDomestic)) {
+      console.log('[ENROUTE] Short/domestic route, skipping FIR fetch');
+      return '';
+    }
+    if (dep.startsWith('LT') || arr.startsWith('LT')) firs.add('LTAA');   // Turkey: Istanbul (LTBB) and Ankara (LTAA) FIRs
+    console.log('[ENROUTE] Domestic route, fetching aerodrome FIRs:', [...firs].join(', '));
   }
 
   // Try both directions for common route pairs
@@ -864,7 +889,7 @@ async function getEnrouteNotams(dep, arr, collector) {
     // Oceanic FIRs: SkyLink may not cover them — use informational fallback
     if (OCEANIC_FIRS.has(fir)) {
       try {
-        const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + fir + '?include_future=true', {
+        const data = await fetchFirCached('https://skylink-api.p.rapidapi.com/notams/' + fir + '?include_future=true', {
           method: 'GET',
           headers: {
             'x-rapidapi-key': process.env.SKYLINK_KEY,
@@ -897,7 +922,7 @@ async function getEnrouteNotams(dep, arr, collector) {
 
     // Standard FIR fetch
     try {
-      const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + fir + '?include_future=true', {
+      const data = await fetchFirCached('https://skylink-api.p.rapidapi.com/notams/' + fir + '?include_future=true', {
         method: 'GET',
         headers: {
           'x-rapidapi-key': process.env.SKYLINK_KEY,
@@ -1224,6 +1249,18 @@ const BRIEFING_DEPTH_RULES_55 = `DEPTH AND SPECIFICITY RULES — these OVERRIDE 
 6. GO/NO-GO (or the airport operational status verdict): every condition must contain at least one concrete value taken from the data (time window, minima or amended OCA(H)/DH value, runway, procedure or NOTAM ID) — never a generic statement. NO-GO IF / AVOID IF triggers must combine the real compounding factors of this briefing, not generic statements.
 7. NO FILLER: NEVER write "none were supplied", "none were provided", "no slot data provided" or similar wording anywhere (including action items and the alternate card); omit what has no data. List missing inputs (alternate METAR/TAF, slot data) ONCE, in one short line at the end of the last notes grid (Dispatch Notes, or Ground and ATC Notes), as <div class="notam-overflow-note">DATA GAPS: [comma-separated list]</div>, and omit that line when nothing is missing. The statement about en-route FIR NOTAMs not being retrieved stays in the Airspace section as already required and is not repeated in DATA GAPS.
 8. The Go/No-Go box (or the airport status verdict box) and the Footer remain mandatory and must never be cut for space.`;
+
+
+// Appended to the briefing system prompt ONLY when RISK_MODE=active and a rubric result exists.
+const BRIEFING_RISK_RULES = `RISK RATING RULES — apply to the MASTER HEADER and to the whole briefing. These OVERRIDE the instruction in section 1 that lets you assign the risk score yourself.
+- The user message begins with a RISK FLOOR block computed by the server from the NOTAM, weather and route data. It is the MINIMUM rating. Your final RISK SCORE must be at least the FLOOR SCORE. You may RAISE it (up to 10) whenever the complete information provided (the full NOTAM cards, the ADDITIONAL ACTIVE NOTAMs lists, the route-relevant en-route NOTAMs, the WATCHLIST, METAR and TAF, and interactions or timing between hazards) shows a hazard or a combination that the floor does not capture. NEVER go below the floor.
+- Use ALL the information in the user message, not only the NOTAMs shown as full cards. Evaluate every WATCHLIST item yourself and decide whether it matters.
+- Derive the LEVEL and the master-header class strictly from your final SCORE using the bands 0-2 LOW/low, 3-5 MEDIUM/med, 6-8 HIGH/high, 9-10 CRITICAL/crit. They must always agree with the score.
+- If you raise the score above the floor, start the second paragraph of the Executive Summary with: "Rated N/10 (rubric floor F) because" followed by the specific reason. If you keep the floor value no explanation is needed. If you believe a floor factor is overstated, still keep the floor and add one short sentence starting "Rubric note:".
+- Verdict: if the RISK FLOOR block says OVERRIDE, the verdict MUST be NO-GO (single airport: SIGNIFICANTLY CONSTRAINED). Otherwise the verdict must be at least GO WITH CONDITIONS (single airport: OPEN WITH CONSTRAINTS) whenever the LEVEL is MEDIUM or higher; GO / OPEN is allowed only for LOW. You may recommend NO-GO when hazards combine so that safe operation cannot be assured, and must say why.
+- The rubric tier tags in the user message (T1/T2/T3) are authoritative for how serious a NOTAM is; the [CRITICAL]/[HIGH] tags on the NOTAM cards are only ordering hints.
+- Immediately after the closing </div> of the master-header, output this exact placeholder on its own line: <!--RISK_BASIS--> (the server fills it in). Do not write your own risk-basis text there.
+- If something needed for the rating is missing (for example no TAF, or no en-route FIR data), say so once in the DATA GAPS line instead of assuming it is fine.`;
 
 const systemPrompt = `MANDATORY RULES:
 - Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them using the appropriate format (full card for CRITICAL/HIGH, compact for MEDIUM/LOW)
@@ -4578,7 +4615,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           if (!isSingleAirport) {
             await new Promise(r => setTimeout(r, 500));
             notamArrResult = await fetchNotams(icao_arr);
-            enrouteNotamData = await getEnrouteNotams(icao_dep, icao_arr, enrouteCollector);
+            enrouteNotamData = await getEnrouteNotams(icao_dep, icao_arr, enrouteCollector, { includeDomestic: RISK_MODE === 'active' });
             [metarArr, tafArr] = await Promise.all([fetchMetar(icao_arr), fetchTaf(icao_arr)]);
           }
         }
@@ -4588,8 +4625,15 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
 
         // Risk rubric — SHADOW MODE: computed and logged only, in the background (nothing waits for it).
         const riskPromise = !isQuickAnalysis
-          ? computeBriefingRisk({ icao_dep, icao_arr, isSingleAirport, notamDepResult, notamArrResult, enrouteCollector, metarDep, metarArr }).catch(e => { console.log('[RISK] error:', e.message); return null; })
+          ? computeBriefingRisk({ icao_dep, icao_arr, isSingleAirport, notamDepResult, notamArrResult, enrouteCollector, metarDep, metarArr, tafDep, tafArr }).catch(e => { console.log('[RISK] error:', e.message); return null; })
           : Promise.resolve(null);
+        const riskActive = RISK_MODE === 'active' && !isQuickAnalysis;
+        let riskResult = null;
+        if (riskActive) {
+          try { riskResult = await Promise.race([riskPromise, new Promise(resolve => setTimeout(() => resolve(null), 6000))]); }
+          catch (e) { riskResult = null; }
+          if (!riskResult) console.log('[RISK] active mode but no result — falling back to the model-only rating');
+        }
 
         const depOverflow = notamDepResult.total > notamDepResult.shown
           ? `\n[${notamDepResult.total - notamDepResult.shown} additional NOTAMs not shown — open the NOTAMs & MET panel or use Single NOTAM Analysis for details]`
@@ -4691,7 +4735,8 @@ ${notam_text ? `\nADDITIONAL USER DATA:\n${notam_text}` : ''}
 
 Generate the complete pre-flight operational intelligence briefing HTML content.`;
 
-        const contentBlocks = [{ type: 'text', text: userMessage }];
+        const riskPrefix = (riskActive && riskResult && riskResult.modelBlock) ? riskResult.modelBlock + '\n\n---\n\n' : '';
+        const contentBlocks = [{ type: 'text', text: riskPrefix + userMessage }];
         if (images && Array.isArray(images)) {
           images.forEach(img => contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: img.type || 'image/jpeg', data: img.data } }));
         } else if (image_base64) {
@@ -4715,7 +4760,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
           // Toggle with Render env BRIEFING_THINKING_OFF=1 to A/B cost vs quality.
           ...(briefingModel === 'claude-sonnet-5-5' && process.env.BRIEFING_THINKING_OFF === '1' ? { thinking: { type: 'between_tools' } } : {}),
           stream: true,
-          system: [{ type: 'text', text: (isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt)) + ((briefingModel === 'claude-sonnet-5-5' && !isQuickAnalysis) ? '\n\n' + BRIEFING_DEPTH_RULES_55 : ''), cache_control: { type: 'ephemeral' } }],
+          system: [{ type: 'text', text: (isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt)) + ((briefingModel === 'claude-sonnet-5-5' && !isQuickAnalysis) ? '\n\n' + BRIEFING_DEPTH_RULES_55 : '') + ((riskActive && riskResult) ? '\n\n' + BRIEFING_RISK_RULES : ''), cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: contentBlocks }]
         });
 
@@ -4766,7 +4811,9 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             if (otherParts.length > 0) {
               notamNotesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;padding:8px 12px;margin-top:6px;">ℹ ${otherParts.join(' and ')} not shown here — view all NOTAMs in the NOTAM panel.</div>`;
             }
-            res.write(`data: ${JSON.stringify({ type: 'done', notamNotesHtml })}\n\n`);
+            let riskExtra = {};
+            if (riskActive && riskResult) { try { riskExtra = risk.finalizeForClient(riskResult, modelHeadText); } catch (e) { console.log('[RISK] finalize error:', e.message); } }
+            res.write(`data: ${JSON.stringify(Object.assign({ type: 'done', notamNotesHtml }, riskExtra))}\n\n`);
             res.end();
           },
           (err) => { if (!doneSent) { doneSent = true; res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`); res.end(); } }
