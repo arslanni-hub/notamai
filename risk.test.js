@@ -168,6 +168,91 @@ test('assessRisk uses runwaySources: 2 of 5 closed -> Tier 2; same closures with
   assert.ok(disputed.unverifiedRunwayCount.includes('XXXX'));
 });
 
+
+console.log('\n── v0.3: simultaneity, disputed data, closed fraction, route relevance ──');
+const dClosure = (id, rwy, d) => N(id, 'XXXX', '2609010000', '2611010000', `RWY ${rwy} CLSD.`, { d });
+const sweepRisk = (list, count) => R.assessRisk({ now: NOW, airports: [{ icao: 'XXXX', role: 'APT', notams: list, runwayInfo: { count, trusted: true } }] });
+test('sweep: two runways closed at DIFFERENT hours are never closed together -> only one remains, one tier lighter', () => {
+  const r = sweepRisk([dClosure('A1', '09L/27R', 'DAILY 2200-0500'), dClosure('A2', '09R/27L', 'DAILY 0600-1000')], 2);
+  const f = r.factors.find(x => x.key === 'XXXX:RWY');
+  assert.strictEqual(r.override, false);
+  assert.strictEqual(f.tier, 2, f.label);
+  assert.ok(/during scheduled windows/.test(f.label));
+});
+test('sweep: two runways closed at OVERLAPPING hours -> both closed together (scheduled: Tier 1, no NO-GO override)', () => {
+  const r = sweepRisk([dClosure('A1', '09L/27R', 'DAILY 2200-0500'), dClosure('A2', '09R/27L', 'DAILY 2300-0300')], 2);
+  const f = r.factors.find(x => x.key === 'XXXX:RWY');
+  assert.strictEqual(f.tier, 1, f.label); assert.strictEqual(r.override, false);
+});
+test('sweep: continuous closure + scheduled second closure -> baseline stays, extra severity only in windows', () => {
+  const cont = N('A1', 'XXXX', '2609010000', '2611010000', 'RWY 09L/27R CLSD.');
+  const r = sweepRisk([cont, dClosure('A2', '09R/27L', 'DAILY 2300-0300')], 3);
+  const f = r.factors.find(x => x.key === 'XXXX:RWY');
+  assert.strictEqual(f.tier, 2, f.label);   // 1 of 3 closed continuously (T2); 2 of 3 in a window (T1 -> lighter = T2)
+});
+test('closed fraction: 3 of 5 closed is Tier 1 (2 remain); 2 of 5 stays Tier 2', () => {
+  const c = (i, k) => N('A' + i, 'XXXX', '2609010000', '2611010000', `RWY ${k} CLSD.`);
+  const t3 = sweepRisk([c(1, '16L/34R'), c(2, '16R/34L'), c(3, '17L/35R')], 5);
+  assert.strictEqual(t3.factors.find(x => x.key === 'XXXX:RWY').tier, 1);
+  const t2 = sweepRisk([c(1, '16L/34R'), c(2, '16R/34L')], 5);
+  assert.strictEqual(t2.factors.find(x => x.key === 'XXXX:RWY').tier, 2);
+});
+test('disputed runway count never produces a NO-GO override (stale source cannot close an aerodrome)', () => {
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'XXXX', role: 'APT', notams: [closure('A1', '06R/24L', 'XXXX')], runwaySources: [{ name: 'ourairports', count: 2 }, { name: 'awc', count: 1 }] }] });
+  assert.strictEqual(r.override, false); assert.notStrictEqual(r.verdict, 'NO-GO');
+  const f = r.factors.find(x => x.key === 'XXXX:RWY');
+  assert.strictEqual(f.tier, 1); assert.ok(/possibly no usable runway/.test(f.label), f.label);
+});
+test('LTFM live case: 3 of 5 closed with disputed count (6 vs 5) -> Tier 1, no override', () => {
+  const c = (id, k) => N(id, 'LTFM', '2607291506', '2611291400', `RWY ${k} CLSD TO LANDING TFC DUE TO CONST.`);
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'APT', notams: [c('B2991', '16L/34R'), c('B2990', '17R/35L'), c('B3742', '16R/34L')], runwaySources: [{ name: 'ourairports', count: 6 }, { name: 'awc', count: 5 }] }] });
+  const f = r.factors.find(x => x.key === 'LTFM:RWY');
+  assert.strictEqual(f.tier, 1); assert.strictEqual(r.override, false);
+  assert.ok(/3 of 5 runways closed, 2 remain/.test(f.label), f.label);
+});
+test('resolver note names the runway only one source lists', () => {
+  const r = R.resolveRunwayCount([{ name: 'ourairports', count: 3, keys: ['16L/34R', '16R/34L', '18/36'] }, { name: 'awc', count: 2, keys: ['16L/34R', '16R/34L'] }], 0);
+  assert.ok(/only in ourairports: 18\/36/.test(r.note), r.note);
+});
+
+const IST = { lat: 41.275, lon: 28.754 }, LHR = { lat: 51.4706, lon: -0.4619 };
+const mid = (() => { // spherical midpoint of the great circle
+  const r = d => d * Math.PI / 180, dg = x => x * 180 / Math.PI;
+  const p1 = r(IST.lat), l1 = r(IST.lon), p2 = r(LHR.lat), dl = r(LHR.lon - IST.lon);
+  const bx = Math.cos(p2) * Math.cos(dl), by = Math.cos(p2) * Math.sin(dl);
+  const p3 = Math.atan2(Math.sin(p1) + Math.sin(p2), Math.sqrt((Math.cos(p1) + bx) ** 2 + by ** 2));
+  return { lat: dg(p3), lon: dg(l1 + Math.atan2(by, Math.cos(p1) + bx)) };
+})();
+const geoStr = (pt, rad) => {
+  const la = Math.abs(pt.lat), lo = Math.abs(pt.lon);
+  return String(Math.floor(la)).padStart(2, '0') + String(Math.round((la % 1) * 60)).padStart(2, '0') + (pt.lat >= 0 ? 'N' : 'S') +
+         String(Math.floor(lo)).padStart(3, '0') + String(Math.round((lo % 1) * 60)).padStart(2, '0') + (pt.lon >= 0 ? 'E' : 'W') + String(rad).padStart(3, '0');
+};
+const areaAt = (pt, rad, lower, upper, id) => N(id || 'A9', 'LTBB', '2610010000', '2611010000', 'DANGER AREA ACTIVATED', { q: `LTBB/QRDCA/IV/BO/W/${lower}/${upper}/${geoStr(pt, rad)}` });
+const route = { dep: IST, arr: LHR };
+test('great-circle distance IST-LHR is about 1,300 NM and the midpoint is on the route', () => {
+  const L = R.gcDist(IST, LHR);
+  assert.ok(L > 1250 && L < 1450, String(L));
+  assert.ok(R.trackDistances(mid, IST, LHR).cross < 2);
+});
+test('route relevance: on-route area is relevant; far-away area is not; FIR-wide and no-route are', () => {
+  assert.strictEqual(R.routeRelevant(areaAt(mid, 10, '000', '600'), route, R.CONFIG), true);
+  assert.strictEqual(R.routeRelevant(areaAt({ lat: 25, lon: 55 }, 10, '000', '600'), route, R.CONFIG), false);
+  assert.strictEqual(R.routeRelevant(N('A9', 'LTBB', '2610010000', '2611010000', 'DANGER AREA', { q: 'LTBB/QRDCA/IV/BO/W/000/600/4057N02857E999' }), route, R.CONFIG), true);
+  assert.strictEqual(R.routeRelevant(areaAt({ lat: 25, lon: 55 }, 10, '000', '600'), null, R.CONFIG), true);
+});
+test('route relevance: low-level area is relevant only near an aerodrome', () => {
+  assert.strictEqual(R.routeRelevant(areaAt(mid, 5, '000', '050'), route, R.CONFIG), false);                    // mid-route, below FL150
+  assert.strictEqual(R.routeRelevant(areaAt({ lat: 41.0, lon: 28.9 }, 9, '000', '100'), route, R.CONFIG), true); // 20 NM from LTFM
+});
+test('assessRisk: en-route restriction far from the route is not scored; one on the route is', () => {
+  const base = { now: NOW, airports: [{ icao: 'LTFM', role: 'DEP', notams: [] }, { icao: 'EGLL', role: 'ARR', notams: [] }], route };
+  const far = R.assessRisk(Object.assign({}, base, { enroute: [{ fir: 'OOMM', notams: [areaAt({ lat: 25, lon: 55 }, 10, '000', '600')] }] }));
+  assert.ok(!far.factors.some(f => f.key === 'ROUTE:AIRSPACE'));
+  const near = R.assessRisk(Object.assign({}, base, { enroute: [{ fir: 'LKAA', notams: [areaAt(mid, 10, '000', '600')] }] }));
+  assert.ok(near.factors.some(f => f.key === 'ROUTE:AIRSPACE'));
+});
+
 console.log('\n── golden cases ──');
 // Golden cases use expert-verified runway counts through the override table (production leaves it empty
 // and resolves counts live per aerodrome).

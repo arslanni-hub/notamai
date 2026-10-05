@@ -36,9 +36,9 @@ const CSV = [
   });
   await test('buildTable: counts open runway pairs per aerodrome', () => {
     const t = RD._buildTable(CSV);
-    assert.strictEqual(t.get('LTFM').size, 5);
-    assert.strictEqual(t.get('LTFJ').size, 2);   // helipad ignored, duplicate pair merged
-    assert.strictEqual(t.get('XXXX').size, 1);
+    assert.strictEqual(t.get('LTFM').keys.size, 5);
+    assert.strictEqual(t.get('LTFJ').keys.size, 2);   // helipad ignored, duplicate pair merged
+    assert.strictEqual(t.get('XXXX').keys.size, 1);
   });
   await test('buildTable: rejects an unexpected header instead of returning wrong data', () => {
     assert.throws(() => RD._buildTable('"foo","bar"\n1,2\n'));
@@ -54,14 +54,15 @@ const CSV = [
   await test('getRunwaySources: both sources answer', async () => {
     RD._setTable(RD._buildTable(CSV)); RD._clearAwcCache();
     const s = await RD.getRunwaySources('ltfm', { fetchJson: async () => [{ runways: ['16L/34R', '16R/34L', '17L/35R', '17R/35L', '18/36'].map(id => ({ id })) }] });
-    assert.deepStrictEqual(s, [{ name: 'ourairports', count: 5 }, { name: 'awc', count: 5 }]);
+    assert.deepStrictEqual(s.map(x => [x.name, x.count]), [['ourairports', 5], ['awc', 5]]);
+    assert.ok(Array.isArray(s[0].keys) && s[0].keys.includes('16L/34R'));
     const res = R.resolveRunwayCount(s, 3);
     assert.strictEqual(res.trusted, true); assert.strictEqual(res.count, 5);
   });
   await test('getRunwaySources: a failing live source is omitted, not fatal', async () => {
     RD._setTable(RD._buildTable(CSV)); RD._clearAwcCache();
     const s = await RD.getRunwaySources('LTFJ', { fetchJson: async () => { throw new Error('boom'); } });
-    assert.deepStrictEqual(s, [{ name: 'ourairports', count: 2 }]);
+    assert.deepStrictEqual(s.map(x => [x.name, x.count]), [['ourairports', 2]]);
   });
   await test('getRunwaySources: unknown aerodrome -> no sources (rubric then uses conservative rule)', async () => {
     RD._setTable(RD._buildTable(CSV)); RD._clearAwcCache();
@@ -80,6 +81,24 @@ const CSV = [
     const cl = (id, k) => ({ notam_id: id + '/2026', location: 'LTFM', effective: '202607291506', expiration: '202610291400', raw: `${id}/26 NOTAMN\nA) LTFM B) 2607291506 C) 2610291400\nE) RWY ${k} CLSD TO LANDING TFC DUE TO CONST.` });
     const r = R.assessRisk({ now: new Date(Date.UTC(2026, 9, 4, 19, 30)), airports: [{ icao: 'LTFM', role: 'APT', notams: [cl('B2991', '16L/34R'), cl('B2990', '17R/35L')], runwaySources: sources }] });
     assert.strictEqual(r.counts.t1, 0); assert.strictEqual(r.counts.t2, 1);
+  });
+
+  await test('disputed sources: note names the runway that only one source lists', async () => {
+    RD._setTable(RD._buildTable(CSV)); RD._clearAwcCache();
+    const s = await RD.getRunwaySources('LTFM', { fetchJson: async () => [{ runways: ['16L/34R', '16R/34L', '17L/35R', '17R/35L'].map(id => ({ id })) }] });
+    const res = R.resolveRunwayCount(s, 3);
+    assert.strictEqual(res.disputed, true); assert.strictEqual(res.count, 4);
+    assert.ok(/only in ourairports: 18\/36/.test(res.note), res.note);
+  });
+  await test('airport position: from runway-end coordinates, else from the AWC record, else null', async () => {
+    const H = '"id","airport_ref","airport_ident","length_ft","width_ft","surface","lighted","closed","le_ident","le_latitude_deg","le_longitude_deg","le_elevation_ft","le_heading_degT","le_displaced_threshold_ft","he_ident","he_latitude_deg","he_longitude_deg","he_elevation_ft","he_heading_degT","he_displaced_threshold_ft"';
+    const csv = [H, '1,1,"LTFM",1,1,"ASP",1,0,"18",41.0,28.0,,,,"36",41.2,28.2,,,'].join('\n') + '\n';
+    RD._setTable(RD._buildTable(csv)); RD._clearAwcCache();
+    const p1 = await RD.getAirportPosition('LTFM', {});
+    assert.ok(Math.abs(p1.lat - 41.1) < 1e-9 && Math.abs(p1.lon - 28.1) < 1e-9);
+    const p2 = await RD.getAirportPosition('EGLL', { fetchJson: async () => [{ lat: 51.47, lon: -0.46, runways: [] }] });
+    assert.deepStrictEqual(p2, { lat: 51.47, lon: -0.46 });
+    assert.strictEqual(await RD.getAirportPosition('ZZZZ', { fetchJson: async () => [] }), null);
   });
 
   console.log(`\n${pass} passed, ${fail} failed`);

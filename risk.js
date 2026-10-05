@@ -32,6 +32,15 @@ const CONFIG = {
   // A runway closure that only applies during scheduled windows (NOTAM line D) is one tier lighter.
   scheduledDowngrade: true,
 
+  // Runway capacity: if this fraction (or more) of an aerodrome's runways is closed, the situation is Tier 1
+  // even when more than one runway remains (e.g. 3 of 5 closed). Set to 1.01 to disable.
+  runwayClosedFractionT1: 0.5,
+
+  // En-route restrictions are scored only if they are near the planned route (dep -> arr great circle).
+  routeCorridorNm: 100,     // half-width of the corridor around the route
+  lowLevelUpperFl: 150,     // restrictions topping out below this FL only matter near the aerodromes ...
+  nearAirportNm: 80,        // ... i.e. within this distance of departure or arrival
+
   // One aerodrome with >= t1 Tier-1 factors AND >= t2 Tier-2 factors is escalated to CRITICAL.
   concentration: { t1: 1, t2: 3 },
 
@@ -65,7 +74,54 @@ function parseQ(n) {
   if (!m) return null;
   const parts = m[1].replace(/\s+/g, '').toUpperCase().split('/');
   const code = parts[1] || '';
-  return { fir: parts[0] || '', code, subj: code.slice(1, 3), cond: code.slice(3, 5) };
+  return { fir: parts[0] || '', code, subj: code.slice(1, 3), cond: code.slice(3, 5), lower: parts[5], upper: parts[6], geo: parts[7] };
+}
+
+// "4057N02857E009" -> { lat, lon, radius(NM) }.  Radius 999 means "whole FIR / not localised".
+function parseGeo(s) {
+  const m = /^(\d{2})(\d{2})([NS])(\d{3})(\d{2})([EW])(\d{3})?$/.exec(s || '');
+  if (!m) return null;
+  let lat = +m[1] + +m[2] / 60; if (m[3] === 'S') lat = -lat;
+  let lon = +m[4] + +m[5] / 60; if (m[6] === 'W') lon = -lon;
+  return { lat, lon, radius: m[7] === undefined ? 5 : +m[7] };
+}
+
+// ── great-circle helpers (nautical miles) ──
+const R_NM = 3440.065;
+const rad = d => d * Math.PI / 180;
+function gcDist(a, b) {
+  const dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R_NM * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+function bearing(a, b) {
+  const p1 = rad(a.lat), p2 = rad(b.lat), dl = rad(b.lon - a.lon);
+  return Math.atan2(Math.sin(dl) * Math.cos(p2), Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl));
+}
+function trackDistances(p, a, b) {
+  const d13 = gcDist(a, p) / R_NM, t13 = bearing(a, p), t12 = bearing(a, b);
+  const xt = Math.asin(Math.sin(d13) * Math.sin(t13 - t12));
+  let at = Math.acos(Math.max(-1, Math.min(1, Math.cos(d13) / Math.cos(xt)))) * R_NM;
+  if (Math.cos(t13 - t12) < 0) at = -at;
+  return { cross: Math.abs(xt) * R_NM, along: at };
+}
+
+// Is this FIR-level NOTAM geographically relevant to the planned route?  Unknown geometry -> relevant (conservative).
+function routeRelevant(n, route, cfg) {
+  if (!route || !route.dep || !route.arr) return true;
+  const q = parseQ(n);
+  const g = q && parseGeo(q.geo);
+  if (!g || g.radius >= 999) return true;
+  const L = gcDist(route.dep, route.arr);
+  const { cross, along } = trackDistances(g, route.dep, route.arr);
+  const reach = cfg.routeCorridorNm + g.radius;
+  if (cross > reach || along < -reach || along > L + reach) return false;
+  const upper = parseInt(q.upper, 10);
+  if (!isNaN(upper) && upper < cfg.lowLevelUpperFl) {
+    const dEnd = Math.min(gcDist(g, route.dep), gcDist(g, route.arr));
+    if (dEnd > cfg.nearAirportNm + g.radius) return false;
+  }
+  return true;
 }
 
 // ───────────────────────── validity / schedule ─────────────────────────
@@ -122,31 +178,37 @@ function isAdminNotam(n) {
   return /\bTRIGGER\b/.test(UP(n)) || validity(n).perm;
 }
 
-// Is this NOTAM relevant inside [now, now + windowHours]?
+// Is this NOTAM relevant inside [now, now + windowHours]?  Also returns the time INTERVALS (clipped to the
+// window) during which it is in force, so that simultaneity can be evaluated (e.g. runways closed at different hours).
 function windowStatus(n, now, cfg) {
   const windowEnd = new Date(now.getTime() + cfg.windowHours * 3600e3);
   const v = validity(n);
   if (v.eff && v.eff > windowEnd) return { inWindow: false, reason: 'later' };
   if (v.exp && v.exp <= now) return { inWindow: false, reason: 'expired' };
+  const lo = new Date(Math.max(now.getTime(), v.eff ? v.eff.getTime() : now.getTime()));
+  const hi = new Date(Math.min(windowEnd.getTime(), v.exp ? v.exp.getTime() : windowEnd.getTime()));
+  const whole = [{ start: lo, end: hi }];
   const d = dLine(UP(n));
-  if (!d) return { inWindow: true, kind: (v.eff && v.eff > now) ? 'starts-in-window' : 'continuous' };
+  if (!d) return { inWindow: true, kind: (v.eff && v.eff > now) ? 'starts-in-window' : 'continuous', intervals: whole };
   const sch = parseSchedule(d);
-  if (sch.unparsed) return { inWindow: true, kind: 'scheduled-unparsed' };
+  if (sch.unparsed) return { inWindow: true, kind: 'scheduled-unparsed', intervals: whole };
   const out = [];
   for (let off = -1; off <= 1; off++) {
     const base = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + off));
     const dayOk = sch.daily || (!sch.days.length && !sch.wd.size) || sch.days.includes(base.getUTCDate()) || sch.wd.has(base.getUTCDay());
     if (!dayOk) continue;
     for (const [a, b] of sch.ranges) {
-      const s = new Date(base.getTime() + (+a.slice(0, 2) * 60 + +a.slice(2)) * 60000);
+      const st = new Date(base.getTime() + (+a.slice(0, 2) * 60 + +a.slice(2)) * 60000);
       let e = new Date(base.getTime() + (+b.slice(0, 2) * 60 + +b.slice(2)) * 60000);
-      if (e <= s) e = new Date(e.getTime() + 86400000);
-      out.push({ start: s, end: e });
+      if (e <= st) e = new Date(e.getTime() + 86400000);
+      out.push({ start: st, end: e });
     }
   }
-  const hit = out.filter(i => i.end > now && i.start < windowEnd && (!v.eff || i.end > v.eff) && (!v.exp || i.start < v.exp));
+  const hit = out
+    .map(i => ({ start: new Date(Math.max(i.start.getTime(), lo.getTime())), end: new Date(Math.min(i.end.getTime(), hi.getTime())) }))
+    .filter(i => i.end > i.start && i.end > now);
   if (!hit.length) return { inWindow: false, reason: 'schedule' };
-  return { inWindow: true, kind: 'scheduled', activeNow: hit.some(i => i.start <= now && i.end > now) };
+  return { inWindow: true, kind: 'scheduled', activeNow: hit.some(i => i.start <= now && i.end > now), intervals: hit };
 }
 
 // ───────────────────────── runway helpers ─────────────────────────
@@ -298,23 +360,76 @@ function resolveRunwayCount(sources, lowerBound) {
   const counts = srcs.map(x => x.count);
   const min = Math.min(...counts), max = Math.max(...counts);
   const names = srcs.map(x => `${x.name} ${x.count}`).join(', ');
-  if (min !== max) return { count: Math.max(min, lb), trusted: false, disputed: true, source: 'disputed', note: `runway count disputed (${names})` };
+  if (min !== max) {
+    let diff = '';
+    if (srcs.length === 2 && srcs[0].keys && srcs[1].keys) {
+      const a = new Set(srcs[0].keys), b = new Set(srcs[1].keys);
+      const onlyA = [...a].filter(k => !b.has(k)), onlyB = [...b].filter(k => !a.has(k));
+      if (onlyA.length) diff += `; only in ${srcs[0].name}: ${onlyA.join(', ')}`;
+      if (onlyB.length) diff += `; only in ${srcs[1].name}: ${onlyB.join(', ')}`;
+    }
+    return { count: Math.max(min, lb), trusted: false, disputed: true, source: 'disputed', note: `runway count disputed (${names}${diff}) — using the smaller number` };
+  }
   if (min < lb) return { count: lb, trusted: false, source: 'notam-min', note: `data sources report ${min} runway(s) but NOTAMs reference ${lb}` };
   return { count: min, trusted: true, source: srcs.map(x => x.name).join('+'), note: names };
 }
 
-function runwayTier(closedLanding, closedTakeoff, info) {
+function runwayTier(closedLanding, closedTakeoff, info, cfg) {
   const closed = Math.max(closedLanding.size, closedTakeoff.size);
   if (!closed) return null;
-  if (info && info.trusted && info.count >= 1) {
-    const remaining = info.count - closed;
-    if (remaining <= 0) return { tier: 1, override: true, remaining: 0, note: `no usable runway remains (${closed} of ${info.count} closed)` };
-    if (remaining === 1 && info.count >= 2) return { tier: 1, override: false, remaining, note: `only 1 of ${info.count} runways remains` };
-    return { tier: 2, override: false, remaining, note: `${closed} of ${info.count} runways closed, ${remaining} remain` };
+  const frac = (cfg && cfg.runwayClosedFractionT1) || 0.5;
+  if (info && info.count >= 1 && (info.trusted || info.disputed)) {
+    const N = info.count, remaining = N - closed;
+    const tag = info.disputed ? ` (${info.note})` : '';
+    if (remaining <= 0) {
+      return info.trusted
+        ? { tier: 1, override: true, remaining: 0, note: `no usable runway remains (${closed} of ${N} closed)` }
+        : { tier: 1, override: false, remaining: 0, note: `possibly no usable runway (${closed} closed, count ${N})${tag}` };
+    }
+    if ((remaining === 1 && N >= 2) || closed / N >= frac)
+      return { tier: 1, override: false, remaining, note: `${closed} of ${N} runways closed, ${remaining} remain${tag}` };
+    return { tier: 2, override: false, remaining, note: `${closed} of ${N} runways closed, ${remaining} remain${tag}` };
   }
   return closed >= 2
     ? { tier: 1, override: false, remaining: null, note: `${closed} runways closed (runway count unverified — conservative rule)` }
     : { tier: 2, override: false, remaining: null, note: '1 runway closed (runway count unverified)' };
+}
+
+const MORE_SEVERE = (x, y) => !y || (x.override && !y.override) || (!!x.override === !!y.override && x.tier < y.tier);
+
+// Sweeps the look-ahead window hour by hour of change: only closures that are in force AT THE SAME TIME count together.
+// Closures that exist only during scheduled windows are one tier lighter (cfg.scheduledDowngrade).
+function evaluateRunways(rwRows, info, cfg, now) {
+  const windowEnd = new Date(now.getTime() + cfg.windowHours * 3600e3);
+  const closures = [];
+  for (const r of rwRows) {
+    const continuous = r.win.kind === 'continuous' || r.win.kind === 'starts-in-window';
+    for (const c of r.fact.closures) closures.push({ key: c.key, mode: c.mode, continuous, intervals: r.win.intervals || [{ start: now, end: windowEnd }] });
+  }
+  const pts = new Set([now.getTime(), windowEnd.getTime()]);
+  closures.forEach(c => c.intervals.forEach(i => { pts.add(i.start.getTime()); pts.add(i.end.getTime()); }));
+  const t = [...pts].filter(x => x >= now.getTime() && x <= windowEnd.getTime()).sort((p, q) => p - q);
+  const setsOf = list => {
+    const l = new Set(), tk = new Set();
+    list.forEach(c => { if (c.mode === 'full' || c.mode === 'landing') l.add(c.key); if (c.mode === 'full' || c.mode === 'takeoff') tk.add(c.key); });
+    return [l, tk];
+  };
+  let worst = null;
+  for (let i = 0; i < t.length - 1; i++) {
+    const mid = (t[i] + t[i + 1]) / 2;
+    const act = closures.filter(c => c.intervals.some(iv => iv.start.getTime() <= mid && mid < iv.end.getTime()));
+    if (!act.length) continue;
+    const all = runwayTier(...setsOf(act), info, cfg);
+    if (!all) continue;
+    const base = runwayTier(...setsOf(act.filter(c => c.continuous)), info, cfg);
+    let eff = all;
+    if (cfg.scheduledDowngrade && act.some(c => !c.continuous) && (!base || MORE_SEVERE(all, base))) {
+      const down = Object.assign({}, all, { tier: all.override ? 1 : DOWN(all.tier), override: false, note: all.note + ' — during scheduled windows' });
+      eff = (base && !MORE_SEVERE(down, base)) ? base : down;
+    }
+    if (MORE_SEVERE(eff, worst)) worst = eff;
+  }
+  return worst;
 }
 
 function assessAirport(a, now, cfg) {
@@ -340,27 +455,10 @@ function assessAirport(a, now, cfg) {
   const adc = live.filter(r => r.fact.type === 'AD_CLOSED' && r.win.kind !== 'scheduled' && r.win.kind !== 'scheduled-unparsed');
   if (adc.length) { override = true; add('AD_CLOSED', 1, 'aerodrome closed', adc.map(r => r.id), { override: true }); }
 
-  // runways (dynamic rule)
+  // runways (dynamic rule, evaluated over time)
   const rwRows = live.filter(r => r.fact.type === 'RWY_CLOSURE');
   if (rwRows.length) {
-    const sets = (filter) => {
-      const l = new Set(), t = new Set();
-      rwRows.filter(filter).forEach(r => r.fact.closures.forEach(c => {
-        if (c.mode === 'full' || c.mode === 'landing') l.add(c.key);
-        if (c.mode === 'full' || c.mode === 'takeoff') t.add(c.key);
-      }));
-      return [l, t];
-    };
-    const isCont = r => r.win.kind === 'continuous' || r.win.kind === 'starts-in-window';
-    const cont = runwayTier(...sets(isCont), info);
-    const full = runwayTier(...sets(() => true), info);
-    let pick = cont;
-    if (full) {
-      const windowed = cfg.scheduledDowngrade && (!cont || full.tier > cont.tier || full.override)
-        ? Object.assign({}, full, { tier: full.override ? 1 : DOWN(full.tier), override: false, note: full.note + ' — during scheduled windows' })
-        : full;
-      if (!pick || windowed.tier < pick.tier) pick = windowed;
-    }
+    const pick = evaluateRunways(rwRows, info, cfg, now);
     if (pick) {
       if (pick.override) override = true;
       add('RWY', pick.tier, pick.note, rwRows.map(r => r.id), { override: !!pick.override, runwayTier: pick.tier });
@@ -446,6 +544,7 @@ function assessRisk(input, userCfg) {
       if (!windowStatus(n, now, cfg).inWindow) continue;
       const fact = extractFact(n, 'FIR');
       if (!fact) continue;
+      if (!routeRelevant(n, input.route, cfg)) continue;   // restriction nowhere near the planned route
       if (fact.type === 'GNSS_INTERFERENCE') gn.push(idOf(n));
       else if (enIds[fact.type]) enIds[fact.type].push(idOf(n));
     }
@@ -492,10 +591,10 @@ function promptBlock(r) {
   ];
   [1, 2, 3].forEach(t => {
     const f = r.factors.filter(x => x.tier === t);
-    if (f.length) lines.push(`TIER ${t} FACTORS:\n` + f.map(x => `- ${x.label}${x.ids && x.ids.length ? ' [' + x.ids.join(', ') + ']' : ''}`).join('\n'));
+    if (f.length) lines.push(`TIER ${t} FACTORS:\n` + f.map(x => `- ${x.label}${x.ids && x.ids.length ? ' [' + x.ids.slice(0, 8).join(', ') + (x.ids.length > 8 ? ` +${x.ids.length - 8} more` : '') + ']' : ''}`).join('\n'));
   });
   if (!r.factors.length) lines.push('No scored factors are active in the next 24 hours.');
   return lines.join('\n');
 }
 
-module.exports = { CONFIG, resolveRunwayCount, assessRisk, assessAirport, promptBlock, assessWeather, windowStatus, parseRunwayClosures, extractFact, rwyKey, levelFromCounts, runwaysMentioned, isAdminNotam, idOf };
+module.exports = { CONFIG, parseGeo, gcDist, trackDistances, routeRelevant, evaluateRunways, resolveRunwayCount, assessRisk, assessAirport, promptBlock, assessWeather, windowStatus, parseRunwayClosures, extractFact, rwyKey, levelFromCounts, runwaysMentioned, isAdminNotam, idOf };

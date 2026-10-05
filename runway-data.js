@@ -19,7 +19,7 @@ const AWC_TTL_MS = 12 * 3600 * 1000;
 const AWC_TIMEOUT_MS = 3500;
 const LOAD_WAIT_MS = 4000;
 
-let table = null;        // Map<ICAO, Set<runway-pair-key>> (open runways only)
+let table = null;        // Map<ICAO, { keys:Set<runway-pair-key>, lats:[], lons:[] }> (open runways only)
 let loadedAt = 0;
 let lastAttempt = 0;
 let loading = null;
@@ -68,6 +68,7 @@ function buildTable(csvText) {
   const head = rows[0].map(h => h.trim());
   const ix = name => head.indexOf(name);
   const iIdent = ix('airport_ident'), iClosed = ix('closed'), iLe = ix('le_ident'), iHe = ix('he_ident');
+  const iLeLat = ix('le_latitude_deg'), iLeLon = ix('le_longitude_deg'), iHeLat = ix('he_latitude_deg'), iHeLon = ix('he_longitude_deg');
   if (iIdent < 0 || iLe < 0 || iHe < 0) throw new Error('unexpected runways.csv header');
   const map = new Map();
   for (let r = 1; r < rows.length; r++) {
@@ -77,8 +78,13 @@ function buildTable(csvText) {
     if (iClosed >= 0 && (row[iClosed] || '').trim() === '1') continue;   // permanently closed runway
     const des = [row[iLe], row[iHe]].map(x => (x || '').trim().toUpperCase()).find(x => /^\d{2}[LRC]?$/.test(x));
     if (!des) continue;                                                    // helipads and odd identifiers
-    if (!map.has(ident)) map.set(ident, new Set());
-    map.get(ident).add(rwyKey(des));
+    if (!map.has(ident)) map.set(ident, { keys: new Set(), lats: [], lons: [] });
+    const rec = map.get(ident);
+    rec.keys.add(rwyKey(des));
+    [[iLeLat, iLeLon], [iHeLat, iHeLon]].forEach(([ia, io]) => {
+      const la = parseFloat(row[ia]), lo = parseFloat(row[io]);
+      if (ia >= 0 && io >= 0 && isFinite(la) && isFinite(lo)) { rec.lats.push(la); rec.lons.push(lo); }
+    });
   }
   return map;
 }
@@ -102,27 +108,31 @@ function init() {
   if (t.unref) t.unref();
 }
 
-function awcCountFromData(data) {
+function awcInfoFromData(data) {
   const apt = Array.isArray(data) ? data[0] : null;
-  if (!apt || !Array.isArray(apt.runways)) return null;
+  if (!apt) return null;
   const set = new Set();
-  for (const r of apt.runways) {
-    for (const m of String((r && (r.id || r.runway)) || '').toUpperCase().matchAll(/\d{2}[LRC]?/g)) set.add(rwyKey(m[0]));
+  if (Array.isArray(apt.runways)) {
+    for (const r of apt.runways) {
+      for (const m of String((r && (r.id || r.runway)) || '').toUpperCase().matchAll(/\d{2}[LRC]?/g)) set.add(rwyKey(m[0]));
+    }
   }
-  return set.size || null;
+  const lat = parseFloat(apt.lat), lon = parseFloat(apt.lon);
+  return { count: set.size || null, keys: [...set], pos: isFinite(lat) && isFinite(lon) ? { lat, lon } : null };
 }
+function awcCountFromData(data) { const i = awcInfoFromData(data); return i ? i.count : null; }
 
 function withTimeout(p, ms) {
   return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 }
 
-async function awcCount(icao, fetchJson) {
+async function awcInfo(icao, fetchJson) {
   const hit = awcCache.get(icao);
-  if (hit && Date.now() - hit.t < AWC_TTL_MS) return hit.count;
+  if (hit && Date.now() - hit.t < AWC_TTL_MS) return hit.info;
   const data = await withTimeout(fetchJson(`https://aviationweather.gov/api/data/airport?ids=${icao}&format=json`), AWC_TIMEOUT_MS);
-  const count = awcCountFromData(data);
-  awcCache.set(icao, { t: Date.now(), count });
-  return count;
+  const info = awcInfoFromData(data);
+  awcCache.set(icao, { t: Date.now(), info });
+  return info;
 }
 
 async function getRunwaySources(icao, opts) {
@@ -131,17 +141,36 @@ async function getRunwaySources(icao, opts) {
   if (!icao) return out;
   try {
     if (!table) await withTimeout(load(false), LOAD_WAIT_MS).catch(() => {});
-    const set = table && table.get(icao);
-    if (set && set.size) out.push({ name: 'ourairports', count: set.size });
+    const rec = table && table.get(icao);
+    if (rec && rec.keys.size) out.push({ name: 'ourairports', count: rec.keys.size, keys: [...rec.keys].sort() });
   } catch (e) { /* source omitted */ }
   try {
     const fetchJson = opts && opts.fetchJson;
     if (fetchJson) {
-      const c = await awcCount(icao, fetchJson);
-      if (c) out.push({ name: 'awc', count: c });
+      const info = await awcInfo(icao, fetchJson);
+      if (info && info.count) out.push({ name: 'awc', count: info.count, keys: info.keys.slice().sort() });
     }
   } catch (e) { /* source omitted */ }
   return out;
 }
 
-module.exports = { init, load, getRunwaySources, _buildTable: buildTable, _awcCountFromData: awcCountFromData, _parseCsv: parseCsv, _setTable: t => { table = t; loadedAt = Date.now(); }, _clearAwcCache: () => awcCache.clear() };
+// Aerodrome position: mean of runway-end coordinates (OurAirports), else the aviationweather.gov airport record.
+async function getAirportPosition(icao, opts) {
+  icao = String(icao || '').toUpperCase();
+  if (!icao) return null;
+  try {
+    if (!table) await withTimeout(load(false), LOAD_WAIT_MS).catch(() => {});
+    const rec = table && table.get(icao);
+    if (rec && rec.lats.length) {
+      const m = a => a.reduce((x, y) => x + y, 0) / a.length;
+      return { lat: m(rec.lats), lon: m(rec.lons) };
+    }
+  } catch (e) { /* fall through */ }
+  try {
+    const fetchJson = opts && opts.fetchJson;
+    if (fetchJson) { const i = await awcInfo(icao, fetchJson); if (i && i.pos) return i.pos; }
+  } catch (e) { /* no position */ }
+  return null;
+}
+
+module.exports = { init, getAirportPosition, load, getRunwaySources, _buildTable: buildTable, _awcCountFromData: awcCountFromData, _parseCsv: parseCsv, _setTable: t => { table = t; loadedAt = Date.now(); }, _clearAwcCache: () => awcCache.clear() };

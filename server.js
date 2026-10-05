@@ -510,13 +510,24 @@ async function computeBriefingRisk({ icao_dep, icao_arr, isSingleAirport, notamD
   const jobs = [build(icao_dep, isSingleAirport ? 'APT' : 'DEP', notamDepResult, metarDep)];
   if (!isSingleAirport) jobs.push(build(icao_arr, 'ARR', notamArrResult, metarArr));
   const airports = await Promise.all(jobs);
-  const r = risk.assessRisk({ now: new Date(), airports, enroute: enrouteCollector || [] });
+  // Aerodrome positions let the rubric ignore en-route restrictions that are nowhere near the planned route.
+  let route = null;
+  if (!isSingleAirport) {
+    const [pd, pa] = await Promise.all([
+      runwayData.getAirportPosition(icao_dep, { fetchJson: fetchURL }),
+      runwayData.getAirportPosition(icao_arr, { fetchJson: fetchURL }),
+    ]);
+    if (pd && pa) route = { dep: pd, arr: pa };
+  }
+  const r = risk.assessRisk({ now: new Date(), airports, enroute: enrouteCollector || [], route });
   console.log('[RISK]', JSON.stringify({
     route: icao_dep + (isSingleAirport ? '' : '-' + icao_arr),
     level: r.level, score: r.score, verdict: r.verdict, override: r.override, concentration: r.concentration, counts: r.counts,
     runway: r.runwayInfo,
+    runwaySources: Object.fromEntries(airports.map(a => [a.icao, (a.runwaySources || []).map(x => x.name + ' ' + x.count + ': ' + (x.keys || []).join('|'))])),
+    routeGeometry: !!route,
     fir: (enrouteCollector || []).map(x => x.fir + ':' + (x.notams || []).length),
-    factors: r.factors.slice(0, 30).map(f => `T${f.tier} ${f.label}${f.ids && f.ids.length ? ' [' + f.ids.join(',') + ']' : ''}`),
+    factors: r.factors.slice(0, 30).map(f => `T${f.tier} ${f.label}${f.ids && f.ids.length ? ' [' + f.ids.slice(0, 6).join(',') + (f.ids.length > 6 ? ' +' + (f.ids.length - 6) + ' more' : '') + ']' : ''}`),
   }));
   return r;
 }
