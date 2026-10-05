@@ -20,6 +20,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const admin = require('firebase-admin');
+const risk = require('./risk');
+const runwayData = require('./runway-data');
 
 if (!admin.apps.length) {
   try {
@@ -496,6 +498,29 @@ function notifySkylinkFailure(icao) {
     '<div style="font-size:13px;color:#1e293b;">SkyLink returned no NOTAM data for ' + icao + '. Likely the monthly RapidAPI quota is exhausted or the provider is down. Briefings and the NOTAM panel now show "NOTAM DATA UNAVAILABLE". Check RapidAPI usage and upgrade the plan if needed.</div>').catch(() => {});
 }
 
+// Risk rubric wiring: runs after NOTAM / METAR / FIR data has been fetched. Never throws into the briefing flow.
+async function computeBriefingRisk({ icao_dep, icao_arr, isSingleAirport, notamDepResult, notamArrResult, enrouteCollector, metarDep, metarArr }) {
+  const unavailable = (notamDepResult && notamDepResult.unavailable) || (!isSingleAirport && notamArrResult && notamArrResult.unavailable);
+  if (unavailable) { console.log('[RISK] skipped — NOTAM data unavailable'); return null; }
+  const build = async (icao, role, res, metar) => ({
+    icao, role, metar,
+    notams: [...((res && res.activeItems) || []), ...((res && res.nearFutureItems) || [])],
+    runwaySources: await runwayData.getRunwaySources(icao, { fetchJson: fetchURL }),
+  });
+  const jobs = [build(icao_dep, isSingleAirport ? 'APT' : 'DEP', notamDepResult, metarDep)];
+  if (!isSingleAirport) jobs.push(build(icao_arr, 'ARR', notamArrResult, metarArr));
+  const airports = await Promise.all(jobs);
+  const r = risk.assessRisk({ now: new Date(), airports, enroute: enrouteCollector || [] });
+  console.log('[RISK]', JSON.stringify({
+    route: icao_dep + (isSingleAirport ? '' : '-' + icao_arr),
+    level: r.level, score: r.score, verdict: r.verdict, override: r.override, concentration: r.concentration, counts: r.counts,
+    runway: r.runwayInfo,
+    fir: (enrouteCollector || []).map(x => x.fir + ':' + (x.notams || []).length),
+    factors: r.factors.slice(0, 30).map(f => `T${f.tier} ${f.label}${f.ids && f.ids.length ? ' [' + f.ids.join(',') + ']' : ''}`),
+  }));
+  return r;
+}
+
 async function fetchNotams(icao) {
   if (!icao) return { text: '', total: 0, shown: 0 };
   try {
@@ -516,7 +541,7 @@ async function fetchNotams(icao) {
       notifySkylinkFailure(icao);
       return { text: `[NOTAM DATA UNAVAILABLE for ${icao}] The NOTAM data provider did not return data for this airport (possible quota limit or outage). Do NOT state or imply that there are no NOTAMs. In the NOTAM section, state clearly that NOTAM data could not be retrieved and must be checked with the official AIS/NOTAM office before flight.`, total: 0, shown: 0, unavailable: true };
     }
-    if (data.notams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0 };
+    if (data.notams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0, activeItems: [], nearFutureItems: [] };
     const now = new Date();
     const notInFuture = n => {
       if (!n.effective || n.effective.length < 12) return true;
@@ -574,7 +599,7 @@ async function fetchNotams(icao) {
     });
 
     console.log('[FILTER]', icao, 'total:', data.notams.length, 'active:', activeNotams.length, 'near-future:', nearFuture.length, 'later-future:', laterFuture.length, 'excluded admin:', excludedAdminCount);
-    if (activeNotams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0, excludedAdminCount, nearFutureLines, laterFutureCount: laterFuture.length };
+    if (activeNotams.length === 0) return { text: `No active NOTAMs for ${icao}.`, total: 0, shown: 0, excludedAdminCount, nearFutureLines, laterFutureCount: laterFuture.length, activeItems: [], nearFutureItems: nearFuture };
     const SORD = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
     const classified = activeNotams.map(n => ({
       n, sev: classifyNotamSeverity(n.raw || n.body || ''), key: notamRecencyKey(n)
@@ -589,7 +614,7 @@ async function fetchNotams(icao) {
       const raw = (n.raw || n.body || '').trim().slice(0, 500);
       return `[${icao} NOTAM ${i+1}] [${sev}] ${n.notam_id || ''}:\n${raw}`;
     }).join('\n\n---\n\n');
-    return { text, total: activeNotams.length, shown, excludedAdminCount, nearFutureLines, laterFutureCount: laterFuture.length };
+    return { text, total: activeNotams.length, shown, excludedAdminCount, nearFutureLines, laterFutureCount: laterFuture.length, activeItems: activeNotams, nearFutureItems: nearFuture };
   } catch (e) { return { text: `[NOTAM DATA UNAVAILABLE for ${icao}] Could not fetch NOTAMs: ${e.message}. Do NOT state or imply that there are no NOTAMs; they must be checked with the official AIS/NOTAM office.`, total: 0, shown: 0, unavailable: true }; }
 }
 
@@ -597,7 +622,7 @@ async function fetchNotams(icao) {
 const OCEANIC_FIRS = new Set(['KZNY', 'CZQX', 'EGGX', 'KZAK']);
 
 // Fetch en-route FIR NOTAMs based on dep/arr ICAO pair
-async function getEnrouteNotams(dep, arr) {
+async function getEnrouteNotams(dep, arr, collector) {
   const firMap = {
     // EUROPE
     'EG': 'EGTT', 'EI': 'EISN', 'EB': 'EBUR', 'EH': 'EHAA',
@@ -846,6 +871,7 @@ async function getEnrouteNotams(dep, arr) {
           const expDate = new Date(Date.UTC(parseInt(e.slice(0,4)), parseInt(e.slice(4,6))-1, parseInt(e.slice(6,8)), parseInt(e.slice(8,10)), parseInt(e.slice(10,12))));
           return expDate > now;
         });
+        if (collector) collector.push({ fir, notams: active });
         const SORD = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
         const classified = active.map(n => ({ n, sev: classifyNotamSeverity(n.raw || n.body || ''), key: notamRecencyKey(n) }))
           .sort((a, b) => SORD[a.sev] !== SORD[b.sev] ? SORD[a.sev] - SORD[b.sev] : b.key - a.key);
@@ -875,6 +901,7 @@ async function getEnrouteNotams(dep, arr) {
           const expDate = new Date(Date.UTC(parseInt(e.slice(0,4)), parseInt(e.slice(4,6))-1, parseInt(e.slice(6,8)), parseInt(e.slice(8,10)), parseInt(e.slice(10,12))));
           return expDate > now;
         });
+        if (collector) collector.push({ fir, notams: active });
         if (active.length > 0) {
           const SORD = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
           const classified = active.map(n => ({ n, sev: classifyNotamSeverity(n.raw || n.body || ''), key: notamRecencyKey(n) }))
@@ -4531,6 +4558,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         let notamDepResult = { text: '', total: 0, shown: 0 };
         let notamArrResult = { text: '', total: 0, shown: 0 };
         let enrouteNotamData = '';
+        const enrouteCollector = [];
         let metarDep = '', tafDep = '', metarArr = '', tafArr = '';
 
         if (!isQuickAnalysis) {
@@ -4539,13 +4567,18 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           if (!isSingleAirport) {
             await new Promise(r => setTimeout(r, 500));
             notamArrResult = await fetchNotams(icao_arr);
-            enrouteNotamData = await getEnrouteNotams(icao_dep, icao_arr);
+            enrouteNotamData = await getEnrouteNotams(icao_dep, icao_arr, enrouteCollector);
             [metarArr, tafArr] = await Promise.all([fetchMetar(icao_arr), fetchTaf(icao_arr)]);
           }
         }
 
         const now = new Date();
         const utcDate = now.toUTCString().slice(5, 16).toUpperCase();
+
+        // Risk rubric — SHADOW MODE: computed and logged only, in the background (nothing waits for it).
+        const riskPromise = !isQuickAnalysis
+          ? computeBriefingRisk({ icao_dep, icao_arr, isSingleAirport, notamDepResult, notamArrResult, enrouteCollector, metarDep, metarArr }).catch(e => { console.log('[RISK] error:', e.message); return null; })
+          : Promise.resolve(null);
 
         const depOverflow = notamDepResult.total > notamDepResult.shown
           ? `\n[${notamDepResult.total - notamDepResult.shown} additional NOTAMs not shown — open the NOTAMs & MET panel or use Single NOTAM Analysis for details]`
@@ -4685,12 +4718,18 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         res.write(`data: ${JSON.stringify({ type: 'init', html_head: HTML_HEAD, html_foot: HTML_FOOT })}\n\n`);
 
         let doneSent = false;
+        let modelHeadText = '';
         streamClaude(claudeBody,
-          (text) => { res.write(`data: ${JSON.stringify({ type: 'chunk', text })}\n\n`); },
+          (text) => { if (modelHeadText.length < 4000) modelHeadText += text; res.write(`data: ${JSON.stringify({ type: 'chunk', text })}\n\n`); },
           (usageInfo) => {
             if (doneSent) return;
             doneSent = true;
             console.log('[BRIEFING STOP REASON]', { stop_reason: usageInfo?.stop_reason || 'unknown', output_tokens: usageInfo?.output_tokens || 0, text_chars: usageInfo?.text_chars || 0, thinking_blocks: usageInfo?.thinking_blocks || 0, thinking_chars: usageInfo?.thinking_chars || 0 });
+            Promise.resolve(riskPromise).then(riskResult => {
+              const mScore = (modelHeadText.match(/RISK\s*SCORE\s*(?:<[^>]*>)?\s*(\d+)\s*\/\s*10/i) || [])[1];
+              const mLevel = (modelHeadText.match(/\b(CRITICAL|HIGH|MEDIUM|LOW)\b/) || [])[1];
+              console.log('[RISK COMPARE]', JSON.stringify({ route: icao_dep + (isSingleAirport ? '' : '-' + icao_arr), computed: riskResult ? `${riskResult.level} ${riskResult.score}` : 'n/a', model: mScore ? `${mLevel || '?'} ${mScore}` : 'n/a' }));
+            }).catch(() => {});
             // Fixed, server-authored notes (not left to the model) about NOTAMs not included in
             // the main briefing, so the wording and counts are always accurate. Sent as part of
             // the 'done' event (notamNotesHtml) so the client can splice it in right after the
@@ -4754,6 +4793,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
 server.timeout = 120000;
 server.listen(PORT, () => {
   console.log(`NOTAM Intelligence server running on port ${PORT}`);
+  runwayData.init();
 });
 
 // ─── NOTAM ALERT EMAIL SYSTEM ─────────────────────────────────────────────
