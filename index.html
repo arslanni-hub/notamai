@@ -3108,7 +3108,7 @@ async function handleSend(silent = false) {
             // Splice the server-authored NOTAM notes (upcoming/excluded counts) in right after
             // the NOTAM section, at the placeholder Claude was told to leave. Fall back to
             // stripping the placeholder if the model dropped it (so it never shows literally).
-            accumulated = placeNotamNotes(accumulated, evt.notamNotesHtml);
+            accumulated = placeNotamNotes(accumulated, t3SummaryNote(accumulated, evt.notamT3) + (evt.notamNotesHtml || ''));
             if (evt.notamOwners && evt.notamGroups) {
               accumulated = organizeNotamList(accumulated, evt.notamOwners, evt.notamGroups);
               accumulated = markOutsideWindow(accumulated, evt.notamOutside);
@@ -4164,6 +4164,22 @@ function markOutsideWindow(html, ids) {
     });
     return changed ? doc.body.innerHTML : html;
   } catch (e) { return html; }
+}
+// Tier 3 NOTAMs are not written out one by one: count the ones that did not get a line and point to the panel.
+function t3SummaryNote(html, ids) {
+  try {
+    if (!ids || !ids.length) return '';
+    const start = html.indexOf('<div class="notam-list">');
+    const rng = start >= 0 ? _divRange(html, start) : null;
+    const listed = new Set();
+    if (rng) {
+      const doc = new DOMParser().parseFromString('<body>' + html.slice(rng[0], rng[1]) + '</body>', 'text/html');
+      doc.querySelectorAll('.notam-card .notam-id, .notam-compact .notam-compact-id').forEach(el => _idTokens(el.textContent).forEach(t => listed.add(_bareId(t))));
+    }
+    const n = new Set(ids.map(_bareId).filter(t => !listed.has(t))).size;
+    if (!n) return '';
+    return '<div class="notam-t3-note" style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;padding:8px 12px;margin-top:8px;border-left:3px solid #f2c641;background:rgba(242,198,65,0.05);">ℹ +' + n + ' lower-priority (Tier 3) NOTAM' + (n > 1 ? 's' : '') + ' (taxiway, apron, crane/obstacle and surface works) not listed individually — they are included in the risk assessment. Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list.</div>';
+  } catch (e) { return ''; }
 }
 function placeNotamNotes(html, notes) {
   if (!notes) return html.replace('<!--NOTAM_NOTES-->', '');

@@ -1270,7 +1270,7 @@ const BRIEFING_RISK_RULES = `RISK RATING RULES — apply to the MASTER HEADER an
 - If something needed for the rating is missing (for example no TAF, or no en-route FIR data), say so once in the DATA GAPS line instead of assuming it is fine.`;
 
 const systemPrompt = `MANDATORY RULES:
-- Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them (full card only for the ids on the FULL CARDS line, compact for the rest)
+- Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them (full card only for the ids on the FULL CARDS line, compact line for the rest, no line for T3 NOTAMs)
 - ONE compact line or card per NOTAM: never merge several NOTAMs into one line (no "B3202 / B3203 / B4018" lines), and always write every NOTAM id in full including the year (e.g. B3202/2026).
 - Immediately after the closing </div> of the notam-list section (right after the last NOTAM card, before starting the next section such as Weather), insert this exact placeholder on its own line: <!--NOTAM_NOTES--> — always include it whenever a NOTAM section is present, even if you believe there's nothing to add there; the server will fill it in automatically. Do not add any text of your own at that spot.
 - Each NOTAM card must have correct risk color class: crit (red) for runway closures/GNSS/safety critical, high (orange) for navigation aids/UAS/obstacles, med (yellow) for taxiway/procedures, low (green) for administrative
@@ -1340,7 +1340,7 @@ REQUIRED SECTIONS IN ORDER:
 4. NOTAM ANALYSIS:
 <div class="section-header"><span class="icon">📋</span><span class="title">NOTAM Analysis — Priority Order</span></div>
 <div class="notam-list">
-  [ORDER: list ALL NOTAMs of the DEPARTURE airport first (full cards first, then compact lines), then ALL NOTAMs of the ARRIVAL airport — never interleave the two airports. The server groups and labels the list again afterwards. The DEPARTURE and ARRIVAL airport NOTAM lists are two SEPARATE, INDEPENDENT counters — a busy departure airport (e.g. a mega-hub) must NEVER reduce the arrival airport's detail allowance, and vice versa. For EACH airport independently, the user message contains a line "<ICAO> — FULL CARDS (<nc>) for EXACTLY these NOTAMs" (or "FULL CARDS: none"). Write the full card format below ONLY for the NOTAM ids named on that line, in that order, and write every other NOTAM of that airport as a compact line, regardless of its [CRITICAL]/[HIGH]/[MEDIUM] tag. Never promote a NOTAM to a full card on your own:]
+  [ORDER: list ALL NOTAMs of the DEPARTURE airport first (full cards first, then compact lines), then ALL NOTAMs of the ARRIVAL airport — never interleave the two airports. The server groups and labels the list again afterwards. The DEPARTURE and ARRIVAL airport NOTAM lists are two SEPARATE, INDEPENDENT counters — a busy departure airport (e.g. a mega-hub) must NEVER reduce the arrival airport's detail allowance, and vice versa. For EACH airport independently, the user message contains a line "<ICAO> — FULL CARDS (<nc>) for EXACTLY these NOTAMs" (or "FULL CARDS: none"). Write the full card format below ONLY for the NOTAM ids named on that line, in that order, and write every other Tier 1/2 (or not scored) NOTAM of that airport as a compact line. NOTAMs tagged T3 get NO line at all (the user message says how many per airport; the page adds one summary note with the count and a panel link), except one that materially compounds with a Tier 1/2 NOTAM or is named in a COMPOUNDS WITH banner or the executive summary, which gets exactly one line. Never promote a NOTAM to a full card on your own:]
 
   [FULL CARD — write it in this COMPACT TAG FORMAT, not HTML. The page builds the card layout, the field labels and the RAW NOTAM TEXT from the NOTAM id, so NEVER write the raw NOTAM text or any labels yourself:]
   <nc s="[crit|high]" id="[EXACT NOTAM ID with year, from the data]" type="[TYPE]">
@@ -1458,10 +1458,10 @@ IMPORTANT: Never use markdown backticks or code blocks. For RAW NOTAM TEXT field
 <pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>NOTAM TEXT</pre>
 The ! prefix and date format (YYMMDDHHmm) are standard ICAO format - keep them exactly as received.
 
-NOTAM LIMITS: Render every NOTAM provided in the data — they are already pre-sorted and capped by the server. Use full cards only for the ids the FULL CARDS line names; every other NOTAM gets the compact format. For en-route FIRs, use brief summaries only — no raw NOTAM text blocks.`;
+NOTAM LIMITS: Render every NOTAM provided in the data — they are already pre-sorted and capped by the server. Use full cards only for the ids the FULL CARDS line names; every other Tier 1/2 NOTAM gets the compact format and T3 NOTAMs get no line (the page summarises them). For en-route FIRs, use brief summaries only — no raw NOTAM text blocks.`;
 
 const singleAirportSystemPrompt = `MANDATORY RULES:
-- Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them (full card only for the ids on the FULL CARDS line, compact for the rest)
+- Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them (full card only for the ids on the FULL CARDS line, compact line for the rest, no line for T3 NOTAMs)
 - ONE compact line or card per NOTAM: never merge several NOTAMs into one line (no "B3202 / B3203 / B4018" lines), and always write every NOTAM id in full including the year (e.g. B3202/2026).
 - Immediately after the closing </div> of the notam-list section (right after the last NOTAM card, before starting the next section such as Weather), insert this exact placeholder on its own line: <!--NOTAM_NOTES--> — always include it whenever a NOTAM section is present, even if you believe there's nothing to add there; the server will fill it in automatically. Do not add any text of your own at that spot.
 - Each NOTAM card must have correct risk color class: crit (red) for runway closures/GNSS/safety critical, high (orange) for navigation aids/UAS/obstacles, med (yellow) for taxiway/procedures, low (green) for administrative
@@ -1531,7 +1531,7 @@ REQUIRED SECTIONS IN ORDER:
 4. NOTAM ANALYSIS:
 <div class="section-header"><span class="icon">📋</span><span class="title">NOTAM Analysis — Priority Order</span></div>
 <div class="notam-list">
-  [The user message contains a line "<ICAO> — FULL CARDS (<nc>) for EXACTLY these NOTAMs" (or "FULL CARDS: none"). Write the full card format below ONLY for the NOTAM ids named on that line, in that order, and write every other NOTAM as a compact line, regardless of its [CRITICAL]/[HIGH]/[MEDIUM] tag. Never promote a NOTAM to a full card on your own.]
+  [The user message contains a line "<ICAO> — FULL CARDS (<nc>) for EXACTLY these NOTAMs" (or "FULL CARDS: none"). Write the full card format below ONLY for the NOTAM ids named on that line, in that order, and write every other Tier 1/2 (or not scored) NOTAM as a compact line. NOTAMs tagged T3 get NO line at all (the user message says how many; the page adds one summary note with the count and a panel link), except one that materially compounds with a Tier 1/2 NOTAM or is named in a COMPOUNDS WITH banner or the executive summary, which gets exactly one line. Never promote a NOTAM to a full card on your own.]
 
   [FULL CARD — write it in this COMPACT TAG FORMAT, not HTML. The page builds the card layout, the field labels and the RAW NOTAM TEXT from the NOTAM id, so NEVER write the raw NOTAM text or any labels yourself:]
   <nc s="[crit|high]" id="[EXACT NOTAM ID with year, from the data]" type="[TYPE]">
@@ -1622,7 +1622,7 @@ IMPORTANT: Never use markdown backticks or code blocks. For RAW NOTAM TEXT field
 <pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>NOTAM TEXT</pre>
 The ! prefix and date format (YYMMDDHHmm) are standard ICAO format - keep them exactly as received.
 
-NOTAM LIMITS: Render every NOTAM provided in the data — they are already pre-sorted and capped by the server. Use full cards only for the ids the FULL CARDS line names; every other NOTAM gets the compact format.`;
+NOTAM LIMITS: Render every NOTAM provided in the data — they are already pre-sorted and capped by the server. Use full cards only for the ids the FULL CARDS line names; every other Tier 1/2 NOTAM gets the compact format and T3 NOTAMs get no line (the page summarises them).`;
 
 const quickAnalysisSystemPrompt = `MANDATORY RULES:
 - This is a QUICK ANALYSIS of whatever aviation data was provided — an image, a PDF, or pasted raw text (NOTAM, METAR, TAF, SIGMET, AIRMET, or a mix). There is no confirmed airport or route context. Do not invent one.
@@ -4832,7 +4832,10 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
               .concat((enrouteCollector || []).map(x => ({ key: 'FIR ' + x.fir, title: 'FIR ' + x.fir + ' — EN-ROUTE' })));
             const notamOutside = [];
             if (riskResult && riskResult.airportRows) Object.values(riskResult.airportRows).forEach(rows => (rows || []).forEach(x => { if (x && x.id && x.inWindow === false) notamOutside.push(x.id); }));
-            res.write(`data: ${JSON.stringify(Object.assign({ type: 'done', notamNotesHtml, notamOwners, notamGroups, notamOutside }, riskExtra))}\n\n`);
+            // Tier 3 NOTAMs (rubric MEDIUM) are not written out individually; the page counts the ones that were not listed.
+            const notamT3 = [];
+            if (riskResult && riskResult.airportRows) Object.values(riskResult.airportRows).forEach(rows => (rows || []).forEach(x => { if (x && x.id && x.sev === 'MEDIUM') notamT3.push(x.id); }));
+            res.write(`data: ${JSON.stringify(Object.assign({ type: 'done', notamNotesHtml, notamOwners, notamGroups, notamOutside, notamT3 }, riskExtra))}\n\n`);
             res.end();
           },
           (err) => { if (!doneSent) { doneSent = true; res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`); res.end(); } }
