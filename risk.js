@@ -771,7 +771,14 @@ function buildModelBlock(input, r, opts) {
     const shown = new Set(a.shownIds || []);
     const tag = x => SEV_TAG[x.sev] || 'not scored';
     const cards = rows.filter(x => shown.has(x.id));
-    if (cards.length) L.push(`${a.icao} — rubric tier of the NOTAMs shown as full cards below (the [CRITICAL]/[HIGH] card tags are only ordering hints):\n` + cards.map(x => `- ${x.id} ${tag(x)}${x.type ? ' ' + x.type : ''}${x.inWindow ? '' : ' (not in force during the next 24 h)'}`).join('\n'));
+    if (cards.length) L.push(`${a.icao} — rubric tier of the NOTAMs whose full text is given below (the [CRITICAL]/[HIGH] tags on that text are only ordering hints):\n` + cards.map(x => `- ${x.id} ${tag(x)}${x.type ? ' ' + x.type : ''}${x.inWindow ? '' : ' (not in force during the next 24 h)'}`).join('\n'));
+    // Full cards are reserved for rubric Tier 1 / Tier 2 NOTAMs that are in force (server decides; tag-compact lines for everything else)
+    const cap = a.cardCap || 3;
+    const byId = {}; rows.forEach(x => { byId[x.id] = x; });
+    const cardIds = (a.shownIds || []).map(id => byId[id]).filter(x => x && (x.sev === 'CRITICAL' || x.sev === 'HIGH') && x.inWindow !== false).map(x => x.id).filter((id, i, arr) => arr.indexOf(id) === i).slice(0, cap);
+    L.push(cardIds.length
+      ? `${a.icao} — FULL CARDS (<nc>) for EXACTLY these NOTAMs, in this order: ${cardIds.join(', ')}. EVERY other NOTAM of ${a.icao} gets one compact <nl> line, whatever its tag.`
+      : `${a.icao} — FULL CARDS: none. EVERY NOTAM of ${a.icao} gets one compact <nl> line (no <nc> cards for this aerodrome).`);
     const rest = rows.filter(x => !shown.has(x.id)).sort((x, y) => String(tag(x)).localeCompare(String(tag(y))) || String(x.id).localeCompare(String(y.id)));
     if (rest.length) L.push(`${a.icao} — ADDITIONAL ACTIVE NOTAMs NOT SHOWN AS FULL CARDS (one line each; evaluate them for the rating):\n` +
       rest.slice(0, o.maxPerAirport).map(x => `- ${x.id} [${tag(x)}${x.type ? ' ' + x.type : ''}${x.inWindow ? '' : '; not in force during the next 24 h'}] ${clip(x.text, o.textLen)}`).join('\n') +

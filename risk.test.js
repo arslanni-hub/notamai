@@ -559,5 +559,19 @@ test('A3040 / A3572 (EGLL cranes, "WILL ONLY OPR WHEN RWY ... IS CLSD") are obst
   assert.strictEqual(r.override, false); assert.ok(!r.factors.some(f => /:RWY$/.test(f.key)));
 });
 
+test('model block: FULL CARDS line lists only in-force Tier 1/2 NOTAMs, capped; T3 and others compact', () => {
+  const inp = blockInput(); const r = R.assessRisk(inp); const b = R.buildModelBlock(inp, r);
+  const m = b.match(/LTFM — FULL CARDS[^\n]*/); assert.ok(m, 'FULL CARDS line missing for LTFM');
+  const rows = r.airportRows.LTFM; const sevOf = id => (rows.find(x => x.id === id) || {}).sev;
+  const ids = (m[0].match(/[A-Z]\d{3,4}\/\d{4}/g) || []);
+  ids.forEach(id => assert.ok(sevOf(id) === 'CRITICAL' || sevOf(id) === 'HIGH', id + ' is not T1/T2'));
+  assert.ok(ids.length <= 3);
+  const inp2 = blockInput(); inp2.airports.forEach(a => { a.shownIds = []; });
+  assert.ok(/LTFM — FULL CARDS: none/.test(R.buildModelBlock(inp2, R.assessRisk(inp2))));
+  inp2.airports[0].shownIds = ['B3951/2026', 'B2991/2026']; inp2.airports[0].cardCap = 1;
+  const m2 = R.buildModelBlock(inp2, R.assessRisk(inp2)).match(/LTFM — FULL CARDS[^\n]*/)[0];
+  assert.ok((m2.match(/[A-Z]\d{3,4}\/\d{4}/g) || []).length <= 1);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
