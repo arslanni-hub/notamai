@@ -1193,6 +1193,8 @@ const HTML_HEAD = `<!DOCTYPE html>
   .wx-tag.warn{background:rgba(244,132,26,0.15);color:var(--orange);border:1px solid var(--orange-dim)}
   .wx-tag.crit{background:rgba(230,57,70,0.15);color:var(--red);border:1px solid var(--red-dim)}
   .wx-tag.ok{background:rgba(46,196,182,0.1);color:var(--green);border:1px solid var(--green-dim)}
+  .wx-decoded{font-family:var(--body);font-size:12.5px;color:var(--text2);line-height:1.6;margin:0 0 8px}
+  .wx-decoded b{color:var(--text);font-weight:600}
   .wx-analysis{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--red);padding:14px 18px;font-size:14px;color:var(--text);line-height:1.7;font-weight:500}
   .wx-analysis p+p{margin-top:8px}
   .compound-box{background:rgba(230,57,70,0.06);border:1px solid var(--red-dim);padding:16px 20px;margin-bottom:12px}
@@ -1251,6 +1253,9 @@ const BRIEFING_DEPTH_RULES_55 = `DEPTH AND SPECIFICITY RULES — these OVERRIDE 
 7. NO FILLER: NEVER write "none were supplied", "none were provided", "no slot data provided" or similar wording anywhere (including action items and the alternate card); omit what has no data. List missing inputs (alternate METAR/TAF, slot data) ONCE, in one short line at the end of the last notes grid (Dispatch Notes, or Ground and ATC Notes), as <div class="notam-overflow-note">DATA GAPS: [comma-separated list]</div>, and omit that line when nothing is missing. The statement about en-route FIR NOTAMs not being retrieved stays in the Airspace section as already required and is not repeated in DATA GAPS.
 8. The Go/No-Go box (or the airport status verdict box) and the Footer remain mandatory and must never be cut for space.`;
 
+
+// Appended to the briefing system prompt for every briefing model: METAR/TAF decoding and interpretation.
+const BRIEFING_WX_RULES = `WEATHER DECODING AND ANALYSIS (Weather Assessment section — overrides its earlier length limits): in each aerodrome card, below the raw METAR, write the METAR decoded in plain language inside <div class="wx-decoded"> as 4-6 short labelled items separated by " · ", for example <b>Wind</b> 350° at 4 kt · <b>Visibility</b> 10 km or more · <b>Weather</b> none · <b>Cloud</b> few at 1,500 ft, broken at 4,000 ft · <b>Temp/Dew</b> 16/13 °C (spread 3 °C) · <b>QNH</b> 1021 hPa · <b>Trend</b> no significant change. Decode CAVOK, NOSIG, wind variations, RVR, present-weather and cloud groups correctly. Then show the raw TAF in <div class="wx-raw"> and decode it period by period in <div class="wx-decoded"> (validity, then each BECMG/TEMPO/FM/PROB group with its times and values). Use the data exactly as given; never invent a value. If the TAF is not available, say so in one short clause. The analysis paragraphs below the cards then interpret the weather (see their template) in 4-6 sentences each.`;
 
 // Appended to the briefing system prompt ONLY when RISK_MODE=active and a rubric result exists.
 const BRIEFING_RISK_RULES = `RISK RATING RULES — apply to the MASTER HEADER and to the whole briefing. These OVERRIDE the instruction in section 1 that lets you assign the risk score yourself.
@@ -1398,12 +1403,12 @@ REQUIRED SECTIONS IN ORDER:
 8. WEATHER ASSESSMENT:
 <div class="section-header"><span class="icon">🌤️</span><span class="title">Weather Assessment</span></div>
 <div class="wx-grid">
-  <div class="wx-card"><div class="wx-icao">[DEP]</div><div class="wx-role">DEPARTURE</div><div class="wx-raw">[METAR]</div>[wx-tags]</div>
-  <div class="wx-card"><div class="wx-icao">[ARR]</div><div class="wx-role">ARRIVAL — PRIMARY</div><div class="wx-raw">[METAR]</div>[wx-tags]</div>
-  <div class="wx-card"><div class="wx-icao">[ALTERNATE]</div><div class="wx-role">ALTERNATE</div><div class="wx-raw">[METAR or N/A]</div>[wx-tags]</div>
+  <div class="wx-card"><div class="wx-icao">[DEP]</div><div class="wx-role">DEPARTURE</div><div class="wx-raw">[METAR]</div><div class="wx-decoded">[METAR DECODED — see the weather decoding rule]</div><div class="wx-raw">[TAF raw]</div><div class="wx-decoded">[TAF DECODED — see the weather decoding rule]</div>[wx-tags]</div>
+  <div class="wx-card"><div class="wx-icao">[ARR]</div><div class="wx-role">ARRIVAL — PRIMARY</div><div class="wx-raw">[METAR]</div><div class="wx-decoded">[METAR DECODED — see the weather decoding rule]</div><div class="wx-raw">[TAF raw]</div><div class="wx-decoded">[TAF DECODED — see the weather decoding rule]</div>[wx-tags]</div>
+  <div class="wx-card"><div class="wx-icao">[ALTERNATE]</div><div class="wx-role">ALTERNATE</div><div class="wx-raw">[METAR or N/A]</div>[when alternate data exists: <div class="wx-decoded">[METAR DECODED — see the weather decoding rule]</div>][wx-tags]</div>
 </div>
 <div class="wx-analysis">
-  [2-3 sentences per paragraph, max. Do not re-narrate the raw METAR already shown in the card above (the numbers are right there) — every sentence here must add something the card doesn't already say: TAF trend, a deteriorating window, a threshold being approached, something that actually changes what the crew should plan for.]
+  [Operational weather analysis, one paragraph per aerodrome (4-6 sentences each). The decoded METAR/TAF are already in the cards above, so here INTERPRET them: what the conditions mean for the approach and landing or the departure (ceiling/visibility versus the minima and procedures in this briefing's NOTAMs, wind versus the runways that are actually open, temperature and dew-point spread for fog or icing, density-altitude or braking effects), when the TAF changes things (BECMG/TEMPO/PROB periods with their times) and what the crew should plan because of it (fuel, alternate need, timing).]
   <p>[Dep weather analysis]</p><p>[Arr weather analysis with concerns]</p><p>[Alternate and additional info]</p>
 </div>
 
@@ -1592,10 +1597,10 @@ REQUIRED SECTIONS IN ORDER:
 8. WEATHER ASSESSMENT (single airport — no dual dep/arr/alternate cards):
 <div class="section-header"><span class="icon">🌤️</span><span class="title">Weather Assessment</span></div>
 <div class="wx-card">
-  <div class="wx-icao">[ICAO]</div><div class="wx-role">CURRENT CONDITIONS</div><div class="wx-raw">[METAR]</div>[wx-tags]
+  <div class="wx-icao">[ICAO]</div><div class="wx-role">CURRENT CONDITIONS</div><div class="wx-raw">[METAR]</div><div class="wx-decoded">[METAR DECODED — see the weather decoding rule]</div><div class="wx-raw">[TAF raw]</div><div class="wx-decoded">[TAF DECODED — see the weather decoding rule]</div>[wx-tags]
 </div>
 <div class="wx-analysis">
-  [2-3 sentences max. Do not re-narrate the raw METAR already shown above — focus on TAF trend, a deteriorating window, or anything that actually changes what someone using this airport right now should plan for.]
+  [Operational weather analysis, 4-6 sentences. The decoded METAR/TAF are in the card above, so INTERPRET them: effect on approaches and departures given the NOTAMs, wind versus the runways that are open, fog/icing/density-altitude indications, and what the TAF changes and when.]
   <p>[Weather analysis paragraph]</p>
 </div>
 
@@ -4763,7 +4768,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
           // Toggle with Render env BRIEFING_THINKING_OFF=1 to A/B cost vs quality.
           ...(briefingModel === 'claude-sonnet-5-5' && process.env.BRIEFING_THINKING_OFF === '1' ? { thinking: { type: 'between_tools' } } : {}),
           stream: true,
-          system: [{ type: 'text', text: (isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt)) + ((briefingModel === 'claude-sonnet-5-5' && !isQuickAnalysis) ? '\n\n' + BRIEFING_DEPTH_RULES_55 : '') + ((riskActive && riskResult) ? '\n\n' + BRIEFING_RISK_RULES : ''), cache_control: { type: 'ephemeral' } }],
+          system: [{ type: 'text', text: (isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt)) + ((briefingModel === 'claude-sonnet-5-5' && !isQuickAnalysis) ? '\n\n' + BRIEFING_DEPTH_RULES_55 : '') + (!isQuickAnalysis ? '\n\n' + BRIEFING_WX_RULES : '') + ((riskActive && riskResult) ? '\n\n' + BRIEFING_RISK_RULES : ''), cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: contentBlocks }]
         });
 
