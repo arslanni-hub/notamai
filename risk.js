@@ -726,6 +726,8 @@ function promptBlock(r) {
 }
 
 // ───────────────────────── model hand-over and client finalisation ─────────────────────────
+// Minor rows: rubric Tier 3, or not recognised by the rubric and without alarm wording (not on the watchlist). They are summarised, not listed.
+const isMinorRow = x => !!x && (x.sev === 'MEDIUM' || ((x.sev === 'LOW' || !x.sev) && !x.watch));
 const SEV_TAG = { CRITICAL: 'T1', HIGH: 'T2', MEDIUM: 'T3', LOW: 'not scored' };
 const clip = (t, n) => (t.length > n ? t.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : t);
 const levelOfScore = sc => (sc >= 9 ? 'CRITICAL' : sc >= 6 ? 'HIGH' : sc >= 3 ? 'MEDIUM' : 'LOW');
@@ -777,10 +779,10 @@ function buildModelBlock(input, r, opts) {
     const byId = {}; rows.forEach(x => { byId[x.id] = x; });
     const cardIds = (a.shownIds || []).map(id => byId[id]).filter(x => x && (x.sev === 'CRITICAL' || x.sev === 'HIGH') && x.inWindow !== false).map(x => x.id).filter((id, i, arr) => arr.indexOf(id) === i).slice(0, cap);
     L.push(cardIds.length
-      ? `${a.icao} — FULL CARDS (<nc>) for EXACTLY these NOTAMs, in this order: ${cardIds.join(', ')}. EVERY other NOTAM of ${a.icao} that is Tier 1/2 (or not scored) gets one compact <nl> line; Tier 3 NOTAMs follow the T3 rule below.`
+      ? `${a.icao} — FULL CARDS (<nc>) for EXACTLY these NOTAMs, in this order: ${cardIds.join(', ')}. EVERY other Tier 1/2 NOTAM of ${a.icao} gets one compact <nl> line; T3 and not-scored NOTAMs follow the rule below.`
       : `${a.icao} — FULL CARDS: none (no <nc> cards for this aerodrome).`);
-    const t3 = rows.filter(x => x.sev === 'MEDIUM' && !cardIds.includes(x.id));
-    if (t3.length) L.push(`${a.icao} — ${t3.length} Tier 3 (T3) NOTAMs: write NO line for any NOTAM tagged T3 (the page adds one summary note with the count and a link to the NOTAMs & MET panel). Still use them for the rating. Only exception: a T3 NOTAM that materially compounds with a Tier 1/2 NOTAM or is named in a COMPOUNDS WITH banner or the executive summary gets exactly one <nl> line.`);
+    const t3 = rows.filter(x => isMinorRow(x) && !cardIds.includes(x.id));
+    if (t3.length) L.push(`${a.icao} — ${t3.length} minor (T3 / not scored) NOTAMs: write NO line for any NOTAM tagged T3 or "not scored" (the page adds one summary note with the count and a link to the NOTAMs & MET panel). Still use them for the rating. Only exception: a T3 or not-scored NOTAM that materially compounds with a Tier 1/2 NOTAM or is named in a COMPOUNDS WITH banner or the executive summary gets exactly one <nl> line.`);
     const rest = rows.filter(x => !shown.has(x.id)).sort((x, y) => String(tag(x)).localeCompare(String(tag(y))) || String(x.id).localeCompare(String(y.id)));
     if (rest.length) L.push(`${a.icao} — ADDITIONAL ACTIVE NOTAMs NOT SHOWN AS FULL CARDS (one line each; evaluate them for the rating):\n` +
       rest.slice(0, o.maxPerAirport).map(x => `- ${x.id} [${tag(x)}${x.type ? ' ' + x.type : ''}${x.inWindow ? '' : '; not in force during the next 24 h'}] ${clip(x.text, o.textLen)}`).join('\n') +
@@ -851,4 +853,4 @@ function upcomingEnroute(enroute, route, now, hours, cfg) {
   return out.sort((a, b) => a.from - b.from);
 }
 
-module.exports = { upcomingEnroute, CONFIG, assessTaf, watchReason, buildModelBlock, finalizeForClient, basisHtml, levelOfScore, parseGeo, gcDist, trackDistances, routeRelevant, evaluateRunways, resolveRunwayCount, assessRisk, assessAirport, promptBlock, assessWeather, windowStatus, parseRunwayClosures, extractFact, rwyKey, levelFromCounts, runwaysMentioned, isAdminNotam, idOf };
+module.exports = { isMinorRow, upcomingEnroute, CONFIG, assessTaf, watchReason, buildModelBlock, finalizeForClient, basisHtml, levelOfScore, parseGeo, gcDist, trackDistances, routeRelevant, evaluateRunways, resolveRunwayCount, assessRisk, assessAirport, promptBlock, assessWeather, windowStatus, parseRunwayClosures, extractFact, rwyKey, levelFromCounts, runwaysMentioned, isAdminNotam, idOf };

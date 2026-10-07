@@ -3108,10 +3108,14 @@ async function handleSend(silent = false) {
             // Splice the server-authored NOTAM notes (upcoming/excluded counts) in right after
             // the NOTAM section, at the placeholder Claude was told to leave. Fall back to
             // stripping the placeholder if the model dropped it (so it never shows literally).
-            accumulated = placeNotamNotes(accumulated, t3SummaryNote(accumulated, evt.notamT3) + (evt.notamNotesHtml || ''));
+            accumulated = placeNotamNotes(accumulated, evt.notamNotesHtml);
             if (evt.notamOwners && evt.notamGroups) {
-              accumulated = organizeNotamList(accumulated, evt.notamOwners, evt.notamGroups);
+              accumulated = organizeNotamList(accumulated, evt.notamOwners, evt.notamGroups, evt.notamT3);
               accumulated = markOutsideWindow(accumulated, evt.notamOutside);
+            }
+            if (evt.notamT3 && accumulated.indexOf('notam-t3-note') < 0) {
+              const t3n = t3SummaryNote(accumulated, evt.notamT3);
+              if (t3n) accumulated = placeNotamNotes(accumulated, t3n);
             }
             // Risk rubric (when active): fill the server-authored basis box and make the header consistent with —
             // and never below — the rubric floor.
@@ -4113,7 +4117,7 @@ function _ownerKey(owners, idText, fullText) {
   if (!seen.length) return null;
   return seen.reduce((best, k) => votes[k] > votes[best] ? k : best, seen[0]);
 }
-function organizeNotamList(html, owners, groups) {
+function organizeNotamList(html, owners, groups, t3) {
   try {
     if (!owners || !groups || !groups.length) return html;
     const start = html.indexOf('<div class="notam-list">'); if (start < 0) return html;
@@ -4136,7 +4140,17 @@ function organizeNotamList(html, owners, groups) {
     while (list.firstChild) list.removeChild(list.firstChild);
     // Order only: all NOTAMs of the departure airport first (full cards, then compact lines), then the arrival
     // airport, then FIRs. No headings and no labels are added — the cards keep the model's own layout.
-    items.forEach(it => list.appendChild(it.el));
+    const listed = new Set();
+    items.forEach(it => { if (it.idEl) _idTokens(it.idEl.textContent).forEach(x => listed.add(_bareId(x))); });
+    const noteFor = k => {
+      const ids = t3 && !Array.isArray(t3) ? (t3[k] || []) : [];
+      const n = new Set(ids.map(_bareId).filter(x => !listed.has(x))).size;
+      if (!n) return;
+      const tmp = doc.createElement('div'); tmp.innerHTML = _t3NoteHtml(n);
+      list.appendChild(tmp.firstChild);
+    };
+    order.forEach((k, r) => { items.filter(it => rank(it.key) === r).forEach(it => list.appendChild(it.el)); noteFor(k); });
+    items.filter(it => rank(it.key) === order.length).forEach(it => list.appendChild(it.el));
     others.forEach(el => list.appendChild(el));
     return html.slice(0, rng[0]) + list.outerHTML + html.slice(rng[1]);
   } catch (e) { return html; }
@@ -4165,20 +4179,26 @@ function markOutsideWindow(html, ids) {
     return changed ? doc.body.innerHTML : html;
   } catch (e) { return html; }
 }
-// Tier 3 NOTAMs are not written out one by one: count the ones that did not get a line and point to the panel.
-function t3SummaryNote(html, ids) {
+// Tier 3 NOTAMs are not written out one by one: the page counts the ones that did not get a line and points to the panel.
+// One note per aerodrome, placed right after that aerodrome's NOTAMs (organizeNotamList); t3SummaryNote is the single
+// combined fallback when the list could not be organised.
+function _t3NoteHtml(n) {
+  return '<div class="notam-t3-note" style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;padding:8px 12px;margin-top:8px;border-left:3px solid #f2c641;background:rgba(242,198,65,0.05);">ℹ +' + n + ' lower-priority (Tier 3) NOTAM' + (n > 1 ? 's' : '') + ' (taxiway, apron, crane/obstacle and surface works) not listed individually — they are included in the risk assessment. Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list.</div>';
+}
+function _t3Flat(t3) { return Array.isArray(t3) ? t3 : [].concat.apply([], Object.keys(t3 || {}).map(k => t3[k])); }
+function t3SummaryNote(html, t3) {
   try {
-    if (!ids || !ids.length) return '';
+    const ids = _t3Flat(t3);
+    if (!ids.length) return '';
     const start = html.indexOf('<div class="notam-list">');
     const rng = start >= 0 ? _divRange(html, start) : null;
     const listed = new Set();
     if (rng) {
       const doc = new DOMParser().parseFromString('<body>' + html.slice(rng[0], rng[1]) + '</body>', 'text/html');
-      doc.querySelectorAll('.notam-card .notam-id, .notam-compact .notam-compact-id').forEach(el => _idTokens(el.textContent).forEach(t => listed.add(_bareId(t))));
+      doc.querySelectorAll('.notam-card .notam-id, .notam-compact .notam-compact-id').forEach(el => _idTokens(el.textContent).forEach(x => listed.add(_bareId(x))));
     }
-    const n = new Set(ids.map(_bareId).filter(t => !listed.has(t))).size;
-    if (!n) return '';
-    return '<div class="notam-t3-note" style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;padding:8px 12px;margin-top:8px;border-left:3px solid #f2c641;background:rgba(242,198,65,0.05);">ℹ +' + n + ' lower-priority (Tier 3) NOTAM' + (n > 1 ? 's' : '') + ' (taxiway, apron, crane/obstacle and surface works) not listed individually — they are included in the risk assessment. Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list.</div>';
+    const n = new Set(ids.map(_bareId).filter(x => !listed.has(x))).size;
+    return n ? _t3NoteHtml(n) : '';
   } catch (e) { return ''; }
 }
 function placeNotamNotes(html, notes) {

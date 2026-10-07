@@ -824,9 +824,9 @@ async function getEnrouteNotams(dep, arr, collector, opts) {
     'EG-LT': ['EGTT', 'EDGG', 'LKAA'],
     'ED-LT': ['LOVV', 'LKAA'],
     // Turkey ↔ Middle East
-    'LT-OE': ['LGGG', 'ORBB', 'OEJD'],
-    'LT-OT': ['LGGG', 'ORBB', 'OTBD'],
-    'LT-OM': ['LGGG', 'ORBB', 'OMAE'],
+    'LT-OE': ['LTAA', 'ORBB', 'OEJD'],
+    'LT-OT': ['LTAA', 'ORBB', 'OKAC', 'OBBB', 'OTBD'],
+    'LT-OM': ['LTAA', 'ORBB', 'OKAC', 'OBBB', 'OMAE'],
     // North America ↔ Europe / Middle East (transatlantic)
     'KJ-EG': ['KZNY', 'CZQX', 'EGGX', 'EGTT'],
     'KJ-ED': ['KZNY', 'CZQX', 'EGGX', 'EGTT', 'EDGG'],
@@ -882,7 +882,8 @@ async function getEnrouteNotams(dep, arr, collector, opts) {
   const firList = [...firs]
     .filter(f => f !== dep && f !== arr)
     .filter(f => isFirBetweenRoute(f, depFir, arrFir))
-    .slice(0, 4);
+    .slice(0, 6);
+  console.log('[ENROUTE] FIRs to fetch:', firList.join(', '));
   const results = [];
 
   for (const fir of firList) {
@@ -950,8 +951,12 @@ async function getEnrouteNotams(dep, arr, collector, opts) {
         } else {
           results.push(`FIR ${fir}: No active NOTAMs`);
         }
-      } else {
+      } else if (data && Array.isArray(data.notams) && !data.error) {
+        if (collector) collector.push({ fir, notams: [] });
         results.push(`FIR ${fir}: No active NOTAMs`);
+      } else {
+        console.log('[ENROUTE] no usable data for FIR', fir, JSON.stringify(data || null).slice(0, 120));
+        results.push(`FIR ${fir}: Data unavailable`);
       }
     } catch(e) {
       results.push(`FIR ${fir}: Data unavailable`);
@@ -1267,10 +1272,10 @@ const BRIEFING_RISK_RULES = `RISK RATING RULES — apply to the MASTER HEADER an
 - Verdict: if the RISK FLOOR block says OVERRIDE, the verdict MUST be NO-GO (single airport: SIGNIFICANTLY CONSTRAINED). Otherwise the verdict must be at least GO WITH CONDITIONS (single airport: OPEN WITH CONSTRAINTS) whenever the LEVEL is MEDIUM or higher; GO / OPEN is allowed only for LOW. You may recommend NO-GO when hazards combine so that safe operation cannot be assured, and must say why.
 - The rubric tier tags in the user message (T1/T2/T3) are authoritative for how serious a NOTAM is; the [CRITICAL]/[HIGH] tags on the NOTAM cards are only ordering hints.
 - Immediately after the closing </div> of the master-header, output this exact placeholder on its own line: <!--RISK_BASIS--> (the server fills it in). Do not write your own risk-basis text there.
-- If something needed for the rating is missing (for example no TAF, or no en-route FIR data), say so once in the DATA GAPS line instead of assuming it is fine.`;
+- If something needed for the rating is missing (for example no TAF, or no en-route FIR data at all), say so once in the DATA GAPS line instead of assuming it is fine.`;
 
 const systemPrompt = `MANDATORY RULES:
-- Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them (full card only for the ids on the FULL CARDS line, compact line for the rest, no line for T3 NOTAMs)
+- Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them (full card only for the ids on the FULL CARDS line, compact line for the rest, no line for T3 / not-scored NOTAMs)
 - ONE compact line or card per NOTAM: never merge several NOTAMs into one line (no "B3202 / B3203 / B4018" lines), and always write every NOTAM id in full including the year (e.g. B3202/2026).
 - Immediately after the closing </div> of the notam-list section (right after the last NOTAM card, before starting the next section such as Weather), insert this exact placeholder on its own line: <!--NOTAM_NOTES--> — always include it whenever a NOTAM section is present, even if you believe there's nothing to add there; the server will fill it in automatically. Do not add any text of your own at that spot.
 - Each NOTAM card must have correct risk color class: crit (red) for runway closures/GNSS/safety critical, high (orange) for navigation aids/UAS/obstacles, med (yellow) for taxiway/procedures, low (green) for administrative
@@ -1340,7 +1345,7 @@ REQUIRED SECTIONS IN ORDER:
 4. NOTAM ANALYSIS:
 <div class="section-header"><span class="icon">📋</span><span class="title">NOTAM Analysis — Priority Order</span></div>
 <div class="notam-list">
-  [ORDER: list ALL NOTAMs of the DEPARTURE airport first (full cards first, then compact lines), then ALL NOTAMs of the ARRIVAL airport — never interleave the two airports. The server groups and labels the list again afterwards. The DEPARTURE and ARRIVAL airport NOTAM lists are two SEPARATE, INDEPENDENT counters — a busy departure airport (e.g. a mega-hub) must NEVER reduce the arrival airport's detail allowance, and vice versa. For EACH airport independently, the user message contains a line "<ICAO> — FULL CARDS (<nc>) for EXACTLY these NOTAMs" (or "FULL CARDS: none"). Write the full card format below ONLY for the NOTAM ids named on that line, in that order, and write every other Tier 1/2 (or not scored) NOTAM of that airport as a compact line. NOTAMs tagged T3 get NO line at all (the user message says how many per airport; the page adds one summary note with the count and a panel link), except one that materially compounds with a Tier 1/2 NOTAM or is named in a COMPOUNDS WITH banner or the executive summary, which gets exactly one line. Never promote a NOTAM to a full card on your own:]
+  [ORDER: list ALL NOTAMs of the DEPARTURE airport first (full cards first, then compact lines), then ALL NOTAMs of the ARRIVAL airport — never interleave the two airports. The server groups and labels the list again afterwards. The DEPARTURE and ARRIVAL airport NOTAM lists are two SEPARATE, INDEPENDENT counters — a busy departure airport (e.g. a mega-hub) must NEVER reduce the arrival airport's detail allowance, and vice versa. For EACH airport independently, the user message contains a line "<ICAO> — FULL CARDS (<nc>) for EXACTLY these NOTAMs" (or "FULL CARDS: none"). Write the full card format below ONLY for the NOTAM ids named on that line, in that order, and write every other Tier 1/2 NOTAM of that airport as a compact line. NOTAMs tagged T3 or "not scored" get NO line at all (the user message says how many per airport; the page adds one summary note with the count and a panel link), except one that materially compounds with a Tier 1/2 NOTAM or is named in a COMPOUNDS WITH banner or the executive summary, which gets exactly one line. Never promote a NOTAM to a full card on your own:]
 
   [FULL CARD — write it in this COMPACT TAG FORMAT, not HTML. The page builds the card layout, the field labels and the RAW NOTAM TEXT from the NOTAM id, so NEVER write the raw NOTAM text or any labels yourself:]
   <nc s="[crit|high]" id="[EXACT NOTAM ID with year, from the data]" type="[TYPE]">
@@ -1444,7 +1449,7 @@ Include a dedicated AIRSPACE section in the briefing that specifically covers en
 
 EN-ROUTE FIR ANALYSIS: For each intermediate FIR along the route, create a dedicated subsection in the AIRSPACE section. List specific NOTAM numbers, types, and operational impact. If military exercise areas, TFRs, or airspace restrictions exist, classify them as HIGH or CRITICAL risk as appropriate. Never say 'limited information available' - either provide the data or explicitly state 'No active NOTAMs for [FIR]'.
 
-CRITICAL REQUIREMENT: You MUST fetch and analyze NOTAMs for ALL intermediate FIRs between departure and arrival. Never say a FIR's data is 'not available in this briefing' - if en-route FIR NOTAMs are provided in the EN-ROUTE FIR NOTAMs section, analyze them ALL. If a FIR shows 'No active NOTAMs', state that no active NOTAMs were found in the retrieved data (this is not a guarantee of clear airspace).
+CRITICAL REQUIREMENT: You MUST fetch and analyze NOTAMs for ALL intermediate FIRs between departure and arrival. Never say a FIR's data is 'not available in this briefing' - if en-route FIR NOTAMs are provided in the EN-ROUTE FIR NOTAMs section, analyze them ALL. If a FIR shows 'No active NOTAMs', state that no active NOTAMs were found for it. AIRSPACE FOOTER: directly after the airspace table write exactly ONE neutral line of the form 'En-route FIRs analysed: <FIR codes whose data was provided, including those with no active NOTAMs>.' Do NOT add disclaimers or caveats there ('not a guarantee of clear airspace', 'review elsewhere', 'check official sources', or any advice to look for en-route NOTAMs elsewhere), and do not mention FIRs that are not in the data; a FIR whose data line says 'Data unavailable' is simply left out of that list.
 
 NEVER say 'sınırlı bilgi', 'limited information', 'bu briefingde yer almıyor' or similar. If FIR NOTAM data is provided, analyze it fully. If the data section says 'No FIR data available', state plainly in the Airspace section that en-route FIR NOTAMs were NOT retrieved for this briefing and must be checked via official sources. NEVER present missing data as confirmation of clear airspace.
 
@@ -1458,10 +1463,10 @@ IMPORTANT: Never use markdown backticks or code blocks. For RAW NOTAM TEXT field
 <pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>NOTAM TEXT</pre>
 The ! prefix and date format (YYMMDDHHmm) are standard ICAO format - keep them exactly as received.
 
-NOTAM LIMITS: Render every NOTAM provided in the data — they are already pre-sorted and capped by the server. Use full cards only for the ids the FULL CARDS line names; every other Tier 1/2 NOTAM gets the compact format and T3 NOTAMs get no line (the page summarises them). For en-route FIRs, use brief summaries only — no raw NOTAM text blocks.`;
+NOTAM LIMITS: Render every NOTAM provided in the data — they are already pre-sorted and capped by the server. Use full cards only for the ids the FULL CARDS line names; every other Tier 1/2 NOTAM gets the compact format and T3 / not-scored NOTAMs get no line (the page summarises them). For en-route FIRs, use brief summaries only — no raw NOTAM text blocks.`;
 
 const singleAirportSystemPrompt = `MANDATORY RULES:
-- Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them (full card only for the ids on the FULL CARDS line, compact line for the rest, no line for T3 NOTAMs)
+- Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them (full card only for the ids on the FULL CARDS line, compact line for the rest, no line for T3 / not-scored NOTAMs)
 - ONE compact line or card per NOTAM: never merge several NOTAMs into one line (no "B3202 / B3203 / B4018" lines), and always write every NOTAM id in full including the year (e.g. B3202/2026).
 - Immediately after the closing </div> of the notam-list section (right after the last NOTAM card, before starting the next section such as Weather), insert this exact placeholder on its own line: <!--NOTAM_NOTES--> — always include it whenever a NOTAM section is present, even if you believe there's nothing to add there; the server will fill it in automatically. Do not add any text of your own at that spot.
 - Each NOTAM card must have correct risk color class: crit (red) for runway closures/GNSS/safety critical, high (orange) for navigation aids/UAS/obstacles, med (yellow) for taxiway/procedures, low (green) for administrative
@@ -1531,7 +1536,7 @@ REQUIRED SECTIONS IN ORDER:
 4. NOTAM ANALYSIS:
 <div class="section-header"><span class="icon">📋</span><span class="title">NOTAM Analysis — Priority Order</span></div>
 <div class="notam-list">
-  [The user message contains a line "<ICAO> — FULL CARDS (<nc>) for EXACTLY these NOTAMs" (or "FULL CARDS: none"). Write the full card format below ONLY for the NOTAM ids named on that line, in that order, and write every other Tier 1/2 (or not scored) NOTAM as a compact line. NOTAMs tagged T3 get NO line at all (the user message says how many; the page adds one summary note with the count and a panel link), except one that materially compounds with a Tier 1/2 NOTAM or is named in a COMPOUNDS WITH banner or the executive summary, which gets exactly one line. Never promote a NOTAM to a full card on your own.]
+  [The user message contains a line "<ICAO> — FULL CARDS (<nc>) for EXACTLY these NOTAMs" (or "FULL CARDS: none"). Write the full card format below ONLY for the NOTAM ids named on that line, in that order, and write every other Tier 1/2 NOTAM as a compact line. NOTAMs tagged T3 or "not scored" get NO line at all (the user message says how many; the page adds one summary note with the count and a panel link), except one that materially compounds with a Tier 1/2 NOTAM or is named in a COMPOUNDS WITH banner or the executive summary, which gets exactly one line. Never promote a NOTAM to a full card on your own.]
 
   [FULL CARD — write it in this COMPACT TAG FORMAT, not HTML. The page builds the card layout, the field labels and the RAW NOTAM TEXT from the NOTAM id, so NEVER write the raw NOTAM text or any labels yourself:]
   <nc s="[crit|high]" id="[EXACT NOTAM ID with year, from the data]" type="[TYPE]">
@@ -1622,7 +1627,7 @@ IMPORTANT: Never use markdown backticks or code blocks. For RAW NOTAM TEXT field
 <pre style='font-family:monospace;white-space:pre-wrap;font-size:11px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid #1a2a3a;line-height:1.6;color:#8a9bb0;margin:8px 0;'>NOTAM TEXT</pre>
 The ! prefix and date format (YYMMDDHHmm) are standard ICAO format - keep them exactly as received.
 
-NOTAM LIMITS: Render every NOTAM provided in the data — they are already pre-sorted and capped by the server. Use full cards only for the ids the FULL CARDS line names; every other Tier 1/2 NOTAM gets the compact format and T3 NOTAMs get no line (the page summarises them).`;
+NOTAM LIMITS: Render every NOTAM provided in the data — they are already pre-sorted and capped by the server. Use full cards only for the ids the FULL CARDS line names; every other Tier 1/2 NOTAM gets the compact format and T3 / not-scored NOTAMs get no line (the page summarises them).`;
 
 const quickAnalysisSystemPrompt = `MANDATORY RULES:
 - This is a QUICK ANALYSIS of whatever aviation data was provided — an image, a PDF, or pasted raw text (NOTAM, METAR, TAF, SIGMET, AIRMET, or a mix). There is no confirmed airport or route context. Do not invent one.
@@ -4833,8 +4838,8 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             const notamOutside = [];
             if (riskResult && riskResult.airportRows) Object.values(riskResult.airportRows).forEach(rows => (rows || []).forEach(x => { if (x && x.id && x.inWindow === false) notamOutside.push(x.id); }));
             // Tier 3 NOTAMs (rubric MEDIUM) are not written out individually; the page counts the ones that were not listed.
-            const notamT3 = [];
-            if (riskResult && riskResult.airportRows) Object.values(riskResult.airportRows).forEach(rows => (rows || []).forEach(x => { if (x && x.id && x.sev === 'MEDIUM') notamT3.push(x.id); }));
+            const notamT3 = {};
+            if (riskResult && riskResult.airportRows) Object.keys(riskResult.airportRows).forEach(ic => ((riskResult.airportRows[ic]) || []).forEach(x => { if (x && x.id && risk.isMinorRow(x)) (notamT3[ic] = notamT3[ic] || []).push(x.id); }));
             res.write(`data: ${JSON.stringify(Object.assign({ type: 'done', notamNotesHtml, notamOwners, notamGroups, notamOutside, notamT3 }, riskExtra))}\n\n`);
             res.end();
           },

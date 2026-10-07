@@ -573,10 +573,14 @@ test('model block: FULL CARDS line lists only in-force Tier 1/2 NOTAMs, capped; 
   assert.ok((m2.match(/[A-Z]\d{3,4}\/\d{4}/g) || []).length <= 1);
 });
 
-test('model block: Tier 3 NOTAMs get a no-line instruction with the count', () => {
+test('isMinorRow: T3 or unscored without alarm wording; T1/T2 and watchlist rows are not minor', () => {
+  assert.ok(R.isMinorRow({ sev: 'MEDIUM' }) && R.isMinorRow({ sev: 'LOW' }) && R.isMinorRow({}));
+  assert.ok(!R.isMinorRow({ sev: 'CRITICAL' }) && !R.isMinorRow({ sev: 'HIGH' }) && !R.isMinorRow({ sev: 'LOW', watch: 'security' }) && !R.isMinorRow(null));
+});
+test('model block: minor NOTAMs get a no-line instruction with the count', () => {
   const inp = blockInput(); const r = R.assessRisk(inp); const b = R.buildModelBlock(inp, r);
-  const n = Object.values(r.airportRows).reduce((c, rows) => c + rows.filter(x => x.sev === 'MEDIUM').length, 0);
-  assert.ok(n === 0 || /\d+ Tier 3 \(T3\) NOTAMs: write NO line/.test(b), 'T3 instruction missing');
+  const n = Object.values(r.airportRows).reduce((c, rows) => c + rows.filter(x => R.isMinorRow(x)).length, 0);
+  assert.ok(n === 0 || /\d+ minor \(T3 \/ not scored\) NOTAMs: write NO line/.test(b), 'T3 instruction missing');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);
