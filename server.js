@@ -4795,7 +4795,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             // signature.
             // Upcoming (not yet effective, next 24h): grouped per aerodrome / FIR, each line carries its owner.
             const upcomingGroups = [];
-            const addUp = (key, title, lines) => { if (lines && lines.length) upcomingGroups.push({ key, title, lines }); };
+            const addUp = (key, title, lines) => { if (lines && lines.length) upcomingGroups.push({ key, title, lines: lines.map(l => key.replace(/^FIR /, '') + ' ' + l) }); };
             addUp(icao_dep, icao_dep + (isSingleAirport ? '' : ' (departure)'), notamDepResult.nearFutureLines);
             if (!isSingleAirport) addUp(icao_arr, icao_arr + ' (arrival)', notamArrResult.nearFutureLines);
             if (riskResult && riskResult.route !== undefined && !isSingleAirport) {
@@ -4819,7 +4819,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
               notamNotesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#ff6b6b;padding:12px 14px;margin:12px 0;border:1px solid rgba(255,107,107,0.5);border-left:4px solid #ff4d4d;background:rgba(255,77,77,0.08);"><strong>⚠ NOTAM DATA UNAVAILABLE for ${esc(which)}.</strong> The NOTAM data provider did not return data. This briefing is INCOMPLETE and must not be treated as "no NOTAMs". Check the official AIS/NOTAM office before flight.</div>`;
             }
             if (allNearFuture.length > 0) {
-              const upcomingList = upcomingGroups.map(g => `<div style="margin-top:6px;"><span style="color:#4a9eff;">${esc(g.title)}</span><ul style="margin:3px 0 0;padding-left:18px;">${g.lines.map(l => `<li style="margin-bottom:4px;">${esc(l)}</li>`).join('')}</ul></div>`).join('');
+              const upcomingList = '<ul style="margin:6px 0 0;padding-left:18px;">' + allNearFuture.map(l => `<li style="margin-bottom:4px;">${esc(l)}</li>`).join('') + '</ul>';
               notamNotesHtml += `<div class="upcoming-notams" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;"><strong>⏳ Upcoming NOTAMs (next 24h, not yet effective):</strong>${upcomingList}</div>`;
             }
             const otherParts = [];
