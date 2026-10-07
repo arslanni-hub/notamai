@@ -1246,7 +1246,7 @@ const BRIEFING_DEPTH_RULES_55 = `DEPTH AND SPECIFICITY RULES — these OVERRIDE 
 
 1. EXECUTIVE SUMMARY: first paragraph of 5-6 sentences. Name the 2-3 most critical hazards with their NOTAM IDs and state the operational consequence of each (what the crew can no longer do, or must now do). Second paragraph: the classification and the one-sentence reason for it.
 2. COMPOUNDING RISK MATRIX: each compound-item starts with a short bold label naming the interacting hazards, for example <strong>RWY CLOSURE × LLWAS U/S:</strong>, followed by 2 sentences explaining the specific interaction effect. Max 4 items.
-3. FULL NOTAM CARDS: Operational Impact must state the concrete effect with values (runway, minima, times). The REQUIRED CREW ACTION must be 2-3 sentences: the specific action, the specific value/time/runway it applies to, and why. Add the COMPOUNDS WITH banner whenever the NOTAM interacts with another NOTAM in this briefing, citing the NOTAM IDs. The compact one-line format stays as specified.
+3. FULL NOTAM CARDS: the <imp> text must state the concrete effect with values (runway, minima, times). The <act> text must be 2-3 sentences: the specific action, the specific value/time/runway it applies to, and why. Add a <cmp> element (starting with COMPOUNDS WITH:) whenever the NOTAM interacts with another NOTAM in this briefing, citing the NOTAM IDs. The compact one-line format stays as specified.
 4. ALTERNATE ASSESSMENT (route briefings, Dispatch Notes - ALTERNATE AERODROME): explicitly assess whether the departure and arrival aerodromes could serve as alternates under the NOTAMs in this data, and say so plainly when one cannot (for example because of runway closures or lost approach capability). Name at least two specific candidate alternates (ICAO code and name) with a one-clause reason each (approach capability, proximity, NOTAM state), labelled as candidates whose weather and NOTAMs must be verified. Never present them as confirmed alternates.
 5. ACTION ITEMS (Pilot Action Items, or Airport Operational Considerations in single-airport briefings): 8-10 items, each 2 sentences, each containing at least one concrete parameter (value, time, runway, procedure ID or NOTAM ID) plus the reason.
 6. GO/NO-GO (or the airport operational status verdict): every condition must contain at least one concrete value taken from the data (time window, minima or amended OCA(H)/DH value, runway, procedure or NOTAM ID) — never a generic statement. NO-GO IF / AVOID IF triggers must combine the real compounding factors of this briefing, not generic statements.
@@ -1273,7 +1273,7 @@ const systemPrompt = `MANDATORY RULES:
 - ONE compact line or card per NOTAM: never merge several NOTAMs into one line (no "B3202 / B3203 / B4018" lines), and always write every NOTAM id in full including the year (e.g. B3202/2026).
 - Immediately after the closing </div> of the notam-list section (right after the last NOTAM card, before starting the next section such as Weather), insert this exact placeholder on its own line: <!--NOTAM_NOTES--> — always include it whenever a NOTAM section is present, even if you believe there's nothing to add there; the server will fill it in automatically. Do not add any text of your own at that spot.
 - Each NOTAM card must have correct risk color class: crit (red) for runway closures/GNSS/safety critical, high (orange) for navigation aids/UAS/obstacles, med (yellow) for taxiway/procedures, low (green) for administrative
-- Show the airport ICAO code for each NOTAM in the notam-id field
+- NOTAM cards and lines are written in the compact tag format (<nc> / <nl>) shown in the template; the NOTAM id is the only identifier — do not add airport codes to cards or lines
 - CRITICAL NOTAMs include: runway closures, GNSS jamming, dual runway closures, emergency-only airports
 - Never downgrade GNSS jamming or runway closures to medium or low risk
 - TOKEN BUDGET PRIORITY: on an unusually complex route (many NOTAMs, multiple compounding hazards), compress NOTAM Analysis, the Compounding Risk Matrix, and ALL table rows (Airspace, Aerodrome Status, Navigation Aids) further rather than risk running out of room later — every row and compact line in this briefing has a hard length cap specified below for exactly this reason. Sections 9-11 (Pilot Action Items, Dispatch Notes, Go/No-Go) are the decision-critical core of this briefing. Go/No-Go and the Footer in particular are NON-NEGOTIABLE — if you are running low on room by the time you reach Dispatch Notes, shorten Dispatch Notes itself rather than skip ahead without writing Go/No-Go. A briefing that ends without a verdict is worse than one with a slightly thinner Dispatch Notes section. A pilot can always pull more NOTAM detail from the panel; they cannot get a missing Go/No-Go from anywhere.
@@ -1341,31 +1341,21 @@ REQUIRED SECTIONS IN ORDER:
 <div class="notam-list">
   [ORDER: list ALL NOTAMs of the DEPARTURE airport first (full cards, then compact lines), then ALL NOTAMs of the ARRIVAL airport — never interleave the two airports. The server groups and labels the list again afterwards. The DEPARTURE and ARRIVAL airport NOTAM lists are two SEPARATE, INDEPENDENT counters — a busy departure airport (e.g. a mega-hub) must NEVER reduce the arrival airport's detail allowance, and vice versa. For EACH airport independently: the first 3 NOTAMs in that airport's own list (by the order given — already priority-sorted; LOW-tier is already excluded from the data) get the full card format below; any 4th NOTAM onward for that SAME airport gets the compact line format, regardless of [CRITICAL]/[HIGH]/[MEDIUM] tag:]
 
-  <div class="notam-card [crit|high]">
-    <div class="notam-head">
-      <div class="notam-dot"></div>
-      <div>
-        <div class="notam-id">[🔴/🟠] [EXACT NOTAM ID from data] | TYPE: [TYPE]</div>
-        <div class="notam-title">[Descriptive title]</div>
-      </div>
-    </div>
-    <div class="notam-grid">
-      <div class="notam-field"><div class="notam-field-label">📍 Location</div><div class="notam-field-value">[location]</div></div>
-      <div class="notam-field"><div class="notam-field-label">⏰ Time Window UTC</div><div class="notam-field-value">[B/C times]</div></div>
-      <div class="notam-field"><div class="notam-field-label">✈️ Affected Operations</div><div class="notam-field-value">[operations affected]</div></div>
-      <div class="notam-field"><div class="notam-field-label">📐 Operational Impact</div><div class="notam-field-value">[impact on flight]</div></div>
-    </div>
-    <div class="notam-field" style="margin:10px 0 6px"><div class="notam-field-label">📄 RAW NOTAM TEXT</div><div class="notam-field-value" style="font-family:monospace;font-size:12px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-all">[verbatim raw NOTAM text]</div></div>
-    <div class="notam-field-label" style="margin-top:10px">🤖 AI Analysis</div>
-    <div class="notam-action"><span class="action-label">⚠️ REQUIRED CREW ACTION</span>[specific action crew must take]</div>
-    [Optional: <div class="warning-banner">COMPOUNDS WITH: [detail]</div>]
-  </div>
+  [FULL CARD — write it in this COMPACT TAG FORMAT, not HTML. The page builds the card layout, the field labels and the RAW NOTAM TEXT from the NOTAM id, so NEVER write the raw NOTAM text or any labels yourself:]
+  <nc s="[crit|high]" id="[EXACT NOTAM ID with year, from the data]" type="[TYPE]">
+    <h>[Descriptive title]</h>
+    <loc>[location]</loc>
+    <win>[B/C times]</win>
+    <ops>[operations affected]</ops>
+    <imp>[impact on flight]</imp>
+    <act>[specific action crew must take]</act>
+    [Optional, only when this NOTAM interacts with another one: <cmp>COMPOUNDS WITH: [detail]</cmp>]
+  </nc>
 
-  <div class="notam-compact [crit|high|med]">
-    <span class="notam-compact-sev">[🔴 CRITICAL | 🟠 HIGH | 🟡 MEDIUM]</span>
-    <span class="notam-compact-id">[NOTAM ID]</span>
-    <span class="notam-compact-text">[ONE short sentence, under 20 words — what it affects and when. No semicolons or compound clauses.]</span>
-  </div>
+  [COMPACT LINE — also in compact tag format:]
+  <nl s="[crit|high|med]" id="[EXACT NOTAM ID with year]">[ONE short sentence, under 20 words — what it affects and when. No semicolons or compound clauses.]</nl>
+
+  [Tag rules: exactly one <nc> or <nl> per NOTAM; never merge ids; every tag needs its closing tag; tag content is plain text (inline <strong> is fine), never block HTML; do not add airport codes to the id.]
 
   [If the user message includes an overflow note ("[N additional NOTAMs not shown...]"), emit it at the end of the NOTAM list as:]
   <div class="notam-overflow-note">+N NOTAMs not shown (lower priority by severity/recency). Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list, or use Single NOTAM Analysis to examine any in detail.</div>
@@ -1474,7 +1464,7 @@ const singleAirportSystemPrompt = `MANDATORY RULES:
 - ONE compact line or card per NOTAM: never merge several NOTAMs into one line (no "B3202 / B3203 / B4018" lines), and always write every NOTAM id in full including the year (e.g. B3202/2026).
 - Immediately after the closing </div> of the notam-list section (right after the last NOTAM card, before starting the next section such as Weather), insert this exact placeholder on its own line: <!--NOTAM_NOTES--> — always include it whenever a NOTAM section is present, even if you believe there's nothing to add there; the server will fill it in automatically. Do not add any text of your own at that spot.
 - Each NOTAM card must have correct risk color class: crit (red) for runway closures/GNSS/safety critical, high (orange) for navigation aids/UAS/obstacles, med (yellow) for taxiway/procedures, low (green) for administrative
-- Show the airport ICAO code for each NOTAM in the notam-id field
+- NOTAM cards and lines are written in the compact tag format (<nc> / <nl>) shown in the template; the NOTAM id is the only identifier — do not add airport codes to cards or lines
 - CRITICAL NOTAMs include: runway closures, GNSS jamming, dual runway closures, emergency-only airports
 - Never downgrade GNSS jamming or runway closures to medium or low risk
 - TOKEN BUDGET PRIORITY: on an unusually busy airport (many NOTAMs, multiple compounding hazards), compress NOTAM Analysis, the Compounding Risk Matrix, and all table rows further rather than risk running out of room later. Sections 9-11 (Airport Operational Considerations, Ground & ATC Notes, Airport Operational Status) are the decision-critical core of this briefing — the Operational Status verdict and Footer in particular are NON-NEGOTIABLE and must always be written, even if it means shortening Ground & ATC Notes itself. A reader can always pull more NOTAM detail from the panel; they cannot get a missing verdict from anywhere.
@@ -1542,31 +1532,21 @@ REQUIRED SECTIONS IN ORDER:
 <div class="notam-list">
   [The first 5 NOTAMs in the data (by the order given — already priority-sorted; LOW-tier is already excluded) get the full card format below; any 6th NOTAM onward gets the compact line format, regardless of [CRITICAL]/[HIGH]/[MEDIUM] tag. Each NOTAM is already tagged with its severity — use it directly.]
 
-  <div class="notam-card [crit|high]">
-    <div class="notam-head">
-      <div class="notam-dot"></div>
-      <div>
-        <div class="notam-id">[🔴/🟠] [EXACT NOTAM ID from data] | TYPE: [TYPE]</div>
-        <div class="notam-title">[Descriptive title]</div>
-      </div>
-    </div>
-    <div class="notam-grid">
-      <div class="notam-field"><div class="notam-field-label">📍 Location</div><div class="notam-field-value">[location]</div></div>
-      <div class="notam-field"><div class="notam-field-label">⏰ Time Window UTC</div><div class="notam-field-value">[B/C times]</div></div>
-      <div class="notam-field"><div class="notam-field-label">✈️ Affected Operations</div><div class="notam-field-value">[operations affected]</div></div>
-      <div class="notam-field"><div class="notam-field-label">📐 Operational Impact</div><div class="notam-field-value">[impact]</div></div>
-    </div>
-    <div class="notam-field" style="margin:10px 0 6px"><div class="notam-field-label">📄 RAW NOTAM TEXT</div><div class="notam-field-value" style="font-family:monospace;font-size:12px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-all">[verbatim raw NOTAM text]</div></div>
-    <div class="notam-field-label" style="margin-top:10px">🤖 AI Analysis</div>
-    <div class="notam-action"><span class="action-label">⚠️ REQUIRED CREW ACTION</span>[specific action]</div>
-    [Optional: <div class="warning-banner">COMPOUNDS WITH: [detail]</div>]
-  </div>
+  [FULL CARD — write it in this COMPACT TAG FORMAT, not HTML. The page builds the card layout, the field labels and the RAW NOTAM TEXT from the NOTAM id, so NEVER write the raw NOTAM text or any labels yourself:]
+  <nc s="[crit|high]" id="[EXACT NOTAM ID with year, from the data]" type="[TYPE]">
+    <h>[Descriptive title]</h>
+    <loc>[location]</loc>
+    <win>[B/C times]</win>
+    <ops>[operations affected]</ops>
+    <imp>[impact on flight]</imp>
+    <act>[specific action crew must take]</act>
+    [Optional, only when this NOTAM interacts with another one: <cmp>COMPOUNDS WITH: [detail]</cmp>]
+  </nc>
 
-  <div class="notam-compact [crit|high|med]">
-    <span class="notam-compact-sev">[🔴 CRITICAL | 🟠 HIGH | 🟡 MEDIUM]</span>
-    <span class="notam-compact-id">[NOTAM ID]</span>
-    <span class="notam-compact-text">[ONE short sentence, under 20 words]</span>
-  </div>
+  [COMPACT LINE — also in compact tag format:]
+  <nl s="[crit|high|med]" id="[EXACT NOTAM ID with year]">[ONE short sentence, under 20 words — what it affects and when. No semicolons or compound clauses.]</nl>
+
+  [Tag rules: exactly one <nc> or <nl> per NOTAM; never merge ids; every tag needs its closing tag; tag content is plain text (inline <strong> is fine), never block HTML; do not add airport codes to the id.]
 
   [If the data includes a NOTE about additional NOTAMs not shown, include exactly one of these at the end, using the exact numbers given:]
   <div class="notam-overflow-note">+[N] more active NOTAMs not shown (lower priority by severity/recency) — [total] total active. Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list, or use Single NOTAM Analysis to examine any in detail.</div>
@@ -4779,7 +4759,10 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         res.writeHead(200);
 
         // Send HTML_HEAD and HTML_FOOT to client so it can wrap content
-        res.write(`data: ${JSON.stringify({ type: 'init', html_head: HTML_HEAD, html_foot: HTML_FOOT })}\n\n`);
+        // Raw NOTAM texts by id: the page fills them into the cards (the model no longer copies them).
+        const notamRaw = {};
+        [notamDepResult, notamArrResult].forEach(r => { if (r) [...(r.activeItems || []), ...(r.nearFutureItems || [])].forEach(n => { if (n && n.notam_id) notamRaw[n.notam_id] = String(n.raw || n.body || ''); }); });
+        res.write(`data: ${JSON.stringify({ type: 'init', html_head: HTML_HEAD, html_foot: HTML_FOOT, notamRaw })}\n\n`);
 
         let doneSent = false;
         let modelHeadText = '';

@@ -3067,6 +3067,7 @@ async function handleSend(silent = false) {
     const decoder = new TextDecoder();
     let sseBuffer = '';
     let htmlHead = '';
+    let notamRaw = {};
     let htmlFoot = '';
     let accumulated = '';
     let lastRenderLen = 0;
@@ -3094,14 +3095,16 @@ async function handleSend(silent = false) {
           if (evt.type === 'init') {
             htmlHead = evt.html_head;
             htmlFoot = evt.html_foot;
+            notamRaw = evt.notamRaw || {};
           } else if (evt.type === 'chunk') {
             accumulated += evt.text;
             // Re-render every ~1500 chars to show content building up
             if (accumulated.length - lastRenderLen > 1500) {
               lastRenderLen = accumulated.length;
-              content.innerHTML = htmlHead + accumulated + htmlFoot;
+              content.innerHTML = htmlHead + expandNotamTags(accumulated, notamRaw) + htmlFoot;
             }
           } else if (evt.type === 'done') {
+            accumulated = expandNotamTags(accumulated, notamRaw);
             // Splice the server-authored NOTAM notes (upcoming/excluded counts) in right after
             // the NOTAM section, at the placeholder Claude was told to leave. Fall back to
             // stripping the placeholder if the model dropped it (so it never shows literally).
@@ -4052,6 +4055,36 @@ function hideEmailVerifyBanner() {
 
 // Sets the briefing header (class, label, score, pips) to the given values; used by the risk rubric so the header
 // is never below the rubric floor and always internally consistent.
+// ---- Compact NOTAM tags -> full card HTML ---------------------------------------------------------------
+// The model writes <nc> (full card) and <nl> (compact line) tags only; the page builds the layout, labels and the
+// verbatim RAW NOTAM TEXT (supplied by the server by NOTAM id). This keeps the output short and the raw text exact.
+function _escRaw(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function _tagAttr(attrs, name) { const m = new RegExp('\\b' + name + '\\s*=\\s*"([^"]*)"', 'i').exec(attrs || ''); return m ? m[1] : ''; }
+function _tagPart(body, tag) { const m = new RegExp('<' + tag + '>([\\s\\S]*?)</' + tag + '>', 'i').exec(body || ''); return m ? m[1].trim() : ''; }
+function expandNotamTags(html, rawMap) {
+  if (!html || html.indexOf('<n') < 0) return html;
+  const SEV = { crit: ['🔴', '🔴 CRITICAL'], high: ['🟠', '🟠 HIGH'], med: ['🟡', '🟡 MEDIUM'], low: ['🟢', '🟢 LOW'] };
+  const norm = v => { v = String(v || '').toLowerCase(); return SEV[v] ? v : (v.indexOf('crit') === 0 ? 'crit' : v.indexOf('high') === 0 ? 'high' : v.indexOf('med') === 0 ? 'med' : 'high'); };
+  let out = html.replace(/<nc\b([^>]*)>([\s\S]*?)<\/nc>/gi, (m, attrs, body) => {
+    const s = norm(_tagAttr(attrs, 's')), id = _tagAttr(attrs, 'id'), type = _tagAttr(attrs, 'type');
+    const raw = rawMap && rawMap[id];
+    const act = _tagPart(body, 'act'), cmp = _tagPart(body, 'cmp');
+    const f = (label, v) => '<div class="notam-field"><div class="notam-field-label">' + label + '</div><div class="notam-field-value">' + v + '</div></div>';
+    return '<div class="notam-card ' + s + '"><div class="notam-head"><div class="notam-dot"></div><div><div class="notam-id">' + SEV[s][0] + ' ' + id + (type ? ' | TYPE: ' + type : '') + '</div><div class="notam-title">' + _tagPart(body, 'h') + '</div></div></div>' +
+      '<div class="notam-grid">' + f('📍 Location', _tagPart(body, 'loc')) + f('⏰ Time Window UTC', _tagPart(body, 'win')) + f('✈️ Affected Operations', _tagPart(body, 'ops')) + f('📐 Operational Impact', _tagPart(body, 'imp')) + '</div>' +
+      (raw ? '<div class="notam-field" style="margin:10px 0 6px"><div class="notam-field-label">📄 RAW NOTAM TEXT</div><div class="notam-field-value" style="font-family:monospace;font-size:12px;background:rgba(0,0,0,0.3);padding:8px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-all">' + _escRaw(raw) + '</div></div>' : '') +
+      '<div class="notam-field-label" style="margin-top:10px">🤖 AI Analysis</div><div class="notam-action"><span class="action-label">⚠️ REQUIRED CREW ACTION</span>' + act + '</div>' +
+      (cmp ? '<div class="warning-banner">' + cmp + '</div>' : '') + '</div>';
+  });
+  out = out.replace(/<nl\b([^>]*)>([\s\S]*?)<\/nl>/gi, (m, attrs, body) => {
+    const s = norm(_tagAttr(attrs, 's')), id = _tagAttr(attrs, 'id');
+    return '<div class="notam-compact ' + s + '"><span class="notam-compact-sev">' + SEV[s][1] + '</span><span class="notam-compact-id">' + id + '</span><span class="notam-compact-text">' + body.trim() + '</span></div>';
+  });
+  // a tag that is still being streamed (no closing tag yet) is held back until it is complete
+  const cut = out.search(/<n[cl]\b/i);
+  return cut >= 0 ? out.slice(0, cut) : out;
+}
+
 // ---- Deterministic NOTAM list layout (server-supplied owners) ------------------------------------------
 // The model writes the NOTAM cards; the client then (1) groups them per aerodrome / FIR in a fixed order
 // (departure, arrival, FIRs; full cards before compact lines inside each group) — order only, no headings or labels —
