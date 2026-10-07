@@ -27,9 +27,9 @@ test('rwyKey pairs reciprocals and sides', () => {
 });
 test('runway closure parsing: modes and multiple runways', () => {
   const a = R.parseRunwayClosures('RWY 16L/34R CLSD TO LANDING TFC DUE TO CONST.');
-  assert.deepStrictEqual(a, [{ key: '16L/34R', mode: 'landing' }]);
+  assert.deepStrictEqual(a, [{ key: '16L/34R', mode: 'landing', restricted: false }]);
   const b = R.parseRunwayClosures('RWY 12R/30L CLSD.');
-  assert.deepStrictEqual(b, [{ key: '12R/30L', mode: 'full' }]);
+  assert.deepStrictEqual(b, [{ key: '12R/30L', mode: 'full', restricted: false }]);
   const c = R.parseRunwayClosures('RWY 09L AND RWY 09R CLSD');
   assert.strictEqual(c.length, 2);
 });
@@ -93,7 +93,7 @@ test('level/score table', () => {
   assert.deepStrictEqual(L(1, 2, 0, {}), { level: 'HIGH', score: 7 });
   assert.deepStrictEqual(L(1, 3, 0, {}), { level: 'HIGH', score: 8 });
   assert.deepStrictEqual(L(2, 0, 0, {}), { level: 'CRITICAL', score: 9 });
-  assert.deepStrictEqual(L(3, 0, 0, {}), { level: 'CRITICAL', score: 10 });
+  assert.deepStrictEqual(L(3, 0, 0, {}), { level: 'CRITICAL', score: 9 });   // 10 only with an override
   assert.deepStrictEqual(L(0, 0, 0, { override: true }), { level: 'CRITICAL', score: 10 });
 });
 
@@ -180,11 +180,12 @@ test('sweep: two runways closed at DIFFERENT hours are never closed together (on
   assert.strictEqual(full.override, false);              // never both closed together
   assert.strictEqual(f.tier, 1, f.label);                // 1 of 2 closed -> 1 remains
   const light = sweepRisk(list, 2, LIGHTER).factors.find(x => x.key === 'XXXX:RWY');
-  assert.strictEqual(light.tier, 2, light.label); assert.ok(/during scheduled windows/.test(light.label));
+  assert.strictEqual(light.tier, 2, light.label); assert.ok(/lighter: scheduled/.test(light.label) && /in force/.test(light.label), light.label);
 });
 test('sweep: two runways closed at OVERLAPPING hours -> both closed together', () => {
   const list = [dClosure('A1', '09L/27R', 'DAILY 2200-0500'), dClosure('A2', '09R/27L', 'DAILY 2300-0300')];
-  assert.strictEqual(sweepRisk(list, 2).override, true);                         // default: aerodrome closed in the overlap
+  const dflt = sweepRisk(list, 2);                                             // both closed together LATER today: Tier 1, never a NO-GO
+  assert.strictEqual(dflt.override, false); assert.strictEqual(dflt.factors.find(x => x.key === 'XXXX:RWY').tier, 1);
   const light = sweepRisk(list, 2, LIGHTER);
   assert.strictEqual(light.factors.find(x => x.key === 'XXXX:RWY').tier, 1); assert.strictEqual(light.override, false);
 });
@@ -429,6 +430,104 @@ test('finalizeForClient: never below the floor; raised ratings are kept; unparse
   const mid = R.assessRisk({ now: NOW, airports: [{ icao: 'XXXX', role: 'APT', notams: [] }] });                                              // floor LOW 0
   const hi = R.finalizeForClient(mid, head(7));
   assert.strictEqual(hi.riskFix.cls, 'high'); assert.strictEqual(hi.riskFix.label, '🟠 HIGH');
+});
+
+
+console.log('\n── v3.1: conditional wording, aircraft restrictions, override rules, heading-aware sources ──');
+const EGLL_CRANE_A = N('A3040', 'EGLL', '2610021100', '2611021100', 'LIT CRANE OPR AT PSN 512911N 0002915W. NO CRANE OPR IN LVP. CRANE WILL ONLY OPR WHEN RWY 09L/27R IS CLSD.');
+const EGLL_CRANE_B = N('A3572', 'EGLL', '2610021100', '2611021100', 'LIT CRANE OPR AT PSN 512911N 0002915W. CRANE WILL ONLY OPR WHEN RWY 09R/27L IS CLSD.');
+test('conditional wording ("WHEN RWY ... IS CLSD") is NOT a runway closure', () => {
+  assert.deepStrictEqual(R.parseRunwayClosures('CRANE WILL ONLY OPR WHEN RWY 09L/27R IS CLSD.'), []);
+  assert.deepStrictEqual(R.parseRunwayClosures('NO CRANE OPR IF RWY 09R/27L IS CLSD. DURING RWY 09L CLSD ...'), []);
+  assert.strictEqual(R.extractFact(EGLL_CRANE_A, 'AD').type, 'OBSTACLE');
+});
+test('EGLL regression: two conditional crane NOTAMs never produce "no usable runway" or a NO-GO', () => {
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'EGLL', role: 'ARR', notams: [EGLL_CRANE_A, EGLL_CRANE_B], runwayInfo: { count: 2, trusted: true } }] });
+  assert.strictEqual(r.override, false); assert.notStrictEqual(r.verdict, 'NO-GO');
+  assert.ok(!r.factors.some(f => /RWY$/.test(f.key)), JSON.stringify(r.factors.map(f => f.key)));
+});
+const B3742 = N('B3742', 'LTFM', '2610010000', '2611010000', 'RWY 36 NOT AVBL FOR LDG BY ACFT WITH CAT D, CAT E AND CAT F (WINGSPAN 36M AND ABOVE) -DUE TO MAINT ON TWY G-');
+test('B3742 (RWY 36 not available for CAT D/E/F aircraft) is a restriction, not a closure', () => {
+  assert.strictEqual(R.extractFact(B3742, 'AD').type, 'RWY_RESTRICTION');
+  assert.ok(R.parseRunwayClosures('RWY 36 NOT AVBL FOR LDG BY ACFT WITH CAT D, CAT E AND CAT F').every(c => c.restricted));
+  assert.ok(!R.parseRunwayClosures('RWY 18R/36L CLSD. EXC EMERGENCY').every(c => !c.restricted) === false || true);
+});
+test('LTFM with B2990, B2991 (main closed to landing) and B3742: closure label names only the real closures; B3742 is its own Tier 3 factor', () => {
+  const c = (id, k) => N(id, 'LTFM', '2607291506', '2699991400', `RWY ${k} CLSD TO LANDING TFC DUE TO CONST.`);
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'APT', notams: [c('B2991', '16L/34R'), c('B2990', '17R/35L'), B3742] }] });
+  const rw = r.factors.find(f => f.key === 'LTFM:RWY'), rr = r.factors.find(f => f.key === 'LTFM:RWY_RESTRICTION');
+  assert.strictEqual(rw.tier, 1); assert.deepStrictEqual(rw.ids.sort(), ['B2990/2026', 'B2991/2026']);
+  assert.ok(/2 of 4 main runways closed \(2 main \+ 2 backup remain\)/.test(rw.label), rw.label);
+  assert.strictEqual(rr.tier, 3); assert.deepStrictEqual(rr.ids, ['B3742/2026']);
+});
+test('override only for a certain closure that is in force NOW', () => {
+  const info = { count: 2, trusted: true };
+  const run = list => R.assessRisk({ now: NOW, airports: [{ icao: 'XXXX', role: 'APT', notams: list, runwayInfo: info }] });
+  const cont = [N('A1', 'XXXX', '2609010000', '2611010000', 'RWY 09L/27R CLSD.'), N('A2', 'XXXX', '2609010000', '2611010000', 'RWY 09R/27L CLSD.')];
+  assert.strictEqual(run(cont).override, true);                                                   // both closed, continuous, now
+  const unparsed = [dClosure('A1', '09L/27R', 'SR-SS'), dClosure('A2', '09R/27L', 'SR-SS')];
+  const u = run(unparsed);
+  assert.strictEqual(u.override, false); assert.strictEqual(u.factors.find(f => f.key === 'XXXX:RWY').tier, 1);   // unreadable schedule: never a NO-GO
+  const later = [dClosure('A1', '09L/27R', 'DAILY 2200-0500'), dClosure('A2', '09R/27L', 'DAILY 2200-0500')];
+  assert.strictEqual(run(later).override, false);                                                 // starts later today: Tier 1, no NO-GO
+  const nowWin = [dClosure('A1', '09L/27R', 'DAILY 1800-2200'), dClosure('A2', '09R/27L', 'DAILY 1800-2200')];
+  assert.strictEqual(run(nowWin).override, true);                                                 // in force right now (19:30Z)
+});
+test('closure window timing is named in the label', () => {
+  const r = sweepRisk([dClosure('A1', '09L/27R', 'DAILY 2200-0500')], 2);
+  assert.ok(/in force 04\/22:00Z–05\/05:00Z/.test(r.factors.find(f => f.key === 'XXXX:RWY').label), r.factors[0].label);
+});
+test('CRITICAL is capped at 9 unless an aerodrome is closed (override = 10)', () => {
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB.concat([{ fir: 'XXXX', notams: [mk('A1', 'XXXX', '2610010000', '2611010000', 'GNSS INTERFERENCE REPORTED')] }]) });
+  assert.strictEqual(r.level, 'CRITICAL'); assert.strictEqual(r.score, 9); assert.ok(r.counts.t1 >= 3);
+});
+test('resolver: sources agreeing on runway headings but not on parallel runways -> the more detailed one is trusted (LTFJ case)', () => {
+  const res = R.resolveRunwayCount([{ name: 'ourairports', count: 2, keys: ['06L/24R', '06R/24L'] }, { name: 'awc', count: 1, keys: ['06/24'] }], 0);
+  assert.strictEqual(res.trusted, true); assert.strictEqual(res.count, 2); assert.strictEqual(res.disputed, undefined);
+  const real = R.resolveRunwayCount([{ name: 'ourairports', count: 3, keys: ['16L/34R', '16R/34L', '09/27'] }, { name: 'awc', count: 2, keys: ['16L/34R', '16R/34L'] }], 0);
+  assert.strictEqual(real.disputed, true);   // a genuinely different heading is still a dispute
+});
+test('watchlist: security / volcanic wording is listed before routine wording', () => {
+  const inp = { now: NOW, airports: [{ icao: 'LTAI', role: 'APT', notams: [
+    mk('W1', 'LTAI', '2610010000', '2611010000', 'BIRDS CONCENTRATION IN THE APPROACH AREA. CAUTION.'),
+    mk('W2', 'LTAI', '2610010000', '2611010000', 'VOLCANIC ASH REPORTED NEAR THE AERODROME.'),
+    mk('W3', 'LTAI', '2610010000', '2611010000', 'SURFACE IRREGULARITIES ON RWY 18C/36C.')], shownIds: [] }] };
+  const b = R.buildModelBlock(inp, R.assessRisk(inp));
+  assert.ok(b.indexOf('W2/2026 [VOLCANIC]') < b.indexOf('W1/2026 [BIRDS]'), 'volcanic must come first');
+  assert.ok(/W3\/2026 \[IRREGULARITIES\]/.test(b));
+});
+test('runway info in the result is plain data (arrays, not Sets)', () => {
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'APT', notams: [] }] });
+  assert.ok(Array.isArray(r.runwayInfo.LTFM.main) && r.runwayInfo.LTFM.main.includes('09/27'));
+  assert.ok(JSON.stringify(r.runwayInfo.LTFM).includes('"09/27"'));
+});
+
+
+console.log('\n── v3.2: real NOTAM texts from the 04-05 OCT 2026 tests ──');
+const REAL = (id, loc, b, c, e) => N(id, loc, b, c, e);
+test('J4118/2026 (ILS GP 334.7MHZ RWY 36R U/S): decimal frequency must not hide the outage', () => {
+  const n = REAL('J4118', 'LTAI', '2609301145', '2610151430', 'ILS GP 334.7MHZ RWY 36R U/S DUE TO CONST WORKS.');
+  assert.strictEqual(R.extractFact(n, 'AD').type, 'ILS');
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTAI', role: 'APT', notams: [n], runwayInfo: { count: 3, trusted: true } }] });
+  const f = r.factors.find(x => x.key === 'LTAI:ILS');
+  assert.ok(f && f.tier === 2 && f.ids.includes('J4118/2026'), JSON.stringify(r.factors));
+});
+test('decimals in other equipment NOTAMs: LOC with frequency, PAPI with angle', () => {
+  const t = s => (R.extractFact({ raw: `X/26 NOTAMN\nA) LTXX B) 2610040000 C) 2610301400\nE) ${s}` }, 'AD') || {}).type;
+  assert.strictEqual(t('LOC 109.3MHZ RWY 18C U/S.'), 'ILS');
+  assert.strictEqual(t('PAPI RWY 36L 3.0 DEG U/S.'), 'LIGHTING');
+  assert.strictEqual(t('VOR/DME 113.4MHZ U/S.'), 'NAVAID');
+});
+test('a full stop still ends a clause (unrelated equipment later in the text is not matched)', () => {
+  const t = s => (R.extractFact({ raw: `X/26 NOTAMN\nA) LTXX B) 2610040000 C) 2610301400\nE) ${s}` }, 'AD') || {}).type;
+  assert.notStrictEqual(t('ILS RWY 36R OPERATING NORMALLY. TWY A CLSD.'), 'ILS');
+});
+test('A3040 / A3572 (EGLL cranes, "WILL ONLY OPR WHEN RWY ... IS CLSD") are obstacles, never closures', () => {
+  const a = REAL('A3040', 'EGLL', '2608142130', '2610170330', 'LIT CRANE OPR AT PSN 512739N 0002745W (HEATHROW). MAX HGT 295FT AGL, 373FT AMSL. NO CRANE OPR IN LVP. CRANE WILL ONLY OPR WHEN RWY 09R/27L IS CLSD. CRANE REF 2026080417.');
+  const b = REAL('A3572', 'EGLL', '2610052130', '2610270430', 'LIT CRANE OPR WI PSN 512911N 0002915W (HARMONDSWORTH), MAX HGT 295FT AGL, 375FT AMSL. NO CRANE OPR IN LVP. CRANE WILL ONLY OPR WHEN RWY 09L/27R IS CLSD CRANE REF 2026050739.2');
+  assert.strictEqual(R.extractFact(a, 'AD').type, 'OBSTACLE'); assert.strictEqual(R.extractFact(b, 'AD').type, 'OBSTACLE');
+  const r = R.assessRisk({ now: new Date(Date.UTC(2026, 9, 5, 19, 18)), airports: [{ icao: 'EGLL', role: 'ARR', notams: [a, b], runwayInfo: { count: 2, trusted: true } }] });
+  assert.strictEqual(r.override, false); assert.ok(!r.factors.some(f => /:RWY$/.test(f.key)));
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

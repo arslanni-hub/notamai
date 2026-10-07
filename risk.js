@@ -64,7 +64,9 @@ const US = /\b(U\/S|UNSERVICEABLE|NOT\s+AVBL|NOT\s+AVAILABLE|N\/A|OTS|OUT\s+OF\s
 function out(t, word, win) {
   win = win || 60;
   const w = word.source, u = US.source;
-  return new RegExp(`(?:${w})[^.]{0,${win}}?(?:${u})`).test(t) || new RegExp(`(?:${u})[^.]{0,20}?(?:${w})`).test(t);
+  // A clause ends at a full stop, but a decimal point ("334.7MHZ", "3.0 DEG") must not end it.
+  const C = '(?:[^.]|\\.(?=\\d))';
+  return new RegExp(`(?:${w})${C}{0,${win}}?(?:${u})`).test(t) || new RegExp(`(?:${u})${C}{0,20}?(?:${w})`).test(t);
 }
 
 const rawOf = n => String((n && (n.raw || n.body)) || '');
@@ -244,10 +246,15 @@ function parseRunwayClosures(t) {
     // "<equipment> RWY 24L ..." is an equipment outage on that runway, not a runway closure
     const pre = t.slice(Math.max(0, m.index - 40), m.index);
     if (/(LGT|LIGHTS?|LIGHTING|PAPI|VASI|ILS|LOC|LOCALI[SZ]ER|GP|GS|RVR|SFL|ALS|APCH|APPROACH|MARKINGS?|SIGNS?|EDGE|CENTRE\s*LINE|CENTERLINE|TDZ|THR|BARRIER)\s*$/.test(pre)) continue;
+    // "... CRANE WILL ONLY OPR WHEN RWY 09L/27R IS CLSD" describes a condition, it does not announce a closure
+    if (/\b(?:WHEN|IF|WHILE|DURING|UNLESS)\s*$/.test(pre)) continue;
     const keys = [...new Set([...m[1].matchAll(/\d{2}[LRC]?/g)].map(x => rwyKey(x[0])))];
     const to = (m[2] || '').toUpperCase();
     const mode = /LANDING|LDG/.test(to) ? 'landing' : /TKOF|TAKE|DEP/.test(to) ? 'takeoff' : 'full';
-    keys.forEach(k => out.push({ key: k, mode }));
+    // "RWY 36 NOT AVBL FOR LDG BY ACFT WITH CAT D/E/F" is a restriction for some aircraft, not a closure
+    const after = t.slice(m.index + m[0].length, m.index + m[0].length + 160).split('.')[0];
+    const restricted = /\b(?:FOR|BY)\s+(?:ALL\s+)?(?:ACFT|AIRCRAFT)\b|\bWITH\s+(?:CAT|CODE)\b|\bWINGSPAN\b|\bEXC(?:EPT|LUDING)?\b|\b(?:CAT|CODE)\s+[A-F]\b|\b(?:HEAVY|WIDE-?\s?BODY|MTOW)\b|\bONLY\s+(?:FOR|TO)\b/.test(after);
+    keys.forEach(k => out.push({ key: k, mode, restricted }));
   }
   return out;
 }
@@ -286,7 +293,9 @@ function extractFact(n, scope) {
     return { type: 'AD_CLOSED' };
 
   const rc = parseRunwayClosures(t);
-  if (rc.length) return { type: 'RWY_CLOSURE', closures: rc };
+  const fullCl = rc.filter(c => !c.restricted), partCl = rc.filter(c => c.restricted);
+  if (fullCl.length) return { type: 'RWY_CLOSURE', closures: fullCl };
+  if (partCl.length) return { type: 'RWY_RESTRICTION', closures: partCl };
 
   if (out(t, /\bLLWAS\b|LOW[- ]LEVEL\s+WIND\s*SHEAR/))
     return { type: 'LLWAS', comp: /LIDAR|LASER/.test(t) ? 'lidar' : /RADAR/.test(t) ? 'radar' : 'full' };
@@ -382,7 +391,8 @@ function assessTaf(taf, cfg) {
 }
 
 // Wording that signals a hazard the rubric has no factor for -> handed to the model as a WATCHLIST item.
-const WATCH_RX = /\b(VOLCAN\w*|ASH|RADIOACTIV\w*|NUCLEAR|CHEMICAL|BIOLOGICAL|EMERGENCY|EVACUAT\w*|SECURITY|THREAT|BOMB|HIJACK\w*|WAR|CONFLICT|HOSTIL\w*|MISSILE|ROCKET|LASER|DRONE|UAS|BIRDS?|BIRDSTRIKE|WILDLIFE|DEBRIS|FOD|CONTAMINAT\w*|FLOOD\w*|SNOW|ICE|ICING|SLUSH|BRAKING\s+ACTION|FRICTION|STRIKE|INDUSTRIAL\s+ACTION|FIRE|SMOKE|DISRUPT\w*|UNSAFE|HAZARD\w*|CAUTION|WARNING|SUSPENDED)\b/;
+const WATCH_RX = /\b(VOLCAN\w*|ASH|RADIOACTIV\w*|NUCLEAR|CHEMICAL|BIOLOGICAL|EMERGENCY|EVACUAT\w*|SECURITY|THREAT|BOMB|HIJACK\w*|WAR|CONFLICT|HOSTIL\w*|MISSILE|ROCKET|LASER|DRONE|UAS|BIRDS?|BIRDSTRIKE|WILDLIFE|DEBRIS|FOD|CONTAMINAT\w*|FLOOD\w*|SNOW|ICE|ICING|SLUSH|BRAKING\s+ACTION|FRICTION|STRIKE|INDUSTRIAL\s+ACTION|FIRE|SMOKE|DISRUPT\w*|UNSAFE|HAZARD\w*|CAUTION|WARNING|SUSPENDED|IRREGULARIT\w*|POTHOLE\w*|RUTS?|CRACK\w*|BREAK-?UP|DAMAGED?|DEFECT\w*|STANDING\s+WATER|PONDING|PUDDLES?)\b/;
+const WATCH_HIGH = /^(VOLCAN\w*|ASH|RADIOACTIV\w*|NUCLEAR|CHEMICAL|BIOLOGICAL|SECURITY|THREAT|BOMB|HIJACK\w*|WAR|CONFLICT|HOSTIL\w*|MISSILE|ROCKET|EVACUAT\w*|EMERGENCY)$/;
 function watchReason(n) { const m = WATCH_RX.exec(eText(n)); return m ? m[1] : null; }
 
 // ───────────────────────── aerodrome assessment ─────────────────────────
@@ -403,6 +413,15 @@ function resolveRunwayCount(sources, lowerBound) {
   const min = Math.min(...counts), max = Math.max(...counts);
   const names = srcs.map(x => `${x.name} ${x.count}`).join(', ');
   if (min !== max) {
+    if (srcs.length === 2 && srcs[0].keys && srcs[1].keys) {
+      const base = k => k.replace(/[LRC]/g, '');
+      const bs = srcs.map(x => new Set(x.keys.map(base)));
+      const same = bs[0].size === bs[1].size && [...bs[0]].every(k => bs[1].has(k));
+      if (same) {
+        const big = srcs[0].count >= srcs[1].count ? srcs[0] : srcs[1];
+        return { count: Math.max(big.count, lb), trusted: true, source: big.name, note: `${names}; sources agree on runway headings, ${big.name} lists the parallel runways separately` };
+      }
+    }
     let diff = '';
     if (srcs.length === 2 && srcs[0].keys && srcs[1].keys) {
       const a = new Set(srcs[0].keys), b = new Set(srcs[1].keys);
@@ -460,14 +479,17 @@ function runwayTier(closedLanding, closedTakeoff, info, cfg) {
 
 function MORE_SEVERE(x, y) { return !y || (x.override && !y.override) || (!!x.override === !!y.override && x.tier < y.tier); }
 
-// Sweeps the look-ahead window hour by hour of change: only closures that are in force AT THE SAME TIME count together.
-// Closures that exist only during scheduled windows are one tier lighter (cfg.scheduledDowngrade).
+// Sweeps the look-ahead window: only closures that are in force AT THE SAME TIME count together.
+// An "aerodrome closed" override (NO-GO) is raised only when the closure is certain and in force NOW;
+// closures that start later or have an unreadable schedule are Tier 1 with their timing named, never a NO-GO.
+const fmtZ = d => `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}Z`;
 function evaluateRunways(rwRows, info, cfg, now) {
   const windowEnd = new Date(now.getTime() + cfg.windowHours * 3600e3);
   const closures = [];
   for (const r of rwRows) {
     const continuous = r.win.kind === 'continuous' || r.win.kind === 'starts-in-window';
-    for (const c of r.fact.closures) closures.push({ key: c.key, mode: c.mode, continuous, intervals: r.win.intervals || [{ start: now, end: windowEnd }] });
+    const certain = continuous || r.win.kind === 'scheduled';
+    for (const c of r.fact.closures) closures.push({ key: c.key, mode: c.mode, continuous, certain, intervals: r.win.intervals || [{ start: now, end: windowEnd }] });
   }
   const pts = new Set([now.getTime(), windowEnd.getTime()]);
   closures.forEach(c => c.intervals.forEach(i => { pts.add(i.start.getTime()); pts.add(i.end.getTime()); }));
@@ -482,12 +504,19 @@ function evaluateRunways(rwRows, info, cfg, now) {
     const mid = (t[i] + t[i + 1]) / 2;
     const act = closures.filter(c => c.intervals.some(iv => iv.start.getTime() <= mid && mid < iv.end.getTime()));
     if (!act.length) continue;
-    const all = runwayTier(...setsOf(act), info, cfg);
+    let all = runwayTier(...setsOf(act), info, cfg);
     if (!all) continue;
+    all = Object.assign({}, all, { wasOverride: !!all.override });
+    if (all.override && !(t[i] === now.getTime() && act.every(c => c.certain))) {
+      all.override = false;
+      all.note = all.note.replace('no usable runway remains', 'no usable runway during the closure period');
+    }
+    if (act.some(c => !c.continuous) && !(t[i] <= now.getTime() && t[i + 1] >= windowEnd.getTime()))
+      all.note += ` — in force ${fmtZ(new Date(t[i]))}–${fmtZ(new Date(t[i + 1]))}`;
     const base = runwayTier(...setsOf(act.filter(c => c.continuous)), info, cfg);
     let eff = all;
     if (cfg.scheduledDowngrade && act.some(c => !c.continuous) && (!base || MORE_SEVERE(all, base))) {
-      const down = Object.assign({}, all, { tier: all.override ? 1 : DOWN(all.tier), override: false, note: all.note + ' — during scheduled windows' });
+      const down = Object.assign({}, all, { tier: all.wasOverride ? 1 : DOWN(all.tier), override: false, note: all.note + ' (lighter: scheduled)' });
       eff = (base && !MORE_SEVERE(down, base)) ? base : down;
     }
     if (MORE_SEVERE(eff, worst)) worst = eff;
@@ -533,6 +562,14 @@ function assessAirport(a, now, cfg) {
     }
   }
 
+  // runway restricted for some aircraft only (category / wingspan limits) — not a closure
+  const rrRows = live.filter(r => r.fact.type === 'RWY_RESTRICTION');
+  if (rrRows.length) {
+    const rkeys = [...new Set(rrRows.flatMap(r => r.fact.closures.map(c => c.key)))];
+    const onlyBackup = !!(info && info.backup && rkeys.every(k => info.backup.has(k)));
+    add('RWY_RESTRICTION', onlyBackup ? 3 : 2, `runway ${rkeys.join(', ')} restricted for some aircraft (category/size limits)`, rrRows.map(r => r.id));
+  }
+
   // LLWAS
   const ll = live.filter(r => r.fact.type === 'LLWAS');
   if (ll.length) {
@@ -569,6 +606,7 @@ function assessAirport(a, now, cfg) {
       const t = r.fact.type;
       if (t === 'AD_CLOSED' || t === 'ATC_OUT' || t === 'GNSS_INTERFERENCE') sev = 'CRITICAL';
       else if (t === 'RWY_CLOSURE') sev = rwFactor && rwFactor.tier === 1 ? 'CRITICAL' : 'HIGH';
+      else if (t === 'RWY_RESTRICTION') sev = (factors.find(f => f.key.endsWith(':RWY_RESTRICTION')) || {}).tier === 3 ? 'MEDIUM' : 'HIGH';
       else if (t === 'LLWAS') sev = r.fact.comp === 'full' || factors.some(f => f.key.endsWith(':LLWAS') && f.tier === 1) ? 'CRITICAL' : 'HIGH';
       else if (['ILS', 'CAT23', 'RVR', 'LIGHTING', 'MINIMA', 'NAVAID', 'RFFS', 'AIRSPACE', 'GNSS_OUTAGE'].includes(t)) sev = 'HIGH';
       else sev = 'MEDIUM';
@@ -586,7 +624,7 @@ function assessAirport(a, now, cfg) {
 // ───────────────────────── level / score ─────────────────────────
 function levelFromCounts(t1, t2, t3, flags) {
   if (flags.override) return { level: 'CRITICAL', score: 10 };
-  if (t1 >= 2 || flags.concentration) return { level: 'CRITICAL', score: t1 >= 3 ? 10 : 9 };
+  if (t1 >= 2 || flags.concentration) return { level: 'CRITICAL', score: 9 };   // 10 is reserved for an aerodrome that is closed (override)
   if (t1 === 1 || t2 >= 3) {
     let s = 6;
     if ((t1 === 1 && t2 >= 1) || t2 >= 4) s += 1;
@@ -657,7 +695,7 @@ function assessRisk(input, userCfg) {
   return {
     level, score, headerClass: CLASS_OF[level], label: LABEL_OF[level], verdict, override,
     concentration, counts: { t1, t2, t3 }, factors: sorted, severityById,
-    runwayInfo: Object.fromEntries(airports.map((a, i) => [input.airports[i].icao, a.info])),
+    runwayInfo: Object.fromEntries(airports.map((a, i) => [input.airports[i].icao, Object.assign({}, a.info, { main: a.info.main ? [...a.info.main] : undefined, backup: a.info.backup ? [...a.info.backup] : undefined })])),
     airportRows: Object.fromEntries(airports.map((a, i) => [input.airports[i].icao, a.rows])),
     enrouteList, enrouteWatch, coverage,
     hasWeather: Object.fromEntries((input.airports || []).map(a => [a.icao, { metar: !!a.metar, taf: !!a.taf }])),
@@ -708,7 +746,7 @@ function buildModelBlock(input, r, opts) {
   // runway data
   const rw = Object.entries(r.runwayInfo || {}).map(([icao, inf]) => {
     if (inf.main && inf.backup) return `${icao}: ${inf.count} runways — main: ${[...inf.main].join(', ')}; backup (used depending on traffic): ${[...inf.backup].join(', ')} [expert-verified]`;
-    return `${icao}: ${inf.count || 'unknown'} runways [${inf.source || 'unknown'}${inf.disputed ? ', DISPUTED' : ''}${inf.trusted ? '' : ', unverified'}]`;
+    return `${icao}: ${inf.count || 'unknown'} runways [${inf.disputed ? 'DISPUTED — ' + inf.note : (inf.source || 'unknown')}${inf.trusted ? '' : ' — unverified'}]`;
   });
   if (rw.length) L.push('RUNWAY DATA:\n' + rw.map(x => '- ' + x).join('\n'));
 
@@ -743,9 +781,10 @@ function buildModelBlock(input, r, opts) {
       (e.length > o.maxEnroute ? `\n- … ${e.length - o.maxEnroute} more` : ''));
   }
   const watch = [];
-  (input.airports || []).forEach(a => ((r.airportRows || {})[a.icao] || []).filter(x => x.watch).forEach(x => watch.push(`${a.icao} ${x.id} [${x.watch}] ${clip(x.text, o.textLen)}`)));
-  (r.enrouteWatch || []).forEach(x => watch.push(`${x.fir} ${x.id} [${x.reason}] ${clip(x.text, o.textLen)}`));
-  if (watch.length) L.push('WATCHLIST — NOT RECOGNISED BY THE RUBRIC BUT CONTAINING ALARM WORDING (assess each one yourself):\n' + watch.slice(0, o.maxWatch).map(x => '- ' + x).join('\n') + (watch.length > o.maxWatch ? `\n- … ${watch.length - o.maxWatch} more` : ''));
+  (input.airports || []).forEach(a => ((r.airportRows || {})[a.icao] || []).filter(x => x.watch).forEach(x => watch.push({ hi: WATCH_HIGH.test(x.watch), line: `${a.icao} ${x.id} [${x.watch}] ${clip(x.text, o.textLen)}` })));
+  (r.enrouteWatch || []).forEach(x => watch.push({ hi: WATCH_HIGH.test(x.reason), line: `${x.fir} ${x.id} [${x.reason}] ${clip(x.text, o.textLen)}` }));
+  watch.sort((x, y) => (y.hi ? 1 : 0) - (x.hi ? 1 : 0));   // security / volcanic / conflict wording first
+  if (watch.length) L.push('WATCHLIST — NOT RECOGNISED BY THE RUBRIC BUT CONTAINING ALARM WORDING (assess each one yourself):\n' + watch.slice(0, o.maxWatch).map(x => '- ' + x.line).join('\n') + (watch.length > o.maxWatch ? `\n- … ${watch.length - o.maxWatch} more` : ''));
   return L.join('\n\n');
 }
 
