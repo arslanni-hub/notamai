@@ -1265,6 +1265,7 @@ const BRIEFING_RISK_RULES = `RISK RATING RULES — apply to the MASTER HEADER an
 
 const systemPrompt = `MANDATORY RULES:
 - Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them using the appropriate format (full card for CRITICAL/HIGH, compact for MEDIUM/LOW)
+- ONE compact line or card per NOTAM: never merge several NOTAMs into one line (no "B3202 / B3203 / B4018" lines), and always write every NOTAM id in full including the year (e.g. B3202/2026).
 - Immediately after the closing </div> of the notam-list section (right after the last NOTAM card, before starting the next section such as Weather), insert this exact placeholder on its own line: <!--NOTAM_NOTES--> — always include it whenever a NOTAM section is present, even if you believe there's nothing to add there; the server will fill it in automatically. Do not add any text of your own at that spot.
 - Each NOTAM card must have correct risk color class: crit (red) for runway closures/GNSS/safety critical, high (orange) for navigation aids/UAS/obstacles, med (yellow) for taxiway/procedures, low (green) for administrative
 - Show the airport ICAO code for each NOTAM in the notam-id field
@@ -1465,6 +1466,7 @@ NOTAM LIMITS: Render every NOTAM provided in the data — they are already pre-s
 
 const singleAirportSystemPrompt = `MANDATORY RULES:
 - Show every NOTAM included in the data — data is pre-filtered and pre-sorted by the server; render all of them using the appropriate format (full card for CRITICAL/HIGH, compact for MEDIUM/LOW)
+- ONE compact line or card per NOTAM: never merge several NOTAMs into one line (no "B3202 / B3203 / B4018" lines), and always write every NOTAM id in full including the year (e.g. B3202/2026).
 - Immediately after the closing </div> of the notam-list section (right after the last NOTAM card, before starting the next section such as Weather), insert this exact placeholder on its own line: <!--NOTAM_NOTES--> — always include it whenever a NOTAM section is present, even if you believe there's nothing to add there; the server will fill it in automatically. Do not add any text of your own at that spot.
 - Each NOTAM card must have correct risk color class: crit (red) for runway closures/GNSS/safety critical, high (orange) for navigation aids/UAS/obstacles, med (yellow) for taxiway/procedures, low (green) for administrative
 - Show the airport ICAO code for each NOTAM in the notam-id field

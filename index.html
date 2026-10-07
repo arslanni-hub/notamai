@@ -3108,7 +3108,6 @@ async function handleSend(silent = false) {
             accumulated = placeNotamNotes(accumulated, evt.notamNotesHtml);
             if (evt.notamOwners && evt.notamGroups) {
               accumulated = organizeNotamList(accumulated, evt.notamOwners, evt.notamGroups);
-              accumulated = labelAirspaceRows(accumulated, evt.notamOwners);
               accumulated = markOutsideWindow(accumulated, evt.notamOutside);
             }
             // Risk rubric (when active): fill the server-authored basis box and make the header consistent with —
@@ -3404,7 +3403,7 @@ async function downloadPDF() {
     // cards/rows from being cut in half across a page boundary.
     pagebreak: {
       mode: ['css'],
-      avoid: ['.notam-keep', '.notam-card', '.notam-compact', '.risk-badge', '.exec-summary', '.section-header', '.meta-item', '.footer-sig', 'table', 'tr']
+      avoid: ['.notam-card', '.notam-compact', '.risk-badge', '.exec-summary', '.section-header', '.meta-item', '.footer-sig', 'table', 'tr']
     }
   };
   // Explicitly set the background on the actual DOM node being captured — resultContent has no
@@ -4055,17 +4054,31 @@ function hideEmailVerifyBanner() {
 // is never below the rubric floor and always internally consistent.
 // ---- Deterministic NOTAM list layout (server-supplied owners) ------------------------------------------
 // The model writes the NOTAM cards; the client then (1) groups them per aerodrome / FIR in a fixed order
-// (departure, arrival, FIRs; full cards before compact lines inside each group), (2) labels every NOTAM with
-// the aerodrome / FIR it belongs to, and (3) puts the server-authored notes (upcoming list) at a fixed place.
+// (departure, arrival, FIRs; full cards before compact lines inside each group) — order only, no headings or labels —
+// and (2) puts the server-authored notes (upcoming list) at a fixed place.
 function _notamIdOf(text) { const m = /[A-Z]\d{3,5}\/\d{2,4}/.exec(text || ''); return m ? m[0] : ''; }
+function _idTokens(text) { return String(text || '').match(/\b[A-Z]\d{3,5}(?:\/\d{2,4})?\b/g) || []; }
+const _bareId = t => String(t).replace(/\/\d+$/, '');
 function _divRange(html, startIdx) {
   const rx = /<div\b|<\/div>/g; rx.lastIndex = startIdx; let depth = 0, m;
   while ((m = rx.exec(html))) { if (m[0] === '</div>') { depth--; if (depth === 0) return [startIdx, rx.lastIndex]; } else depth++; }
   return null;
 }
-function _ownerKey(owners, id, text) {
-  const c = owners && owners[id]; if (!c || !c.length) return null;
-  return c.find(k => text.includes(k)) || c[0];
+// Owner of a NOTAM row. A row may carry several ids (the model sometimes merges compact lines) and ids written
+// without the year: every id votes for its aerodrome / FIR; the most frequent owner wins (ties: first seen).
+function _ownerKey(owners, idText, fullText) {
+  if (!owners) return null;
+  const text = fullText || idText || '', votes = {}, seen = [];
+  _idTokens(idText).forEach(tok => {
+    let c = owners[tok];
+    if (!c) { c = []; if (tok.indexOf('/') < 0) Object.keys(owners).forEach(k => { if (k.indexOf(tok + '/') === 0) owners[k].forEach(x => c.push(x)); }); }
+    if (!c.length) return;
+    const k = c.find(x => text.includes(x.replace(/^FIR /, ''))) || c[0];
+    if (!(k in votes)) { votes[k] = 0; seen.push(k); }
+    votes[k]++;
+  });
+  if (!seen.length) return null;
+  return seen.reduce((best, k) => votes[k] > votes[best] ? k : best, seen[0]);
 }
 function organizeNotamList(html, owners, groups) {
   try {
@@ -4074,14 +4087,12 @@ function organizeNotamList(html, owners, groups) {
     const rng = _divRange(html, start); if (!rng) return html;
     const doc = new DOMParser().parseFromString('<body>' + html.slice(rng[0], rng[1]) + '</body>', 'text/html');
     const list = doc.querySelector('.notam-list'); if (!list) return html;
-    const badge = (key) => { const b = doc.createElement('span'); b.textContent = key; b.setAttribute('style', "font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a9eff;border:1px solid #1a3a5a;padding:1px 6px;margin-right:8px;letter-spacing:1px;white-space:nowrap;"); b.className = 'notam-owner'; return b; };
     const items = [], others = [];
     Array.from(list.children).forEach(el => {
       const isCard = el.classList.contains('notam-card'), isCompact = el.classList.contains('notam-compact');
       if (!isCard && !isCompact) { others.push(el); return; }
       const idEl = el.querySelector(isCard ? '.notam-id' : '.notam-compact-id');
-      const id = _notamIdOf(idEl ? idEl.textContent : el.textContent);
-      const key = _ownerKey(owners, id, el.textContent);
+      const key = _ownerKey(owners, idEl ? idEl.textContent : el.textContent, el.textContent);
       items.push({ el, key, card: isCard ? 1 : 0, idEl });
     });
     if (!items.length) return html;
@@ -4090,22 +4101,9 @@ function organizeNotamList(html, owners, groups) {
     items.forEach((it, i) => { it.i = i; });
     items.sort((a, b) => rank(a.key) - rank(b.key) || (b.card - a.card) || a.i - b.i);
     while (list.firstChild) list.removeChild(list.firstChild);
-    let last = Symbol(), keep = null, first = false;
-    items.forEach(it => {
-      if (it.key !== last) {
-        last = it.key;
-        const g = groups.find(x => x.key === it.key);
-        const h = doc.createElement('div'); h.className = 'notam-group-head';
-        h.setAttribute('style', "font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;color:#4a9eff;padding:10px 2px 4px;margin-top:6px;border-bottom:1px solid #1a2a3a;");
-        h.textContent = g ? g.title : 'OTHER';
-        // keep the group heading together with its first NOTAM (PDF export must not strand the heading at a page end)
-        keep = doc.createElement('div'); keep.className = 'notam-keep';
-        keep.appendChild(h); list.appendChild(keep);
-        first = true;
-      } else first = false;
-      if (it.key && it.idEl && !it.idEl.querySelector('.notam-owner')) it.idEl.insertBefore(badge(it.key), it.idEl.firstChild);
-      (first ? keep : list).appendChild(it.el);
-    });
+    // Order only: all NOTAMs of the departure airport first (full cards, then compact lines), then the arrival
+    // airport, then FIRs. No headings and no labels are added — the cards keep the model's own layout.
+    items.forEach(it => list.appendChild(it.el));
     others.forEach(el => list.appendChild(el));
     return html.slice(0, rng[0]) + list.outerHTML + html.slice(rng[1]);
   } catch (e) { return html; }
@@ -4113,14 +4111,14 @@ function organizeNotamList(html, owners, groups) {
 function markOutsideWindow(html, ids) {
   try {
     if (!ids || !ids.length || html.indexOf('notam-') < 0) return html;
-    const set = new Set(ids);
+    const set = new Set(ids.map(_bareId));
     const doc = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html');
     let changed = false;
     doc.querySelectorAll('.notam-card, .notam-compact').forEach(el => {
       const isCard = el.classList.contains('notam-card');
       const idEl = el.querySelector(isCard ? '.notam-id' : '.notam-compact-id');
-      const id = _notamIdOf(idEl ? idEl.textContent : '');
-      if (!set.has(id)) return;
+      const toks = _idTokens(idEl ? idEl.textContent : '').map(_bareId);
+      if (!toks.length || !toks.every(t => set.has(t))) return;
       el.classList.remove('crit', 'high', 'med'); el.classList.add('low');
       const sev = el.querySelector('.notam-compact-sev');
       if (sev) { sev.textContent = '📅 VALID · SCHEDULED DAYS ONLY'; const tx = el.querySelector('.notam-compact-text'); if (tx && !/no scheduled window/i.test(tx.textContent)) tx.textContent += ' (no scheduled window in the next 24h)'; }
@@ -4130,21 +4128,6 @@ function markOutsideWindow(html, ids) {
         idEl.appendChild(t);
       }
       changed = true;
-    });
-    return changed ? doc.body.innerHTML : html;
-  } catch (e) { return html; }
-}
-function labelAirspaceRows(html, owners) {
-  try {
-    if (!owners || html.indexOf('ar-id') < 0) return html;
-    const doc = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html');
-    let changed = false;
-    doc.querySelectorAll('.ar-id').forEach(el => {
-      const key = _ownerKey(owners, _notamIdOf(el.textContent), el.textContent);
-      if (!key || el.querySelector('.notam-owner')) return;
-      const b = doc.createElement('span'); b.className = 'notam-owner'; b.textContent = key;
-      b.setAttribute('style', "display:block;font-size:9px;color:#4a9eff;letter-spacing:1px;");
-      el.insertBefore(b, el.firstChild); changed = true;
     });
     return changed ? doc.body.innerHTML : html;
   } catch (e) { return html; }
