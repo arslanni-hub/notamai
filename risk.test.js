@@ -334,10 +334,11 @@ test('LTFM -> LTAI route -> CRITICAL 9 (LLWAS fully out + concentration at LTAI)
   console.log('        ->', r.level, r.score, r.verdict, JSON.stringify(r.counts), 'concentration:', r.concentration);
   assert.strictEqual(r.level, 'CRITICAL'); assert.strictEqual(r.score, 9); assert.strictEqual(r.concentration, 'LTAI');
 });
-test('LTFJ -> OMDB at 19:30Z -> CRITICAL 9 (two FIRs with GNSS interference)', () => {
+test('LTFJ -> OMDB at 19:30Z -> HIGH 8 (GNSS in two FIRs counts as ONE Tier 1 factor)', () => {
   const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB });
   console.log('        ->', r.level, r.score, r.verdict, JSON.stringify(r.counts));
-  assert.strictEqual(r.level, 'CRITICAL'); assert.strictEqual(r.score, 9);
+  assert.strictEqual(r.level, 'HIGH'); assert.strictEqual(r.score, 8); assert.strictEqual(r.counts.t1, 1);
+  assert.strictEqual(r.factors.filter(f => /GNSS interference/.test(f.label)).length, 1, 'one merged GNSS factor');
   assert.ok(!r.factors.some(f => (f.ids || []).includes('A3039/2026')), 'closure window already passed -> must not be scored');
 });
 test('OMDB at 09:00Z: runway closure window (11:30-13:00Z) is in the next 24h -> counted at full strength by default', () => {
@@ -477,9 +478,18 @@ test('closure window timing is named in the label', () => {
   const r = sweepRisk([dClosure('A1', '09L/27R', 'DAILY 2200-0500')], 2);
   assert.ok(/in force 04\/22:00Z–05\/05:00Z/.test(r.factors.find(f => f.key === 'XXXX:RWY').label), r.factors[0].label);
 });
+test('B4015 (future 17L/35R closure) with B2990/B2991: worst time slice is reported (1 backup remains)', () => {
+  const now = new Date(Date.UTC(2026, 9, 7, 18, 0));
+  const n = [mk('B2990/2026', 'LTFM', '2607291500', '2610291400', 'RWY 17R/35L CLSD TO LANDING TFC DUE TO CONST.'), mk('B2991/2026', 'LTFM', '2607291506', '2610291400', 'RWY 16L/34R CLSD TO LANDING TFC DUE TO CONST.'), mk('B4015/2026', 'LTFM', '2610072059', '2610080130', 'RWY 17L/35R CLSD. RWY CROSSINGS SHALL BE COORDINATED.')];
+  const rw = R.assessRisk({ now, airports: [{ icao: 'LTFM', role: 'APT', notams: n }] }).factors.find(f => f.key === 'LTFM:RWY');
+  console.log('        ->', rw && rw.label);
+  assert.ok(rw && rw.tier === 1); assert.ok(/1 backup remain/.test(rw.label), rw.label);
+});
 test('CRITICAL is capped at 9 unless an aerodrome is closed (override = 10)', () => {
   const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB.concat([{ fir: 'XXXX', notams: [mk('A1', 'XXXX', '2610010000', '2611010000', 'GNSS INTERFERENCE REPORTED')] }]) });
-  assert.strictEqual(r.level, 'CRITICAL'); assert.strictEqual(r.score, 9); assert.ok(r.counts.t1 >= 3);
+  assert.strictEqual(r.counts.t1, 1);   // a third FIR with GNSS interference does not add a Tier 1 factor
+  const r2 = R.assessRisk({ now: NOW_AM, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB });
+  assert.strictEqual(r2.level, 'CRITICAL'); assert.strictEqual(r2.score, 9); assert.ok(r2.counts.t1 >= 2);   // runway closure in force + GNSS
 });
 test('resolver: sources agreeing on runway headings but not on parallel runways -> the more detailed one is trusted (LTFJ case)', () => {
   const res = R.resolveRunwayCount([{ name: 'ourairports', count: 2, keys: ['06L/24R', '06R/24L'] }, { name: 'awc', count: 1, keys: ['06/24'] }], 0);

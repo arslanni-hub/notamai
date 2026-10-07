@@ -477,7 +477,7 @@ function runwayTier(closedLanding, closedTakeoff, info, cfg) {
     : { tier: 2, override: false, remaining: null, note: '1 runway closed (runway count unverified)' };
 }
 
-function MORE_SEVERE(x, y) { return !y || (x.override && !y.override) || (!!x.override === !!y.override && x.tier < y.tier); }
+function MORE_SEVERE(x, y) { return !y || (x.override && !y.override) || (!!x.override === !!y.override && (x.tier < y.tier || (x.tier === y.tier && x.remaining != null && y.remaining != null && x.remaining < y.remaining))); }
 
 // Sweeps the look-ahead window: only closures that are in force AT THE SAME TIME count together.
 // An "aerodrome closed" override (NO-GO) is raised only when the closure is certain and in force NOW;
@@ -648,6 +648,7 @@ function assessRisk(input, userCfg) {
 
   // en-route (FIR) factors — aggregated so that one FIR with many NOTAMs cannot inflate the score
   const enIds = { AIRSPACE: [], NAVAID_ENROUTE: [], GNSS_OUTAGE: [] };
+  const gnssFirs = [];
   const enrouteList = [], enrouteWatch = [], coverage = [];
   for (const f of (input.enroute || [])) {
     const gn = [];
@@ -669,8 +670,11 @@ function assessRisk(input, userCfg) {
       else if (enIds[fact.type]) enIds[fact.type].push(idOf(n));
     }
     coverage.push({ fir: f.fir, total, inWindow: inWin, relevant: rel });
-    if (gn.length) factors.push({ key: `${f.fir}:GNSS`, tier: 1, scope: f.fir, label: `${f.fir}: GNSS interference/jamming reported`, ids: gn });
+    if (gn.length) gnssFirs.push({ fir: f.fir, ids: gn });
   }
+  // All en-route GNSS interference reports count as ONE Tier 1 factor (chronic in several regions;
+  // per-FIR counting would inflate the score). The FIRs concerned are named in the label.
+  if (gnssFirs.length) factors.push({ key: 'ROUTE:GNSS', tier: 1, scope: 'ROUTE', label: `en-route: GNSS interference/jamming reported (${gnssFirs.map(g => g.fir).join(', ')})`, ids: gnssFirs.flatMap(g => g.ids) });
   if (enIds.AIRSPACE.length) factors.push({ key: 'ROUTE:AIRSPACE', tier: 2, scope: 'ROUTE', label: `en-route: prohibited/restricted/danger area activity (${enIds.AIRSPACE.length} NOTAMs)`, ids: enIds.AIRSPACE });
   if (enIds.NAVAID_ENROUTE.length) factors.push({ key: 'ROUTE:NAVAID', tier: 2, scope: 'ROUTE', label: `en-route: navaid unserviceable (${enIds.NAVAID_ENROUTE.length} NOTAMs)`, ids: enIds.NAVAID_ENROUTE });
   if (enIds.GNSS_OUTAGE.length) factors.push({ key: 'ROUTE:GNSS_OUTAGE', tier: 2, scope: 'ROUTE', label: 'en-route: GNSS outage/RAIM degradation', ids: enIds.GNSS_OUTAGE });
