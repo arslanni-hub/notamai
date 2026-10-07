@@ -3109,6 +3109,7 @@ async function handleSend(silent = false) {
             if (evt.notamOwners && evt.notamGroups) {
               accumulated = organizeNotamList(accumulated, evt.notamOwners, evt.notamGroups);
               accumulated = labelAirspaceRows(accumulated, evt.notamOwners);
+              accumulated = markOutsideWindow(accumulated, evt.notamOutside);
             }
             // Risk rubric (when active): fill the server-authored basis box and make the header consistent with —
             // and never below — the rubric floor.
@@ -3403,7 +3404,7 @@ async function downloadPDF() {
     // cards/rows from being cut in half across a page boundary.
     pagebreak: {
       mode: ['css'],
-      avoid: ['.notam-card', '.notam-compact', '.risk-badge', '.exec-summary', '.section-header', '.meta-item', '.footer-sig', 'table', 'tr']
+      avoid: ['.notam-keep', '.notam-card', '.notam-compact', '.risk-badge', '.exec-summary', '.section-header', '.meta-item', '.footer-sig', 'table', 'tr']
     }
   };
   // Explicitly set the background on the actual DOM node being captured — resultContent has no
@@ -4089,7 +4090,7 @@ function organizeNotamList(html, owners, groups) {
     items.forEach((it, i) => { it.i = i; });
     items.sort((a, b) => rank(a.key) - rank(b.key) || (b.card - a.card) || a.i - b.i);
     while (list.firstChild) list.removeChild(list.firstChild);
-    let last = Symbol();
+    let last = Symbol(), keep = null, first = false;
     items.forEach(it => {
       if (it.key !== last) {
         last = it.key;
@@ -4097,13 +4098,40 @@ function organizeNotamList(html, owners, groups) {
         const h = doc.createElement('div'); h.className = 'notam-group-head';
         h.setAttribute('style', "font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;color:#4a9eff;padding:10px 2px 4px;margin-top:6px;border-bottom:1px solid #1a2a3a;");
         h.textContent = g ? g.title : 'OTHER';
-        list.appendChild(h);
-      }
+        // keep the group heading together with its first NOTAM (PDF export must not strand the heading at a page end)
+        keep = doc.createElement('div'); keep.className = 'notam-keep';
+        keep.appendChild(h); list.appendChild(keep);
+        first = true;
+      } else first = false;
       if (it.key && it.idEl && !it.idEl.querySelector('.notam-owner')) it.idEl.insertBefore(badge(it.key), it.idEl.firstChild);
-      list.appendChild(it.el);
+      (first ? keep : list).appendChild(it.el);
     });
     others.forEach(el => list.appendChild(el));
     return html.slice(0, rng[0]) + list.outerHTML + html.slice(rng[1]);
+  } catch (e) { return html; }
+}
+function markOutsideWindow(html, ids) {
+  try {
+    if (!ids || !ids.length || html.indexOf('notam-') < 0) return html;
+    const set = new Set(ids);
+    const doc = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html');
+    let changed = false;
+    doc.querySelectorAll('.notam-card, .notam-compact').forEach(el => {
+      const isCard = el.classList.contains('notam-card');
+      const idEl = el.querySelector(isCard ? '.notam-id' : '.notam-compact-id');
+      const id = _notamIdOf(idEl ? idEl.textContent : '');
+      if (!set.has(id)) return;
+      el.classList.remove('crit', 'high', 'med'); el.classList.add('low');
+      const sev = el.querySelector('.notam-compact-sev');
+      if (sev) sev.textContent = '⏱ NOT IN FORCE NEXT 24H';
+      if (idEl && !el.querySelector('.notam-outside')) {
+        const t = doc.createElement('span'); t.className = 'notam-outside'; t.textContent = ' · NOT IN FORCE DURING THE NEXT 24H';
+        t.setAttribute('style', 'color:#8a9bb0;font-size:10px;');
+        idEl.appendChild(t);
+      }
+      changed = true;
+    });
+    return changed ? doc.body.innerHTML : html;
   } catch (e) { return html; }
 }
 function labelAirspaceRows(html, owners) {

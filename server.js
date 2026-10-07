@@ -4839,7 +4839,9 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             const notamGroups = [{ key: icao_dep, title: icao_dep + (isSingleAirport ? '' : ' — DEPARTURE') }]
               .concat(isSingleAirport ? [] : [{ key: icao_arr, title: icao_arr + ' — ARRIVAL' }])
               .concat((enrouteCollector || []).map(x => ({ key: 'FIR ' + x.fir, title: 'FIR ' + x.fir + ' — EN-ROUTE' })));
-            res.write(`data: ${JSON.stringify(Object.assign({ type: 'done', notamNotesHtml, notamOwners, notamGroups }, riskExtra))}\n\n`);
+            const notamOutside = [];
+            if (riskResult && riskResult.airportRows) Object.values(riskResult.airportRows).forEach(rows => (rows || []).forEach(x => { if (x && x.id && x.inWindow === false) notamOutside.push(x.id); }));
+            res.write(`data: ${JSON.stringify(Object.assign({ type: 'done', notamNotesHtml, notamOwners, notamGroups, notamOutside }, riskExtra))}\n\n`);
             res.end();
           },
           (err) => { if (!doneSent) { doneSent = true; res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`); res.end(); } }
