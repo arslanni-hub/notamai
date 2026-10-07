@@ -3105,12 +3105,10 @@ async function handleSend(silent = false) {
             // Splice the server-authored NOTAM notes (upcoming/excluded counts) in right after
             // the NOTAM section, at the placeholder Claude was told to leave. Fall back to
             // stripping the placeholder if the model dropped it (so it never shows literally).
-            if (evt.notamNotesHtml) {
-              accumulated = accumulated.includes('<!--NOTAM_NOTES-->')
-                ? accumulated.replace('<!--NOTAM_NOTES-->', evt.notamNotesHtml)
-                : accumulated + evt.notamNotesHtml;
-            } else {
-              accumulated = accumulated.replace('<!--NOTAM_NOTES-->', '');
+            accumulated = placeNotamNotes(accumulated, evt.notamNotesHtml);
+            if (evt.notamOwners && evt.notamGroups) {
+              accumulated = organizeNotamList(accumulated, evt.notamOwners, evt.notamGroups);
+              accumulated = labelAirspaceRows(accumulated, evt.notamOwners);
             }
             // Risk rubric (when active): fill the server-authored basis box and make the header consistent with —
             // and never below — the rubric floor.
@@ -4054,6 +4052,92 @@ function hideEmailVerifyBanner() {
 
 // Sets the briefing header (class, label, score, pips) to the given values; used by the risk rubric so the header
 // is never below the rubric floor and always internally consistent.
+// ---- Deterministic NOTAM list layout (server-supplied owners) ------------------------------------------
+// The model writes the NOTAM cards; the client then (1) groups them per aerodrome / FIR in a fixed order
+// (departure, arrival, FIRs; full cards before compact lines inside each group), (2) labels every NOTAM with
+// the aerodrome / FIR it belongs to, and (3) puts the server-authored notes (upcoming list) at a fixed place.
+function _notamIdOf(text) { const m = /[A-Z]\d{3,5}\/\d{2,4}/.exec(text || ''); return m ? m[0] : ''; }
+function _divRange(html, startIdx) {
+  const rx = /<div\b|<\/div>/g; rx.lastIndex = startIdx; let depth = 0, m;
+  while ((m = rx.exec(html))) { if (m[0] === '</div>') { depth--; if (depth === 0) return [startIdx, rx.lastIndex]; } else depth++; }
+  return null;
+}
+function _ownerKey(owners, id, text) {
+  const c = owners && owners[id]; if (!c || !c.length) return null;
+  return c.find(k => text.includes(k)) || c[0];
+}
+function organizeNotamList(html, owners, groups) {
+  try {
+    if (!owners || !groups || !groups.length) return html;
+    const start = html.indexOf('<div class="notam-list">'); if (start < 0) return html;
+    const rng = _divRange(html, start); if (!rng) return html;
+    const doc = new DOMParser().parseFromString('<body>' + html.slice(rng[0], rng[1]) + '</body>', 'text/html');
+    const list = doc.querySelector('.notam-list'); if (!list) return html;
+    const badge = (key) => { const b = doc.createElement('span'); b.textContent = key; b.setAttribute('style', "font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a9eff;border:1px solid #1a3a5a;padding:1px 6px;margin-right:8px;letter-spacing:1px;white-space:nowrap;"); b.className = 'notam-owner'; return b; };
+    const items = [], others = [];
+    Array.from(list.children).forEach(el => {
+      const isCard = el.classList.contains('notam-card'), isCompact = el.classList.contains('notam-compact');
+      if (!isCard && !isCompact) { others.push(el); return; }
+      const idEl = el.querySelector(isCard ? '.notam-id' : '.notam-compact-id');
+      const id = _notamIdOf(idEl ? idEl.textContent : el.textContent);
+      const key = _ownerKey(owners, id, el.textContent);
+      items.push({ el, key, card: isCard ? 1 : 0, idEl });
+    });
+    if (!items.length) return html;
+    const order = groups.map(g => g.key);
+    const rank = k => { const i = order.indexOf(k); return i < 0 ? order.length : i; };
+    items.forEach((it, i) => { it.i = i; });
+    items.sort((a, b) => rank(a.key) - rank(b.key) || (b.card - a.card) || a.i - b.i);
+    while (list.firstChild) list.removeChild(list.firstChild);
+    let last = Symbol();
+    items.forEach(it => {
+      if (it.key !== last) {
+        last = it.key;
+        const g = groups.find(x => x.key === it.key);
+        const h = doc.createElement('div'); h.className = 'notam-group-head';
+        h.setAttribute('style', "font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;color:#4a9eff;padding:10px 2px 4px;margin-top:6px;border-bottom:1px solid #1a2a3a;");
+        h.textContent = g ? g.title : 'OTHER';
+        list.appendChild(h);
+      }
+      if (it.key && it.idEl && !it.idEl.querySelector('.notam-owner')) it.idEl.insertBefore(badge(it.key), it.idEl.firstChild);
+      list.appendChild(it.el);
+    });
+    others.forEach(el => list.appendChild(el));
+    return html.slice(0, rng[0]) + list.outerHTML + html.slice(rng[1]);
+  } catch (e) { return html; }
+}
+function labelAirspaceRows(html, owners) {
+  try {
+    if (!owners || html.indexOf('ar-id') < 0) return html;
+    const doc = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html');
+    let changed = false;
+    doc.querySelectorAll('.ar-id').forEach(el => {
+      const key = _ownerKey(owners, _notamIdOf(el.textContent), el.textContent);
+      if (!key || el.querySelector('.notam-owner')) return;
+      const b = doc.createElement('span'); b.className = 'notam-owner'; b.textContent = key;
+      b.setAttribute('style', "display:block;font-size:9px;color:#4a9eff;letter-spacing:1px;");
+      el.insertBefore(b, el.firstChild); changed = true;
+    });
+    return changed ? doc.body.innerHTML : html;
+  } catch (e) { return html; }
+}
+function placeNotamNotes(html, notes) {
+  if (!notes) return html.replace('<!--NOTAM_NOTES-->', '');
+  if (html.includes('<!--NOTAM_NOTES-->')) return html.replace('<!--NOTAM_NOTES-->', notes);
+  // The model dropped the placeholder: insert right after the NOTAM list, before the next section header.
+  const start = html.indexOf('<div class="notam-list">');
+  if (start >= 0) {
+    const rng = _divRange(html, start);
+    if (rng) return html.slice(0, rng[1]) + notes + html.slice(rng[1]);
+  }
+  const t = html.search(/NOTAM Analysis/i);
+  if (t >= 0) {
+    const nx = html.indexOf('<div class="section-header">', t);
+    if (nx >= 0) return html.slice(0, nx) + notes + html.slice(nx);
+  }
+  return html + notes;
+}
+
 function applyRiskFix(html, fix) {
   html = html.replace(/(class="master-header\s+)(low|med|high|crit)(")/, '$1' + fix.cls + '$3');
   html = html.replace(/(<div class="risk-label">)[\s\S]*?(<\/div>)/, '$1' + fix.label + '$2');

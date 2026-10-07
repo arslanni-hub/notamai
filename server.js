@@ -525,6 +525,7 @@ async function computeBriefingRisk({ icao_dep, icao_arr, isSingleAirport, notamD
   }
   const input = { now: new Date(), airports, enroute: enrouteCollector || [], route };
   const r = risk.assessRisk(input);
+  r.route = route;
   r.modelBlock = risk.buildModelBlock(input, r);
   console.log('[RISK]', JSON.stringify({
     mode: RISK_MODE,
@@ -615,7 +616,7 @@ async function fetchNotams(icao) {
     const nearFutureLines = nearFuture.map(n => {
       const eff = n.effective ? n.effective.slice(2) : '?';
       const bodyText = (n.body || n.raw || '').replace(/\s+/g, ' ').trim();
-      const oneLine = bodyText.length > 140 ? bodyText.slice(0, 137).replace(/\s+\S*$/, '') + '…' : bodyText;
+      const oneLine = bodyText.length > 200 ? bodyText.slice(0, 197).replace(/\s+\S*$/, '') + '…' : bodyText;
       return `${n.notam_id || ''} (from ${eff}Z): ${oneLine}`;
     });
 
@@ -1332,7 +1333,7 @@ REQUIRED SECTIONS IN ORDER:
 4. NOTAM ANALYSIS:
 <div class="section-header"><span class="icon">📋</span><span class="title">NOTAM Analysis — Priority Order</span></div>
 <div class="notam-list">
-  [The DEPARTURE and ARRIVAL airport NOTAM lists are two SEPARATE, INDEPENDENT counters — a busy departure airport (e.g. a mega-hub) must NEVER reduce the arrival airport's detail allowance, and vice versa. For EACH airport independently: the first 3 NOTAMs in that airport's own list (by the order given — already priority-sorted; LOW-tier is already excluded from the data) get the full card format below; any 4th NOTAM onward for that SAME airport gets the compact line format, regardless of [CRITICAL]/[HIGH]/[MEDIUM] tag:]
+  [ORDER: list ALL NOTAMs of the DEPARTURE airport first (full cards, then compact lines), then ALL NOTAMs of the ARRIVAL airport — never interleave the two airports. The server groups and labels the list again afterwards. The DEPARTURE and ARRIVAL airport NOTAM lists are two SEPARATE, INDEPENDENT counters — a busy departure airport (e.g. a mega-hub) must NEVER reduce the arrival airport's detail allowance, and vice versa. For EACH airport independently: the first 3 NOTAMs in that airport's own list (by the order given — already priority-sorted; LOW-tier is already excluded from the data) get the full card format below; any 4th NOTAM onward for that SAME airport gets the compact line format, regardless of [CRITICAL]/[HIGH]/[MEDIUM] tag:]
 
   <div class="notam-card [crit|high]">
     <div class="notam-head">
@@ -4792,7 +4793,23 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             // NOTAM section — at the <!--NOTAM_NOTES--> placeholder Claude was told to leave —
             // instead of it landing at the very end of the whole document, after the closing
             // signature.
-            const allNearFuture = [...(notamDepResult.nearFutureLines || []), ...(notamArrResult.nearFutureLines || [])];
+            // Upcoming (not yet effective, next 24h): grouped per aerodrome / FIR, each line carries its owner.
+            const upcomingGroups = [];
+            const addUp = (key, title, lines) => { if (lines && lines.length) upcomingGroups.push({ key, title, lines }); };
+            addUp(icao_dep, icao_dep + (isSingleAirport ? '' : ' (departure)'), notamDepResult.nearFutureLines);
+            if (!isSingleAirport) addUp(icao_arr, icao_arr + ' (arrival)', notamArrResult.nearFutureLines);
+            if (riskResult && riskResult.route !== undefined && !isSingleAirport) {
+              try {
+                const byFir = {};
+                risk.upcomingEnroute(enrouteCollector, riskResult.route, new Date(), 24).forEach(u => {
+                  const eff = u.from.toISOString().slice(2, 16).replace(/[-T:]/g, '');
+                  const oneLine = u.text.length > 200 ? u.text.slice(0, 197).replace(/\s+\S*$/, '') + '…' : u.text;
+                  (byFir[u.fir] = byFir[u.fir] || []).push(`${u.id} (from ${eff}Z): ${oneLine}`);
+                });
+                Object.keys(byFir).forEach(f => addUp('FIR ' + f, 'FIR ' + f + ' (en-route, route-relevant)', byFir[f].slice(0, 6)));
+              } catch (e) { console.log('[UPCOMING FIR] error:', e.message); }
+            }
+            const allNearFuture = upcomingGroups.reduce((n, g) => n.concat(g.lines), []);
             const totalLaterFuture = (notamDepResult.laterFutureCount || 0) + (notamArrResult.laterFutureCount || 0);
             const totalExcludedAdmin = (notamDepResult.excludedAdminCount || 0) + (notamArrResult.excludedAdminCount || 0);
             const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -4802,8 +4819,8 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
               notamNotesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#ff6b6b;padding:12px 14px;margin:12px 0;border:1px solid rgba(255,107,107,0.5);border-left:4px solid #ff4d4d;background:rgba(255,77,77,0.08);"><strong>⚠ NOTAM DATA UNAVAILABLE for ${esc(which)}.</strong> The NOTAM data provider did not return data. This briefing is INCOMPLETE and must not be treated as "no NOTAMs". Check the official AIS/NOTAM office before flight.</div>`;
             }
             if (allNearFuture.length > 0) {
-              const upcomingList = allNearFuture.map(l => `<li style="margin-bottom:4px;">${esc(l)}</li>`).join('');
-              notamNotesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;"><strong>⏳ Upcoming NOTAMs (next 24h, not yet effective):</strong><ul style="margin:6px 0 0;padding-left:18px;">${upcomingList}</ul></div>`;
+              const upcomingList = upcomingGroups.map(g => `<div style="margin-top:6px;"><span style="color:#4a9eff;">${esc(g.title)}</span><ul style="margin:3px 0 0;padding-left:18px;">${g.lines.map(l => `<li style="margin-bottom:4px;">${esc(l)}</li>`).join('')}</ul></div>`).join('');
+              notamNotesHtml += `<div class="upcoming-notams" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f2c641;padding:8px 12px;margin-top:10px;border-top:1px solid #1a2a3a;"><strong>⏳ Upcoming NOTAMs (next 24h, not yet effective):</strong>${upcomingList}</div>`;
             }
             const otherParts = [];
             if (totalLaterFuture > 0) otherParts.push(`${totalLaterFuture} future NOTAM${totalLaterFuture > 1 ? 's' : ''} starting beyond 24h`);
@@ -4813,7 +4830,16 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             }
             let riskExtra = {};
             if (riskActive && riskResult) { try { riskExtra = risk.finalizeForClient(riskResult, modelHeadText); } catch (e) { console.log('[RISK] finalize error:', e.message); } }
-            res.write(`data: ${JSON.stringify(Object.assign({ type: 'done', notamNotesHtml }, riskExtra))}\n\n`);
+            // Owner map for the client: NOTAM id -> aerodrome / FIR keys, plus the group order, so the NOTAM list
+            // can be grouped (departure, arrival, FIRs) and every NOTAM labelled deterministically.
+            const notamOwners = {};
+            const own = (id, key) => { if (!id) return; const a = (notamOwners[id] = notamOwners[id] || []); if (!a.includes(key)) a.push(key); };
+            [[icao_dep, notamDepResult], [icao_arr, notamArrResult]].forEach(([ic, r]) => { if (ic && r) [...(r.activeItems || []), ...(r.nearFutureItems || [])].forEach(n => own(n.notam_id, ic)); });
+            (enrouteCollector || []).forEach(x => (x.notams || []).forEach(n => own(n.notam_id, 'FIR ' + x.fir)));
+            const notamGroups = [{ key: icao_dep, title: icao_dep + (isSingleAirport ? '' : ' — DEPARTURE') }]
+              .concat(isSingleAirport ? [] : [{ key: icao_arr, title: icao_arr + ' — ARRIVAL' }])
+              .concat((enrouteCollector || []).map(x => ({ key: 'FIR ' + x.fir, title: 'FIR ' + x.fir + ' — EN-ROUTE' })));
+            res.write(`data: ${JSON.stringify(Object.assign({ type: 'done', notamNotesHtml, notamOwners, notamGroups }, riskExtra))}\n\n`);
             res.end();
           },
           (err) => { if (!doneSent) { doneSent = true; res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`); res.end(); } }

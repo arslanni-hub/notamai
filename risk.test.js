@@ -492,6 +492,18 @@ test('RISK BASIS box lists every Tier 1 and Tier 2 factor and summarises Tier 3'
   assert.ok(/T3: \d+ minor factor/.test(html));
   assert.ok(!/T3: (LTFJ|OMDB)/.test(html));
 });
+test('upcomingEnroute: only route-relevant recognised FIR NOTAMs starting within 24h', () => {
+  const now = new Date(Date.UTC(2026, 9, 7, 18, 0));
+  const fir = [{ fir: 'LTBB', notams: [
+    mk('U1', 'LTBB', '2610072300', '2611010000', 'GNSS INTERFERENCE REPORTED'),
+    mk('U2', 'LTBB', '2610091200', '2611010000', 'GNSS INTERFERENCE REPORTED'),
+    mk('U3', 'LTBB', '2610010000', '2611010000', 'GNSS INTERFERENCE REPORTED'),
+    mk('U4', 'LTBB', '2610072200', '2611010000', 'NEW OBSTACLE CRANE ERECTED'),
+  ] }];
+  const u = R.upcomingEnroute(fir, null, now, 24);
+  assert.deepStrictEqual(u.map(x => x.id), ['U1/2026']);
+  assert.strictEqual(u[0].fir, 'LTBB');
+});
 test('CRITICAL is capped at 9 unless an aerodrome is closed (override = 10)', () => {
   const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB.concat([{ fir: 'XXXX', notams: [mk('A1', 'XXXX', '2610010000', '2611010000', 'GNSS INTERFERENCE REPORTED')] }]) });
   assert.strictEqual(r.counts.t1, 1);   // a third FIR with GNSS interference does not add a Tier 1 factor

@@ -824,4 +824,22 @@ function finalizeForClient(r, headText) {
   };
 }
 
-module.exports = { CONFIG, assessTaf, watchReason, buildModelBlock, finalizeForClient, basisHtml, levelOfScore, parseGeo, gcDist, trackDistances, routeRelevant, evaluateRunways, resolveRunwayCount, assessRisk, assessAirport, promptBlock, assessWeather, windowStatus, parseRunwayClosures, extractFact, rwyKey, levelFromCounts, runwaysMentioned, isAdminNotam, idOf };
+// En-route NOTAMs that are NOT yet effective but start within the next `hours` and are relevant to the route
+// (recognised hazard types only). Used for the server-authored "Upcoming NOTAMs" list.
+function upcomingEnroute(enroute, route, now, hours, cfg) {
+  const c = cfg || CONFIG, end = new Date(now.getTime() + (hours || 24) * 3600e3), out = [];
+  for (const f of enroute || []) {
+    for (const n of f.notams || []) {
+      if (isAdminNotam(n)) continue;
+      const v = validity(n);
+      if (!v.eff || v.eff <= now || v.eff > end) continue;
+      if (v.exp && v.exp <= now) continue;
+      const fact = extractFact(n, 'FIR');
+      if (!fact || !routeRelevant(n, route, c)) continue;
+      out.push({ fir: f.fir, id: idOf(n), from: v.eff, type: fact.type, text: eText(n) });
+    }
+  }
+  return out.sort((a, b) => a.from - b.from);
+}
+
+module.exports = { upcomingEnroute, CONFIG, assessTaf, watchReason, buildModelBlock, finalizeForClient, basisHtml, levelOfScore, parseGeo, gcDist, trackDistances, routeRelevant, evaluateRunways, resolveRunwayCount, assessRisk, assessAirport, promptBlock, assessWeather, windowStatus, parseRunwayClosures, extractFact, rwyKey, levelFromCounts, runwaysMentioned, isAdminNotam, idOf };
