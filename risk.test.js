@@ -485,6 +485,13 @@ test('B4015 (future 17L/35R closure) with B2990/B2991: worst time slice is repor
   console.log('        ->', rw && rw.label);
   assert.ok(rw && rw.tier === 1); assert.ok(/1 backup remain/.test(rw.label), rw.label);
 });
+test('RISK BASIS box lists every Tier 1 and Tier 2 factor and summarises Tier 3', () => {
+  const r = R.assessRisk({ now: NOW_AM, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB });
+  const html = R.finalizeForClient(r, 'RISK SCORE 7 / 10').riskBasisHtml;
+  r.factors.filter(f => f.tier <= 2).forEach(f => assert.ok(html.includes(f.label.replace(/&/g, '&amp;')), 'missing: ' + f.label));
+  assert.ok(/T3: \d+ minor factor/.test(html));
+  assert.ok(!/T3: (LTFJ|OMDB)/.test(html));
+});
 test('CRITICAL is capped at 9 unless an aerodrome is closed (override = 10)', () => {
   const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB.concat([{ fir: 'XXXX', notams: [mk('A1', 'XXXX', '2610010000', '2611010000', 'GNSS INTERFERENCE REPORTED')] }]) });
   assert.strictEqual(r.counts.t1, 1);   // a third FIR with GNSS interference does not add a Tier 1 factor
