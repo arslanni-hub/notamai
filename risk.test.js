@@ -577,6 +577,17 @@ test('isMinorRow: T3 or unscored without alarm wording; T1/T2 and watchlist rows
   assert.ok(R.isMinorRow({ sev: 'MEDIUM' }) && R.isMinorRow({ sev: 'LOW' }) && R.isMinorRow({}));
   assert.ok(!R.isMinorRow({ sev: 'CRITICAL' }) && !R.isMinorRow({ sev: 'HIGH' }) && !R.isMinorRow({ sev: 'LOW', watch: 'security' }) && !R.isMinorRow(null));
 });
+test('isMinorRow: runway closures and other T1/T2 types stay listed even when out of the 24 h window', () => {
+  assert.ok(!R.isMinorRow({ sev: 'MEDIUM', type: 'RWY_CLOSURE', inWindow: false }));
+  assert.ok(!R.isMinorRow({ sev: 'MEDIUM', type: 'ILS', inWindow: false }));
+  assert.ok(!R.isMinorRow({ sev: 'MEDIUM', type: 'LIGHTING', inWindow: false }));
+  assert.ok(R.isMinorRow({ sev: 'MEDIUM', type: 'GROUND', inWindow: false }) && R.isMinorRow({ sev: 'MEDIUM', type: 'OBSTACLE', inWindow: true }));
+  // end to end: an OMDB runway closure whose D-line days are outside the window is neither scored nor treated as minor
+  const closed = N('A3036', 'OMDB', '2610082130', '2610222215', 'RWY 12L/30R CLSD.', { q: 'OMAE/QMRLC/IV/NBO/A/000/999/2515N05522E005', d: '08 22 2130-2215' });
+  const r = R.assessRisk({ now: new Date(Date.UTC(2026, 9, 9, 19, 12)), airports: [{ icao: 'OMDB', role: 'ARR', notams: [closed], shownIds: [] }] });
+  const row = r.airportRows.OMDB[0];
+  assert.strictEqual(row.inWindow, false); assert.strictEqual(row.type, 'RWY_CLOSURE'); assert.ok(!R.isMinorRow(row));
+});
 test('model block: minor NOTAMs get a no-line instruction with the count', () => {
   const inp = blockInput(); const r = R.assessRisk(inp); const b = R.buildModelBlock(inp, r);
   const n = Object.values(r.airportRows).reduce((c, rows) => c + rows.filter(x => R.isMinorRow(x)).length, 0);

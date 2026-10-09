@@ -727,7 +727,9 @@ function promptBlock(r) {
 
 // ───────────────────────── model hand-over and client finalisation ─────────────────────────
 // Minor rows: rubric Tier 3, or not recognised by the rubric and without alarm wording (not on the watchlist). They are summarised, not listed.
-const isMinorRow = x => !!x && (x.sev === 'MEDIUM' || ((x.sev === 'LOW' || !x.sev) && !x.watch));
+// Recognised types that are Tier 1/2 when in force: out of the window they are only downgraded to MEDIUM, but they must stay listed (never minor).
+const T12_TYPES = new Set(['AD_CLOSED', 'ATC_OUT', 'GNSS_INTERFERENCE', 'RWY_CLOSURE', 'RWY_RESTRICTION', 'LLWAS', 'ILS', 'CAT23', 'RVR', 'LIGHTING', 'MINIMA', 'NAVAID', 'RFFS', 'AIRSPACE', 'GNSS_OUTAGE']);
+const isMinorRow = x => !!x && !T12_TYPES.has(x.type) && (x.sev === 'MEDIUM' || ((x.sev === 'LOW' || !x.sev) && !x.watch));
 const SEV_TAG = { CRITICAL: 'T1', HIGH: 'T2', MEDIUM: 'T3', LOW: 'not scored' };
 const clip = (t, n) => (t.length > n ? t.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : t);
 const levelOfScore = sc => (sc >= 9 ? 'CRITICAL' : sc >= 6 ? 'HIGH' : sc >= 3 ? 'MEDIUM' : 'LOW');
@@ -771,7 +773,7 @@ function buildModelBlock(input, r, opts) {
   (input.airports || []).forEach(a => {
     const rows = (r.airportRows || {})[a.icao] || [];
     const shown = new Set(a.shownIds || []);
-    const tag = x => SEV_TAG[x.sev] || 'not scored';
+    const tag = x => (x.sev === 'MEDIUM' && T12_TYPES.has(x.type)) ? 'T2 when in force' : (SEV_TAG[x.sev] || 'not scored');
     const cards = rows.filter(x => shown.has(x.id));
     if (cards.length) L.push(`${a.icao} — rubric tier of the NOTAMs whose full text is given below (the [CRITICAL]/[HIGH] tags on that text are only ordering hints):\n` + cards.map(x => `- ${x.id} ${tag(x)}${x.type ? ' ' + x.type : ''}${x.inWindow ? '' : ' (not in force during the next 24 h)'}`).join('\n'));
     // Full cards are reserved for rubric Tier 1 / Tier 2 NOTAMs that are in force (server decides; tag-compact lines for everything else)
