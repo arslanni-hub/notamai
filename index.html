@@ -4156,9 +4156,12 @@ function organizeNotamList(html, owners, groups, t3, inForce) {
     });
     const listed = new Set();
     items.forEach(it => { if (it.idEl) _idTokens(it.idEl.textContent).forEach(x => listed.add(_bareId(x))); });
-    const noteFor = k => {
+    const t3Count = k => {
       const ids = t3 && !Array.isArray(t3) ? (t3[k] || []) : [];
-      const n = new Set(ids.map(_bareId).filter(x => !listed.has(x))).size;
+      return new Set(ids.map(_bareId).filter(x => !listed.has(x))).size;
+    };
+    const noteFor = k => {
+      const n = t3Count(k);
       if (!n) return;
       const tmp = doc.createElement('div'); tmp.innerHTML = _t3NoteHtml(n);
       list.appendChild(tmp.firstChild);
@@ -4169,7 +4172,24 @@ function organizeNotamList(html, owners, groups, t3, inForce) {
       tmp.innerHTML = '<div class="notam-noforce-note" style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;padding:8px 12px;margin-top:8px;border-left:3px solid #4a9eff;background:rgba(74,158,255,0.05);">ℹ <b>' + k + '</b> — no Tier 1/2 NOTAM is in force during the next 24 h. Items valid on scheduled days only are listed below; minor items are summarised.</div>';
       list.appendChild(tmp.firstChild);
     };
-    order.forEach((k, r) => { noForceNote(k); items.filter(it => rank(it.key) === r).forEach(it => list.appendChild(it.el)); noteFor(k); });
+    // Group headings: DEPARTURE / ARRIVAL for the two aerodromes (route briefings), one EN-ROUTE heading for the FIRs.
+    const addHead = text => {
+      const h = doc.createElement('div'); h.className = 'notam-group-head'; h.textContent = text;
+      h.setAttribute('style', "font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1.5px;color:#4a9eff;margin:14px 0 6px;padding:4px 0;border-bottom:1px solid #1a2a3a;break-after:avoid;page-break-after:avoid;");
+      list.appendChild(h);
+    };
+    const airportGroups = groups.filter(g => !/^FIR\s/.test(g.key)).length;
+    let enrouteHead = false;
+    order.forEach((k, r) => {
+      const its = items.filter(it => rank(it.key) === r);
+      const isFir = /^FIR\s/.test(k);
+      const hasContent = its.length > 0 || t3Count(k) > 0 || (inForce && inForce[k] === 0);
+      if (hasContent) {
+        if (!isFir && airportGroups > 1) addHead(groups[r].title || k);
+        else if (isFir && !enrouteHead && its.length) { addHead('EN-ROUTE FIRs'); enrouteHead = true; }
+      }
+      noForceNote(k); its.forEach(it => list.appendChild(it.el)); noteFor(k);
+    });
     items.filter(it => rank(it.key) === order.length).forEach(it => list.appendChild(it.el));
     others.forEach(el => list.appendChild(el));
     return html.slice(0, rng[0]) + list.outerHTML + html.slice(rng[1]);
