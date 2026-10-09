@@ -4140,6 +4140,20 @@ function organizeNotamList(html, owners, groups, t3) {
     while (list.firstChild) list.removeChild(list.firstChild);
     // Order only: all NOTAMs of the departure airport first (full cards, then compact lines), then the arrival
     // airport, then FIRs. No headings and no labels are added — the cards keep the model's own layout.
+    // Every listed NOTAM carries its aerodrome / FIR ICAO code in front of the NOTAM number (same style as the upcoming list)
+    items.forEach(it => {
+      if (!it.key || !it.idEl) return;
+      const pre = String(it.key).replace(/^FIR\s+/, '');
+      const w = doc.createTreeWalker(it.idEl, NodeFilter.SHOW_TEXT);
+      let tn;
+      while ((tn = w.nextNode())) {
+        const m = /\b[A-Z]\d{3,5}(?:\/\d{2,4})?\b/.exec(tn.nodeValue);
+        if (!m) continue;
+        if (tn.nodeValue.slice(Math.max(0, m.index - pre.length - 1), m.index) === pre + ' ') break;
+        tn.nodeValue = tn.nodeValue.slice(0, m.index) + pre + ' ' + tn.nodeValue.slice(m.index);
+        break;
+      }
+    });
     const listed = new Set();
     items.forEach(it => { if (it.idEl) _idTokens(it.idEl.textContent).forEach(x => listed.add(_bareId(x))); });
     const noteFor = k => {
