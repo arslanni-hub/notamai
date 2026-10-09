@@ -583,5 +583,11 @@ test('model block: minor NOTAMs get a no-line instruction with the count', () =>
   assert.ok(n === 0 || /\d+ minor \(T3 \/ not scored\) NOTAMs, NO LINE for any of these ids: /.test(b), 'T3 instruction missing');
 });
 
+test('dLine: item D is extracted (also split over lines) and empty when absent', () => {
+  assert.strictEqual(R.dLine('A3038/26 NOTAMN\nQ)OMAE/QMRLC/IV/NBO/A/000/999/2515N05522E005\nA)OMDB B)2610021100 C)2610301400\nD)02 08 09 13 16 22 23 29 30 1100-1400\nE)RWY 12L/30R CLSD.'), '02 08 09 13 16 22 23 29 30 1100-1400');
+  assert.strictEqual(R.dLine('X1/26 NOTAMN\nA) OMDB B) 2610082130 C) 2610222215\nD) 08 22\n2130-2215\nE) RWY 12L/30R CLSD.'), '08 22 2130-2215');
+  assert.strictEqual(R.dLine('X2/26 NOTAMN\nA) OMDB B) 2610082130 C) 2610222215\nE) RWY 12L/30R CLSD.'), '');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
