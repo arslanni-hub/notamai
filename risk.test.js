@@ -580,7 +580,7 @@ test('isMinorRow: T3 or unscored without alarm wording; T1/T2 and watchlist rows
 test('model block: minor NOTAMs get a no-line instruction with the count', () => {
   const inp = blockInput(); const r = R.assessRisk(inp); const b = R.buildModelBlock(inp, r);
   const n = Object.values(r.airportRows).reduce((c, rows) => c + rows.filter(x => R.isMinorRow(x)).length, 0);
-  assert.ok(n === 0 || /\d+ minor \(T3 \/ not scored\) NOTAMs: write NO line/.test(b), 'T3 instruction missing');
+  assert.ok(n === 0 || /\d+ minor \(T3 \/ not scored\) NOTAMs, NO LINE for any of these ids: /.test(b), 'T3 instruction missing');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

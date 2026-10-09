@@ -1363,8 +1363,7 @@ REQUIRED SECTIONS IN ORDER:
 
   [Tag rules: exactly one <nc> or <nl> per NOTAM; never merge ids; every tag needs its closing tag; tag content is plain text (inline <strong> is fine), never block HTML; do not add airport codes to the id.]
 
-  [If the user message includes an overflow note ("[N additional NOTAMs not shown...]"), emit it at the end of the NOTAM list as:]
-  <div class="notam-overflow-note">+N NOTAMs not shown (lower priority by severity/recency). Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list, or use Single NOTAM Analysis to examine any in detail.</div>
+  [Do NOT write an overflow note or a "not shown" note: the page adds the summary of the minor NOTAMs itself.]
 </div>
 
 5. AIRSPACE AND RESTRICTIONS:
@@ -1554,8 +1553,7 @@ REQUIRED SECTIONS IN ORDER:
 
   [Tag rules: exactly one <nc> or <nl> per NOTAM; never merge ids; every tag needs its closing tag; tag content is plain text (inline <strong> is fine), never block HTML; do not add airport codes to the id.]
 
-  [If the data includes a NOTE about additional NOTAMs not shown, include exactly one of these at the end, using the exact numbers given:]
-  <div class="notam-overflow-note">+[N] more active NOTAMs not shown (lower priority by severity/recency) — [total] total active. Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list, or use Single NOTAM Analysis to examine any in detail.</div>
+  [Do NOT write an overflow note or a "not shown" note: the page adds the summary of the minor NOTAMs itself.]
 </div>
 
 5. AIRSPACE AND RESTRICTIONS (scoped to the FIR this airport sits in — not a multi-FIR route table):
