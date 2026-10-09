@@ -4169,7 +4169,7 @@ function organizeNotamList(html, owners, groups, t3, inForce) {
     const noForceNote = k => {
       if (!inForce || inForce[k] !== 0) return;
       const tmp = doc.createElement('div');
-      tmp.innerHTML = '<div class="notam-noforce-note" style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;padding:8px 12px;margin-top:8px;border-left:3px solid #4a9eff;background:rgba(74,158,255,0.05);">ℹ <b>' + k + '</b> — no Tier 1/2 NOTAM is in force during the next 24 h. Items valid on scheduled days only are listed below; minor items are summarised.</div>';
+      tmp.innerHTML = '<div class="notam-noforce-note" style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;padding:8px 12px;margin-top:8px;border-left:3px solid #4a9eff;background:rgba(74,158,255,0.05);">ℹ <b>' + k + '</b> — no Tier 1/2 NOTAM is in force during the next 24 h. Items valid on scheduled days only are listed below; minor items are summarised (full list and per-NOTAM AI analysis in NOTAMs &amp; MET).</div>';
       list.appendChild(tmp.firstChild);
     };
     // Group headings: DEPARTURE / ARRIVAL for the two aerodromes (route briefings), one EN-ROUTE heading for the FIRs.
@@ -4223,7 +4223,7 @@ function markOutsideWindow(html, ids) {
 // One note per aerodrome, placed right after that aerodrome's NOTAMs (organizeNotamList); t3SummaryNote is the single
 // combined fallback when the list could not be organised.
 function _t3NoteHtml(n) {
-  return '<div class="notam-t3-note" style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;padding:8px 12px;margin-top:8px;border-left:3px solid #f2c641;background:rgba(242,198,65,0.05);">ℹ +' + n + ' lower-priority (Tier 3) NOTAM' + (n > 1 ? 's' : '') + ' (taxiway, apron, crane/obstacle and surface works) not listed individually — they are included in the risk assessment. Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list.</div>';
+  return '<div class="notam-t3-note" style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;padding:8px 12px;margin-top:8px;border-left:3px solid #f2c641;background:rgba(242,198,65,0.05);">ℹ +' + n + ' lower-priority (Tier 3) NOTAM' + (n > 1 ? 's' : '') + ' (taxiway, apron, crane/obstacle and surface works) not listed individually — they are included in the risk assessment. Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list — each NOTAM there can be analysed individually with AI (✨ icon on the NOTAM).</div>';
 }
 function _t3Flat(t3) { return Array.isArray(t3) ? t3 : [].concat.apply([], Object.keys(t3 || {}).map(k => t3[k])); }
 function t3SummaryNote(html, t3) {
