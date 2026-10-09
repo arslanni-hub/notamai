@@ -3577,7 +3577,7 @@ function extractBriefingIcaos() {
 
 function openRawDataForIcao(icao) {
   closeAIChat();
-  openRawDataPanel();
+  if (openPanel !== 'rawData') openRawDataPanel();
   setTimeout(() => {
     document.getElementById('rawIcaoInput').value = icao;
     fetchRawData();
@@ -4163,7 +4163,7 @@ function organizeNotamList(html, owners, groups, t3, inForce) {
     const noteFor = k => {
       const n = t3Count(k);
       if (!n) return;
-      const tmp = doc.createElement('div'); tmp.innerHTML = _t3NoteHtml(n);
+      const tmp = doc.createElement('div'); tmp.innerHTML = _t3NoteHtml(n, k);
       list.appendChild(tmp.firstChild);
     };
     const noForceNote = k => {
@@ -4222,8 +4222,9 @@ function markOutsideWindow(html, ids) {
 // Tier 3 NOTAMs are not written out one by one: the page counts the ones that did not get a line and points to the panel.
 // One note per aerodrome, placed right after that aerodrome's NOTAMs (organizeNotamList); t3SummaryNote is the single
 // combined fallback when the list could not be organised.
-function _t3NoteHtml(n) {
-  return '<div class="notam-t3-note" style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;padding:8px 12px;margin-top:8px;border-left:3px solid #f2c641;background:rgba(242,198,65,0.05);">ℹ +' + n + ' lower-priority (Tier 3) NOTAM' + (n > 1 ? 's' : '') + ' (taxiway, apron, crane/obstacle and surface works) not listed individually — they are included in the risk assessment. Open <button class="chat-panel-link" onclick="openRawDataPanel()">NOTAMs &amp; MET</button> for the full list — each NOTAM there can be analysed individually with AI (✨ icon on the NOTAM).</div>';
+function _t3NoteHtml(n, icao) {
+  const open = icao && /^[A-Z0-9]{3,4}$/.test(icao) ? "openRawDataForIcao('" + icao + "')" : 'openRawDataPanel()';
+  return '<div class="notam-t3-note" style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;padding:8px 12px;margin-top:8px;border-left:3px solid #f2c641;background:rgba(242,198,65,0.05);">ℹ +' + n + ' lower-priority (Tier 3) NOTAM' + (n > 1 ? 's' : '') + ' (taxiway, apron, crane/obstacle and surface works) not listed individually — they are included in the risk assessment. Open <button class="chat-panel-link" onclick="' + open + '">NOTAMs &amp; MET</button> for the full list — each NOTAM there can be analysed individually with AI (✨ icon on the NOTAM).</div>';
 }
 function _t3Flat(t3) { return Array.isArray(t3) ? t3 : [].concat.apply([], Object.keys(t3 || {}).map(k => t3[k])); }
 function t3SummaryNote(html, t3) {
