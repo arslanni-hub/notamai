@@ -3495,7 +3495,8 @@ MANDATORY:
         const notamText = combined.map(n => {
           const isFuture = futureNotams.find(f => f.notam_id === n.notam_id);
           const id = n.notam_id || '';
-          const ntype = n.type === 'R' ? 'NOTAMR' : n.type === 'C' ? 'NOTAMC' : 'NOTAMN';
+          const refM = /NOTAM[RC]\s+([A-Z]\d{3,5}\/\d{2,4})/.exec(n.raw || '');   // the NOTAM that is replaced / cancelled
+          const ntype = (n.type === 'R' ? 'NOTAMR' : n.type === 'C' ? 'NOTAMC' : 'NOTAMN') + (refM && n.type !== 'N' ? ' ' + refM[1] : '');
           const location = n.location || icao;
           const effective = n.effective ? n.effective.slice(2) : '';
           const expiration = n.expiration ? (n.expiration === 'PERM' ? 'PERM' : n.expiration.slice(2)) : 'PERM';
@@ -4845,7 +4846,10 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             // Tier 3 NOTAMs (rubric MEDIUM) are not written out individually; the page counts the ones that were not listed.
             const notamT3 = {};
             if (riskResult && riskResult.airportRows) Object.keys(riskResult.airportRows).forEach(ic => ((riskResult.airportRows[ic]) || []).forEach(x => { if (x && x.id && risk.isMinorRow(x)) (notamT3[ic] = notamT3[ic] || []).push(x.id); }));
-            res.write(`data: ${JSON.stringify(Object.assign({ type: 'done', notamNotesHtml, notamOwners, notamGroups, notamOutside, notamT3 }, riskExtra))}\n\n`);
+            // Tier 1/2 NOTAMs in force per aerodrome (0 -> the page says so instead of showing nothing for that aerodrome)
+            const notamInForce = {};
+            if (riskResult && riskResult.airportRows) Object.keys(riskResult.airportRows).forEach(ic => { notamInForce[ic] = ((riskResult.airportRows[ic]) || []).filter(x => x && (x.sev === 'CRITICAL' || x.sev === 'HIGH') && x.inWindow !== false && !x.upcoming).length; });
+            res.write(`data: ${JSON.stringify(Object.assign({ type: 'done', notamNotesHtml, notamOwners, notamGroups, notamOutside, notamT3, notamInForce }, riskExtra))}\n\n`);
             res.end();
           },
           (err) => { if (!doneSent) { doneSent = true; res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`); res.end(); } }

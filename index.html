@@ -3110,7 +3110,7 @@ async function handleSend(silent = false) {
             // stripping the placeholder if the model dropped it (so it never shows literally).
             accumulated = placeNotamNotes(accumulated, evt.notamNotesHtml);
             if (evt.notamOwners && evt.notamGroups) {
-              accumulated = organizeNotamList(accumulated, evt.notamOwners, evt.notamGroups, evt.notamT3);
+              accumulated = organizeNotamList(accumulated, evt.notamOwners, evt.notamGroups, evt.notamT3, evt.notamInForce);
               accumulated = markOutsideWindow(accumulated, evt.notamOutside);
             }
             if (evt.notamT3 && accumulated.indexOf('notam-t3-note') < 0) {
@@ -4117,7 +4117,7 @@ function _ownerKey(owners, idText, fullText) {
   if (!seen.length) return null;
   return seen.reduce((best, k) => votes[k] > votes[best] ? k : best, seen[0]);
 }
-function organizeNotamList(html, owners, groups, t3) {
+function organizeNotamList(html, owners, groups, t3, inForce) {
   try {
     if (!owners || !groups || !groups.length) return html;
     const start = html.indexOf('<div class="notam-list">'); if (start < 0) return html;
@@ -4163,7 +4163,13 @@ function organizeNotamList(html, owners, groups, t3) {
       const tmp = doc.createElement('div'); tmp.innerHTML = _t3NoteHtml(n);
       list.appendChild(tmp.firstChild);
     };
-    order.forEach((k, r) => { items.filter(it => rank(it.key) === r).forEach(it => list.appendChild(it.el)); noteFor(k); });
+    const noForceNote = k => {
+      if (!inForce || inForce[k] !== 0) return;
+      const tmp = doc.createElement('div');
+      tmp.innerHTML = '<div class="notam-noforce-note" style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#8a9bb0;padding:8px 12px;margin-top:8px;border-left:3px solid #4a9eff;background:rgba(74,158,255,0.05);">ℹ <b>' + k + '</b> — no Tier 1/2 NOTAM is in force during the next 24 h. Items valid on scheduled days only are listed below; minor items are summarised.</div>';
+      list.appendChild(tmp.firstChild);
+    };
+    order.forEach((k, r) => { noForceNote(k); items.filter(it => rank(it.key) === r).forEach(it => list.appendChild(it.el)); noteFor(k); });
     items.filter(it => rank(it.key) === order.length).forEach(it => list.appendChild(it.el));
     others.forEach(el => list.appendChild(el));
     return html.slice(0, rng[0]) + list.outerHTML + html.slice(rng[1]);
