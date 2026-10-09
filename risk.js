@@ -158,6 +158,18 @@ function validity(n) {
   return { eff, exp, perm };
 }
 
+// Items Q (qualifier line) and F/G (limits) of the original NOTAM text, for the NOTAMs & MET panel (ICAO format).
+function qLine(raw) {
+  const m = /(?:^|\n)\s*Q\)\s*([^\n]*)/.exec(raw || '');
+  return m ? m[1].replace(/\s+/g, ' ').trim() : '';
+}
+function fgLine(raw) {
+  const t = String(raw || ''), i = t.search(/(?:^|\n)\s*E\)/);
+  const tail = i >= 0 ? t.slice(i) : '';
+  const f = /(?:^|\n)\s*F\)\s*([^\n]*)/.exec(tail), g = /(?:^|\n)\s*G\)\s*([^\n]*)/.exec(tail);
+  return [f && f[1].trim() ? 'F) ' + f[1].trim() : '', g && g[1].trim() ? 'G) ' + g[1].trim() : ''].filter(Boolean).join(' ');
+}
+
 function dLine(raw) {
   const m = raw.match(/\bD\)\s*([\s\S]*?)(?=\n\s*E\)|\bE\)|$)/);
   return m ? m[1].replace(/\s+/g, ' ').trim() : '';
@@ -616,6 +628,7 @@ function assessAirport(a, now, cfg) {
   }
   const rowsOut = rows.map(r => ({
     id: r.id, type: r.fact ? r.fact.type : null, sev: severityById.get(r.id), inWindow: r.win.inWindow,
+    upcoming: (() => { const v = validity(r.n); return !!(v.eff && v.eff > now); })(),
     text: eText(r.n), watch: (!r.fact && r.win.inWindow) ? watchReason(r.n) : null,
   }));
   return { factors, override, info, severityById, rows: rowsOut };
@@ -783,6 +796,8 @@ function buildModelBlock(input, r, opts) {
     L.push(cardIds.length
       ? `${a.icao} — FULL CARDS (<nc>) for EXACTLY these NOTAMs, in this order: ${cardIds.join(', ')}. EVERY other Tier 1/2 NOTAM of ${a.icao} gets one compact <nl> line; T3 and not-scored NOTAMs follow the rule below.`
       : `${a.icao} — FULL CARDS: none (no <nc> cards for this aerodrome).`);
+    const lineRows = rows.filter(x => !isMinorRow(x) && !cardIds.includes(x.id) && !x.upcoming);
+    if (lineRows.length) L.push(`${a.icao} — COMPACT LINES (<nl>) REQUIRED: write exactly one line for EACH of these ids, none may be left out (those marked "not in force during the next 24 h" are valid on scheduled days only and are still listed): ${lineRows.slice(0, 40).map(x => x.id).join(', ')}${lineRows.length > 40 ? ' …' : ''}.`);
     const t3 = rows.filter(x => isMinorRow(x) && !cardIds.includes(x.id));
     if (t3.length) L.push(`${a.icao} — ${t3.length} minor (T3 / not scored) NOTAMs, NO LINE for any of these ids: ${t3.slice(0, 40).map(x => x.id).join(', ')}${t3.length > 40 ? ' …' : ''}. The page adds one summary note with the count and a link to the NOTAMs & MET panel. Still use them for the rating. Only exception: a minor NOTAM that you name in a COMPOUNDS WITH banner or in the executive summary gets exactly one <nl> line; no other minor NOTAM is written out.`);
     const rest = rows.filter(x => !shown.has(x.id)).sort((x, y) => String(tag(x)).localeCompare(String(tag(y))) || String(x.id).localeCompare(String(y.id)));
@@ -855,4 +870,4 @@ function upcomingEnroute(enroute, route, now, hours, cfg) {
   return out.sort((a, b) => a.from - b.from);
 }
 
-module.exports = { dLine, isMinorRow, upcomingEnroute, CONFIG, assessTaf, watchReason, buildModelBlock, finalizeForClient, basisHtml, levelOfScore, parseGeo, gcDist, trackDistances, routeRelevant, evaluateRunways, resolveRunwayCount, assessRisk, assessAirport, promptBlock, assessWeather, windowStatus, parseRunwayClosures, extractFact, rwyKey, levelFromCounts, runwaysMentioned, isAdminNotam, idOf };
+module.exports = { qLine, fgLine, dLine, isMinorRow, upcomingEnroute, CONFIG, assessTaf, watchReason, buildModelBlock, finalizeForClient, basisHtml, levelOfScore, parseGeo, gcDist, trackDistances, routeRelevant, evaluateRunways, resolveRunwayCount, assessRisk, assessAirport, promptBlock, assessWeather, windowStatus, parseRunwayClosures, extractFact, rwyKey, levelFromCounts, runwaysMentioned, isAdminNotam, idOf };

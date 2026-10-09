@@ -600,5 +600,27 @@ test('dLine: item D is extracted (also split over lines) and empty when absent',
   assert.strictEqual(R.dLine('X2/26 NOTAMN\nA) OMDB B) 2610082130 C) 2610222215\nE) RWY 12L/30R CLSD.'), '');
 });
 
+test('qLine / fgLine: Q and F/G items of the original text (ICAO format)', () => {
+  const raw = 'A3036/26 NOTAMN\nQ)OMAE/QMRLC/IV/NBO/A/000/999/2515N05522E005\nA)OMDB B)2610082130 C)2610222215\nD)08 22 2130-2215\nE)RWY 12L/30R CLSD.\nF)SFC\nG)5000FT AGL';
+  assert.strictEqual(R.qLine(raw), 'OMAE/QMRLC/IV/NBO/A/000/999/2515N05522E005');
+  assert.strictEqual(R.fgLine(raw), 'F) SFC G) 5000FT AGL');
+  assert.strictEqual(R.qLine('X1/26 NOTAMN\nA) OMDB B) 2610082130 C) 2610222215\nE) TEST'), '');
+  assert.strictEqual(R.fgLine('X1/26 NOTAMN\nQ) A/B\nA) OMDB B) 2610082130 C) 2610222215\nE) TEST'), '');
+});
+test('model block: every Tier 1/2 NOTAM that gets no card is on the REQUIRED compact-lines list, including out-of-window closures; upcoming ones are not', () => {
+  const NOW9 = new Date(Date.UTC(2026, 9, 9, 19, 12));
+  const q = 'OMAE/QMRLC/IV/NBO/A/000/999/2515N05522E005';
+  const inp = { now: NOW9, airports: [{ icao: 'OMDB', role: 'ARR', shownIds: [], notams: [
+    N('A3036', 'OMDB', '2610082130', '2610222215', 'RWY 12L/30R CLSD.', { q, d: '08 22 2130-2215' }),
+    N('A3162', 'OMDB', '2610010000', '2610301400', 'RWY 12R/30L CLSD.', { q, d: '02 08 09 1100-1400' }),
+    N('A2900', 'OMDB', '2610010000', '2610301400', 'TWY M CLSD.', { q: 'OMAE/QMXLC/IV/NBO/A/000/999/2515N05522E005' }),
+    N('A3185', 'OMDB', '2610100001', '2610301400', 'OBST CRANE ERECTED. CRANE LGT AT NGT.', { q: 'OMAE/QOBCE/IV/M/AE/000/001/2516N05520E001' })] }] };
+  const b = R.buildModelBlock(inp, R.assessRisk(inp));
+  const m = /OMDB — COMPACT LINES \(<nl>\) REQUIRED[^\n]*/.exec(b);
+  assert.ok(m, 'required list missing');
+  assert.ok(/A3036/.test(m[0]) && /A3162/.test(m[0]), 'out-of-window closures must be required');
+  assert.ok(!/A2900|A3185/.test(m[0]), 'T3 / upcoming must not be required');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -3501,12 +3501,16 @@ MANDATORY:
           const expiration = n.expiration ? (n.expiration === 'PERM' ? 'PERM' : n.expiration.slice(2)) : 'PERM';
           const body = (n.body || '').trim() || (n.raw || '').replace(/^![A-Z]+ [A-Z0-9/]+\s*/, '').trim();
           let formatted = (isFuture ? '[FUTURE NOTAM - NOT YET ACTIVE]\n' : '') + id + '\t' + ntype + '\n';
+          const qTxt = risk.qLine(n.raw || '');
+          if (qTxt) formatted += 'Q) ' + qTxt + '\n';
           formatted += 'A) ' + location + '\n';
           formatted += 'B) ' + effective + ' C) ' + expiration + '\n';
           // Item D (daily / day-of-month schedule) decides on which days the NOTAM is really active — never leave it out of the panel.
           const dTxt = risk.dLine(n.raw || '');
           if (dTxt) formatted += 'D) ' + dTxt + '\n';
           formatted += 'E) ' + body;
+          const fgTxt = risk.fgLine(n.raw || '');
+          if (fgTxt) formatted += '\n' + fgTxt;
           return formatted;
         }).join('\n===NOTAM===\n');
         res.writeHead(200, { 'Content-Type': 'text/plain' });
