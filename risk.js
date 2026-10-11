@@ -233,7 +233,8 @@ function windowStatus(n, now, cfg) {
   const out = [];
   for (let off = -1; off <= 1; off++) {
     const base = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + off));
-    const dayOk = sch.daily || (!sch.days.length && !sch.wd.size) || sch.days.includes(base.getUTCDate()) || sch.wd.has(base.getUTCDay());
+    // "OCT 07-31 WED THU FRI SAT": the date range AND the weekdays must both fit (a date list alone, or weekdays alone, is enough on its own)
+    const dayOk = sch.daily || ((!sch.days.length || sch.days.includes(base.getUTCDate())) && (!sch.wd.size || sch.wd.has(base.getUTCDay())));
     if (!dayOk) continue;
     for (const [a, b] of sch.ranges) {
       const st = new Date(base.getTime() + (+a.slice(0, 2) * 60 + +a.slice(2)) * 60000);
@@ -330,7 +331,9 @@ function extractFact(n, scope) {
 
   // "INSTR APCH PROC (VOR AND RNP) RWY 17/35 SUSPENDED", "IAP VOR RWY 07L NOT AVBL", "INSTRUMENT APPROACH PROCEDURE NOT AUTHORIZED ILS OR LOC RWY 13":
   // an approach procedure is unavailable — never a runway closure
-  if (/\b(?:IAPS?|INSTR(?:UMENT)?\s+APCH(?:\s+PROC\w*)?|INSTRUMENT\s+APPROACH(?:\s+PROCEDURES?)?)\b/.test(t) &&
+  // "[US DOD PROCEDURAL NOTAM] ... AS PUBLISHED IN DOD FLIP" / "[US DOD E-IPL ONLY]" applies to US military procedures, not to civil airline operations
+  if (!/\bUS\s+DOD\b|\bDOD\s+FLIP\b/.test(t) &&
+      /\b(?:IAPS?|INSTR(?:UMENT)?\s+APCH(?:\s+PROC\w*)?|INSTRUMENT\s+APPROACH(?:\s+PROCEDURES?)?)\b/.test(t) &&
       /\b(?:SUSPENDED|NOT\s+AUTHORI[SZ]ED|NOT\s+AVBL|NOT\s+AVAILABLE|CANCELLED|WITHDRAWN|U\/S|UNSERVICEABLE)\b/.test(t) && !/\b(?:AMEND\w*|CHG|CHANGE\w*|REVISED)\b/.test(t)) {
     const kinds = [];
     if (/\b(?:ILS|LOC|LOCALI[SZ]ER)\b/.test(t)) kinds.push('ILS/LOC');

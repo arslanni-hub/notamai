@@ -680,7 +680,7 @@ test('ICAO schedule "D) 03-05 07 10-12 14 1430/2100": slash time range and day r
 });
 test('"IAP VOR RWY 07L NOT AVBL" and "INSTRUMENT APPROACH PROCEDURE NOT AUTHORIZED ILS OR LOC RWY 13" are approach procedures, not runway closures', () => {
   const a = N('D525', 'EBBR', '2609290848', '2612312000', 'IAP VOR RWY 07L NOT AVBL');
-  const b = N('V606', 'UKLL', '2608061114', '2701210001', '[US DOD PROCEDURAL NOTAM] INSTRUMENT APPROACH PROCEDURE NOT AUTHORIZED ILS OR LOC RWY 13');
+  const b = N('V606', 'UKLL', '2608061114', '2701210001', 'INSTRUMENT APPROACH PROCEDURE NOT AUTHORIZED ILS OR LOC RWY 13');
   assert.strictEqual(R.extractFact(a, 'AD').type, 'APPROACH_OUT');
   assert.strictEqual(R.extractFact(b, 'AD').type, 'APPROACH_OUT');
   assert.deepStrictEqual(R.parseRunwayClosures('NAV VOR RWY 07L NOT AVBL'), []);
@@ -716,6 +716,17 @@ test('GNSS "INTERRUPTIONS" counts as interference; low visibility/ceiling now AN
   assert.strictEqual(wx.factors.find(f => f.key === 'EICK:WX').tier, 1);
   const tempo = R.assessRisk({ now: nowH, airports: [{ icao: 'EICK', role: 'ARR', notams: [], metar: 'EICK 111930Z 00000KT 0700 FG BKN001 10/10 Q1015', taf: 'EICK 111800Z 1118/1218 9999 FEW030 TEMPO 1120/1124 0500 FG BKN001' }] });
   assert.strictEqual(tempo.factors.find(f => f.key === 'EICK:WX').tier, 2);
+});
+
+test('v3.30: weekday AND date range must both fit ("OCT 07-31 WED THU FRI SAT"); US DoD procedural NOTAMs are not civil approach outages', () => {
+  const at = new Date('2026-10-12T04:00:00Z');   // a Monday
+  const wed = N('J961', 'SBGR', '2610070330', '2610310759', 'RWY 10R/28L CLSD DUE TO MAINT SER', { d: 'OCT 07-31 WED THU FRI SAT 0330-0759' });
+  assert.strictEqual(R.windowStatus(wed, at, R.CONFIG).inWindow, false);   // Monday/Tuesday: not a WED-SAT closure, although the 12th is inside 07-31
+  const mon = N('J959', 'SBGR', '2610060500', '2610270759', 'RWY 10L/28R CLSD DUE TO MAINT SER', { d: 'MON TUE 0500-0759' });
+  assert.ok(R.windowStatus(mon, new Date('2026-10-12T05:30:00Z'), R.CONFIG).activeNow);
+  const dod = N('V219', 'SCEL', '2608031329', '2610292359', '[US DOD PROCEDURAL NOTAM] INSTRUMENT APPROACH PROCEDURE NOT AUTHORIZED ILS Y OR LOC Y RWY 17L AS PUBLISHED IN DOD FLIP.');
+  const f = R.extractFact(dod, 'AD');
+  assert.ok(!f || f.type !== 'APPROACH_OUT');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);
