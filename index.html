@@ -3113,6 +3113,7 @@ async function handleSend(silent = false) {
               accumulated = organizeNotamList(accumulated, evt.notamOwners, evt.notamGroups, evt.notamT3, evt.notamInForce);
               accumulated = markOutsideWindow(accumulated, evt.notamOutside);
             }
+            if (evt.notamOwners) accumulated = tagAirspaceOwners(accumulated, evt.notamOwners);
             if (evt.notamT3 && accumulated.indexOf('notam-t3-note') < 0) {
               const t3n = t3SummaryNote(accumulated, evt.notamT3);
               if (t3n) accumulated = placeNotamNotes(accumulated, t3n);
@@ -3577,42 +3578,83 @@ function extractBriefingIcaos() {
   linkifyNotamIds(content);
 }
 
-// NOTAM numbers on the briefing's cards / compact lines ("LTFM A1234/26") open the NOTAMs & MET panel for that aerodrome / FIR
-// with the search box filled in, so only that NOTAM is shown (ready for the Analyze button).
+// NOTAM numbers in the briefing (cards, compact lines, the Airspace table and the Upcoming list) open the NOTAMs & MET panel
+// for that aerodrome / FIR with the search box filled in, so only that NOTAM is shown (ready for the Analyze button).
 function linkifyNotamIds(root) {
   try {
-    const idEls = root.querySelectorAll('.notam-id, .notam-compact-id');
-    idEls.forEach(el => {
-      const card = el.closest('.notam-card');
-      const locIcao = (() => {
-        if (!card) return '';
-        const f = [...card.querySelectorAll('.notam-field')].find(x => /Location/i.test((x.querySelector('.notam-field-label') || {}).textContent || ''));
-        const m = f && /\b[A-Z]{4}\b/.exec((f.querySelector('.notam-field-value') || {}).textContent || '');
-        return m ? m[0] : '';
-      })();
+    const idRx = /(?:\b([A-Z]{4})\s+)?\b([A-Z]\d{3,5}\/\d{2,4})\b/;
+    const owner = {};   // NOTAM id -> aerodrome / FIR code, collected from entries that carry an ICAO prefix
+    const locOf = card => {
+      if (!card) return '';
+      const f = [...card.querySelectorAll('.notam-field')].find(x => /Location/i.test((x.querySelector('.notam-field-label') || {}).textContent || ''));
+      const m = f && /\b[A-Z]{4}\b/.exec((f.querySelector('.notam-field-value') || {}).textContent || '');
+      return m ? m[0] : '';
+    };
+    const targets = [];   // { el, resolve(id, prefix) }
+    root.querySelectorAll('.notam-id, .notam-compact-id').forEach(el => {
+      const loc = locOf(el.closest('.notam-card'));
+      targets.push({ el, resolve: (id, pre) => pre || loc });
+    });
+    root.querySelectorAll('.upcoming-notams li').forEach(el => targets.push({ el, resolve: (id, pre) => pre }));
+    // learn the owners from the prefixed entries first
+    targets.forEach(t => { const m = idRx.exec(t.el.textContent || ''); if (m) { const o = t.resolve(m[2], m[1]); if (o && !owner[_bareId(m[2])]) owner[_bareId(m[2])] = o; } });
+    // Airspace table: the server tagged each id with its owner (data-own="ID|ICAO,..."); otherwise use what the entries above taught us
+    root.querySelectorAll('.airspace-row .ar-id').forEach(el => {
+      const own = {};
+      String(el.getAttribute('data-own') || '').split(',').forEach(x => { const [a, b] = x.split('|'); if (a && b) own[_bareId(a)] = b; });
+      targets.push({ el, resolve: (id, pre) => pre || own[_bareId(id)] || owner[_bareId(id)] || '' });
+    });
+    targets.forEach(({ el, resolve }) => {
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
       const nodes = [];
       let n;
       while ((n = walker.nextNode())) { if (!(n.parentNode && n.parentNode.hasAttribute && n.parentNode.hasAttribute('data-nid'))) nodes.push(n); }
       nodes.forEach(tn => {
-        const m = /(?:\b([A-Z]{4})\s+)?\b([A-Z]\d{3,5}\/\d{2,4})\b/.exec(tn.nodeValue);
-        if (!m) return;
-        const icao = m[1] || locIcao, id = m[2];
-        if (!icao) return;   // owner unknown: leave the text as it is
-        const idStart = m.index + (m[1] ? m[0].length - id.length : 0);
-        const a = document.createElement('span');
-        a.setAttribute('data-nid', '1');
-        a.textContent = id;
-        a.title = 'Open ' + id + ' in the NOTAMs & MET panel (' + icao + ')';
-        a.style.cssText = 'color:#4a9eff;cursor:pointer;text-decoration:underline dotted;';
-        a.addEventListener('click', ev => { ev.stopPropagation(); openRawDataForIcao(icao, id); });
-        const before = document.createTextNode(tn.nodeValue.slice(0, idStart));
-        const after = document.createTextNode(tn.nodeValue.slice(idStart + id.length));
+        // every NOTAM number in the text node (an airspace cell can list several)
+        const rx = new RegExp(idRx.source, 'g');
+        const parts = [];
+        let last = 0, m, any = false;
+        while ((m = rx.exec(tn.nodeValue))) {
+          const id = m[2], icao = resolve(id, m[1]);
+          if (!icao) continue;   // owner unknown: leave the text as it is
+          const idStart = m.index + (m[1] ? m[0].length - id.length : 0);
+          parts.push(document.createTextNode(tn.nodeValue.slice(last, idStart)));
+          const a = document.createElement('span');
+          a.setAttribute('data-nid', '1');
+          a.textContent = id;
+          a.title = 'Open ' + id + ' in the NOTAMs & MET panel (' + icao + ')';
+          a.style.cssText = 'color:#4a9eff;cursor:pointer;text-decoration:underline dotted;';
+          a.addEventListener('click', ev => { ev.stopPropagation(); openRawDataForIcao(icao, id); });
+          parts.push(a);
+          last = idStart + id.length; any = true;
+        }
+        if (!any) return;
+        parts.push(document.createTextNode(tn.nodeValue.slice(last)));
         const par = tn.parentNode;
-        par.insertBefore(before, tn); par.insertBefore(a, tn); par.insertBefore(after, tn); par.removeChild(tn);
+        parts.forEach(x => par.insertBefore(x, tn));
+        par.removeChild(tn);
       });
     });
   } catch (e) { /* link-up is cosmetic: never break the briefing */ }
+}
+
+// Airspace table rows: add the owner (aerodrome / FIR) of every NOTAM id, using the server's owner list, so the ids can be linked.
+function tagAirspaceOwners(html, owners) {
+  try {
+    if (!owners || html.indexOf('ar-id') < 0) return html;
+    const doc = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html');
+    let changed = false;
+    doc.querySelectorAll('.airspace-row .ar-id').forEach(el => {
+      const row = el.closest('.airspace-row');
+      const pairs = [];
+      _idTokens(el.textContent).forEach(tok => {
+        const k = _ownerKey(owners, tok, row ? row.textContent : el.textContent);
+        if (k) pairs.push(tok + '|' + String(k).replace(/^FIR\s+/, ''));
+      });
+      if (pairs.length) { el.setAttribute('data-own', pairs.join(',')); changed = true; }
+    });
+    return changed ? doc.body.innerHTML : html;
+  } catch (e) { return html; }
 }
 
 // "En-route FIRs analysed: LTBB, LGGG, ..." is plain text written by the model: make each FIR code open the NOTAMs & MET panel for that FIR.
@@ -3661,7 +3703,7 @@ function openRawDataForIcao(icao, notamId) {
     // a NOTAM number was clicked in the briefing: show only that NOTAM so it can be read and analysed straight away
     if (notamId) {
       const box = document.getElementById('rawNotamSearch');
-      if (box) { box.value = notamId; filterRawNotams(); }
+      if (box) { box.value = String(notamId).replace(/\/\d+$/, ''); filterRawNotams(); }   // number without the year: the briefing writes 2026, the panel 26
     }
   }, 400);
 }
