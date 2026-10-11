@@ -332,6 +332,7 @@ const LTFJ = [
 ];
 const FIR_OMDB = [
   { fir: 'ORBB', notams: [mk('A0403', 'ORBB', '2610010000', '2610311400', 'GPS JAMMING AND SPOOFING REPORTED IN ORBB FIR. EXPECT GNSS SIGNAL LOSS.')] },
+  { fir: 'OKAC', notams: [mk('A0219', 'OKAC', '2610010000', '2610311400', 'GNSS INTERFERENCE REPORTED IN KUWAIT FIR. GPS UNRELIABLE.')] },
   { fir: 'OMAE', notams: [mk('A3087', 'OMAE', '2610010000', '2610311400', 'GNSS INTERFERENCE IN UAE AIRSPACE. GNSS UNRELIABLE.')] },
   { fir: 'LTBB', notams: [
     mk('A4468', 'LTBB', '2610050700', '2610051100', 'PROHIBITED AREA ACTIVATED WI 9NM RADIUS OF 4057N02857E SFC-FL100', { q: 'LTBB/QRPCA/IV/BO/W/000/100/4057N02857E009' }),
@@ -351,7 +352,7 @@ test('LTFM -> LTAI route -> MEDIUM 5 (LLWAS fully out is Tier 2 with weight 1.5;
   console.log('        ->', r.level, r.score, r.verdict, JSON.stringify(r.counts), 'concentration:', r.concentration);
   assert.strictEqual(r.level, 'MEDIUM'); assert.strictEqual(r.score, 5); assert.strictEqual(r.concentration, null);
 });
-test('LTFJ -> OMDB at 19:30Z -> HIGH 6 (GNSS in two FIRs counts as ONE Tier 1 factor)', () => {
+test('LTFJ -> OMDB at 19:30Z -> HIGH 6 (GNSS in three FIRs counts as ONE Tier 1 factor)', () => {
   const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB });
   console.log('        ->', r.level, r.score, r.verdict, JSON.stringify(r.counts));
   assert.strictEqual(r.level, 'HIGH'); assert.strictEqual(r.score, 6); assert.strictEqual(r.counts.t1, 1);
@@ -560,12 +561,14 @@ test('calibration 2026-10-11: many light Tier 2 items (minima, RVR, CAT II/III, 
   assert.ok(r.counts.t2 >= 3 && r.counts.w2 < 3, JSON.stringify(r.counts));
   assert.strictEqual(r.level, 'MEDIUM');
 });
-test('calibration: GNSS interference in one FIR is Tier 2, in two FIRs Tier 1', () => {
+test('calibration: GNSS interference in one or two FIRs is Tier 2, in three FIRs Tier 1', () => {
   const g = (fir, id) => ({ fir, notams: [mk(id, fir, '2610010000', '2611010000', 'GNSS INTERFERENCE AND SPOOFING REPORTED. GPS UNRELIABLE.')] });
   const one = R.assessRisk({ now: NOW, airports: [{ icao: 'AAAA', role: 'DEP', notams: [] }, { icao: 'BBBB', role: 'ARR', notams: [] }], enroute: [g('LECM', 'A1')] });
   assert.strictEqual(one.factors.find(f => f.key === 'ROUTE:GNSS').tier, 2);
   const two = R.assessRisk({ now: NOW, airports: [{ icao: 'AAAA', role: 'DEP', notams: [] }, { icao: 'BBBB', role: 'ARR', notams: [] }], enroute: [g('OMAE', 'A1'), g('ORBB', 'A2')] });
-  assert.strictEqual(two.factors.find(f => f.key === 'ROUTE:GNSS').tier, 1);
+  assert.strictEqual(two.factors.find(f => f.key === 'ROUTE:GNSS').tier, 2);   // 2026-10-11 hold-out: Helsinki + Tallinn did not change the plan
+  const three = R.assessRisk({ now: NOW, airports: [{ icao: 'AAAA', role: 'DEP', notams: [] }, { icao: 'BBBB', role: 'ARR', notams: [] }], enroute: [g('OMAE', 'A1'), g('ORBB', 'A2'), g('OKAC', 'A3')] });
+  assert.strictEqual(three.factors.find(f => f.key === 'ROUTE:GNSS').tier, 1);
 });
 test('calibration: a runway closed for more than 8 h with one runway left stays Tier 1; a 7 h night closure is Tier 2', () => {
   const info = { count: 2, trusted: true };
@@ -664,5 +667,57 @@ test('model block: every Tier 1/2 NOTAM that gets no card is on the REQUIRED com
   assert.ok(!/A2900|A3185/.test(m[0]), 'T3 / upcoming must not be required');
 });
 
+
+console.log('\n── v3.29: hold-out findings (2026-10-11) ──');
+test('ICAO schedule "D) 03-05 07 10-12 14 1430/2100": slash time range and day ranges are read (11th is inside 10-12)', () => {
+  const n = N('J1', 'RJTT', '2610031430', '2610312100', 'RWY 16R/34L CLSD DUE TO MAINT', { d: '03-05 07 10-12 14 17-19 21 24-26 28 31 1430/2100' });
+  const at = new Date('2026-10-11T19:42:00Z');
+  const w = R.windowStatus(n, at, R.CONFIG);
+  assert.strictEqual(w.kind, 'scheduled'); assert.ok(w.activeNow);
+  assert.ok(w.intervals.every(i => (i.end - i.start) / 36e5 <= 6.6), 'interval is 14:30-21:00, not the whole window');
+  const off = R.windowStatus(N('J2', 'RJTT', '2610031430', '2610312100', 'RWY 05/23 CLSD', { d: '03 07 10 14 17 21 24 28 31 1430/2100' }), at, R.CONFIG);
+  assert.strictEqual(off.inWindow, false, '11th and 12th are not in the list');
+});
+test('"IAP VOR RWY 07L NOT AVBL" and "INSTRUMENT APPROACH PROCEDURE NOT AUTHORIZED ILS OR LOC RWY 13" are approach procedures, not runway closures', () => {
+  const a = N('D525', 'EBBR', '2609290848', '2612312000', 'IAP VOR RWY 07L NOT AVBL');
+  const b = N('V606', 'UKLL', '2608061114', '2701210001', '[US DOD PROCEDURAL NOTAM] INSTRUMENT APPROACH PROCEDURE NOT AUTHORIZED ILS OR LOC RWY 13');
+  assert.strictEqual(R.extractFact(a, 'AD').type, 'APPROACH_OUT');
+  assert.strictEqual(R.extractFact(b, 'AD').type, 'APPROACH_OUT');
+  assert.deepStrictEqual(R.parseRunwayClosures('NAV VOR RWY 07L NOT AVBL'), []);
+});
+test('all instrument approaches suspended (VOR, RNP, ILS): Tier 1; NO-GO when no visual conditions are confirmed', () => {
+  const notams = [N('B1', 'DNIM', '2609012146', '2612021000', 'INSTR APCH PROC (VOR AND RNP) RWY 17/35 SUSPENDED'), N('B2', 'DNIM', '2609012156', '2612021000', 'INSTR APCH PROC ILS RWY 17 SUSPENDED')];
+  const nowH = new Date('2026-10-11T19:40:00Z');
+  const noWx = R.assessRisk({ now: nowH, airports: [{ icao: 'DNIM', role: 'ARR', notams, runwayInfo: { count: 1, trusted: true } }] });
+  assert.strictEqual(noWx.override, true); assert.strictEqual(noWx.score, 10);
+  const vmc = R.assessRisk({ now: nowH, airports: [{ icao: 'DNIM', role: 'ARR', notams, metar: 'DNIM 111930Z 18005KT CAVOK 25/20 Q1010', runwayInfo: { count: 1, trusted: true } }] });
+  assert.strictEqual(vmc.override, false); assert.strictEqual(vmc.counts.t1, 1);
+});
+test('aerodrome closed with a few hours left (precautionary closure to 21:00Z) is Tier 1 but not a NO-GO; a long closure stays an override', () => {
+  const nowH = new Date('2026-10-11T19:40:00Z');
+  const sh = R.assessRisk({ now: nowH, airports: [{ icao: 'OERK', role: 'ARR', notams: [N('A1', 'OERK', '2610111000', '2610112100', 'AD NOT AVBL DUE TO PRECAUTIONARY MEASURES. AD CLSD.')], runwayInfo: { count: 2, trusted: true } }] });
+  assert.strictEqual(sh.override, false); assert.strictEqual(sh.counts.t1, 1);
+  const lg = R.assessRisk({ now: nowH, airports: [{ icao: 'OERK', role: 'ARR', notams: [N('A1', 'OERK', '2610111000', '2611112100', 'AD CLSD.')], runwayInfo: { count: 2, trusted: true } }] });
+  assert.strictEqual(lg.override, true);
+});
+test('FIR-wide prohibition "USE OF AIRSPACE ... IS PROHIBITED FOR ALL AIRCRAFT": NO-GO when the departure or arrival aerodrome is in it, Tier 1 otherwise', () => {
+  const n = mk('A0081', 'UKBV', '2609220800', '2612212359', 'MILITARY INVASION OF UKRAINE, THE USE OF AIRSPACE OF UKRAINE WITHIN FIR LVIV, FIR KYIV IS PROHIBITED FOR ALL AIRCRAFT EXCEPT STATE AIRCRAFT OF UKRAINE. ATS IS NOT PROVIDED.', { q: 'UKXX/QAFXX/IV/NBO/E /000/999/4748N03112E999', a: 'UKBV UKLV' });
+  assert.strictEqual(R.extractFact(n, 'FIR').type, 'AIRSPACE_CLOSED');
+  const nowH = new Date('2026-10-11T19:40:00Z');
+  const inside = R.assessRisk({ now: nowH, airports: [{ icao: 'UKBB', role: 'DEP', notams: [] }, { icao: 'UKLL', role: 'ARR', notams: [] }], enroute: [{ fir: 'UKBV', notams: [n] }] });
+  assert.strictEqual(inside.override, true); assert.strictEqual(inside.score, 10);
+  const outside = R.assessRisk({ now: nowH, airports: [{ icao: 'EPWA', role: 'DEP', notams: [] }, { icao: 'LROP', role: 'ARR', notams: [] }], enroute: [{ fir: 'UKBV', notams: [n] }] });
+  assert.strictEqual(outside.override, false); assert.strictEqual(outside.counts.t1, 1);
+});
+test('GNSS "INTERRUPTIONS" counts as interference; low visibility/ceiling now AND in the prevailing forecast is Tier 1 weather', () => {
+  assert.strictEqual(R.extractFact(mk('G188', 'UUWV', '2610010000', '2611010000', 'MOSCOW FIR: GNSS INTERRUPTIONS POSS'), 'FIR').type, 'GNSS_INTERFERENCE');
+  const nowH = new Date('2026-10-11T19:40:00Z');
+  const wx = R.assessRisk({ now: nowH, airports: [{ icao: 'EICK', role: 'ARR', notams: [], metar: 'EICK 111930Z 00000KT 0700 FG BKN001 10/10 Q1015', taf: 'EICK 111800Z 1118/1218 00000KT 0500 FG BKN001' }] });
+  assert.strictEqual(wx.factors.find(f => f.key === 'EICK:WX').tier, 1);
+  const tempo = R.assessRisk({ now: nowH, airports: [{ icao: 'EICK', role: 'ARR', notams: [], metar: 'EICK 111930Z 00000KT 0700 FG BKN001 10/10 Q1015', taf: 'EICK 111800Z 1118/1218 9999 FEW030 TEMPO 1120/1124 0500 FG BKN001' }] });
+  assert.strictEqual(tempo.factors.find(f => f.key === 'EICK:WX').tier, 2);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
+

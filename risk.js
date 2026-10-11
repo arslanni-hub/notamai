@@ -49,10 +49,11 @@ const CONFIG = {
   shortClosureHours: 8,
 
   // Weight of each Tier 2 factor in the score (default 1). Light items that rarely change a plan on their own count less.
-  t2Weights: { MINIMA: 0.25, RVR: 0.25, CAT23: 0.25, NAVAID: 0.25, LIGHTING: 0.5, RWY_RESTRICTION: 0.5, LLWAS: 1.5, 'ROUTE:AIRSPACE': 0.5, 'ROUTE:NAVAID': 0.25, 'ROUTE:GNSS_OUTAGE': 0.25 },
+  t2Weights: { MINIMA: 0.25, RVR: 0.25, CAT23: 0.25, NAVAID: 0.25, LIGHTING: 0.5, RWY_RESTRICTION: 0.5, LLWAS: 1.5, 'ROUTE:AIRSPACE': 0.5, 'ROUTE:NAVAID': 0.25, 'ROUTE:GNSS_OUTAGE': 0.25, APCH_NA: 0.5 },
   thunderstormForecastWeight: 0.5,   // a forecast thunderstorm without low visibility/ceiling
   // En-route GNSS interference reported in this many FIRs or more is Tier 1; in a single FIR it is Tier 2.
-  gnssRouteT1Firs: 2,
+  // 2026-10-11 hold-out: two neighbouring FIRs with chronic interference (e.g. Helsinki + Tallinn) did not change the plan -> Tier 1 from three FIRs.
+  gnssRouteT1Firs: 3,
 
   // En-route restrictions are scored only if they are near the planned route (dep -> arr great circle).
   routeCorridorNm: 100,     // half-width of the corridor around the route
@@ -190,12 +191,17 @@ const WD = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 function parseSchedule(d) {
   if (/\bSR\b|\bSS\b|SUNRISE|SUNSET/.test(d)) return { unparsed: true };
   const ranges = [];
-  const rx = /(\d{4})\s*-\s*(\d{4})/g;
+  const rx = /(\d{4})\s*[-/]\s*(\d{4})/g;   // "0700-1900" and the ICAO form "0700/1900"
   let m;
   while ((m = rx.exec(d))) ranges.push([m[1], m[2]]);
   if (!ranges.length) return { unparsed: true };
-  const rest = d.replace(/(\d{4})\s*-\s*(\d{4})/g, ' ');
-  const days = [...rest.matchAll(/\b(0[1-9]|[12]\d|3[01])\b/g)].map(x => +x[1]);
+  const rest = d.replace(/(\d{4})\s*[-/]\s*(\d{4})/g, ' ');
+  // day lists: "03 07 10-12 14" -> 3, 7, 10, 11, 12, 14 (a day range counts every day in it)
+  const days = [];
+  for (const x of rest.matchAll(/\b(0[1-9]|[12]\d|3[01])(?:\s*-\s*(0[1-9]|[12]\d|3[01]))?\b/g)) {
+    const a = +x[1], b = x[2] ? +x[2] : a;
+    if (b >= a) for (let k = a; k <= b; k++) days.push(k); else days.push(a, b);
+  }
   const wd = new Set();
   for (const x of rest.matchAll(/\b(MON|TUE|WED|THU|FRI|SAT|SUN)(?:\s*-\s*(MON|TUE|WED|THU|FRI|SAT|SUN))?\b/g)) {
     const a = WD.indexOf(x[1]);
@@ -270,7 +276,7 @@ function parseRunwayClosures(t) {
     const pre0 = t.slice(Math.max(0, m.index - 40), m.index);
     // "ILS Y RWY 18L", "ILS Z CAT I RWY 32R": the procedure letter / category sits between the equipment word and RWY
     const pre = pre0.replace(/\s+(?:[XYZW]\b)?(?:\s*CAT\s*I{1,3}(?:\s*(?:\/|AND|&)\s*I{1,3})?)?\s*$/, ' ');
-    if (/(LGT|LIGHTS?|LIGHTING|PAPI|VASI|ILS|LOC|LOCALI[SZ]ER|GP|GS|RVR|SFL|ALS|APCH|APPROACH|MARKINGS?|SIGNS?|EDGE|CENTRE\s*LINE|CENTERLINE|TDZ|THR|BARRIER)\s*$/.test(pre)) continue;
+    if (/(LGT|LIGHTS?|LIGHTING|PAPI|VASI|ILS|LOC|LOCALI[SZ]ER|GP|GS|RVR|SFL|ALS|APCH|APPROACH|IAPS?|VOR|DME|NDB|RNP|RNAV|GLS|PROC(?:EDURE)?|MARKINGS?|SIGNS?|EDGE|CENTRE\s*LINE|CENTERLINE|TDZ|THR|BARRIER)\s*$/.test(pre)) continue;
     // "... CRANE WILL ONLY OPR WHEN RWY 09L/27R IS CLSD" describes a condition, it does not announce a closure
     if (/\b(?:WHEN|IF|WHILE|DURING|UNLESS)\s*$/.test(pre)) continue;
     const keys = [...new Set([...m[1].matchAll(/\d{2}[LRC]?/g)].map(x => rwyKey(x[0])))];
@@ -304,11 +310,14 @@ function extractFact(n, scope) {
 
   // GNSS (aerodrome or FIR level)
   if (GNSS.test(t)) {
-    if (/JAMM|SPOOF|INTERFER|UNRELIABLE|DISRUPT/.test(t)) return { type: 'GNSS_INTERFERENCE' };
+    if (/JAMM|SPOOF|INTERFER|UNRELIABLE|DISRUPT|INTERRUPT/.test(t)) return { type: 'GNSS_INTERFERENCE' };
     if (/RAIM|OUTAGE|DEGRAD|PREDICT/.test(t)) return { type: 'GNSS_OUTAGE' };
   }
 
   if (scope === 'FIR') {
+    // FIR-wide closure: "THE USE OF AIRSPACE OF UKRAINE ... IS PROHIBITED FOR ALL AIRCRAFT" (Q-code QAF.., radius 999 = whole FIR)
+    if (/\bAIRSPACE\b[\s\S]{0,300}?\b(?:PROHIBITED|CLSD|CLOSED)\s+(?:FOR|TO)\s+ALL\s+(?:AIRCRAFT|ACFT|FLIGHTS?|TFC|TRAFFIC|CIVIL)/.test(t) && /999$/.test(q.geo || ''))
+      return { type: 'AIRSPACE_CLOSED', firs: ((rawOf(n).match(/\bA\)\s*([A-Z0-9 ]+?)\s+B\)/i) || [])[1] || '').toUpperCase().split(/\s+/).filter(x => /^[A-Z]{4}$/.test(x)) };
     if (/\b(PROHIBITED|RESTRICTED|DANGER|TEMPORARY\s+RESTRICTED)\s+(AREA|ZONE|AIRSPACE)\b|\b(MILITARY\s+(EXERCISE|ACTIVITY|OPS)|LIVE\s+FIRING|MISSILE|ROCKET|LASER)\b/.test(t) ||
         ['RP', 'RR', 'RD', 'RT', 'WE', 'WM', 'WL'].includes(q.subj)) return { type: 'AIRSPACE' };
     if (out(t, /\b(?:VOR|DME|NDB|TACAN|VORTAC|DVOR)\b/)) return { type: 'NAVAID_ENROUTE' };
@@ -318,6 +327,18 @@ function extractFact(n, scope) {
   // aerodrome closed (no runway/taxiway/apron wording)
   if ((/\b(AD|AERODROME|AIRPORT|ARPT)\b\s*(?:IS\s*)?(CLSD|CLOSED)\b/.test(t) && !/\b(RWY|TWY|APRON|STAND)\b/.test(t)) || q.code === 'QFALC')
     return { type: 'AD_CLOSED' };
+
+  // "INSTR APCH PROC (VOR AND RNP) RWY 17/35 SUSPENDED", "IAP VOR RWY 07L NOT AVBL", "INSTRUMENT APPROACH PROCEDURE NOT AUTHORIZED ILS OR LOC RWY 13":
+  // an approach procedure is unavailable — never a runway closure
+  if (/\b(?:IAPS?|INSTR(?:UMENT)?\s+APCH(?:\s+PROC\w*)?|INSTRUMENT\s+APPROACH(?:\s+PROCEDURES?)?)\b/.test(t) &&
+      /\b(?:SUSPENDED|NOT\s+AUTHORI[SZ]ED|NOT\s+AVBL|NOT\s+AVAILABLE|CANCELLED|WITHDRAWN|U\/S|UNSERVICEABLE)\b/.test(t) && !/\b(?:AMEND\w*|CHG|CHANGE\w*|REVISED)\b/.test(t)) {
+    const kinds = [];
+    if (/\b(?:ILS|LOC|LOCALI[SZ]ER)\b/.test(t)) kinds.push('ILS/LOC');
+    if (/\bVOR\b/.test(t)) kinds.push('VOR');
+    if (/\bNDB\b/.test(t)) kinds.push('NDB');
+    if (/\b(?:RNP|RNAV|LPV|GLS)\b/.test(t)) kinds.push('RNP/RNAV');
+    return { type: 'APPROACH_OUT', kinds, all: /\bALL\s+(?:INSTR(?:UMENT)?\s+)?(?:APCH|APPROACH\w*|IAPS?)\b/.test(t) };
+  }
 
   const rc = parseRunwayClosures(t);
   const fullCl = rc.filter(c => !c.restricted), partCl = rc.filter(c => c.restricted);
@@ -584,7 +605,30 @@ function assessAirport(a, now, cfg) {
   // aerodrome closed
   let override = false;
   const adc = live.filter(r => r.fact.type === 'AD_CLOSED' && r.win.kind !== 'scheduled' && r.win.kind !== 'scheduled-unparsed');
-  if (adc.length) { override = true; add('AD_CLOSED', 1, 'aerodrome closed', adc.map(r => r.id), { override: true }); }
+  if (adc.length) {
+    // a closure with only a few hours left (precautionary closure, night closure) is Tier 1 but not a NO-GO override
+    const remH = r => { const v = validity(r.n); return (v.perm || !v.exp) ? Infinity : (v.exp.getTime() - Math.max(v.eff ? v.eff.getTime() : now.getTime(), now.getTime())) / 3600e3; };
+    const shortOnly = !!cfg.shortClosureHours && adc.every(r => remH(r) <= cfg.shortClosureHours);
+    const until = shortOnly ? new Date(Math.max(...adc.map(r => validity(r.n).exp.getTime()))) : null;
+    if (!shortOnly) override = true;
+    add('AD_CLOSED', 1, shortOnly ? `aerodrome closed until ${fmtZ(until)} (short closure)` : 'aerodrome closed', adc.map(r => r.id), { override: !shortOnly });
+  }
+
+  // instrument approach procedures suspended / not authorised: all of them (3+ kinds) is Tier 1, otherwise Tier 2
+  const apRows = live.filter(r => r.fact.type === 'APPROACH_OUT');
+  if (apRows.length) {
+    const kinds = [...new Set(apRows.flatMap(r => r.fact.kinds))];
+    const allOut = apRows.some(r => r.fact.all) || kinds.length >= 3;
+    const what = kinds.length ? kinds.join(', ') : 'unspecified';
+    if (allOut) {
+      // with no instrument approach left, an IFR flight can only be released if visual conditions are known: no weather data or IFR weather = NO-GO
+      const vmcKnown = !!(a.metar || a.taf) && !assessWeather(a.metar, cfg.weather) && !assessTaf(a.taf, cfg.weather);
+      if (!vmcKnown) override = true;
+      add('APCH_ALL', 1, `instrument approach procedures suspended/not authorised (${what})${vmcKnown ? '' : ' — no visual conditions confirmed'}`, apRows.map(r => r.id), { override: !vmcKnown });
+    }
+    else if (kinds.includes('ILS/LOC')) add('APCH_ILS_NA', 2, `ILS/LOC approach procedure suspended/not authorised (${what})`, apRows.map(r => r.id));
+    else add('APCH_NA', 2, `approach procedure suspended/not authorised (${what})`, apRows.map(r => r.id));
+  }
 
   // runways (dynamic rule, evaluated over time)
   const rwRows = live.filter(r => r.fact.type === 'RWY_CLOSURE');
@@ -630,7 +674,12 @@ function assessAirport(a, now, cfg) {
 
   // weather: current (METAR) and forecast (TAF) — the more severe one sets the tier, both are named
   const wxs = [assessWeather(a.metar, cfg.weather) && Object.assign({}, assessWeather(a.metar, cfg.weather), { label: 'current ' + assessWeather(a.metar, cfg.weather).label }), assessTaf(a.taf, cfg.weather)].filter(Boolean);
-  if (wxs.length) add('WX', Math.min(...wxs.map(x => x.tier)), wxs.map(x => x.label).join('; '), []);
+  if (wxs.length) {
+    // low visibility/ceiling NOW that the prevailing forecast does not improve (MAIN/FM/BECMG, not TEMPO/PROB) is Tier 1: alternate and fuel decisions
+    const cur = wxs.find(x => /^current/.test(x.label) && x.tier === 2 && /VIS|CIG/.test(x.label));
+    const fc = wxs.find(x => /^forecast (?:MAIN|FM|BECMG)\b/.test(x.label) && x.tier === 2 && /VIS|CIG/.test(x.label));
+    add('WX', cur && fc ? 1 : Math.min(...wxs.map(x => x.tier)), wxs.map(x => x.label).join('; ') + (cur && fc ? ' — persists in the prevailing forecast' : ''), []);
+  }
 
   // display severity per NOTAM (drives card format/order); out-of-window items are shown compactly
   const rwFactor = factors.find(f => f.key.endsWith(':RWY'));
@@ -642,7 +691,7 @@ function assessAirport(a, now, cfg) {
       else if (t === 'RWY_CLOSURE') sev = rwFactor && rwFactor.tier === 1 ? 'CRITICAL' : 'HIGH';
       else if (t === 'RWY_RESTRICTION') sev = (factors.find(f => f.key.endsWith(':RWY_RESTRICTION')) || {}).tier === 3 ? 'MEDIUM' : 'HIGH';
       else if (t === 'LLWAS') sev = 'HIGH';
-      else if (['ILS', 'CAT23', 'RVR', 'LIGHTING', 'MINIMA', 'NAVAID', 'RFFS', 'AIRSPACE', 'GNSS_OUTAGE'].includes(t)) sev = 'HIGH';
+      else if (['ILS', 'CAT23', 'RVR', 'LIGHTING', 'MINIMA', 'NAVAID', 'RFFS', 'AIRSPACE', 'GNSS_OUTAGE', 'APPROACH_OUT'].includes(t)) sev = 'HIGH';
       else sev = 'MEDIUM';
       if (!r.win.inWindow && sev !== 'LOW') sev = 'MEDIUM';
     }
@@ -693,6 +742,7 @@ function assessRisk(input, userCfg) {
   // en-route (FIR) factors — aggregated so that one FIR with many NOTAMs cannot inflate the score
   const enIds = { AIRSPACE: [], NAVAID_ENROUTE: [], GNSS_OUTAGE: [] };
   const gnssFirs = [];
+  const closedAir = [];   // FIR-wide closures / prohibitions
   const enrouteList = [], enrouteWatch = [], coverage = [];
   for (const f of (input.enroute || [])) {
     const gn = [];
@@ -710,7 +760,8 @@ function assessRisk(input, userCfg) {
       if (!routeRelevant(n, input.route, cfg)) continue;   // restriction nowhere near the planned route
       rel++;
       enrouteList.push({ fir: f.fir, id: idOf(n), type: fact.type, text: eText(n) });
-      if (fact.type === 'GNSS_INTERFERENCE') gn.push(idOf(n));
+      if (fact.type === 'AIRSPACE_CLOSED') closedAir.push({ fir: f.fir, id: idOf(n), firs: fact.firs });
+      else if (fact.type === 'GNSS_INTERFERENCE') gn.push(idOf(n));
       else if (enIds[fact.type]) enIds[fact.type].push(idOf(n));
     }
     coverage.push({ fir: f.fir, total, inWindow: inWin, relevant: rel });
@@ -719,6 +770,13 @@ function assessRisk(input, userCfg) {
   // All en-route GNSS interference reports count as ONE Tier 1 factor (chronic in several regions;
   // per-FIR counting would inflate the score). The FIRs concerned are named in the label.
   if (gnssFirs.length) factors.push({ key: 'ROUTE:GNSS', tier: gnssFirs.length >= (cfg.gnssRouteT1Firs || 2) ? 1 : 2, scope: 'ROUTE', label: `en-route: GNSS interference/jamming reported (${gnssFirs.map(g => g.fir).join(', ')})`, ids: gnssFirs.flatMap(g => g.ids) });
+  if (closedAir.length) {
+    // a prohibition that covers the departure or arrival country (same two-letter ICAO prefix) cannot be flown around: NO-GO. Otherwise Tier 1 (route change needed).
+    const pre = new Set(closedAir.flatMap(c => [c.fir, ...(c.firs || [])]).map(x => String(x).slice(0, 2)));
+    const endpoint = (input.airports || []).some(a => pre.has(String(a.icao || '').slice(0, 2)));
+    const names = [...new Set(closedAir.flatMap(c => c.firs && c.firs.length ? c.firs : [c.fir]))];
+    factors.push({ key: 'ROUTE:AIRSPACE_CLOSED', tier: 1, scope: 'ROUTE', override: endpoint, label: `en-route: airspace closed/prohibited for all aircraft (${names.join(', ')})${endpoint ? ' — includes the departure or arrival aerodrome' : ''}`, ids: closedAir.map(c => c.id) });
+  }
   if (enIds.AIRSPACE.length) factors.push({ key: 'ROUTE:AIRSPACE', tier: 2, scope: 'ROUTE', label: `en-route: prohibited/restricted/danger area activity (${enIds.AIRSPACE.length} NOTAMs)`, ids: enIds.AIRSPACE });
   if (enIds.NAVAID_ENROUTE.length) factors.push({ key: 'ROUTE:NAVAID', tier: 2, scope: 'ROUTE', label: `en-route: navaid unserviceable (${enIds.NAVAID_ENROUTE.length} NOTAMs)`, ids: enIds.NAVAID_ENROUTE });
   if (enIds.GNSS_OUTAGE.length) factors.push({ key: 'ROUTE:GNSS_OUTAGE', tier: 2, scope: 'ROUTE', label: 'en-route: GNSS outage/RAIM degradation', ids: enIds.GNSS_OUTAGE });
@@ -726,7 +784,7 @@ function assessRisk(input, userCfg) {
   const count = tier => factors.filter(f => f.tier === tier).length;
   const t1 = count(1), t3 = count(3);
   const t2 = count(2), w2 = factors.reduce((n, f) => n + factorWeight(f, cfg), 0);
-  const override = airports.some(a => a.override);
+  const override = airports.some(a => a.override) || factors.some(f => f.override);
   let concentration = null;
   for (const a of airports) {
     const a1 = a.factors.filter(f => f.tier === 1).length, a2 = a.factors.reduce((n, f) => n + factorWeight(f, cfg), 0);
@@ -773,7 +831,7 @@ function promptBlock(r) {
 // ───────────────────────── model hand-over and client finalisation ─────────────────────────
 // Minor rows: rubric Tier 3, or not recognised by the rubric and without alarm wording (not on the watchlist). They are summarised, not listed.
 // Recognised types that are Tier 1/2 when in force: out of the window they are only downgraded to MEDIUM, but they must stay listed (never minor).
-const T12_TYPES = new Set(['AD_CLOSED', 'ATC_OUT', 'GNSS_INTERFERENCE', 'RWY_CLOSURE', 'RWY_RESTRICTION', 'LLWAS', 'ILS', 'CAT23', 'RVR', 'LIGHTING', 'MINIMA', 'NAVAID', 'RFFS', 'AIRSPACE', 'GNSS_OUTAGE']);
+const T12_TYPES = new Set(['AD_CLOSED', 'ATC_OUT', 'GNSS_INTERFERENCE', 'RWY_CLOSURE', 'RWY_RESTRICTION', 'LLWAS', 'ILS', 'CAT23', 'RVR', 'LIGHTING', 'MINIMA', 'NAVAID', 'RFFS', 'AIRSPACE', 'GNSS_OUTAGE', 'APPROACH_OUT', 'AIRSPACE_CLOSED']);
 const isMinorRow = x => !!x && !T12_TYPES.has(x.type) && (x.sev === 'MEDIUM' || ((x.sev === 'LOW' || !x.sev) && !x.watch));
 const SEV_TAG = { CRITICAL: 'T1', HIGH: 'T2', MEDIUM: 'T3', LOW: 'not scored' };
 const clip = (t, n) => (t.length > n ? t.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : t);
