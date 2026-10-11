@@ -3573,6 +3573,44 @@ function extractBriefingIcaos() {
   matches.forEach(m => {
     if (validPrefixes.has(m.slice(0, 2))) knownBriefingIcaos.add(m);
   });
+  linkifyFirLine(content);
+}
+
+// "En-route FIRs analysed: LTBB, LGGG, ..." is plain text written by the model: make each FIR code open the NOTAMs & MET panel for that FIR.
+function linkifyFirLine(root) {
+  try {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const hits = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      if (/En-route FIRs analysed/i.test(node.nodeValue) && !(node.parentNode && node.parentNode.closest && node.parentNode.closest('[data-fir-linked]'))) hits.push(node);
+    }
+    hits.forEach(tn => {
+      const holder = tn.parentNode;
+      if (!holder) return;
+      const full = tn.nodeValue;
+      const i = full.search(/En-route FIRs analysed\s*:/i);
+      const colon = full.indexOf(':', i);
+      const head = full.slice(0, colon + 1), rest = full.slice(colon + 1);
+      const wrap = document.createElement('span');
+      wrap.setAttribute('data-fir-linked', '1');
+      wrap.appendChild(document.createTextNode(head));
+      let last = 0, m;
+      const rx = /\b[A-Z]{4}\b/g;
+      while ((m = rx.exec(rest))) {
+        wrap.appendChild(document.createTextNode(rest.slice(last, m.index)));
+        const code = m[0], a = document.createElement('span');
+        a.textContent = code;
+        a.title = 'View NOTAMs for ' + code;
+        a.style.cssText = 'color:#4a9eff;cursor:pointer;text-decoration:underline dotted;';
+        a.addEventListener('click', () => openRawDataForIcao(code));
+        wrap.appendChild(a);
+        last = m.index + m[0].length;
+      }
+      wrap.appendChild(document.createTextNode(rest.slice(last)));
+      holder.replaceChild(wrap, tn);
+    });
+  } catch (e) { /* link-up is cosmetic: never break the briefing */ }
 }
 
 function openRawDataForIcao(icao) {
