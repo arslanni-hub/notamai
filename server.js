@@ -1945,9 +1945,13 @@ const server = http.createServer(async (req, res) => {
                        // hold-out routes (not used for tuning)
                        '4': [['H01','EGLL','LFPG'],['H02','EGLL','KJFK'],['H03','RJTT','RJOO'],['H04','LTFM','OERK']],
                        '5': [['H05','LTFM','OEJN'],['H06','LGAV','LLBG'],['H07','EFHK','EETN'],['H08','EGLL','EICK']],
-                       '6': [['H09','DNMM','DNIM'],['H10','EBBR','EGLL'],['H11','UKBB','UKLL'],['H12','UUEE','URRR']] };
+                       '6': [['H09','DNMM','DNIM'],['H10','EBBR','EGLL'],['H11','UKBB','UKLL'],['H12','UUEE','URRR']],
+                       // second hold-out (not used for tuning, after v3.29)
+                       '7': [['H13','KATL','KORD'],['H14','OMDB','VIDP'],['H15','LFPG','GMMN'],['H16','OTHH','OMDB']],
+                       '8': [['H17','LLBG','LCLK'],['H18','VHHH','RCTP'],['H19','SBGR','SCEL'],['H20','YSSY','NZAA']],
+                       '9': [['H21','HECA','OJAI'],['H22','OIIE','OIII'],['H23','LTFM','LGAV'],['H24','EDDF','LOWW']] };
         const list = SETS[batch];
-        if (!list) { res.writeHead(400, { 'Content-Type': 'text/plain' }); res.end('set must be 1 to 6'); return; }
+        if (!list) { res.writeHead(400, { 'Content-Type': 'text/plain' }); res.end('set must be 1 to 9'); return; }
         const outRoutes = [];
         for (const [id, d, a] of list) {
           try { const x = await calibrationExport(d, a); outRoutes.push({ id, dep: d, arr: a, snapshotUtc: x.now.toISOString(), system: x.system, packetMd: x.md }); }
