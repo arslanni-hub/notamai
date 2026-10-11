@@ -922,7 +922,7 @@ function basisHtml(r, finalScore, finalLevel, flags) {
   const sig = r.factors.filter(f => f.tier <= 2).map(f => `T${f.tier}: ${esc(f.label)}`);
   const t3n = r.factors.filter(f => f.tier === 3).length;
   const top = sig.concat(t3n ? [`T3: ${t3n} minor factor${t3n > 1 ? 's' : ''} (ground works, obstacles, minor equipment, low-probability forecast)`] : []).join(' · ');
-  const parts = [`<strong>RISK BASIS</strong> — rubric floor <strong>${r.level} ${r.score}/10</strong> (T1 ${r.counts.t1} · T2 ${r.counts.t2} · T3 ${r.counts.t3})`];
+  const parts = [`<strong>RISK BASIS</strong> — rubric floor <strong>${r.level} ${r.score}/10</strong> (T1 ${r.counts.t1} · T2 ${r.counts.t2}${r.counts.w2 != null && r.counts.w2 !== r.counts.t2 ? ` — weighted ${r.counts.w2}` : ''} · T3 ${r.counts.t3})`];
   if (top) parts.push(top);
   parts.push(`Final rating: <strong>${finalLevel} ${finalScore}/10</strong>${flags && flags.raised ? ' — raised above the floor by the assessment' : ''}`);
   if (r.override) parts.push('⚠ Aerodrome closed or no usable runway — NO-GO.');
