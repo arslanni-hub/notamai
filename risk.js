@@ -41,7 +41,18 @@ const CONFIG = {
 
   // Runway capacity: if this fraction (or more) of an aerodrome's runways is closed, the situation is Tier 1
   // even when more than one runway remains (e.g. 3 of 5 closed). Set to 1.01 to disable.
-  runwayClosedFractionT1: 0.5,
+  // 2026-10-11 calibration: disabled. With several runways still usable (e.g. 2 of 4 main closed, 2 main + 2 backup open)
+  // the situation is a capacity reduction (Tier 2), not Tier 1. Tier 1 stays for "one usable runway left" or "no main runway left".
+  runwayClosedFractionT1: 1.01,
+
+  // A runway closure that lasts at most this many hours (night works, short maintenance windows) is one tier lighter.
+  shortClosureHours: 8,
+
+  // Weight of each Tier 2 factor in the score (default 1). Light items that rarely change a plan on their own count less.
+  t2Weights: { MINIMA: 0.25, RVR: 0.25, CAT23: 0.25, NAVAID: 0.25, LIGHTING: 0.5, RWY_RESTRICTION: 0.5, LLWAS: 1.5, 'ROUTE:AIRSPACE': 0.5, 'ROUTE:NAVAID': 0.25, 'ROUTE:GNSS_OUTAGE': 0.25 },
+  thunderstormForecastWeight: 0.5,   // a forecast thunderstorm without low visibility/ceiling
+  // En-route GNSS interference reported in this many FIRs or more is Tier 1; in a single FIR it is Tier 2.
+  gnssRouteT1Firs: 2,
 
   // En-route restrictions are scored only if they are near the planned route (dep -> arr great circle).
   routeCorridorNm: 100,     // half-width of the corridor around the route
@@ -49,7 +60,7 @@ const CONFIG = {
   nearAirportNm: 80,        // ... i.e. within this distance of departure or arrival
 
   // One aerodrome with >= t1 Tier-1 factors AND >= t2 Tier-2 factors is escalated to CRITICAL.
-  concentration: { t1: 1, t2: 3 },
+  concentration: { t1: 1, t2: 3 },   // t2 is the weighted Tier 2 sum (see t2Weights)
 
   // Weather thresholds (METAR).
   weather: { lifrVisM: 1600, lifrCeilFt: 500, ifrVisM: 5000, ifrCeilFt: 1000, gustKt: 35 },
@@ -454,7 +465,7 @@ function resolveRunwayCount(sources, lowerBound) {
 function runwayTier(closedLanding, closedTakeoff, info, cfg) {
   const closed = Math.max(closedLanding.size, closedTakeoff.size);
   if (!closed) return null;
-  const frac = (cfg && cfg.runwayClosedFractionT1) || 0.5;
+  const frac = (cfg && cfg.runwayClosedFractionT1) || 1.01;
 
   // Roles known (expert data): main runways matter most, backup runways add surge capacity.
   if (info && info.main && info.backup) {
@@ -505,7 +516,10 @@ function evaluateRunways(rwRows, info, cfg, now) {
   for (const r of rwRows) {
     const continuous = r.win.kind === 'continuous' || r.win.kind === 'starts-in-window';
     const certain = continuous || r.win.kind === 'scheduled';
-    for (const c of r.fact.closures) closures.push({ key: c.key, mode: c.mode, continuous, certain, intervals: r.win.intervals || [{ start: now, end: windowEnd }] });
+    // real length of the closure in hours: the whole NOTAM span if it is continuous, the length of each scheduled period otherwise
+    const v = validity(r.n);
+    const spanH = continuous ? ((v.perm || !v.exp) ? Infinity : (v.exp.getTime() - Math.max(v.eff ? v.eff.getTime() : now.getTime(), now.getTime())) / 3600e3) : null;
+    for (const c of r.fact.closures) closures.push({ key: c.key, mode: c.mode, continuous, certain, spanH, intervals: r.win.intervals || [{ start: now, end: windowEnd }] });
   }
   const pts = new Set([now.getTime(), windowEnd.getTime()]);
   closures.forEach(c => c.intervals.forEach(i => { pts.add(i.start.getTime()); pts.add(i.end.getTime()); }));
@@ -529,6 +543,10 @@ function evaluateRunways(rwRows, info, cfg, now) {
     }
     if (act.some(c => !c.continuous) && !(t[i] <= now.getTime() && t[i + 1] >= windowEnd.getTime()))
       all.note += ` — in force ${fmtZ(new Date(t[i]))}–${fmtZ(new Date(t[i + 1]))}`;
+    // a closure that lasts only a few hours (night works, short maintenance) is one tier lighter; never an override
+    const lenH = c => c.continuous ? c.spanH : Math.max(...c.intervals.filter(iv => iv.start.getTime() <= mid && mid < iv.end.getTime()).map(iv => (iv.end.getTime() - iv.start.getTime()) / 3600e3), 0);
+    if (all.tier === 1 && !all.wasOverride && cfg.shortClosureHours && act.every(c => lenH(c) <= cfg.shortClosureHours))
+      all = Object.assign({}, all, { tier: 2, note: all.note + ' (short closure)' });
     const base = runwayTier(...setsOf(act.filter(c => c.continuous)), info, cfg);
     let eff = all;
     if (cfg.scheduledDowngrade && act.some(c => !c.continuous) && (!base || MORE_SEVERE(all, base))) {
@@ -591,7 +609,7 @@ function assessAirport(a, now, cfg) {
   if (ll.length) {
     const comps = new Set(ll.map(r => r.fact.comp));
     const fullOut = comps.has('full') || (comps.has('radar') && comps.has('lidar'));
-    add('LLWAS', fullOut ? 1 : 2, fullOut ? 'low-level windshear alerting (LLWAS) fully unserviceable' : 'LLWAS partially unserviceable (' + [...comps].join('/') + ')', ids('LLWAS'));
+    add('LLWAS', 2, fullOut ? 'low-level windshear alerting (LLWAS) fully unserviceable' : 'LLWAS partially unserviceable (' + [...comps].join('/') + ')', ids('LLWAS'));
   }
   const simple = [
     ['GNSS_INTERFERENCE', 1, 'GNSS interference/jamming reported'],
@@ -623,7 +641,7 @@ function assessAirport(a, now, cfg) {
       if (t === 'AD_CLOSED' || t === 'ATC_OUT' || t === 'GNSS_INTERFERENCE') sev = 'CRITICAL';
       else if (t === 'RWY_CLOSURE') sev = rwFactor && rwFactor.tier === 1 ? 'CRITICAL' : 'HIGH';
       else if (t === 'RWY_RESTRICTION') sev = (factors.find(f => f.key.endsWith(':RWY_RESTRICTION')) || {}).tier === 3 ? 'MEDIUM' : 'HIGH';
-      else if (t === 'LLWAS') sev = r.fact.comp === 'full' || factors.some(f => f.key.endsWith(':LLWAS') && f.tier === 1) ? 'CRITICAL' : 'HIGH';
+      else if (t === 'LLWAS') sev = 'HIGH';
       else if (['ILS', 'CAT23', 'RVR', 'LIGHTING', 'MINIMA', 'NAVAID', 'RFFS', 'AIRSPACE', 'GNSS_OUTAGE'].includes(t)) sev = 'HIGH';
       else sev = 'MEDIUM';
       if (!r.win.inWindow && sev !== 'LOW') sev = 'MEDIUM';
@@ -639,16 +657,25 @@ function assessAirport(a, now, cfg) {
 }
 
 // ───────────────────────── level / score ─────────────────────────
+// Weight of one Tier 2 factor in the score: 1 unless the config lowers it (light items) or raises it (LLWAS fully out).
+function factorWeight(f, cfg) {
+  if (!f || f.tier !== 2) return 0;
+  const c = cfg || CONFIG, W = c.t2Weights || {};
+  const type = String(f.key || '').split(':').slice(1).join(':') || '';
+  const k = f.scope === 'ROUTE' ? 'ROUTE:' + type : type;
+  if (type === 'WX' && /thunderstorm/i.test(f.label || '') && !/VIS|CIG|current/.test(f.label || '')) return c.thunderstormForecastWeight != null ? c.thunderstormForecastWeight : 1;
+  if (f.scope === 'ROUTE') return W[k] != null ? W[k] : 1;
+  return W[type] != null ? W[type] : 1;
+}
+
+// t2 is the WEIGHTED sum of Tier 2 factors (a plain count when every weight is 1).
 function levelFromCounts(t1, t2, t3, flags) {
   if (flags.override) return { level: 'CRITICAL', score: 10 };
-  if (t1 >= 2 || flags.concentration) return { level: 'CRITICAL', score: 9 };   // 10 is reserved for an aerodrome that is closed (override)
-  if (t1 === 1 || t2 >= 3) {
-    let s = 6;
-    if ((t1 === 1 && t2 >= 1) || t2 >= 4) s += 1;
-    if ((t1 === 1 && t2 >= 3) || t2 >= 5) s += 1;
-    return { level: 'HIGH', score: s };
-  }
-  if (t2 >= 1 || t3 >= 3) return { level: 'MEDIUM', score: t2 >= 2 ? 5 : t2 === 1 ? 4 : 3 };
+  if (t1 >= 3 || flags.concentration) return { level: 'CRITICAL', score: 9 };   // 10 is reserved for an aerodrome that is closed (override)
+  if (t1 >= 2) return { level: 'HIGH', score: t2 >= 2.5 ? 8 : 7 };
+  if (t1 === 1) return { level: 'HIGH', score: 6 + (t2 >= 2.5 ? 1 : 0) + (t2 >= 5 ? 1 : 0) };
+  if (t2 >= 6.5) return { level: 'HIGH', score: t2 >= 8 ? 7 : 6 };
+  if (t2 >= 0.5 || t3 >= 3) return { level: 'MEDIUM', score: t2 >= 4.5 ? 5 : t2 >= 2.5 ? 4 : 3 };
   return { level: 'LOW', score: t3 >= 2 ? 2 : t3 === 1 ? 1 : 0 };
 }
 
@@ -691,20 +718,21 @@ function assessRisk(input, userCfg) {
   }
   // All en-route GNSS interference reports count as ONE Tier 1 factor (chronic in several regions;
   // per-FIR counting would inflate the score). The FIRs concerned are named in the label.
-  if (gnssFirs.length) factors.push({ key: 'ROUTE:GNSS', tier: 1, scope: 'ROUTE', label: `en-route: GNSS interference/jamming reported (${gnssFirs.map(g => g.fir).join(', ')})`, ids: gnssFirs.flatMap(g => g.ids) });
+  if (gnssFirs.length) factors.push({ key: 'ROUTE:GNSS', tier: gnssFirs.length >= (cfg.gnssRouteT1Firs || 2) ? 1 : 2, scope: 'ROUTE', label: `en-route: GNSS interference/jamming reported (${gnssFirs.map(g => g.fir).join(', ')})`, ids: gnssFirs.flatMap(g => g.ids) });
   if (enIds.AIRSPACE.length) factors.push({ key: 'ROUTE:AIRSPACE', tier: 2, scope: 'ROUTE', label: `en-route: prohibited/restricted/danger area activity (${enIds.AIRSPACE.length} NOTAMs)`, ids: enIds.AIRSPACE });
   if (enIds.NAVAID_ENROUTE.length) factors.push({ key: 'ROUTE:NAVAID', tier: 2, scope: 'ROUTE', label: `en-route: navaid unserviceable (${enIds.NAVAID_ENROUTE.length} NOTAMs)`, ids: enIds.NAVAID_ENROUTE });
   if (enIds.GNSS_OUTAGE.length) factors.push({ key: 'ROUTE:GNSS_OUTAGE', tier: 2, scope: 'ROUTE', label: 'en-route: GNSS outage/RAIM degradation', ids: enIds.GNSS_OUTAGE });
 
   const count = tier => factors.filter(f => f.tier === tier).length;
-  const t1 = count(1), t2 = count(2), t3 = count(3);
+  const t1 = count(1), t3 = count(3);
+  const t2 = count(2), w2 = factors.reduce((n, f) => n + factorWeight(f, cfg), 0);
   const override = airports.some(a => a.override);
   let concentration = null;
   for (const a of airports) {
-    const a1 = a.factors.filter(f => f.tier === 1).length, a2 = a.factors.filter(f => f.tier === 2).length;
+    const a1 = a.factors.filter(f => f.tier === 1).length, a2 = a.factors.reduce((n, f) => n + factorWeight(f, cfg), 0);
     if (a1 >= cfg.concentration.t1 && a2 >= cfg.concentration.t2) { concentration = a.factors[0].scope; break; }
   }
-  const { level, score } = levelFromCounts(t1, t2, t3, { override, concentration: !!concentration });
+  const { level, score } = levelFromCounts(t1, w2, t3, { override, concentration: !!concentration });
   const isSingle = (input.airports || []).length === 1;
   const verdict = isSingle
     ? (override || level === 'CRITICAL' ? 'SIGNIFICANTLY CONSTRAINED' : level === 'LOW' ? 'OPEN' : 'OPEN WITH CONSTRAINTS')
@@ -715,7 +743,7 @@ function assessRisk(input, userCfg) {
 
   return {
     level, score, headerClass: CLASS_OF[level], label: LABEL_OF[level], verdict, override,
-    concentration, counts: { t1, t2, t3 }, factors: sorted, severityById,
+    concentration, counts: { t1, t2, t3, w2 }, factors: sorted, severityById,
     runwayInfo: Object.fromEntries(airports.map((a, i) => [input.airports[i].icao, Object.assign({}, a.info, { main: a.info.main ? [...a.info.main] : undefined, backup: a.info.backup ? [...a.info.backup] : undefined })])),
     airportRows: Object.fromEntries(airports.map((a, i) => [input.airports[i].icao, a.rows])),
     enrouteList, enrouteWatch, coverage,

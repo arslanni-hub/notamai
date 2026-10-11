@@ -1941,9 +1941,13 @@ const server = http.createServer(async (req, res) => {
       if (batch) {
         const SETS = { '1': [['R01','LTAC','LTFM'],['R02','EHAM','LIRF'],['R03','KJFK','KLAX'],['R04','LTFM','OMDB']],
                        '2': [['R05','LTAC','OTHH'],['R06','LTFM','OLBA'],['R07','LTFM','LCLK'],['R08','LTFM','HECA']],
-                       '3': [['R09','LTFM','UBBB'],['R10','LEMD','LEST'],['R11','YSSY','YPPH'],['R12','LTFM','OIIE']] };
+                       '3': [['R09','LTFM','UBBB'],['R10','LEMD','LEST'],['R11','YSSY','YPPH'],['R12','LTFM','OIIE']],
+                       // hold-out routes (not used for tuning)
+                       '4': [['H01','EGLL','LFPG'],['H02','EGLL','KJFK'],['H03','RJTT','RJOO'],['H04','LTFM','OERK']],
+                       '5': [['H05','LTFM','OEJN'],['H06','LGAV','LLBG'],['H07','EFHK','EETN'],['H08','EGLL','EICK']],
+                       '6': [['H09','DNMM','DNIM'],['H10','EBBR','EGLL'],['H11','UKBB','UKLL'],['H12','UUEE','URRR']] };
         const list = SETS[batch];
-        if (!list) { res.writeHead(400, { 'Content-Type': 'text/plain' }); res.end('set must be 1, 2 or 3'); return; }
+        if (!list) { res.writeHead(400, { 'Content-Type': 'text/plain' }); res.end('set must be 1 to 6'); return; }
         const outRoutes = [];
         for (const [id, d, a] of list) {
           try { const x = await calibrationExport(d, a); outRoutes.push({ id, dep: d, arr: a, snapshotUtc: x.now.toISOString(), system: x.system, packetMd: x.md }); }
