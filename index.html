@@ -3583,6 +3583,8 @@ function extractBriefingIcaos() {
 function linkifyNotamIds(root) {
   try {
     const idRx = /(?:\b([A-Z]{4})\s+)?\b([A-Z]\d{3,5}\/\d{2,4})\b/;
+    // Airspace table cells list several numbers ("A1234/A1235/2026", "A1234, A1235/26"): the year is optional there
+    const looseRx = /(?:\b([A-Z]{4})\s+)?\b([A-Z]\d{3,5}(?:\/\d{2,4})?)\b/;
     const owner = {};   // NOTAM id -> aerodrome / FIR code, collected from entries that carry an ICAO prefix
     const locOf = card => {
       if (!card) return '';
@@ -3602,16 +3604,37 @@ function linkifyNotamIds(root) {
     root.querySelectorAll('.airspace-row .ar-id').forEach(el => {
       const own = {};
       String(el.getAttribute('data-own') || '').split(',').forEach(x => { const [a, b] = x.split('|'); if (a && b) own[_bareId(a)] = b; });
-      targets.push({ el, resolve: (id, pre) => pre || own[_bareId(id)] || owner[_bareId(id)] || '' });
+      // FIR / aerodrome named in the same row (or in the heading above it): used when the number itself has no known owner
+      let rowOwner = null;
+      const rowCode = () => {
+        if (rowOwner !== null) return rowOwner;
+        rowOwner = '';
+        const row = el.closest('.airspace-row');
+        const known = typeof knownBriefingIcaos !== 'undefined' ? knownBriefingIcaos : null;
+        const pick = txt => { for (const c of String(txt || '').match(/\b[A-Z]{4}\b/g) || []) { if (!known || known.has(c)) return c; } return ''; };
+        const own1 = pick((row ? Array.from(row.children).map(c => c.textContent).join(' ') : '').replace(/\b[A-Z]\d{3,5}(?:\/\d{2,4})?\b/g, ' '));
+        if (own1) { rowOwner = own1; return rowOwner; }
+        let node = row ? row.parentNode : null;
+        for (let hop = 0; node && hop < 3 && !rowOwner; hop++) {
+          for (let sib = (hop === 0 ? row : node).previousElementSibling; sib && !rowOwner; sib = sib.previousElementSibling) {
+            if (sib.classList && sib.classList.contains('airspace-row') && !sib.classList.contains('header')) continue;
+            rowOwner = pick(sib.textContent);
+            break;
+          }
+          node = node.parentNode;
+        }
+        return rowOwner;
+      };
+      targets.push({ el, rx: looseRx, resolve: (id, pre) => pre || own[_bareId(id)] || owner[_bareId(id)] || rowCode() });
     });
-    targets.forEach(({ el, resolve }) => {
+    targets.forEach(({ el, resolve, rx: tgtRx }) => {
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
       const nodes = [];
       let n;
       while ((n = walker.nextNode())) { if (!(n.parentNode && n.parentNode.hasAttribute && n.parentNode.hasAttribute('data-nid'))) nodes.push(n); }
       nodes.forEach(tn => {
         // every NOTAM number in the text node (an airspace cell can list several)
-        const rx = new RegExp(idRx.source, 'g');
+        const rx = new RegExp((tgtRx || idRx).source, 'g');
         const parts = [];
         let last = 0, m, any = false;
         while ((m = rx.exec(tn.nodeValue))) {
