@@ -1894,6 +1894,58 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Calibration export (admin only, protected by CALIBRATION_KEY): one route -> a blind rater packet and, separately, the system's own rating.
+  if (req.method === 'GET' && req.url.startsWith('/api/admin/calibration')) {
+    const q = new URL(req.url, 'http://x').searchParams;
+    const keyEnv = process.env.CALIBRATION_KEY || '';
+    const given = q.get('key') || '';
+    const okKey = keyEnv.length >= 16 && given.length === keyEnv.length && require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(keyEnv));
+    if (!okKey) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    const dep = (q.get('dep') || '').toUpperCase().trim(), arr = (q.get('arr') || '').toUpperCase().trim();
+    const part = q.get('part') === 'system' ? 'system' : 'blind';
+    if (!/^[A-Z]{4}$/.test(dep) || !/^[A-Z]{4}$/.test(arr)) { res.writeHead(400, { 'Content-Type': 'text/plain' }); res.end('dep and arr must be 4-letter ICAO codes'); return; }
+    try {
+      const notamDepResult = await fetchNotams(dep);
+      const [metarDep, tafDep] = await Promise.all([fetchMetar(dep), fetchTaf(dep)]);
+      await new Promise(r => setTimeout(r, 500));
+      const notamArrResult = await fetchNotams(arr);
+      const enrouteCollector = [];
+      await getEnrouteNotams(dep, arr, enrouteCollector, { includeDomestic: RISK_MODE === 'active' });
+      const [metarArr, tafArr] = await Promise.all([fetchMetar(arr), fetchTaf(arr)]);
+      const now = new Date();
+      const stamp = now.toISOString().replace(/[:T]/g, '').slice(0, 13) + 'Z';
+      const r = await computeBriefingRisk({ icao_dep: dep, icao_arr: arr, isSingleAirport: false, notamDepResult, notamArrResult, enrouteCollector, metarDep, metarArr, tafDep, tafArr });
+      if (part === 'system') {
+        const out = { route: dep + '-' + arr, snapshotUtc: now.toISOString(), rubric: r ? { level: r.level, score: r.score, verdict: r.verdict, override: r.override, counts: r.counts, factors: (r.factors || []).map(f => ({ tier: f.tier, label: f.label, ids: f.ids || [] })) } : null };
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="system_' + dep + '-' + arr + '_' + stamp + '.json"' });
+        res.end(JSON.stringify(out, null, 2)); return;
+      }
+      const cfg = risk.CONFIG;
+      const status = n => { try { const w = risk.windowStatus(n, now, cfg); if (w.inWindow) return 'IN FORCE IN THE NEXT ' + cfg.windowHours + ' H'; return w.reason === 'later' ? 'STARTS LATER' : (w.reason === 'expired' ? 'EXPIRED' : 'VALID, BUT NOT IN FORCE IN THE NEXT ' + cfg.windowHours + ' H (scheduled days only)'); } catch (e) { return 'STATUS UNKNOWN'; } };
+      const block = n => '[' + status(n) + ']\n' + String(n.raw || n.body || '').trim();
+      const apt = (icao, res_, metar, taf, role) => {
+        const items = [].concat((res_ && res_.activeItems) || [], (res_ && res_.nearFutureItems) || []);
+        return '## ' + role + ' ' + icao + '\n\nMETAR: ' + (metar || 'n/a') + '\nTAF: ' + (taf || 'n/a') + '\n\nNOTAMs (' + items.length + '):\n\n' + (items.map(block).join('\n\n') || '(none)') + '\n';
+      };
+      const enr = enrouteCollector.map(c => {
+        const all = c.notams || [];
+        const inw = all.filter(n => { try { return risk.windowStatus(n, now, cfg).inWindow; } catch (e) { return false; } });
+        const pick = inw.filter(n => { const t = String(n.raw || n.body || ''); const qc = (/Q\)\s*\w{4}\/Q(\w{4})/.exec(t) || [])[1] || ''; return /^[RWG]/.test(qc) || /GNSS|GPS|JAMM|SPOOF|PROHIB/i.test(t) || (/^N/.test(qc) && /U\/S|UNSERVICEABLE/i.test(t)); });
+        const prio = n => { const t = String(n.raw || n.body || ''); const qc = (/Q\)\s*\w{4}\/Q(\w{4})/.exec(t) || [])[1] || ''; return (/GNSS|GPS|JAMM|SPOOF/i.test(t) || /^QRP|^QRT/.test('Q' + qc) ? 0 : 1); };
+        pick.sort((a, b) => prio(a) - prio(b));
+        const cap = 12, shown = pick.slice(0, cap);
+        return '### FIR ' + c.fir + ' — ' + all.length + ' NOTAMs published, ' + inw.length + ' in force in the next ' + cfg.windowHours + ' h; ' + pick.length + ' of those are airspace-restriction / warning / GNSS / navaid-U/S type' + (pick.length > cap ? ' (first ' + cap + ' shown, GNSS and prohibited/danger first)' : '') + '\n\n' + (shown.map(block).join('\n\n') || '(none of these types)') + '\n';
+      });
+      const md = '# BLIND RATER PACKET — ' + dep + ' → ' + arr + '\n\nSnapshot (UTC): ' + now.toISOString() + '\nWindow assessed: the next ' + cfg.windowHours + ' h from the snapshot. The bracketed status above each NOTAM is plain date/time arithmetic against the snapshot (B/C and D items), not a risk judgement.\nEn-route: NOTAMs of the FIRs the route is expected to cross; FIR selection is approximate. Only airspace-restriction, warning, GNSS and navaid-unserviceable types are listed (selection is by type, not by any score); all other FIR NOTAMs are omitted.\n\n' + apt(dep, notamDepResult, metarDep, tafDep, 'DEPARTURE') + '\n' + apt(arr, notamArrResult, metarArr, tafArr, 'ARRIVAL') + '\n## EN-ROUTE\n\n' + enr.join('\n') + '\n';
+      res.writeHead(200, { 'Content-Type': 'text/markdown; charset=utf-8', 'Content-Disposition': 'attachment; filename="packet_' + dep + '-' + arr + '_' + stamp + '.md"' });
+      res.end(md);
+    } catch (e) {
+      console.log('[CALIBRATION] error:', e.message);
+      res.writeHead(500, { 'Content-Type': 'text/plain' }); res.end('Calibration export failed: ' + e.message);
+    }
+    return;
+  }
+
   if (req.method === 'GET' && req.url === '/api/admin/users') {
     const authHeader = req.headers.authorization || '';
     const idToken = authHeader.replace('Bearer ', '');
