@@ -18,6 +18,17 @@ const NOW = new Date(Date.UTC(2026, 9, 4, 19, 30));       // 04 OCT 2026 19:30Z 
 const NOW_AM = new Date(Date.UTC(2026, 9, 4, 9, 0));      // 04 OCT 2026 09:00Z (before the OMDB closure window)
 
 console.log('\n── unit tests ──');
+test('ILS with a procedure letter before RWY is an equipment outage, not a runway closure', () => {
+  assert.deepStrictEqual(R.parseRunwayClosures('ILS Y RWY 18L AND ILS W RWY 32L/32R NOT AVBL'), []);
+  assert.deepStrictEqual(R.parseRunwayClosures('ILS Z CAT I RWY 03R NOT AVBL'), []);
+  assert.strictEqual(R.parseRunwayClosures('RWY 18L/36R CLSD').length, 1);
+});
+test('a runway closed only between two points is a restriction, not a full closure', () => {
+  const c = R.parseRunwayClosures('RWY 13R/31L CLSD BTN TWY K AND TWY KK');
+  assert.ok(c.length === 1 && c[0].restricted);
+  assert.ok(R.parseRunwayClosures('PART OF RWY 09/27 CLSD').every(x => x.restricted));
+  assert.ok(R.parseRunwayClosures('RWY 09/27 CLSD').every(x => !x.restricted));
+});
 test('rwyKey pairs reciprocals and sides', () => {
   assert.strictEqual(R.rwyKey('16L'), '16L/34R');
   assert.strictEqual(R.rwyKey('34R'), '16L/34R');

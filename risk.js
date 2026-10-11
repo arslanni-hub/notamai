@@ -256,7 +256,9 @@ function parseRunwayClosures(t) {
   RWY_CLOSE_RX.lastIndex = 0;
   while ((m = RWY_CLOSE_RX.exec(t))) {
     // "<equipment> RWY 24L ..." is an equipment outage on that runway, not a runway closure
-    const pre = t.slice(Math.max(0, m.index - 40), m.index);
+    const pre0 = t.slice(Math.max(0, m.index - 40), m.index);
+    // "ILS Y RWY 18L", "ILS Z CAT I RWY 32R": the procedure letter / category sits between the equipment word and RWY
+    const pre = pre0.replace(/\s+(?:[XYZW]\b)?(?:\s*CAT\s*I{1,3}(?:\s*(?:\/|AND|&)\s*I{1,3})?)?\s*$/, ' ');
     if (/(LGT|LIGHTS?|LIGHTING|PAPI|VASI|ILS|LOC|LOCALI[SZ]ER|GP|GS|RVR|SFL|ALS|APCH|APPROACH|MARKINGS?|SIGNS?|EDGE|CENTRE\s*LINE|CENTERLINE|TDZ|THR|BARRIER)\s*$/.test(pre)) continue;
     // "... CRANE WILL ONLY OPR WHEN RWY 09L/27R IS CLSD" describes a condition, it does not announce a closure
     if (/\b(?:WHEN|IF|WHILE|DURING|UNLESS)\s*$/.test(pre)) continue;
@@ -265,7 +267,9 @@ function parseRunwayClosures(t) {
     const mode = /LANDING|LDG/.test(to) ? 'landing' : /TKOF|TAKE|DEP/.test(to) ? 'takeoff' : 'full';
     // "RWY 36 NOT AVBL FOR LDG BY ACFT WITH CAT D/E/F" is a restriction for some aircraft, not a closure
     const after = t.slice(m.index + m[0].length, m.index + m[0].length + 160).split('.')[0];
-    const restricted = /\b(?:FOR|BY)\s+(?:ALL\s+)?(?:ACFT|AIRCRAFT)\b|\bWITH\s+(?:CAT|CODE)\b|\bWINGSPAN\b|\bEXC(?:EPT|LUDING)?\b|\b(?:CAT|CODE)\s+[A-F]\b|\b(?:HEAVY|WIDE-?\s?BODY|MTOW)\b|\bONLY\s+(?:FOR|TO)\b/.test(after);
+    // "RWY 13R/31L CLSD BTN TWY K AND TWY KK", "PART OF RWY ... CLSD": only a section is closed, the runway stays usable
+    const partial = /^\s*(?:BTN|BTWN|BETWEEN|FM|FROM)\b/.test(t.slice(m.index + m[0].length, m.index + m[0].length + 12)) || /\b(?:PART|PORTION|SECTION|HALF)\s+OF\s*$/.test(pre0);
+    const restricted = partial || /\b(?:FOR|BY)\s+(?:ALL\s+)?(?:ACFT|AIRCRAFT)\b|\bWITH\s+(?:CAT|CODE)\b|\bWINGSPAN\b|\bEXC(?:EPT|LUDING)?\b|\b(?:CAT|CODE)\s+[A-F]\b|\b(?:HEAVY|WIDE-?\s?BODY|MTOW)\b|\bONLY\s+(?:FOR|TO)\b/.test(after);
     keys.forEach(k => out.push({ key: k, mode, restricted }));
   }
   return out;
