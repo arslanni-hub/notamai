@@ -7477,6 +7477,10 @@ document.addEventListener('mouseout', function(e) {
     <button id="rawTab-pirep" onclick="switchRawTab('pirep')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">PIREP</button>
     <button id="rawTab-delays" onclick="switchRawTab('delays')" style="flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;">DELAYS</button>
   </div>
+  <div id="rawSearchRow" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1a2a3a;flex-shrink:0;">
+    <input id="rawNotamSearch" type="text" oninput="filterRawNotams()" placeholder="Search NOTAM no. (e.g. A1234/26 or 1234) or a word" autocomplete="off" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:6px 10px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:11px;outline:none;">
+    <span id="rawNotamCount" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;white-space:nowrap;"></span>
+  </div>
   <div id="rawResults" style="flex:1;overflow-y:auto;padding:8px;">
     <div id="rawSection-notam">
       <div style="text-align:center;padding:40px 0;font-family:'Rajdhani',sans-serif;font-size:14px;color:#4a5f72;">Enter an ICAO code to fetch live NOTAMs and weather data</div>
@@ -7518,6 +7522,30 @@ function switchRawTab(tab) {
   if (activeBtn) { activeBtn.style.color = colors[tab] || '#4a9eff'; activeBtn.style.borderBottomColor = colors[tab] || '#4a9eff'; }
   const activeSec = document.getElementById('rawSection-' + tab);
   if (activeSec) activeSec.style.display = 'block';
+  const sr = document.getElementById('rawSearchRow');
+  if (sr) sr.style.display = tab === 'notam' ? 'flex' : 'none';
+}
+
+// NOTAM search in the NOTAMs & MET panel: by NOTAM number (leading zeros and the year are optional), or by a word of 4+ letters in the full text.
+function _rawNorm(t) { return String(t).toUpperCase().replace(/\s+/g, ' ').replace(/\b([A-Z]?)0+(\d)/g, '$1$2').trim(); }
+function filterRawNotams() {
+  const input = document.getElementById('rawNotamSearch');
+  const count = document.getElementById('rawNotamCount');
+  const items = document.querySelectorAll('#rawSection-notam .raw-notam-item');
+  const q = _rawNorm(input ? input.value : '');
+  let shown = 0;
+  items.forEach(it => {
+    const hay = /[A-Z]{4,}/.test(q) ? _rawNorm(it.dataset.full) : _rawNorm(it.dataset.idline);
+    const ok = !q || hay.includes(q);
+    it.style.display = ok ? '' : 'none';
+    if (ok) shown++;
+  });
+  document.querySelectorAll('#rawSection-notam .raw-admin-sec').forEach(sec => {
+    if (!q) return;
+    const any = [...sec.querySelectorAll('.raw-notam-item')].some(it => it.style.display !== 'none');
+    if (any) sec.style.display = 'block';
+  });
+  if (count) count.textContent = q && items.length ? shown + ' / ' + items.length : '';
 }
 
 async function openAnalysisPanel(title, data, prompt, color) {
@@ -7708,6 +7736,8 @@ async function fetchRawData() {
 
   const loadingHtml = '<div style="text-align:center;padding:40px 0;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">FETCHING DATA...</div>';
   notamSec.innerHTML = loadingHtml;
+  const _srch = document.getElementById('rawNotamSearch'); if (_srch) _srch.value = '';
+  const _cnt = document.getElementById('rawNotamCount'); if (_cnt) _cnt.textContent = '';
   metarSec.innerHTML = '';
   sigmetSec.innerHTML = '';
   pirepSec.innerHTML = loadingHtml;
@@ -7776,6 +7806,9 @@ async function fetchRawData() {
       function renderNotamBlock(block, targetSection) {
         const wrapper = document.createElement('div');
         wrapper.style.marginBottom = '8px';
+        wrapper.className = 'raw-notam-item';
+        wrapper.dataset.idline = String(block).replace(/^\[FUTURE NOTAM - NOT YET ACTIVE\]\n/, '').split('\n')[0];
+        wrapper.dataset.full = String(block);
 
         const notamBox = document.createElement('div');
         notamBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;position:relative;transition:border-color 0.2s;cursor:default;';
@@ -7892,6 +7925,7 @@ async function fetchRawData() {
         adminToggle.innerHTML = '<span class="adminArrow" style="transition:transform 0.2s;display:inline-block;transform:rotate(-90deg);">▼</span> ADMINISTRATIVE / TRIGGER NOTAMs (' + adminBlocks.length + ')';
         const adminSection = document.createElement('div');
         adminSection.style.display = 'none';
+        adminSection.className = 'raw-admin-sec';
         adminToggle.onclick = () => {
           const open = adminSection.style.display !== 'none';
           adminSection.style.display = open ? 'none' : 'block';
