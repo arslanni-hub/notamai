@@ -3574,6 +3574,45 @@ function extractBriefingIcaos() {
     if (validPrefixes.has(m.slice(0, 2))) knownBriefingIcaos.add(m);
   });
   linkifyFirLine(content);
+  linkifyNotamIds(content);
+}
+
+// NOTAM numbers on the briefing's cards / compact lines ("LTFM A1234/26") open the NOTAMs & MET panel for that aerodrome / FIR
+// with the search box filled in, so only that NOTAM is shown (ready for the Analyze button).
+function linkifyNotamIds(root) {
+  try {
+    const idEls = root.querySelectorAll('.notam-id, .notam-compact-id');
+    idEls.forEach(el => {
+      const card = el.closest('.notam-card');
+      const locIcao = (() => {
+        if (!card) return '';
+        const f = [...card.querySelectorAll('.notam-field')].find(x => /Location/i.test((x.querySelector('.notam-field-label') || {}).textContent || ''));
+        const m = f && /\b[A-Z]{4}\b/.exec((f.querySelector('.notam-field-value') || {}).textContent || '');
+        return m ? m[0] : '';
+      })();
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      let n;
+      while ((n = walker.nextNode())) { if (!(n.parentNode && n.parentNode.hasAttribute && n.parentNode.hasAttribute('data-nid'))) nodes.push(n); }
+      nodes.forEach(tn => {
+        const m = /(?:\b([A-Z]{4})\s+)?\b([A-Z]\d{3,5}\/\d{2,4})\b/.exec(tn.nodeValue);
+        if (!m) return;
+        const icao = m[1] || locIcao, id = m[2];
+        if (!icao) return;   // owner unknown: leave the text as it is
+        const idStart = m.index + (m[1] ? m[0].length - id.length : 0);
+        const a = document.createElement('span');
+        a.setAttribute('data-nid', '1');
+        a.textContent = id;
+        a.title = 'Open ' + id + ' in the NOTAMs & MET panel (' + icao + ')';
+        a.style.cssText = 'color:#4a9eff;cursor:pointer;text-decoration:underline dotted;';
+        a.addEventListener('click', ev => { ev.stopPropagation(); openRawDataForIcao(icao, id); });
+        const before = document.createTextNode(tn.nodeValue.slice(0, idStart));
+        const after = document.createTextNode(tn.nodeValue.slice(idStart + id.length));
+        const par = tn.parentNode;
+        par.insertBefore(before, tn); par.insertBefore(a, tn); par.insertBefore(after, tn); par.removeChild(tn);
+      });
+    });
+  } catch (e) { /* link-up is cosmetic: never break the briefing */ }
 }
 
 // "En-route FIRs analysed: LTBB, LGGG, ..." is plain text written by the model: make each FIR code open the NOTAMs & MET panel for that FIR.
@@ -3613,12 +3652,17 @@ function linkifyFirLine(root) {
   } catch (e) { /* link-up is cosmetic: never break the briefing */ }
 }
 
-function openRawDataForIcao(icao) {
+function openRawDataForIcao(icao, notamId) {
   closeAIChat();
   if (openPanel !== 'rawData') openRawDataPanel();
-  setTimeout(() => {
+  setTimeout(async () => {
     document.getElementById('rawIcaoInput').value = icao;
-    fetchRawData();
+    await fetchRawData();
+    // a NOTAM number was clicked in the briefing: show only that NOTAM so it can be read and analysed straight away
+    if (notamId) {
+      const box = document.getElementById('rawNotamSearch');
+      if (box) { box.value = notamId; filterRawNotams(); }
+    }
   }, 400);
 }
 
