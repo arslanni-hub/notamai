@@ -741,7 +741,7 @@ async function getEnrouteNotams(dep, arr, collector, opts) {
     'UT': 'UTAA', 'UC': 'UCFM', 'UA': 'UAAA', 'UM': 'UMMV',
     'UG': 'UGGD', 'UD': 'UDDD', 'UI': 'UIIT',
     // RUSSIA
-    'UL': 'ULLL', 'UU': 'UUWV', 'UK': 'UKBV', 'UN': 'UNNT',
+    'UL': 'ULLL', 'UU': 'UUWV', 'UR': 'URRV', 'UW': 'UWWW', 'UK': 'UKBV', 'UN': 'UNNT',
     'UH': 'UHHH', 'UE': 'UEEE', 'UB': 'UBBP', 'US': 'USSS',
     'UO': 'UOOO', 'UF': 'UFFF', 'UP': 'UPCM',
     // SOUTH ASIA

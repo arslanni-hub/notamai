@@ -353,7 +353,7 @@ test('LTFM -> LTAI route -> MEDIUM 5 (LLWAS fully out is Tier 2 with weight 1.5;
   assert.strictEqual(r.level, 'MEDIUM'); assert.strictEqual(r.score, 5); assert.strictEqual(r.concentration, null);
 });
 test('LTFJ -> OMDB at 19:30Z -> HIGH 6 (GNSS in three FIRs counts as ONE Tier 1 factor)', () => {
-  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB });
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB }, { conflictZones: [] });
   console.log('        ->', r.level, r.score, r.verdict, JSON.stringify(r.counts));
   assert.strictEqual(r.level, 'HIGH'); assert.strictEqual(r.score, 6); assert.strictEqual(r.counts.t1, 1);
   assert.strictEqual(r.factors.filter(f => /GNSS interference/.test(f.label)).length, 1, 'one merged GNSS factor');
@@ -525,9 +525,9 @@ test('upcomingEnroute: only route-relevant recognised FIR NOTAMs starting within
   assert.strictEqual(u[0].fir, 'LTBB');
 });
 test('CRITICAL is capped at 9 unless an aerodrome is closed (override = 10)', () => {
-  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB.concat([{ fir: 'XXXX', notams: [mk('A1', 'XXXX', '2610010000', '2611010000', 'GNSS INTERFERENCE REPORTED')] }]) });
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB.concat([{ fir: 'XXXX', notams: [mk('A1', 'XXXX', '2610010000', '2611010000', 'GNSS INTERFERENCE REPORTED')] }]) }, { conflictZones: [] });
   assert.strictEqual(r.counts.t1, 1);   // a third FIR with GNSS interference does not add a Tier 1 factor
-  const r2 = R.assessRisk({ now: NOW_AM, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB });
+  const r2 = R.assessRisk({ now: NOW_AM, airports: [{ icao: 'LTFJ', role: 'DEP', notams: LTFJ }, { icao: 'OMDB', role: 'ARR', notams: OMDB }], enroute: FIR_OMDB }, { conflictZones: [] });
   assert.strictEqual(r2.level, 'HIGH'); assert.strictEqual(r2.score, 7); assert.strictEqual(r2.counts.t1, 1);   // the 1.5 h runway closure is Tier 2 now; only the merged GNSS factor is Tier 1
   const r3 = R.assessRisk({ now: NOW, airports: [{ icao: 'XXXX', role: 'APT', notams: [N('A1', 'XXXX', '2609010000', '2611010000', 'RWY 09L/27R CLSD.'), N('A2', 'XXXX', '2609010000', '2611010000', 'RWY 09R/27L CLSD.')], runwayInfo: { count: 2, trusted: true } }] });
   assert.strictEqual(r3.override, true); assert.strictEqual(r3.score, 10);   // all runways closed, in force now -> 10
@@ -729,6 +729,34 @@ test('v3.30: weekday AND date range must both fit ("OCT 07-31 WED THU FRI SAT");
   assert.ok(!f || f.type !== 'APPROACH_OUT');
 });
 
+test('v3.38 conflict zones: aerodrome inside a NO-GO zone is an override', () => {
+  const ap = (icao, role) => ({ icao, role, notams: [] });
+  const a = R.assessRisk({ now: NOW, airports: [ap('UUEE', 'DEP'), ap('LTFM', 'ARR')], enroute: [] });
+  assert.strictEqual(a.override, true); assert.ok(a.score >= 10);
+  assert.ok(a.factors.some(f => f.key === 'ROUTE:CONFLICT_NOGO' && /Russian Federation/.test(f.label)));
+  const b = R.assessRisk({ now: NOW, airports: [ap('OIIE', 'DEP'), ap('LTFM', 'ARR')], enroute: [] });
+  assert.strictEqual(b.override, true);
+  const c = R.assessRisk({ now: NOW, airports: [ap('EGLL', 'DEP'), ap('LTFM', 'ARR')], enroute: [] });
+  assert.ok(!c.factors.some(f => /CONFLICT/.test(f.key)));
+});
+test('v3.38 conflict zones: crossing a NO-GO FIR is Tier 1 (no override); Beirut endpoint is Tier 2 caution', () => {
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'DEP', notams: [] }, { icao: 'OMDB', role: 'ARR', notams: [] }], enroute: [], routeFirs: ['LTAA', 'ORBB', 'OMAE'] });
+  assert.strictEqual(r.override, false); assert.strictEqual(r.counts.t1, 1);
+  assert.ok(r.factors.some(f => f.key === 'ROUTE:CONFLICT_HIGH' && /Iraq/.test(f.label)));
+  const l = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'DEP', notams: [] }, { icao: 'OLBA', role: 'ARR', notams: [] }], enroute: [] });
+  assert.strictEqual(l.override, false); assert.ok(l.factors.some(f => f.key === 'ROUTE:CONFLICT_CAUTION' && /Lebanon/.test(f.label)));
+  const e = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'DEP', notams: [] }, { icao: 'OMDB', role: 'ARR', notams: [] }], enroute: [{ fir: 'ORBB', notams: [] }] });
+  assert.ok(!e.factors.some(f => f.key === 'ROUTE:CONFLICT_HIGH'), 'candidate en-route FIR list alone does not trigger a crossing');
+});
+test('v3.38 conflict zones: routeFirs input, INFO weight, review-overdue flag, no stacking with an airspace-closed NOTAM', () => {
+  const base = { now: NOW, airports: [{ icao: 'LTFM', role: 'DEP', notams: [] }, { icao: 'LGAV', role: 'ARR', notams: [] }], enroute: [] };
+  const i = R.assessRisk(Object.assign({}, base, { routeFirs: ['LLLL'] }));
+  assert.ok(i.factors.some(f => f.key === 'ROUTE:CONFLICT_INFO')); assert.strictEqual(i.counts.t1, 0);
+  const o = R.assessRisk(Object.assign({}, base, { routeFirs: ['OJAC'], now: new Date('2026-12-20T10:00:00Z') }));
+  assert.ok(o.factors.some(f => /past its review date/.test(f.label)));
+  const closed = R.assessRisk(Object.assign({}, base, { enroute: [{ fir: 'UKBV', notams: [mk('Z1', 'UKBV', '2610010000', '2611010000', 'AIRSPACE UKBV FIR CLSD FOR ALL AIRCRAFT')] }] }));
+  assert.ok(closed.counts.t1 <= 1, 'conflict list + closure NOTAM for the same FIR must not stack');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
 

@@ -49,7 +49,7 @@ const CONFIG = {
   shortClosureHours: 8,
 
   // Weight of each Tier 2 factor in the score (default 1). Light items that rarely change a plan on their own count less.
-  t2Weights: { MINIMA: 0.25, RVR: 0.25, CAT23: 0.25, NAVAID: 0.25, LIGHTING: 0.5, RWY_RESTRICTION: 0.5, LLWAS: 1.5, 'ROUTE:AIRSPACE': 0.5, 'ROUTE:NAVAID': 0.25, 'ROUTE:GNSS_OUTAGE': 0.25, APCH_NA: 0.5 },
+  t2Weights: { MINIMA: 0.25, RVR: 0.25, CAT23: 0.25, NAVAID: 0.25, LIGHTING: 0.5, RWY_RESTRICTION: 0.5, LLWAS: 1.5, 'ROUTE:AIRSPACE': 0.5, 'ROUTE:NAVAID': 0.25, 'ROUTE:GNSS_OUTAGE': 0.25, APCH_NA: 0.5, 'ROUTE:CONFLICT_CAUTION': 1, 'ROUTE:CONFLICT_INFO': 0.5 },
   thunderstormForecastWeight: 0.5,   // a forecast thunderstorm without low visibility/ceiling
   // En-route GNSS interference reported in this many FIRs or more is Tier 1; in a single FIR it is Tier 2.
   // 2026-10-11 hold-out: two neighbouring FIRs with chronic interference (e.g. Helsinki + Tallinn) did not change the plan -> Tier 1 from three FIRs.
@@ -67,6 +67,39 @@ const CONFIG = {
   weather: { lifrVisM: 1600, lifrCeilFt: 500, ifrVisM: 5000, ifrCeilFt: 1000, gustKt: 35 },
 
   levelBands: { LOW: [0, 2], MEDIUM: [3, 5], HIGH: [6, 8], CRITICAL: [9, 10] },
+
+  // ── Conflict-zone list (static, maintained by hand) ───────────────────────────────────────────────
+  // Source: EASA Conflict Zone Information Bulletins (CZIB) + FAA "Prohibitions, Restrictions and Notices".
+  // AS OF 2026-10-15 (EASA review of 30 Sep 2026 included). REVIEW THIS LIST whenever EASA extends or issues a CZIB
+  // (next dates: Jordan 16 Oct 2026; Iran/Iraq/Lebanon/Gulf/Saudi Arabia 16 Nov 2026; Syria 30 Nov 2026; Yemen/Somalia 31 Oct 2026).
+  // Each entry: firs (FIR codes), prefixes (ICAO location prefixes of aerodromes inside), endpoint / crossing = severity when the
+  // departure or arrival aerodrome is inside / the route crosses the FIR:
+  //   'NOGO'    do not operate at any level          -> Tier 1 and NO-GO (endpoint) / Tier 1 (crossing: re-route)
+  //   'HIGH'    do not operate with narrow exceptions -> Tier 1
+  //   'CAUTION' exercise caution                      -> Tier 2 (weight 1)
+  //   'INFO'    take the risk into account            -> Tier 2 (weight 0.5)
+  // An entry past its `until` date is still applied and marked "review overdue" (a lapsed bulletin is usually renewed).
+  conflictZonesAsOf: '2026-10-15',
+  conflictZones: [
+    { name: 'Ukraine', firs: ['UKBV', 'UKDV', 'UKLV', 'UKOV', 'UKFV', 'UKBU'], prefixes: ['UK'], endpoint: 'NOGO', crossing: 'NOGO', until: '2027-01-31', src: 'EASA CZIB-2022-01R14; FAA KICZ A0004/22', rec: 'do not operate, including landings and departures' },
+    { name: 'Russian Federation west of 60°E', firs: ['UUWV', 'URRV', 'UWWW', 'ULLL', 'ULMM', 'ULAA', 'UUYY', 'UMKK'], prefixes: ['UU', 'UR', 'UW', 'UL', 'UMKK'], endpoint: 'NOGO', crossing: 'NOGO', until: '2027-01-31', src: 'EASA CZIB-2025-01R3; FAA KICZ A0005/22 (parts of Moscow, Samara, Rostov FIRs)', rec: 'do not operate at any level west of 60°E' },
+    { name: 'Iran', firs: ['OIIX'], prefixes: ['OI'], endpoint: 'NOGO', crossing: 'NOGO', until: '2026-11-16', src: 'EASA CZIB-2026-04-R2; FAA SFAR 117', rec: 'do not operate at any level' },
+    { name: 'Iraq', firs: ['ORBB'], prefixes: ['OR'], endpoint: 'NOGO', crossing: 'NOGO', until: '2026-11-16', src: 'EASA CZIB-2026-05-R2; FAA SFAR 77', rec: 'do not operate at any level' },
+    { name: 'Syria', firs: ['OSTT'], prefixes: ['OS'], endpoint: 'NOGO', crossing: 'NOGO', until: '2026-11-30', src: 'EASA CZIB-2017-03 (revised 1 Oct 2026); FAA SFAR 114', rec: 'do not operate at any level' },
+    { name: 'Sudan', firs: ['HSSS'], prefixes: ['HS'], endpoint: 'NOGO', crossing: 'NOGO', until: '2027-01-31', src: 'EASA CZIB-2023-01R8', rec: 'do not fly at any level' },
+    { name: 'Lebanon', firs: ['OLLC'], prefixes: ['OL'], endpoint: 'CAUTION', crossing: 'NOGO', until: '2026-11-16', src: 'EASA CZIB-2026-06-R2', rec: 'do not operate, except Beirut approaches from the sea and departures over the sea (risk assessment required)' },
+    { name: 'Yemen', firs: ['OYSC'], prefixes: ['OY'], endpoint: 'HIGH', crossing: 'NOGO', until: '2026-10-31', src: 'EASA CZIB-2017-07R19; FAA SFAR 115', rec: 'do not operate, except maritime routes east of B400 (caution)' },
+    { name: 'Libya', firs: ['HLLL'], prefixes: ['HL'], endpoint: 'HIGH', crossing: 'CAUTION', until: '2027-01-31', src: 'EASA CZIB-2017-02R20; FAA SFAR 112', rec: 'below FL320 do not operate except coastal approaches from the sea; above FL320 exercise caution' },
+    { name: 'Afghanistan', firs: ['OAKX'], prefixes: ['OA'], endpoint: 'HIGH', crossing: 'CAUTION', until: '2027-01-31', src: 'EASA CZIB-2017-08R19; FAA SFAR 119', rec: 'do not operate below FL320' },
+    { name: 'Somalia', firs: ['HCSM'], prefixes: ['HC'], endpoint: 'HIGH', crossing: 'INFO', until: '2026-10-31', src: 'EASA CZIB-2017-05R19; FAA SFAR 107', rec: 'do not operate at or below FL260' },
+    { name: 'Pakistan (Baluchistan, Khyber Pakhtunkhwa)', firs: ['OPKR', 'OPLR'], prefixes: ['OP'], endpoint: 'CAUTION', crossing: 'INFO', until: '2027-01-31', src: 'EASA CZIB-2018-02R21', rec: 'do not operate below FL260 in Baluchistan and Khyber Pakhtunkhwa' },
+    { name: 'Persian Gulf and Gulf of Oman (Bahrain, Kuwait, Qatar, UAE, Oman FIRs)', firs: ['OBBB', 'OKAC', 'OTDF', 'OTBD', 'OMAE', 'OOMM'], prefixes: ['OB', 'OK', 'OT', 'OM', 'OO'], endpoint: 'INFO', crossing: 'CAUTION', until: '2026-11-16', src: 'EASA CZIB-2026-07-R3', rec: 'do not operate over Gulf waters (except arrivals/departures) or the Gulf of Oman west of 58°E; exercise caution over land' },
+    { name: 'Saudi Arabia (defined portion of Jeddah FIR)', firs: ['OEJD'], prefixes: [], endpoint: null, crossing: 'INFO', until: '2026-11-16', src: 'EASA CZIB-2026-09; FAA KICZ A0056/26', rec: 'a defined portion of the Jeddah FIR is affected — see the bulletin' },
+    { name: 'Jordan', firs: ['OJAC'], prefixes: ['OJ'], endpoint: 'INFO', crossing: 'INFO', until: '2026-10-16', src: 'EASA CZIB-2026-08-R2', rec: 'medium risk: be ready for tactical deconfliction and short-notice instructions' },
+    { name: 'Israel', firs: ['LLLL'], prefixes: ['LL'], endpoint: 'INFO', crossing: 'INFO', until: '2026-12-31', src: 'EASA information note of 30 Sep 2026', rec: 'take the threat and risk situation into account in risk assessment and routing' },
+    { name: 'Myanmar', firs: ['VYYF'], prefixes: ['VY'], endpoint: 'INFO', crossing: 'INFO', until: '2026-12-31', src: 'EASA information note of 30 Jul 2026', rec: 'take potential risk into account in risk assessment and routing' },
+    { name: 'Ethiopia', firs: ['HAAA'], prefixes: ['HA'], endpoint: 'INFO', crossing: 'INFO', until: '2026-12-31', src: 'EASA information note of 30 Apr 2026', rec: 'take potential risk into account in risk assessment and routing' },
+  ],
 };
 
 const US = /\b(U\/S|UNSERVICEABLE|NOT\s+AVBL|NOT\s+AVAILABLE|N\/A|OTS|OUT\s+OF\s+SERVICE|UNUSABLE|INOP)\b/;
@@ -734,6 +767,40 @@ function levelFromCounts(t1, t2, t3, flags) {
 const CLASS_OF = { LOW: 'low', MEDIUM: 'med', HIGH: 'high', CRITICAL: 'crit' };
 const LABEL_OF = { LOW: '🟢 LOW', MEDIUM: '🟡 MEDIUM', HIGH: '🟠 HIGH', CRITICAL: '🔴 CRITICAL' };
 
+// Conflict zones (static list in CONFIG.conflictZones). Departure / arrival aerodromes are matched by ICAO prefix; the route by the FIR codes
+// it crosses (fed by the en-route data, and by input.routeFirs when the route's FIR list is known).
+function assessConflictZones(input, cfg, now, coveredFirs) {
+  const zones = cfg.conflictZones || [];
+  if (!zones.length) return [];
+  const icaos = (input.airports || []).map(a => String(a.icao || '').toUpperCase());
+  // Crossing is judged ONLY from input.routeFirs (the FIRs the great-circle route really passes through). The en-route NOTAM FIR list is a
+  // generous candidate list (it includes FIRs that may be flown around), so it is NOT used for the NO-GO / caution crossing check.
+  const firs = new Set((input.routeFirs || []).map(x => String(x || '').toUpperCase()));
+  const RANK = { NOGO: 4, HIGH: 3, CAUTION: 2, INFO: 1 };
+  const hits = [];
+  for (const z of zones) {
+    const atEnd = icaos.some(ic => (z.prefixes || []).some(p => ic.startsWith(p)));
+    const crosses = (z.firs || []).some(f => firs.has(f));
+    if (!atEnd && !crosses) continue;
+    const lv = atEnd ? z.endpoint : (crosses ? z.crossing : null);   // an aerodrome inside the zone: the endpoint rule covers the whole zone
+    if (!lv) continue;
+    const covered = lv === 'NOGO' && (z.firs || []).some(f => coveredFirs && coveredFirs.has(f));   // already raised by an airspace-closed NOTAM
+    const overdue = z.until && new Date(z.until + 'T23:59:59Z') < now;
+    hits.push({ z, lv, atEnd, covered, overdue });
+  }
+  const txt = h => `${h.z.name}${h.atEnd ? ' (departure/arrival aerodrome inside)' : ''} — ${h.z.src}: ${h.z.rec}${h.overdue ? ' [list entry past its review date — verify]' : (h.z.until ? ' (valid to ' + h.z.until + ')' : '')}`;
+  const out = [];
+  const nogoEnd = hits.filter(h => h.lv === 'NOGO' && h.atEnd && !h.covered);
+  if (nogoEnd.length) out.push({ key: 'ROUTE:CONFLICT_NOGO', tier: 1, scope: 'ROUTE', override: true, label: 'conflict zone: operations to/from this aerodrome are prohibited for operators subject to EASA/FAA rules — ' + nogoEnd.map(txt).join('; '), ids: [] });
+  const high = hits.filter(h => ((h.lv === 'NOGO' && !h.atEnd && !h.covered) || h.lv === 'HIGH'));
+  if (high.length) out.push({ key: 'ROUTE:CONFLICT_HIGH', tier: 1, scope: 'ROUTE', label: 'conflict zone on the route or at the aerodrome — re-route / risk assessment required — ' + high.map(txt).join('; '), ids: [] });
+  const caution = hits.filter(h => h.lv === 'CAUTION');
+  if (caution.length) out.push({ key: 'ROUTE:CONFLICT_CAUTION', tier: 2, scope: 'ROUTE', label: 'conflict zone — caution: ' + caution.map(txt).join('; '), ids: [] });
+  const info = hits.filter(h => h.lv === 'INFO');
+  if (info.length) out.push({ key: 'ROUTE:CONFLICT_INFO', tier: 2, scope: 'ROUTE', label: 'conflict zone — information note: ' + info.map(txt).join('; '), ids: [] });
+  return out;
+}
+
 function assessRisk(input, userCfg) {
   const cfg = Object.assign({}, CONFIG, userCfg || {});
   const now = input.now || new Date();
@@ -780,6 +847,7 @@ function assessRisk(input, userCfg) {
     const names = [...new Set(closedAir.flatMap(c => c.firs && c.firs.length ? c.firs : [c.fir]))];
     factors.push({ key: 'ROUTE:AIRSPACE_CLOSED', tier: 1, scope: 'ROUTE', override: endpoint, label: `en-route: airspace closed/prohibited for all aircraft (${names.join(', ')})${endpoint ? ' — includes the departure or arrival aerodrome' : ''}`, ids: closedAir.map(c => c.id) });
   }
+  assessConflictZones(input, cfg, now, new Set(closedAir.flatMap(c => [c.fir, ...(c.firs || [])]))).forEach(f => factors.push(f));
   if (enIds.AIRSPACE.length) factors.push({ key: 'ROUTE:AIRSPACE', tier: 2, scope: 'ROUTE', label: `en-route: prohibited/restricted/danger area activity (${enIds.AIRSPACE.length} NOTAMs)`, ids: enIds.AIRSPACE });
   if (enIds.NAVAID_ENROUTE.length) factors.push({ key: 'ROUTE:NAVAID', tier: 2, scope: 'ROUTE', label: `en-route: navaid unserviceable (${enIds.NAVAID_ENROUTE.length} NOTAMs)`, ids: enIds.NAVAID_ENROUTE });
   if (enIds.GNSS_OUTAGE.length) factors.push({ key: 'ROUTE:GNSS_OUTAGE', tier: 2, scope: 'ROUTE', label: 'en-route: GNSS outage/RAIM degradation', ids: enIds.GNSS_OUTAGE });
