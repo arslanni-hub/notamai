@@ -521,7 +521,7 @@ async function loadSystem() {
         <div class="stat-card">
           <div class="stat-label">ALERT CHECK INTERVAL</div>
           <div class="stat-value" style="font-size:16px;">30 / 60 min</div>
-          <div class="stat-sub" id="alertPollSub">Premium 30 min · Pro 60 min</div>
+          <div class="stat-sub" id="alertPollSub">Max 30 min · Pro 60 min</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">EMAIL SERVICE</div>
@@ -549,7 +549,7 @@ async function loadSystem() {
       const as = await db.collection('system').doc('alert_stats').get();
       if (as.exists) {
         const a = as.data();
-        document.getElementById('alertPollSub').textContent = 'Last run: ' + a.airports + ' airports · ' + a.fetched + ' fetched · ' + a.reused + ' reused · ' + a.skipped + ' not due · ' + a.emails + ' e-mails';
+        document.getElementById('alertPollSub').textContent = 'Last run: ' + a.airports + ' airports · ' + a.fetched + ' fetched · ' + a.reused + ' reused · ' + a.skipped + ' not due · ' + a.emails + ' e-mails' + (a.overBudget ? ' · ⚠ over airport budget (' + a.airportBudget + ')' : '');
       }
     } catch(e) {}
     try {

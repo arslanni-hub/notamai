@@ -5117,12 +5117,14 @@ let alertCheckCycle = 0;
 
 // ── NOTAM alerts v2 ─────────────────────────────────────────────────────────────────────────────────
 // One shared state per airport/FIR (Firestore alertState/{ICAO}, mirrored in memory): known NOTAM ids + time of the last diff.
-//  - interval per airport = shortest among its subscribers' plans (Premium 30 min, Pro-only 60 min) — see alert-poll.js
+//  - interval per airport = shortest among its subscribers' plans (Max/Enterprise 30 min, Pro-only 60 min) — see alert-poll.js
 //  - any fresh provider response for that airport (briefing, raw panel, earlier poll) counts as a poll and is diffed for free
 //  - every NEW id is reported (digest e-mail), not just the newest one; user e-mail / preferences are looked up only when something is sent
 const alertPoll = require('./alert-poll');
 const ALERT_TICK_MS = 15 * 60 * 1000;
-const ALERT_CAPS = { free: 0, pro: 3, max: 10, enterprise: 10 };
+const ALERT_CAPS = { free: 0, pro: 3, max: 5, enterprise: 10 };
+// soft budget for DISTINCT airports polled at once (each ≈720 provider calls/month at 60 min, ≈1,440 at 30 min); exceeding it only raises a warning
+const ALERT_AIRPORT_BUDGET = parseInt(process.env.ALERT_AIRPORT_BUDGET, 10) || 150;
 const alertStateMem = new Map();      // ICAO -> state | null (null = no state yet)
 const alertPlanMem = new Map();       // userId -> { plan, t }
 let alertTickRunning = false;
@@ -5181,6 +5183,9 @@ async function checkNotamAlerts() {
 
     const uniqueIcaos = Object.keys(icaoMap);
     stats.airports = uniqueIcaos.length;
+    stats.airportBudget = ALERT_AIRPORT_BUDGET;
+    stats.overBudget = uniqueIcaos.length > ALERT_AIRPORT_BUDGET;
+    if (stats.overBudget) console.warn('[ALERT CHECK] WARNING:', uniqueIcaos.length, 'distinct airports polled (budget', ALERT_AIRPORT_BUDGET + ') — check SkyLink quota');
     const userInfo = {};   // looked up lazily, only for users who actually receive something this run
     const infoFor = async (userId) => {
       if (userInfo[userId] !== undefined) return userInfo[userId];
@@ -5272,7 +5277,7 @@ async function checkNotamAlerts() {
   }
 }
 
-// tick every 15 min; each airport is only polled when due (Premium 30 min, Pro-only 60 min) or when a fresh response already exists
+// tick every 15 min; each airport is only polled when due (Max 30 min, Pro-only 60 min) or when a fresh response already exists
 setInterval(checkNotamAlerts, ALERT_TICK_MS);
 setTimeout(checkNotamAlerts, 30 * 1000);
 
@@ -6110,8 +6115,8 @@ async function processSupportEmail(email) {
 
 PLANS & PRICING:
 - Free: 3 AI Briefings/month, NOTAMs & MET live data, SIGMET/AIRMET, Aviation Tools Panel
-- Pro ($49/month): Unlimited AI Briefings, NOTAM Intelligence Chat, En-route FIR Analysis, AI Assistant, NOTAM/METAR/TAF Analysis, Briefing Archive, Saved Routes, NOTAM Alerts (3 airports), Share & PDF Export
-- Max ($99/month): Everything in Pro + AI Video Briefing (5/month), higher chat limits, unlimited archive, unlimited saved routes, unlimited NOTAM alerts, Priority Support, extra video pack $10=3 videos
+- Pro ($49/month): Unlimited AI Briefings, NOTAM Intelligence Chat, En-route FIR Analysis, AI Assistant, NOTAM/METAR/TAF Analysis, Briefing Archive, Saved Routes, NOTAM Alerts (3 airports, checked about every 60 min), Share & PDF Export
+- Max ($99/month): Everything in Pro + AI Video Briefing (5/month), higher chat limits, unlimited archive, unlimited saved routes, NOTAM alerts (5 airports, checked about every 30 min), Priority Support, extra video pack $10=3 videos
 - Enterprise ($999/month): Everything in Max + up to 10 users, API Access, Priority Support & SLA, Dedicated Account Manager, Custom Onboarding
 - All paid plans have 7-day free trial, cancel anytime
 - Annual billing available with 15% discount
