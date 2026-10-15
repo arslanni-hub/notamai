@@ -394,6 +394,10 @@ const SKYLINK_ORIGIN = 'https://skylink-api.p.rapidapi.com';
 const SKYLINK_STATIC_TTL_MS = 12 * 60 * 60 * 1000;
 const SKYLINK_STATIC_PATHS = ['/airports/search', '/charts/', '/navaids', '/distance', '/ml/flight-time', '/aircraft/performance', '/aircraft/registration', '/routes/airport', '/carbon/estimate'];
 const skylinkCache = new Map();
+// Airport / FIR NOTAM responses: short shared cache (the provider recommends 2-5 min) so a briefing, the raw NOTAM panel and the alert
+// checker never pay twice for the same airport. airportNotamStore keeps the newest REAL provider response per airport for the alert diff.
+const SKYLINK_NOTAM_TTL_MS = 5 * 60 * 1000;
+const airportNotamStore = new Map();   // ICAO/FIR -> { t, data }
 const skylinkInflight = new Map();
 const skylinkPending = {};
 let skylinkFlushTimer = null;
@@ -454,7 +458,8 @@ function fetchURL(url, options = {}) {
   if (!url.startsWith(SKYLINK_ORIGIN)) return fetchURLRaw(url, options);
   const path = url.slice(SKYLINK_ORIGIN.length).split('?')[0];
   const isStatic = SKYLINK_STATIC_PATHS.some(p => path.startsWith(p));
-  if (isStatic) {
+  const notamMatch = /^\/notams\/([A-Za-z0-9]{3,4})$/.exec(path);
+  if (isStatic || notamMatch) {
     const hit = skylinkCache.get(url);
     if (hit && hit.expires > Date.now()) return Promise.resolve(hit.data);
   }
@@ -467,6 +472,12 @@ function fetchURL(url, options = {}) {
     if (isStatic && ok) {
       if (skylinkCache.size > 2000) skylinkCache.clear();
       skylinkCache.set(url, { expires: Date.now() + SKYLINK_STATIC_TTL_MS, data });
+    }
+    if (notamMatch && skylinkNotamsOk(data)) {   // only genuine NOTAM responses (never quota / outage replies) are cached or stored
+      if (skylinkCache.size > 2000) skylinkCache.clear();
+      skylinkCache.set(url, { expires: Date.now() + SKYLINK_NOTAM_TTL_MS, data });
+      if (airportNotamStore.size > 1500) airportNotamStore.clear();
+      airportNotamStore.set(notamMatch[1].toUpperCase(), { t: Date.now(), data });
     }
     return data;
   })().finally(() => skylinkInflight.delete(url));
@@ -5104,131 +5115,165 @@ async function sendNotamAlert(userEmail, icao, notamText) {
 // ─── NOTAM ALERT CHECK (Cache Architecture) ───────────────────────────────
 let alertCheckCycle = 0;
 
+// ── NOTAM alerts v2 ─────────────────────────────────────────────────────────────────────────────────
+// One shared state per airport/FIR (Firestore alertState/{ICAO}, mirrored in memory): known NOTAM ids + time of the last diff.
+//  - interval per airport = shortest among its subscribers' plans (Premium 30 min, Pro-only 60 min) — see alert-poll.js
+//  - any fresh provider response for that airport (briefing, raw panel, earlier poll) counts as a poll and is diffed for free
+//  - every NEW id is reported (digest e-mail), not just the newest one; user e-mail / preferences are looked up only when something is sent
+const alertPoll = require('./alert-poll');
+const ALERT_TICK_MS = 15 * 60 * 1000;
+const ALERT_CAPS = { free: 0, pro: 3, max: 10, enterprise: 10 };
+const alertStateMem = new Map();      // ICAO -> state | null (null = no state yet)
+const alertPlanMem = new Map();       // userId -> { plan, t }
+let alertTickRunning = false;
+
+async function alertPlanFor(userId) {
+  const hit = alertPlanMem.get(userId);
+  if (hit && Date.now() - hit.t < 15 * 60 * 1000) return hit.plan;
+  const plan = await getUserPlan(userId);
+  alertPlanMem.set(userId, { plan, t: Date.now() });
+  return plan;
+}
+async function loadAlertState(icao) {
+  if (alertStateMem.has(icao)) return alertStateMem.get(icao);
+  let st = null;
+  try {
+    const d = await adminDb.collection('alertState').doc(icao).get();
+    if (d.exists) { const x = d.data(); st = { known: x.known || [], lastCheckedAt: x.lastCheckedAt || 0, lastSigmetId: x.lastSigmetId || '' }; }
+  } catch (e) { console.log('[ALERT STATE] load failed', icao, e.message); }
+  alertStateMem.set(icao, st);
+  return st;
+}
+async function saveAlertState(icao, st) {
+  alertStateMem.set(icao, st);
+  try { await adminDb.collection('alertState').doc(icao).set({ known: st.known, lastCheckedAt: st.lastCheckedAt, lastSigmetId: st.lastSigmetId || '', updatedAt: admin.firestore.FieldValue.serverTimestamp() }); }
+  catch (e) { console.log('[ALERT STATE] save failed', icao, e.message); }
+}
+
 async function checkNotamAlerts() {
-  alertCheckCycle++;
-  console.log('[ALERT CHECK] Running... cycle', alertCheckCycle);
+  if (alertTickRunning) { console.log('[ALERT CHECK] previous run still active — skipped'); return; }
+  alertTickRunning = true;
+  const stats = { airports: 0, fetched: 0, reused: 0, skipped: 0, emails: 0, newNotams: 0 };
   try {
     const alertsSnap = await adminDb.collection('alerts').where('active', '==', true).get();
     if (alertsSnap.empty) { console.log('[ALERT CHECK] No active alerts'); return; }
 
-    // Server-side guard: resolve each owner's plan once per cycle and enforce plan caps.
-    const ALERT_CAPS = { free: 0, pro: 3, max: 10, enterprise: 10 };
+    // plan caps (server side): resolve each owner's plan once (15 min memory), keep the oldest alerts up to the cap
     const byUser = {};
     for (const doc of alertsSnap.docs) {
       const d = doc.data();
       if (!d.icao || !d.userId) continue;
       (byUser[d.userId] = byUser[d.userId] || []).push(doc);
     }
-    const planCache = {};
     const icaoMap = {};
     let ignored = 0;
     for (const [userId, docs] of Object.entries(byUser)) {
-      const plan = await getUserPlan(userId);
-      planCache[userId] = plan;
+      const plan = await alertPlanFor(userId);
       const cap = plan === 'admin' ? docs.length : (ALERT_CAPS[plan] ?? 0);
       docs.sort((a, b) => (a.data().createdAt?.toMillis?.() || 0) - (b.data().createdAt?.toMillis?.() || 0));
       ignored += Math.max(0, docs.length - cap);
       for (const doc of docs.slice(0, cap)) {
-        const icao = doc.data().icao;
-        (icaoMap[icao] = icaoMap[icao] || []).push({ doc, userId });
+        const icao = String(doc.data().icao).toUpperCase();
+        (icaoMap[icao] = icaoMap[icao] || []).push({ doc, userId, plan });
       }
     }
     if (ignored) console.log('[ALERT CHECK] Ignored', ignored, 'alerts (free plan or over plan cap)');
 
     const uniqueIcaos = Object.keys(icaoMap);
-    console.log('[ALERT CHECK]', uniqueIcaos.length, 'unique ICAOs,', alertsSnap.size, 'total alerts');
+    stats.airports = uniqueIcaos.length;
+    const userInfo = {};   // looked up lazily, only for users who actually receive something this run
+    const infoFor = async (userId) => {
+      if (userInfo[userId] !== undefined) return userInfo[userId];
+      let info = null;
+      try {
+        const [rec, ud] = await Promise.all([admin.auth().getUser(userId), adminDb.collection('users').doc(userId).get()]);
+        const n = ud.exists ? (ud.data().notifications || {}) : {};
+        info = rec.email && n.emailAlerts !== false ? { email: rec.email } : null;
+      } catch (e) { info = null; }
+      return (userInfo[userId] = info);
+    };
 
     for (const icao of uniqueIcaos) {
-      let notams = [];
-      try {
-        const data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + icao + '?include_future=true', {
-          method: 'GET',
-          headers: { 'x-rapidapi-key': process.env.SKYLINK_KEY, 'x-rapidapi-host': 'skylink-api.p.rapidapi.com' }
-        });
+      const subs = icaoMap[icao];
+      const st = await loadAlertState(icao);
+      const stored = airportNotamStore.get(icao) || null;
+      const action = alertPoll.planAction({ now: Date.now(), intervalMs: alertPoll.intervalMsFor(subs.map(x => x.plan)), state: st, stored: stored && { t: stored.t } });
+      if (action === 'skip') { stats.skipped++; continue; }
+
+      let data = stored && stored.data;
+      let checkedAt = stored ? stored.t : Date.now();
+      if (action === 'fetch') {
+        try {
+          data = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + icao + '?include_future=true', {
+            method: 'GET',
+            headers: { 'x-rapidapi-key': process.env.SKYLINK_KEY, 'x-rapidapi-host': 'skylink-api.p.rapidapi.com' }
+          });
+        } catch (e) { console.log('[ALERT CHECK ERROR] SkyLink fetch failed for', icao, e.message); continue; }
         if (!skylinkNotamsOk(data) && !Array.isArray(data?.data)) {
           console.log('[ALERT CHECK ERROR] SkyLink returned no NOTAM data for', icao, JSON.stringify(data).slice(0, 200));
           notifySkylinkFailure(icao);
-          continue;
+          continue;   // state untouched: retried next tick
         }
-        notams = (data?.notams || data?.data || []).filter(n => !n.location || n.location.toUpperCase() === icao.toUpperCase());
-        console.log('[ALERT CHECK]', icao, notams.length, 'NOTAMs');
-      } catch(e) {
-        console.log('[ALERT CHECK ERROR] SkyLink fetch failed for', icao, e.message);
-        continue;
+        checkedAt = Date.now();
+        stats.fetched++;
+      } else {
+        stats.reused++;
       }
 
-      if (notams.length === 0) continue;
+      const notams = (data?.notams || data?.data || []).filter(n => !n.location || String(n.location).toUpperCase() === icao);
+      const ids = alertPoll.extractIds(notams);
+      const { baseline, fresh } = alertPoll.diffIds(st ? st.known : null, ids);
+      const next = { known: alertPoll.mergeKnown(st ? st.known : [], ids), lastCheckedAt: checkedAt, lastSigmetId: st ? st.lastSigmetId : '' };
+      console.log('[ALERT CHECK]', icao, action, notams.length, 'NOTAMs,', baseline ? 'baseline' : fresh.length + ' new', '—', subs.length, 'alert(s)');
 
-      const sortedNotams = [...notams].sort((a, b) => notamRecencyKey(b) - notamRecencyKey(a));
-      const latestNotam = sortedNotams[0];
-      let latestId = latestNotam?.id || latestNotam?.notam_id || '';
-      if (!latestId && latestNotam?.raw) {
-        const m = latestNotam.raw.match(/([A-Z]\d+\/\d{4})/);
-        if (m) latestId = m[1];
-      }
-      if (!latestId) continue;
-
-      for (const { doc: alertDoc, userId } of icaoMap[icao]) {
-        const alert = alertDoc.data();
-
-        const plan = planCache[userId];
-
-        // Notification preference check
-        try {
-          const userDoc = await adminDb.collection('users').doc(userId).get();
-          const notifications = userDoc.exists ? (userDoc.data().notifications || {}) : {};
-          if (notifications.emailAlerts === false) continue;
-        } catch(e) { /* default to sending */ }
-
-        let userEmail = null;
-        try {
-          const userRecord = await admin.auth().getUser(userId);
-          userEmail = userRecord.email;
-        } catch(e) { continue; }
-        if (!userEmail) continue;
-
-        const lastSentId = alert.lastSentNotamId || '';
-        if (!lastSentId) {
-          await alertDoc.ref.update({ lastSentNotamId: latestId, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-          console.log('[ALERT CHECK]', icao, 'Baseline saved for', userEmail);
-          continue;
+      // SIGMET (free API, once per airport per poll)
+      let sigmetNew = null;
+      try {
+        const sg = await fetchURL('https://aviationweather.gov/api/data/airsigmet?format=json&hazard=sigmet&icao=' + icao);
+        const latest = Array.isArray(sg) && sg.length ? sg[0] : null;
+        const sid = latest ? (latest.airsigmetId || '') : '';
+        if (sid) {
+          if (st && sid !== (st.lastSigmetId || '')) sigmetNew = { id: sid, text: latest.rawAirSigmet || sid };
+          next.lastSigmetId = sid;
         }
+      } catch (e) { console.log('[SIGMET ERROR]', icao, e.message); }
 
-        if (latestId !== lastSentId) {
-          const notamText = latestNotam.raw || latestId;
-          await sendNotamAlert(userEmail, icao, notamText);
-          await alertDoc.ref.update({ lastSentNotamId: latestId, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-          console.log('[ALERT CHECK] Sent alert to', userEmail, 'for', icao);
-        }
-
-        // SIGMET check (free API — no rate limit impact)
-        try {
-          const sigmetData = await fetchURL('https://aviationweather.gov/api/data/airsigmet?format=json&hazard=sigmet&icao=' + icao);
-          const sigmets = Array.isArray(sigmetData) ? sigmetData : [];
-          if (sigmets.length > 0) {
-            const latestSigmet = sigmets[0];
-            const sigmetId = latestSigmet.airsigmetId || '';
-            const lastSentSigmetId = alert.lastSentSigmetId || '';
-            if (sigmetId && sigmetId !== lastSentSigmetId) {
-              await sendNotamAlert(userEmail, icao + ' SIGMET', latestSigmet.rawAirSigmet || sigmetId);
-              await alertDoc.ref.update({ lastSentSigmetId: sigmetId, lastChecked: admin.firestore.FieldValue.serverTimestamp() });
-              console.log('[SIGMET ALERT]', userEmail, icao, sigmetId);
-            }
+      if (fresh.length || sigmetNew) {
+        const freshNotams = notams.filter(n => fresh.includes(alertPoll.idOfNotam(n))).sort((a, b) => notamRecencyKey(b) - notamRecencyKey(a));
+        stats.newNotams += freshNotams.length;
+        const latestFreshId = freshNotams.length ? alertPoll.idOfNotam(freshNotams[0]) : '';
+        for (const { doc: alertDoc, userId } of subs) {
+          const info = await infoFor(userId);
+          if (!info) continue;
+          const patch = {};
+          if (freshNotams.length) {
+            await sendNotamAlert(info.email, icao, alertPoll.digestText(freshNotams));
+            stats.emails++;
+            patch.lastSentNotamId = latestFreshId;
           }
-        } catch(e) { console.log('[SIGMET ERROR]', icao, e.message); }
-
-        await new Promise(r => setTimeout(r, 200));
+          if (sigmetNew) {
+            await sendNotamAlert(info.email, icao + ' SIGMET', sigmetNew.text);
+            stats.emails++;
+            patch.lastSentSigmetId = sigmetNew.id;
+          }
+          try { await alertDoc.ref.update({ ...patch, lastChecked: admin.firestore.FieldValue.serverTimestamp() }); } catch (e) { /* alert deleted meanwhile */ }
+          await new Promise(r => setTimeout(r, 200));
+        }
       }
-
-      await new Promise(r => setTimeout(r, 500));
+      await saveAlertState(icao, next);
+      if (action === 'fetch') await new Promise(r => setTimeout(r, 600));   // stay under the provider's per-second limit
     }
-  } catch(e) {
+  } catch (e) {
     console.log('[ALERT CHECK MAIN ERROR]', e.message);
+  } finally {
+    alertTickRunning = false;
+    console.log('[ALERT CHECK] done', JSON.stringify(stats));
+    try { await adminDb.collection('system').doc('alert_stats').set({ ...stats, at: admin.firestore.FieldValue.serverTimestamp() }); } catch (e) { /* stats are informational */ }
   }
 }
 
-// 30min interval for all plans
-setInterval(checkNotamAlerts, 30 * 60 * 1000);
+// tick every 15 min; each airport is only polled when due (Premium 30 min, Pro-only 60 min) or when a fresh response already exists
+setInterval(checkNotamAlerts, ALERT_TICK_MS);
 setTimeout(checkNotamAlerts, 30 * 1000);
 
 // Weekly Summary — runs every Monday at 08:00 UTC
