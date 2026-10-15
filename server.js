@@ -1964,13 +1964,17 @@ const server = http.createServer(async (req, res) => {
     const q = new URL(req.url, 'http://x').searchParams;
     const keyEnv = process.env.CALIBRATION_KEY || '';
     const given = q.get('key') || '';
-    const okKey = keyEnv.length >= 16 && given.length === keyEnv.length && require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(keyEnv));
+    let okKey = keyEnv.length >= 16 && given.length === keyEnv.length && require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(keyEnv));
+    if (!okKey) {   // the admin page calls this with the signed-in admin's Firebase token
+      try { const dec = await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', '')); okKey = dec.email === 'arslanni@gmail.com'; } catch (e) { okKey = false; }
+    }
     if (!okKey) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
     try {
       const snap = await adminDb.collection('ratingFeedback').orderBy('createdAt', 'desc').limit(2000).get();
-      const total = { low: 0, ok: 0, high: 0 }, byLevel = {}, routes = {};
+      const total = { low: 0, ok: 0, high: 0 }, byLevel = {}, routes = {}, recent = [];
       snap.forEach(d => {
         const x = d.data();
+        if (recent.length < 25) recent.push({ at: x.createdAt && x.createdAt.toDate ? x.createdAt.toDate().toISOString() : null, route: x.route, level: x.level, score: x.score, vote: x.vote, user: x.userId ? 'signed-in' : 'anonymous' });
         total[x.vote]++;
         const L = (byLevel[x.level] = byLevel[x.level] || { low: 0, ok: 0, high: 0 }); L[x.vote]++;
         const R = (routes[x.route] = routes[x.route] || { low: 0, ok: 0, high: 0, scores: [] }); R[x.vote]++; R.scores.push(x.score);
@@ -1978,7 +1982,7 @@ const server = http.createServer(async (req, res) => {
       const n = total.low + total.ok + total.high;
       const disagree = Object.entries(routes).filter(([, r]) => r.low + r.high >= 2 && r.low + r.high > r.ok).map(([k, r]) => ({ route: k, ...r }));
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ n, agreement: n ? +(total.ok / n).toFixed(3) : null, total, byLevel, routesToReview: disagree, note: 'low = rating too low (under-warns), high = rating too high (over-warns); last 2000 votes' }, null, 1));
+      res.end(JSON.stringify({ n, agreement: n ? +(total.ok / n).toFixed(3) : null, total, byLevel, routesToReview: disagree, recent, note: 'low = rating too low (under-warns), high = rating too high (over-warns); last 2000 votes' }, null, 1));
     } catch (e) { res.writeHead(500, { 'Content-Type': 'text/plain' }); res.end('Error'); }
     return;
   }

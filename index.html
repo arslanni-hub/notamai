@@ -3318,11 +3318,16 @@ function appendRatingFeedback(containerEl, riskFix, route) {
       'The rating comes from a fixed rubric that was blind-tested against independent model raters; flight-crew validation is ongoing.</div>';
     box.querySelectorAll('button').forEach(btn => btn.addEventListener('click', async () => {
       const vote = btn.getAttribute('data-v');
-      box.querySelector('.rf-btns').innerHTML = '<span style="color:#2ec4b6;">Thank you — your feedback was recorded.</span>';
+      const slot = box.querySelector('.rf-btns');
       try {
         const headers = Object.assign({ 'Content-Type': 'application/json' }, await getAuthHeader().catch(() => ({})));
-        await fetch('/api/rating-feedback', { method: 'POST', headers, body: JSON.stringify({ vote, route, level, score: riskFix.score, briefingId: window.currentBriefingId || '' }) });
-      } catch (e) { /* feedback is best effort */ }
+        const r = await fetch('/api/rating-feedback', { method: 'POST', headers, body: JSON.stringify({ vote, route, level, score: riskFix.score, briefingId: window.currentBriefingId || '' }) });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        slot.innerHTML = '<span style="color:#2ec4b6;">Thank you — your feedback was recorded.</span>';
+      } catch (e) {
+        console.log('rating feedback error:', e);
+        slot.innerHTML = '<span style="color:#e63946;">Feedback could not be saved — please try again later.</span>';
+      }
     }));
     const actions = containerEl.querySelector('.briefing-footer');
     const anchor = actions && actions.nextSibling ? actions.nextSibling : null;

@@ -64,6 +64,7 @@ tr:hover td { background:rgba(74,158,255,0.03); }
     <button class="tab" onclick="switchTab('revenue')">Revenue</button>
     <button class="tab" onclick="switchTab('usage')">Usage</button>
     <button class="tab" onclick="switchTab('system')">System</button>
+    <button class="tab" onclick="switchTab('feedback')">Rating feedback</button>
   </div>
 
   <div class="content">
@@ -72,6 +73,7 @@ tr:hover td { background:rgba(74,158,255,0.03); }
     <div id="tab-revenue" class="tab-content"><div class="loading">LOADING...</div></div>
     <div id="tab-usage" class="tab-content"><div class="loading">LOADING...</div></div>
     <div id="tab-system" class="tab-content"><div class="loading">LOADING...</div></div>
+    <div id="tab-feedback" class="tab-content"><div class="loading">LOADING...</div></div>
   </div>
 </div>
 
@@ -113,6 +115,7 @@ function switchTab(tab) {
   if (tab === 'revenue') loadRevenue();
   if (tab === 'usage') loadUsage();
   if (tab === 'system') loadSystem();
+  if (tab === 'feedback') loadFeedback();
 }
 
 async function loadOverview() {
@@ -416,6 +419,29 @@ async function loadUsage() {
     `;
   } catch(e) {
     document.getElementById('tab-usage').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+  }
+}
+
+async function loadFeedback() {
+  const el = document.getElementById('tab-feedback');
+  el.innerHTML = '<div class="loading">LOADING FEEDBACK...</div>';
+  try {
+    const idToken = await firebase.auth().currentUser.getIdToken();
+    const res = await fetch('/api/admin/rating-feedback', { headers: { 'Authorization': 'Bearer ' + idToken } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    const pct = d.agreement == null ? '—' : Math.round(d.agreement * 100) + '%';
+    const lv = Object.entries(d.byLevel || {}).map(([k, v]) => `<tr><td>${k}</td><td>${v.low}</td><td>${v.ok}</td><td>${v.high}</td></tr>`).join('') || '<tr><td colspan="4">No votes yet</td></tr>';
+    const rv = (d.routesToReview || []).map(r => `<tr><td>${r.route}</td><td>${r.low}</td><td>${r.ok}</td><td>${r.high}</td></tr>`).join('') || '<tr><td colspan="4">None</td></tr>';
+    const rc = (d.recent || []).map(r => `<tr><td>${(r.at || '').replace('T', ' ').slice(0, 16)}</td><td>${r.route}</td><td>${r.level} ${r.score}</td><td>${r.vote.toUpperCase()}</td><td>${r.user}</td></tr>`).join('') || '<tr><td colspan="5">No votes yet</td></tr>';
+    el.innerHTML = `<div class="stats-grid"><div class="stat-card"><div class="stat-label">VOTES</div><div class="stat-value">${d.n}</div></div>
+      <div class="stat-card"><div class="stat-label">ABOUT RIGHT</div><div class="stat-value">${pct}</div></div>
+      <div class="stat-card"><div class="stat-label">TOO LOW / TOO HIGH</div><div class="stat-value">${d.total.low} / ${d.total.high}</div></div></div>
+      <h3 style="margin:18px 0 6px;font-size:12px;color:#8a9bb0;">BY RATING LEVEL</h3><table><tr><th>LEVEL</th><th>TOO LOW</th><th>RIGHT</th><th>TOO HIGH</th></tr>${lv}</table>
+      <h3 style="margin:18px 0 6px;font-size:12px;color:#8a9bb0;">ROUTES TO REVIEW (2+ dissenting votes)</h3><table><tr><th>ROUTE</th><th>TOO LOW</th><th>RIGHT</th><th>TOO HIGH</th></tr>${rv}</table>
+      <h3 style="margin:18px 0 6px;font-size:12px;color:#8a9bb0;">LATEST VOTES</h3><table><tr><th>TIME (UTC)</th><th>ROUTE</th><th>RATING</th><th>VOTE</th><th>USER</th></tr>${rc}</table>`;
+  } catch (e) {
+    el.innerHTML = '<div class="loading" style="color:#e63946">Could not load feedback: ' + e.message + '</div>';
   }
 }
 
