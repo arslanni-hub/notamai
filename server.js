@@ -524,7 +524,10 @@ async function computeBriefingRisk({ icao_dep, icao_arr, isSingleAirport, notamD
     ]);
     if (pd && pa) route = { dep: pd, arr: pa };
   }
-  const input = { now: new Date(), airports, enroute: enrouteCollector || [], route };
+  // FIRs the great-circle track passes through (and those within the corridor) — used by the conflict-zone check. Never blocks the briefing.
+  let routeFirList = null;
+  if (route) { try { routeFirList = require('./route-firs').routeFirs(route.dep, route.arr); } catch (e) { console.warn('route FIR calc failed:', e.message); } }
+  const input = { now: new Date(), airports, enroute: enrouteCollector || [], route, routeFirs: routeFirList ? routeFirList.track : [], routeNearFirs: routeFirList ? routeFirList.near : [] };
   const r = risk.assessRisk(input);
   r.route = route;
   r.modelBlock = risk.buildModelBlock(input, r);

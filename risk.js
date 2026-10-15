@@ -49,7 +49,7 @@ const CONFIG = {
   shortClosureHours: 8,
 
   // Weight of each Tier 2 factor in the score (default 1). Light items that rarely change a plan on their own count less.
-  t2Weights: { MINIMA: 0.25, RVR: 0.25, CAT23: 0.25, NAVAID: 0.25, LIGHTING: 0.5, RWY_RESTRICTION: 0.5, LLWAS: 1.5, 'ROUTE:AIRSPACE': 0.5, 'ROUTE:NAVAID': 0.25, 'ROUTE:GNSS_OUTAGE': 0.25, APCH_NA: 0.5, 'ROUTE:CONFLICT_CAUTION': 1, 'ROUTE:CONFLICT_INFO': 0.5 },
+  t2Weights: { MINIMA: 0.25, RVR: 0.25, CAT23: 0.25, NAVAID: 0.25, LIGHTING: 0.5, RWY_RESTRICTION: 0.5, LLWAS: 1.5, 'ROUTE:AIRSPACE': 0.5, 'ROUTE:NAVAID': 0.25, 'ROUTE:GNSS_OUTAGE': 0.25, APCH_NA: 0.5, 'ROUTE:CONFLICT_CAUTION': 1, 'ROUTE:CONFLICT_REROUTE': 1, 'ROUTE:CONFLICT_INFO': 0.5 },
   thunderstormForecastWeight: 0.5,   // a forecast thunderstorm without low visibility/ceiling
   // En-route GNSS interference reported in this many FIRs or more is Tier 1; in a single FIR it is Tier 2.
   // 2026-10-11 hold-out: two neighbouring FIRs with chronic interference (e.g. Helsinki + Tallinn) did not change the plan -> Tier 1 from three FIRs.
@@ -87,7 +87,7 @@ const CONFIG = {
     { name: 'Iraq', firs: ['ORBB'], prefixes: ['OR'], endpoint: 'NOGO', crossing: 'NOGO', until: '2026-11-16', src: 'EASA CZIB-2026-05-R2; FAA SFAR 77', rec: 'do not operate at any level' },
     { name: 'Syria', firs: ['OSTT'], prefixes: ['OS'], endpoint: 'NOGO', crossing: 'NOGO', until: '2026-11-30', src: 'EASA CZIB-2017-03 (revised 1 Oct 2026); FAA SFAR 114', rec: 'do not operate at any level' },
     { name: 'Sudan', firs: ['HSSS'], prefixes: ['HS'], endpoint: 'NOGO', crossing: 'NOGO', until: '2027-01-31', src: 'EASA CZIB-2023-01R8', rec: 'do not fly at any level' },
-    { name: 'Lebanon', firs: ['OLLC'], prefixes: ['OL'], endpoint: 'CAUTION', crossing: 'NOGO', until: '2026-11-16', src: 'EASA CZIB-2026-06-R2', rec: 'do not operate, except Beirut approaches from the sea and departures over the sea (risk assessment required)' },
+    { name: 'Lebanon', firs: ['OLBB'], prefixes: ['OL'], endpoint: 'CAUTION', crossing: 'NOGO', until: '2026-11-16', src: 'EASA CZIB-2026-06-R2', rec: 'do not operate, except Beirut approaches from the sea and departures over the sea (risk assessment required)' },
     { name: 'Yemen', firs: ['OYSC'], prefixes: ['OY'], endpoint: 'HIGH', crossing: 'NOGO', until: '2026-10-31', src: 'EASA CZIB-2017-07R19; FAA SFAR 115', rec: 'do not operate, except maritime routes east of B400 (caution)' },
     { name: 'Libya', firs: ['HLLL'], prefixes: ['HL'], endpoint: 'HIGH', crossing: 'CAUTION', until: '2027-01-31', src: 'EASA CZIB-2017-02R20; FAA SFAR 112', rec: 'below FL320 do not operate except coastal approaches from the sea; above FL320 exercise caution' },
     { name: 'Afghanistan', firs: ['OAKX'], prefixes: ['OA'], endpoint: 'HIGH', crossing: 'CAUTION', until: '2027-01-31', src: 'EASA CZIB-2017-08R19; FAA SFAR 119', rec: 'do not operate below FL320' },
@@ -776,15 +776,19 @@ function assessConflictZones(input, cfg, now, coveredFirs) {
   // Crossing is judged ONLY from input.routeFirs (the FIRs the great-circle route really passes through). The en-route NOTAM FIR list is a
   // generous candidate list (it includes FIRs that may be flown around), so it is NOT used for the NO-GO / caution crossing check.
   const firs = new Set((input.routeFirs || []).map(x => String(x || '').toUpperCase()));
-  const RANK = { NOGO: 4, HIGH: 3, CAUTION: 2, INFO: 1 };
+  const nearFirs = new Set((input.routeNearFirs || []).map(x => String(x || '').toUpperCase()));
   const hits = [];
   for (const z of zones) {
     const atEnd = icaos.some(ic => (z.prefixes || []).some(p => ic.startsWith(p)));
     const crosses = (z.firs || []).some(f => firs.has(f));
-    if (!atEnd && !crosses) continue;
-    const lv = atEnd ? z.endpoint : (crosses ? z.crossing : null);   // an aerodrome inside the zone: the endpoint rule covers the whole zone
+    const near = !crosses && (z.firs || []).some(f => nearFirs.has(f));
+    if (!atEnd && !crosses && !near) continue;
+    // Aerodrome inside the zone: the endpoint rule applies. A route that only crosses the zone on the great-circle track normally flies around it,
+    // so a NO-GO/HIGH zone becomes a "re-route needed" note (Tier 2) rather than a block; a zone only within the corridor is information.
+    let lv = atEnd ? z.endpoint : (crosses ? z.crossing : (near ? 'INFO' : null));
     if (!lv) continue;
-    const covered = lv === 'NOGO' && (z.firs || []).some(f => coveredFirs && coveredFirs.has(f));   // already raised by an airspace-closed NOTAM
+    if (!atEnd && crosses && (lv === 'NOGO' || lv === 'HIGH')) lv = 'REROUTE';
+    const covered = lv === 'REROUTE' && (z.firs || []).some(f => coveredFirs && coveredFirs.has(f));   // already raised by an airspace-closed NOTAM
     const overdue = z.until && new Date(z.until + 'T23:59:59Z') < now;
     hits.push({ z, lv, atEnd, covered, overdue });
   }
@@ -792,8 +796,10 @@ function assessConflictZones(input, cfg, now, coveredFirs) {
   const out = [];
   const nogoEnd = hits.filter(h => h.lv === 'NOGO' && h.atEnd && !h.covered);
   if (nogoEnd.length) out.push({ key: 'ROUTE:CONFLICT_NOGO', tier: 1, scope: 'ROUTE', override: true, label: 'conflict zone: operations to/from this aerodrome are prohibited for operators subject to EASA/FAA rules — ' + nogoEnd.map(txt).join('; '), ids: [] });
-  const high = hits.filter(h => ((h.lv === 'NOGO' && !h.atEnd && !h.covered) || h.lv === 'HIGH'));
-  if (high.length) out.push({ key: 'ROUTE:CONFLICT_HIGH', tier: 1, scope: 'ROUTE', label: 'conflict zone on the route or at the aerodrome — re-route / risk assessment required — ' + high.map(txt).join('; '), ids: [] });
+  const high = hits.filter(h => h.lv === 'HIGH' && h.atEnd);
+  if (high.length) out.push({ key: 'ROUTE:CONFLICT_HIGH', tier: 1, scope: 'ROUTE', label: 'conflict zone at the aerodrome — risk assessment required — ' + high.map(txt).join('; '), ids: [] });
+  const rer = hits.filter(h => h.lv === 'REROUTE' && !h.covered);
+  if (rer.length) out.push({ key: 'ROUTE:CONFLICT_REROUTE', tier: 2, scope: 'ROUTE', label: 'the great-circle track crosses a prohibited/high-risk zone — the route must be planned around it: ' + rer.map(txt).join('; '), ids: [] });
   const caution = hits.filter(h => h.lv === 'CAUTION');
   if (caution.length) out.push({ key: 'ROUTE:CONFLICT_CAUTION', tier: 2, scope: 'ROUTE', label: 'conflict zone — caution: ' + caution.map(txt).join('; '), ids: [] });
   const info = hits.filter(h => h.lv === 'INFO');
@@ -924,6 +930,8 @@ function buildModelBlock(input, r, opts) {
     if (f.length) L.push(`TIER ${t} FACTORS:\n` + f.map(x => `- ${x.label}${x.ids && x.ids.length ? ' [' + x.ids.slice(0, 8).join(', ') + (x.ids.length > 8 ? ` +${x.ids.length - 8} more` : '') + ']' : ''}`).join('\n'));
   });
   if (!r.factors.length) L.push('No scored factors are active in the next 24 hours.');
+
+  if ((input.routeFirs || []).length) L.push(`GREAT-CIRCLE ROUTE FIRs (approximate boundaries; actual routing may differ): ${input.routeFirs.join(' > ')}${(input.routeNearFirs || []).length ? ' | within ~50 NM of the track: ' + input.routeNearFirs.join(', ') : ''}`);
 
   // runway data
   const rw = Object.entries(r.runwayInfo || {}).map(([icao, inf]) => {

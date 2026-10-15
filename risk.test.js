@@ -739,14 +739,14 @@ test('v3.38 conflict zones: aerodrome inside a NO-GO zone is an override', () =>
   const c = R.assessRisk({ now: NOW, airports: [ap('EGLL', 'DEP'), ap('LTFM', 'ARR')], enroute: [] });
   assert.ok(!c.factors.some(f => /CONFLICT/.test(f.key)));
 });
-test('v3.38 conflict zones: crossing a NO-GO FIR is Tier 1 (no override); Beirut endpoint is Tier 2 caution', () => {
+test('v3.38 conflict zones: a great-circle crossing of a NO-GO FIR is a Tier 2 re-route note (no override); Beirut endpoint is Tier 2 caution', () => {
   const r = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'DEP', notams: [] }, { icao: 'OMDB', role: 'ARR', notams: [] }], enroute: [], routeFirs: ['LTAA', 'ORBB', 'OMAE'] });
-  assert.strictEqual(r.override, false); assert.strictEqual(r.counts.t1, 1);
-  assert.ok(r.factors.some(f => f.key === 'ROUTE:CONFLICT_HIGH' && /Iraq/.test(f.label)));
+  assert.strictEqual(r.override, false); assert.strictEqual(r.counts.t1, 0);
+  assert.ok(r.factors.some(f => f.key === 'ROUTE:CONFLICT_REROUTE' && /Iraq/.test(f.label)));
   const l = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'DEP', notams: [] }, { icao: 'OLBA', role: 'ARR', notams: [] }], enroute: [] });
   assert.strictEqual(l.override, false); assert.ok(l.factors.some(f => f.key === 'ROUTE:CONFLICT_CAUTION' && /Lebanon/.test(f.label)));
   const e = R.assessRisk({ now: NOW, airports: [{ icao: 'LTFM', role: 'DEP', notams: [] }, { icao: 'OMDB', role: 'ARR', notams: [] }], enroute: [{ fir: 'ORBB', notams: [] }] });
-  assert.ok(!e.factors.some(f => f.key === 'ROUTE:CONFLICT_HIGH'), 'candidate en-route FIR list alone does not trigger a crossing');
+  assert.ok(!e.factors.some(f => /CONFLICT_(REROUTE|HIGH|NOGO)/.test(f.key)), 'candidate en-route FIR list alone does not trigger a crossing');
 });
 test('v3.38 conflict zones: routeFirs input, INFO weight, review-overdue flag, no stacking with an airspace-closed NOTAM', () => {
   const base = { now: NOW, airports: [{ icao: 'LTFM', role: 'DEP', notams: [] }, { icao: 'LGAV', role: 'ARR', notams: [] }], enroute: [] };
@@ -756,6 +756,26 @@ test('v3.38 conflict zones: routeFirs input, INFO weight, review-overdue flag, n
   assert.ok(o.factors.some(f => /past its review date/.test(f.label)));
   const closed = R.assessRisk(Object.assign({}, base, { enroute: [{ fir: 'UKBV', notams: [mk('Z1', 'UKBV', '2610010000', '2611010000', 'AIRSPACE UKBV FIR CLSD FOR ALL AIRCRAFT')] }] }));
   assert.ok(closed.counts.t1 <= 1, 'conflict list + closure NOTAM for the same FIR must not stack');
+});
+test('v3.39 route FIRs: great-circle track and corridor from real boundary data', () => {
+  const RF = require('./route-firs');
+  const P = { LTFM: { lat: 41.275, lon: 28.752 }, OMDB: { lat: 25.253, lon: 55.364 }, EGLL: { lat: 51.47, lon: -0.46 }, KJFK: { lat: 40.64, lon: -73.78 }, EDDF: { lat: 50.03, lon: 8.57 }, VHHH: { lat: 22.31, lon: 113.92 } };
+  const a = RF.routeFirs(P.LTFM, P.OMDB);
+  ['LTBB', 'ORBB', 'OIIX', 'OMAE'].forEach(f => assert.ok(a.track.includes(f), f));
+  assert.strictEqual(a.track[0], 'LTBB');
+  const b = RF.routeFirs(P.EGLL, P.KJFK);
+  assert.ok(b.track.includes('EGGX') && b.track.includes('CZQX') && b.track.includes('KZNY'));
+  assert.ok(!b.track.includes('UKBV'));
+  const c = RF.routeFirs(P.EDDF, P.VHHH);
+  assert.ok(c.track.includes('UUWV') || c.track.includes('UMMV'), 'Frankfurt-Hong Kong great circle runs over Belarus/Russia');
+  assert.deepStrictEqual(RF.routeFirs(P.EGLL, P.EGLL).track.slice(0, 1), RF.firsAt(P.EGLL.lat, P.EGLL.lon).size ? [...RF.firsAt(P.EGLL.lat, P.EGLL.lon)].slice(0, 1) : []);
+});
+test('v3.39 conflict zones: a Frankfurt-Hong Kong style track over Russia gives a re-route note; a corridor-only touch is information', () => {
+  const ap = (i, r) => ({ icao: i, role: r, notams: [] });
+  const r = R.assessRisk({ now: NOW, airports: [ap('EDDF', 'DEP'), ap('VHHH', 'ARR')], enroute: [], routeFirs: ['EDGG', 'UUWV', 'UACN'], routeNearFirs: [] });
+  assert.ok(r.factors.some(f => f.key === 'ROUTE:CONFLICT_REROUTE' && /Russian/.test(f.label)));
+  const n = R.assessRisk({ now: NOW, airports: [ap('LTFM', 'DEP'), ap('LGAV', 'ARR')], enroute: [], routeFirs: ['LTBB'], routeNearFirs: ['UKOV'] });
+  assert.ok(n.factors.some(f => f.key === 'ROUTE:CONFLICT_INFO' && /Ukraine/.test(f.label))); assert.ok(!n.factors.some(f => f.key === 'ROUTE:CONFLICT_REROUTE'));
 });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
