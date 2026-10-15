@@ -1930,6 +1930,59 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Calibration export (admin only, protected by CALIBRATION_KEY): one route -> a blind rater packet and, separately, the system's own rating.
+  // Risk-rating feedback ("too low / about right / too high"): ongoing real-world validation data. Anonymous allowed; rate limited.
+  if (req.method === 'POST' && req.url === '/api/rating-feedback') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; if (body.length > 4000) req.destroy(); });
+    req.on('end', async () => {
+      try {
+        if (ipRateLimited(req)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'rate_limited' })); return; }
+        const b = JSON.parse(body || '{}');
+        const vote = String(b.vote || '');
+        const route = String(b.route || '').toUpperCase().replace(/[^A-Z0-9 →>-]/g, '').slice(0, 24);
+        const level = String(b.level || '').toUpperCase();
+        const score = Number(b.score);
+        if (!['low', 'ok', 'high'].includes(vote) || !['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(level) || !(score >= 0 && score <= 10) || !route) {
+          res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'invalid' })); return;
+        }
+        const userId = await getVerifiedUserId(req).catch(() => null);
+        await adminDb.collection('ratingFeedback').add({
+          vote, route, level, score: Math.round(score), userId: userId || null,
+          briefingId: String(b.briefingId || '').slice(0, 64) || null,
+          note: String(b.note || '').slice(0, 300) || null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'failed' }));
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && req.url.startsWith('/api/admin/rating-feedback')) {
+    const q = new URL(req.url, 'http://x').searchParams;
+    const keyEnv = process.env.CALIBRATION_KEY || '';
+    const given = q.get('key') || '';
+    const okKey = keyEnv.length >= 16 && given.length === keyEnv.length && require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(keyEnv));
+    if (!okKey) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    try {
+      const snap = await adminDb.collection('ratingFeedback').orderBy('createdAt', 'desc').limit(2000).get();
+      const total = { low: 0, ok: 0, high: 0 }, byLevel = {}, routes = {};
+      snap.forEach(d => {
+        const x = d.data();
+        total[x.vote]++;
+        const L = (byLevel[x.level] = byLevel[x.level] || { low: 0, ok: 0, high: 0 }); L[x.vote]++;
+        const R = (routes[x.route] = routes[x.route] || { low: 0, ok: 0, high: 0, scores: [] }); R[x.vote]++; R.scores.push(x.score);
+      });
+      const n = total.low + total.ok + total.high;
+      const disagree = Object.entries(routes).filter(([, r]) => r.low + r.high >= 2 && r.low + r.high > r.ok).map(([k, r]) => ({ route: k, ...r }));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ n, agreement: n ? +(total.ok / n).toFixed(3) : null, total, byLevel, routesToReview: disagree, note: 'low = rating too low (under-warns), high = rating too high (over-warns); last 2000 votes' }, null, 1));
+    } catch (e) { res.writeHead(500, { 'Content-Type': 'text/plain' }); res.end('Error'); }
+    return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/admin/calibration')) {
     const q = new URL(req.url, 'http://x').searchParams;
     const keyEnv = process.env.CALIBRATION_KEY || '';

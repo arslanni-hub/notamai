@@ -3151,6 +3151,7 @@ async function handleSend(silent = false) {
               content.style.display = 'block';
               status.textContent = label + ' — COMPLETE';
               appendBriefingActions(content);
+              appendRatingFeedback(content, evt.riskFix, route);
               extractBriefingIcaos();
               saveBriefingToFirestore(route, detectedRisk, fullHtml).then(id => { window.currentBriefingId = id; loadBriefingHistory(); });
             }
@@ -3299,6 +3300,34 @@ function copyBriefing() {
     btn.style.color = '#2ec4b6';
     setTimeout(() => { btn.innerHTML = orig; btn.style.color = '#4a5f72'; }, 2000);
   });
+}
+
+// Risk-rating feedback box: standing disclaimer + one-click "too low / about right / too high" (anonymous allowed).
+function appendRatingFeedback(containerEl, riskFix, route) {
+  try {
+    if (!riskFix || typeof riskFix.score !== 'number') return;
+    const level = String(riskFix.label || '').toUpperCase().replace(/[^A-Z]/g, '');
+    if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(level)) return;
+    const box = document.createElement('div');
+    box.className = 'rating-feedback no-print';
+    box.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;border:1px solid #1a2a3a;border-radius:6px;padding:10px 12px;margin:0 0 16px 0;line-height:1.6;";
+    const bs = "background:none;border:1px solid #1a2a3a;color:#8a9bb0;font-family:inherit;font-size:10px;padding:4px 10px;margin-right:6px;border-radius:4px;cursor:pointer;";
+    box.innerHTML = '<div style="color:#8a9bb0;margin-bottom:6px;">WAS THE ' + level + ' ' + riskFix.score + '/10 RATING APPROPRIATE FOR THIS ROUTE?</div>' +
+      '<div class="rf-btns"><button data-v="low" style="' + bs + '">TOO LOW</button><button data-v="ok" style="' + bs + '">ABOUT RIGHT</button><button data-v="high" style="' + bs + '">TOO HIGH</button></div>' +
+      '<div style="margin-top:8px;">Decision-support tool only: it does not replace the official briefing, and the PIC / operator remains responsible for the flight decision. ' +
+      'The rating comes from a fixed rubric that was blind-tested against independent model raters; flight-crew validation is ongoing.</div>';
+    box.querySelectorAll('button').forEach(btn => btn.addEventListener('click', async () => {
+      const vote = btn.getAttribute('data-v');
+      box.querySelector('.rf-btns').innerHTML = '<span style="color:#2ec4b6;">Thank you — your feedback was recorded.</span>';
+      try {
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, await getAuthHeader().catch(() => ({})));
+        await fetch('/api/rating-feedback', { method: 'POST', headers, body: JSON.stringify({ vote, route, level, score: riskFix.score, briefingId: window.currentBriefingId || '' }) });
+      } catch (e) { /* feedback is best effort */ }
+    }));
+    const actions = containerEl.querySelector('.briefing-footer');
+    const anchor = actions && actions.nextSibling ? actions.nextSibling : null;
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(box, anchor.nextSibling); else containerEl.appendChild(box);
+  } catch (e) { /* never break the briefing */ }
 }
 
 function briefingFeedback(type) {
