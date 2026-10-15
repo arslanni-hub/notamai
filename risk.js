@@ -916,6 +916,12 @@ const levelOfScore = sc => (sc >= 9 ? 'CRITICAL' : sc >= 6 ? 'HIGH' : sc >= 3 ? 
 
 // Everything the language model needs to rate the briefing WITHOUT information gaps: the floor, all factors,
 // runway data, every active aerodrome NOTAM (tier-tagged), route-relevant en-route NOTAMs and a watchlist.
+// true when the only override comes from the conflict-zone list (not a closed aerodrome / no usable runway)
+function isConflictOverride(r) {
+  const ov = (r.factors || []).filter(f => f.override);
+  return ov.length > 0 && ov.every(f => f.key === 'ROUTE:CONFLICT_NOGO');
+}
+
 function buildModelBlock(input, r, opts) {
   const o = Object.assign({ maxPerAirport: 60, maxEnroute: 40, maxWatch: 20, textLen: 160 }, opts || {});
   const L = [];
@@ -923,7 +929,7 @@ function buildModelBlock(input, r, opts) {
     'RISK FLOOR — computed by the server from NOTAM, weather and route data. This is the MINIMUM rating (see RISK RATING RULES).',
     `FLOOR LEVEL: ${r.level}`,
     `FLOOR SCORE: ${r.score}`,
-    `VERDICT FLOOR: ${r.override ? r.verdict + ' — OVERRIDE: an aerodrome has no usable runway or is closed; the verdict MUST be NO-GO' : r.verdict}`,
+    `VERDICT FLOOR: ${r.override ? r.verdict + (isConflictOverride(r) ? ' — OVERRIDE: operations to/from an aerodrome inside a prohibited conflict zone (EASA/FAA); the verdict MUST be NO-GO' : ' — OVERRIDE: an aerodrome has no usable runway or is closed; the verdict MUST be NO-GO') : r.verdict}`,
   ].join('\n'));
   [1, 2, 3].forEach(t => {
     const f = r.factors.filter(x => x.tier === t);
@@ -1001,7 +1007,7 @@ function basisHtml(r, finalScore, finalLevel, flags) {
   const parts = [`<strong>RISK BASIS</strong> — rubric floor <strong>${r.level} ${r.score}/10</strong> (T1 ${r.counts.t1} · T2 ${r.counts.t2}${r.counts.w2 != null && r.counts.w2 !== r.counts.t2 ? ` — weighted ${r.counts.w2}` : ''} · T3 ${r.counts.t3})`];
   if (top) parts.push(top);
   parts.push(`Final rating: <strong>${finalLevel} ${finalScore}/10</strong>${flags && flags.raised ? ' — raised above the floor by the assessment' : ''}`);
-  if (r.override) parts.push('⚠ Aerodrome closed or no usable runway — NO-GO.');
+  if (r.override) parts.push(isConflictOverride(r) ? '⚠ Aerodrome inside a prohibited conflict zone (EASA/FAA) — NO-GO.' : '⚠ Aerodrome closed or no usable runway — NO-GO.');
   if (flags && flags.lowered) parts.push('⚠ The narrative was rated below the rubric floor; the header has been set to the floor value.');
   if (r.unverifiedRunwayCount && r.unverifiedRunwayCount.length) parts.push('Runway count unverified for ' + esc(r.unverifiedRunwayCount.join(', ')) + ' — conservative rule applied.');
   const c = LEVEL_COLOR[finalLevel] || '#4a9eff';

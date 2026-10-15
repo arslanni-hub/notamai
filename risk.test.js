@@ -777,6 +777,12 @@ test('v3.39 conflict zones: a Frankfurt-Hong Kong style track over Russia gives 
   const n = R.assessRisk({ now: NOW, airports: [ap('LTFM', 'DEP'), ap('LGAV', 'ARR')], enroute: [], routeFirs: ['LTBB'], routeNearFirs: ['UKOV'] });
   assert.ok(n.factors.some(f => f.key === 'ROUTE:CONFLICT_INFO' && /Ukraine/.test(f.label))); assert.ok(!n.factors.some(f => f.key === 'ROUTE:CONFLICT_REROUTE'));
 });
+test('v3.41 conflict-zone override is worded as a conflict-zone prohibition, not a closed aerodrome', () => {
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'WSSS', role: 'DEP', notams: [] }, { icao: 'UUEE', role: 'ARR', notams: [] }], enroute: [] });
+  assert.strictEqual(r.override, true);
+  assert.ok(/conflict zone/.test(R.basisHtml(r)) && !/closed or no usable runway/.test(R.basisHtml(r)));
+  assert.ok(!/no usable runway or is closed/.test(R.buildModelBlock({ airports: [], enroute: [] }, r)));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
 
