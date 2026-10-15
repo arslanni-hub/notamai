@@ -549,7 +549,7 @@ async function loadSystem() {
       const as = await db.collection('system').doc('alert_stats').get();
       if (as.exists) {
         const a = as.data();
-        document.getElementById('alertPollSub').textContent = 'Last run: ' + a.airports + ' airports · ' + a.fetched + ' fetched · ' + a.reused + ' reused · ' + a.skipped + ' not due · ' + a.emails + ' e-mails' + (a.overBudget ? ' · ⚠ over airport budget (' + a.airportBudget + ')' : '');
+        document.getElementById('alertPollSub').textContent = 'Max 30 min · Pro 60 min · Last run: ' + a.airports + ' airports · ' + a.fetched + ' fetched · ' + a.reused + ' reused · ' + a.skipped + ' not due · ' + a.emails + ' e-mails' + (a.overBudget ? ' · ⚠ over airport budget (' + a.airportBudget + ')' : '');
       }
     } catch(e) {}
     try {

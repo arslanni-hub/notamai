@@ -5,7 +5,7 @@ let pass = 0, fail = 0;
 function test(n, f) { try { f(); pass++; console.log('  PASS ', n); } catch (e) { fail++; console.log('  FAIL ', n, '\n       ', e.message); } }
 const MIN = 60 * 1000;
 
-test('interval follows the highest plan among subscribers (premium 30 min, pro-only 60 min)', () => {
+test('interval follows the highest plan among subscribers (max 30 min, pro-only 60 min)', () => {
   assert.strictEqual(A.intervalMsFor(['pro', 'pro']), 60 * MIN);
   assert.strictEqual(A.intervalMsFor(['pro', 'max']), 30 * MIN);
   assert.strictEqual(A.intervalMsFor(['admin']), 30 * MIN);

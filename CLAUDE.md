@@ -24,7 +24,7 @@ NOTAM Intelligence (notamai.com) is a global AI-powered pre-flight briefing plat
 - SKYLINK_KEY — SkyLink RapidAPI key
 - WAVESPEED_KEY — WaveSpeed AI key
 - ELEVENLABS_KEY — ElevenLabs TTS key
-- LEMONSQUEEZY_API_KEY, LEMONSQUEEZY_STORE_ID, LEMONSQUEEZY_PRO_VARIANT_ID, LEMONSQUEEZY_PREMIUM_VARIANT_ID, LEMONSQUEEZY_WEBHOOK_SECRET
+- STRIPE_SECRET_KEY, STRIPE_PRICE_PRO_MONTHLY/YEARLY, STRIPE_PRICE_MAX_MONTHLY/YEARLY (+ webhook secret); SKYLINK_MONTHLY_LIMIT, ALERT_AIRPORT_BUDGET
 - FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY
 
 ## Claude Models in Use (current, verified in code)
@@ -79,7 +79,7 @@ User → index.html (SPA)
 ## Pricing Plans — FINAL, do not alter without explicit instruction
 Credit-based system was discussed and explicitly abandoned (June 2026). Current model is simple per-feature limits:
 
-| Feature | Free | Pro $49 | Premium $99 |
+| Feature | Free | Pro $49 | Max $99 |
 |---|---|---|---|
 | AI Briefing | 3/month | Unlimited* | Unlimited* |
 | En-route FIR | ❌ | ✅ | ✅ |
@@ -87,24 +87,24 @@ Credit-based system was discussed and explicitly abandoned (June 2026). Current 
 | ✨ Single NOTAM/METAR/TAF AI analysis | ❌ | ✅ | ✅ |
 | AI Video Briefing | ❌ | ❌ | 5/month hard limit, +$10 = 3 more |
 | NOTAMs & MET raw data | ✅ | ✅ | ✅ |
-| Archive | ❌ | 90 days | Unlimited |
-| Saved Routes | ❌ | 5 | Unlimited |
-| NOTAM Alerts | ❌ | 5 | Unlimited |
+| Archive | ❌ | ✅ (no limit enforced in code) | Unlimited* |
+| Saved Routes | ❌ | 3 (enforced client-side) | up to 20 (localStorage cap) |
+| NOTAM Alerts | ❌ | 3 airports, checked ~every 60 min | 5 airports, ~every 30 min (Enterprise: 10) |
 | Share + PDF export | ❌ | ✅ | ✅ |
 | Priority support | ❌ | ❌ | ✅ |
 
-*Unlimited briefings protected by a soft daily cap of 20/day (bot-abuse protection only)
+*"Unlimited" items are marketing labels backed by soft caps: briefings 100/150 per month (PLAN_LIMITS, warning at 80%, limit modal at 100%), Free-plan global cap 20/day; fair use clause in terms.html §8 (incl. Capacity Limits paragraph). Alerts are the one cost-bearing feature shown with explicit numbers (Pro 3 airports/60 min, Max 5/30 min) — keep ALERT_CAPS, index.html alert banners, pricing pages and support text in sync.
 
-In code: `PLAN_LIMITS` in server.js currently uses `{briefings, chat, analysis}` numeric caps (free: 3/0/0, pro: 100/200/300, premium: 150/999/999) as the enforcement mechanism for the table above — these numbers implement the table, they are not a separate source of truth. Don't change PLAN_LIMITS values without first confirming against this table.
+In code: `PLAN_LIMITS` in server.js currently uses `{briefings, chat, analysis}` numeric caps (free: 3/0/0, pro: 100/150/200, max: 150/400/300) as the enforcement mechanism for the table above — these numbers implement the table, they are not a separate source of truth. Don't change PLAN_LIMITS values without first confirming against this table.
 
 ## General Aviation Expert Chat — LIVE
 Separate from "Ask NOTAM AI" (which stays briefing-specific, never touched by this feature). Built and shipped June 2026.
 - Reached via 3 mode-selector pills below the main input (Briefing/Video/Chat) — explicit user selection, no auto-detection.
 - Accent color: blue (#4a9eff), matching existing design. No new colors.
-- Token-budget rate limiting over a 5-hour rolling window (GENERAL_CHAT_LIMITS in server.js): Free (Haiku, 470 tokens, hard stop), Pro (Sonnet, 12000 tokens, soft-downgrades to Haiku at 70%), Premium (Sonnet, 24000 tokens, soft-downgrades at 70%). Hard stop at 100% for all plans.
-- Web search (web_search_20250305, max_uses: 3) enabled for Pro/Premium only — see GENERAL_CHAT_WEB_SEARCH_PLANS/GENERAL_CHAT_WEB_SEARCH_TOOL. Steered via system prompt to search only for genuinely current info, never as a substitute for the live NOTAM/MET scope boundary. Search-request counts are logged and stored (general_chat_rate_limit.searchCount) for cost visibility but not yet used for gating.
+- Token-budget rate limiting over a 5-hour rolling window (GENERAL_CHAT_LIMITS in server.js): Free (Haiku, 470 tokens, hard stop), Pro (Sonnet, 12000 tokens, soft-downgrades to Haiku at 70%), Max (Sonnet, 24000 tokens, soft-downgrades at 70%). Hard stop at 100% for all plans.
+- Web search (web_search_20250305, max_uses: 3) enabled for Pro/Max only — see GENERAL_CHAT_WEB_SEARCH_PLANS/GENERAL_CHAT_WEB_SEARCH_TOOL. Steered via system prompt to search only for genuinely current info, never as a substitute for the live NOTAM/MET scope boundary. Search-request counts are logged and stored (general_chat_rate_limit.searchCount) for cost visibility but not yet used for gating.
 - System prompt redirects (not fabricates) when a question needs a paid platform feature — see the SCOPE BOUNDARY block in server.js for the exact panel markers.
-- Persistence: general_chats Firestore collection (Pro/Premium only), sidebar/Archive integration, sharing via /c/:id — all live.
+- Persistence: general_chats Firestore collection (Pro/Max only), sidebar/Archive integration, sharing via /c/:id — all live.
 
 ## Coding Rules
 - ALWAYS push to GitHub after changes
@@ -116,7 +116,7 @@ Separate from "Ask NOTAM AI" (which stays briefing-specific, never touched by th
 - Console logs: keep CACHE and FILTER logs, remove debug logs before production
 
 ## Known Issues / TODO
-- Free/Pro/Premium content restrictions: implemented for briefings/chat/analysis caps; video hard limit (5/mo) enforcement should be double-checked
+- Free/Pro/Max content restrictions: implemented for briefings/chat/analysis caps; video hard limit (5/mo) enforcement should be double-checked
 - AI Video Briefing: working end-to-end (Haiku script → ElevenLabs TTS → WaveSpeed infinitetalk-fast), still being quality-tuned (NOTAM relevance/recency, captain greeting consistency)
 - General Aviation Expert Chat: live. Citation links and a dedicated "searching the web..." UI indicator are not yet built (deferred, not forgotten).
 - Admin panel: Free-tier conversion tracking/funnel metrics planned, not yet built

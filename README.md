@@ -55,7 +55,7 @@ terms.html            # Terms of service
 - ✅ Voice input + natural language route extraction
 - 🔄 AI Video Briefing (WaveSpeed — in progress)
 - 🔄 Stripe payments (in progress)
-- 🔄 Free/Pro/Premium restrictions (in progress)
+- 🔄 Free/Pro/Max restrictions (in progress)
 
 ---
 Built with [Claude Code](https://claude.ai/claude-code) + [Anthropic Claude API](https://anthropic.com)

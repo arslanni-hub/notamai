@@ -6115,8 +6115,8 @@ async function processSupportEmail(email) {
 
 PLANS & PRICING:
 - Free: 3 AI Briefings/month, NOTAMs & MET live data, SIGMET/AIRMET, Aviation Tools Panel
-- Pro ($49/month): Unlimited AI Briefings, NOTAM Intelligence Chat, En-route FIR Analysis, AI Assistant, NOTAM/METAR/TAF Analysis, Briefing Archive, Saved Routes, NOTAM Alerts (3 airports, checked about every 60 min), Share & PDF Export
-- Max ($99/month): Everything in Pro + AI Video Briefing (5/month), higher chat limits, unlimited archive, unlimited saved routes, NOTAM alerts (5 airports, checked about every 30 min), Priority Support, extra video pack $10=3 videos
+- Pro ($49/month): Unlimited AI Briefings, NOTAM Intelligence Chat, En-route FIR Analysis, AI Assistant, NOTAM/METAR/TAF Analysis, Briefing Archive, Saved Routes (3), NOTAM Alerts (3 airports, checked about every 60 min), Share & PDF Export
+- Max ($99/month): Everything in Pro + AI Video Briefing (5/month), higher chat limits, unlimited archive, saved routes (up to 20), NOTAM alerts (5 airports, checked about every 30 min), Priority Support, extra video pack $10=3 videos
 - Enterprise ($999/month): Everything in Max + up to 10 users, API Access, Priority Support & SLA, Dedicated Account Manager, Custom Onboarding
 - All paid plans have 7-day free trial, cancel anytime
 - Annual billing available with 15% discount
