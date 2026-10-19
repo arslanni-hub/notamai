@@ -53,7 +53,7 @@ ${risk.reasons.length ? risk.reasons.map(x => '- ' + x).join('\n') : '- none lis
       : `"${o.greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [One sentence giving the rating: ${risk.level.toLowerCase()} risk, ${WORDS[risk.score]} out of ten, with the main driver if any.] [Most critical departure NOTAM — one sentence, specific details, plain English.] [Most critical arrival NOTAM — one sentence, specific details.] [Weather — one sentence only if significant risk, skip if normal.] Check the NOTAMs panel for complete details. ${signoff}"`)
     : `"${o.greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [Most critical departure NOTAM — one sentence, specific details, plain English.] [Second most critical departure NOTAM if it exists — one sentence.] [Most critical arrival NOTAM — one sentence, specific details.] [Second most critical arrival NOTAM if it exists — one sentence.] [Weather — one sentence only if significant risk, skip if normal.] ${signoff}"`;
 
-  return `You are Captain Edward, a senior airline captain with 35 years experience. Speak naturally for exactly 50 seconds. 105-110 words total — count carefully.
+  return `You are Captain Edward, a senior airline captain with 35 years experience. Speak naturally for about 45 seconds: 95-105 words in total. This is a HARD limit — never exceed 110 words.
 
 Route: ${o.dep} to ${o.arr}
 
@@ -80,7 +80,9 @@ MANDATORY:
 - City names only, never ICAO codes
 - Runway numbers as words: "one seven left"
 - No NOTAM reference numbers, no bulletin numbers
-- 105-110 words total — count carefully`;
+- 95-105 words in total, never more than 110. Every sentence under 20 words.
+- Choose only what changes the crew's decision or workload: runway / taxiway / approach / navaid outages, airspace restrictions or conflict zones, significant weather. Leave out everything administrative or routine (AIRAC or AIP amendments, trigger or checklist NOTAMs, obstacle lights, general information) and do not mention that you left anything out.
+- At most two NOTAM items per airport, and only if they are truly significant. If an airport has nothing significant, say so in a few words.`;
 }
 
 // The model sometimes wraps the script in quotes or markdown; speech must be plain text.
@@ -100,4 +102,26 @@ function enforceSignoff(script, risk) {
 
 const wordCount = s => (String(s || '').trim().match(/\S+/g) || []).length;
 
-module.exports = { sanitizeRisk, isElevated, greetingFor, signoffFor, buildScriptPrompt, cleanScript, enforceSignoff, wordCount, LEVELS };
+// Hard length control. The model sometimes ignores word counts (Sonnet 5.5 in particular), and spoken length drives rendering time and
+// cost. Over the limit: keep the opening (greeting + route) and as many following whole sentences as fit, then the fixed sign-off.
+function fitScript(script, risk, maxWords) {
+  const max = maxWords || 115;
+  const t = String(script || '').trim();
+  if (wordCount(t) <= max) return t;
+  const final = signoffFor(risk).split('. ').pop();
+  const sentences = t.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length && sentences[sentences.length - 1].replace(/[\s.!]+$/, '') === final.replace(/[\s.!]+$/, '')) sentences.pop();
+  const tail = final;
+  const budget = max - wordCount(tail);
+  const kept = [];
+  let n = 0;
+  for (const sent of sentences) {
+    const w = wordCount(sent);
+    if (kept.length >= 2 && n + w > budget) break;
+    kept.push(sent);
+    n += w;
+  }
+  return (kept.join(' ').replace(/[\s.!]+$/, '') + '. ' + tail).trim();
+}
+
+module.exports = { sanitizeRisk, isElevated, greetingFor, signoffFor, buildScriptPrompt, cleanScript, enforceSignoff, fitScript, wordCount, LEVELS };

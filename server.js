@@ -2947,36 +2947,32 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         const arrIcao = icaos[1] || '';
         console.log('[VIDEO BRIEFING] Route:', route, 'DEP:', depIcao, 'ARR:', arrIcao);
 
-        // NOTAMs (SkyLink, 5-min shared cache — normally already warm from the briefing the user just read) and METARs, all four in parallel.
+        // NOTAMs through the same filter as the written briefing (in force now, not expired, not yet-to-start, no TRIGGER / PERM admin items;
+        // SkyLink 5-min shared cache, normally already warm) and METARs, all four in parallel.
         console.log('[VIDEO] Fetching data for DEP:', depIcao, 'ARR:', arrIcao);
-        const skyOpts = { headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' } };
-        const notamsOf = (icao, label) => icao
-          ? fetchURL('https://skylink-api.p.rapidapi.com/notams/' + icao + '?include_future=true', skyOpts).then(d => d?.notams || []).catch(e => { console.log('[VIDEO] ' + label + ' NOTAM error:', e.message); return []; })
-          : Promise.resolve([]);
         const metarOf = icao => icao
           ? fetchURL('https://aviationweather.gov/api/data/metar?ids=' + icao + '&format=json').then(d => d?.[0]?.rawOb || '').catch(() => '')
           : Promise.resolve('');
-        const [depNotams, arrNotams, depMetar, arrMetar] = await Promise.all([notamsOf(depIcao, 'DEP'), notamsOf(arrIcao, 'ARR'), metarOf(depIcao), metarOf(arrIcao)]);
-        console.log('[VIDEO] NOTAMs DEP/ARR:', depNotams.length, arrNotams.length);
+        const [depRes, arrRes, depMetar, arrMetar] = await Promise.all([fetchNotams(depIcao), fetchNotams(arrIcao), metarOf(depIcao), metarOf(arrIcao)]);
+        console.log('[VIDEO] NOTAMs in force DEP/ARR:', (depRes.activeItems || []).length, (arrRes.activeItems || []).length);
 
-        // Sort by severity then recency (year-aware) and take top 8
-        function getCriticalNotams(notams) {
+        // The few NOTAMs worth speaking about: operational severity first (closures, navaid outages, restrictions), then recency. Purely
+        // administrative text (AIRAC / AIP amendments, checklists) never reaches the script prompt.
+        function getCriticalNotams(res, icao) {
+          if (res && res.unavailable) return '[NOTAM data could not be retrieved for this airport — say so in one short sentence; do not say there are no NOTAMs]';
           const SORD = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
-          return [...notams]
-            .sort((a, b) => {
-              const aSev = SORD[classifyNotamSeverity(a.raw || a.body || '')];
-              const bSev = SORD[classifyNotamSeverity(b.raw || b.body || '')];
-              if (aSev !== bSev) return aSev - bSev;
-              return notamRecencyKey(b) - notamRecencyKey(a);
-            })
-            .slice(0, 8)
-            .map(n => n.raw || n.text || '')
-            .filter(Boolean)
+          const admin = t => /AIRAC|AIP\s*(AMDT|SUP|AIC)|CHECKLIST|\bTRIGGER\b|\bAIC\b/i.test(t);
+          return [...((res && res.activeItems) || [])]
+            .map(n => ({ n, t: String(n.raw || n.body || ''), sev: classifyNotamSeverity(n.raw || n.body || '') }))
+            .filter(x => x.t && x.sev !== 'LOW' && !admin(x.t))
+            .sort((a, b) => (SORD[a.sev] - SORD[b.sev]) || (notamRecencyKey(b.n) - notamRecencyKey(a.n)))
+            .slice(0, 4)
+            .map(x => x.t.replace(/\s+/g, ' ').trim().slice(0, 400))
             .join('\n');
         }
 
-        const depNotamText = getCriticalNotams(depNotams);
-        const arrNotamText = getCriticalNotams(arrNotams);
+        const depNotamText = getCriticalNotams(depRes);
+        const arrNotamText = getCriticalNotams(arrRes);
         console.log('[VIDEO] DEP NOTAM text length:', depNotamText.length);
         console.log('[VIDEO] ARR NOTAM text length:', arrNotamText.length);
 
@@ -3003,8 +2999,9 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             if (!scriptRes.ok) { console.log('[VIDEO SCRIPT] ' + model + ' HTTP ' + scriptRes.status, (await scriptRes.text()).slice(0, 200)); continue; }
             const scriptData = await scriptRes.json();
             const text = (scriptData.content || []).filter(b => b.type === 'text').map(b => b.text).join(' ');
-            const cleaned = videoScript.enforceSignoff(videoScript.cleanScript(text), vRisk);
-            if (videoScript.wordCount(cleaned) >= 40) { script = cleaned; console.log('[VIDEO SCRIPT]', { model, words: videoScript.wordCount(cleaned), risk: vRisk ? vRisk.level + ' ' + vRisk.score : null }); break; }
+            const rawWords = videoScript.wordCount(text);
+            const cleaned = videoScript.fitScript(videoScript.enforceSignoff(videoScript.cleanScript(text), vRisk), vRisk, 115);
+            if (videoScript.wordCount(cleaned) >= 40) { script = cleaned; console.log('[VIDEO SCRIPT]', { model, rawWords, words: videoScript.wordCount(cleaned), risk: vRisk ? vRisk.level + ' ' + vRisk.score : null }); console.log('[VIDEO SCRIPT TEXT]', cleaned); break; }
             console.log('[VIDEO SCRIPT] ' + model + ' returned a script that is too short');
           } catch (e) { console.log('[VIDEO SCRIPT] ' + model + ' error:', e.message); }
         }

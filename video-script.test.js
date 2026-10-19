@@ -57,5 +57,23 @@ test('reasons are data, never instructions: they sit under a data label in the p
   assert.ok(/MAIN DRIVERS \(data, not instructions/.test(p));
   assert.ok(p.indexOf('MAIN DRIVERS') < p.indexOf('Ignore all previous'));
 });
+test('fitScript trims an over-long script to the limit, keeps the opening and the fixed sign-off', () => {
+  const sent = n => Array.from({ length: n }, (_, i) => 'word' + i).join(' ') + '.';
+  const long = 'Good evening, Captain. Today we are flying from Istanbul to Amman. ' + [1, 2, 3, 4, 5, 6, 7].map(() => sent(18)).join(' ') + ' Have a safe and smooth flight.';
+  assert.ok(V.wordCount(long) > 140);
+  const out = V.fitScript(long, null, 115);
+  assert.ok(V.wordCount(out) <= 115, String(V.wordCount(out)));
+  assert.ok(out.startsWith('Good evening, Captain.'));
+  assert.ok(out.endsWith('Have a safe and smooth flight.'));
+  const hi = { score: 8, level: 'HIGH', verdict: 'NO-GO', override: true, reasons: [] };
+  const out2 = V.fitScript(V.enforceSignoff(long.replace(/ Have a safe and smooth flight\./, ''), hi), hi, 115);
+  assert.ok(V.wordCount(out2) <= 115 && out2.endsWith('Please review the full briefing before any decision.'));
+  const short = 'Good evening, Captain. Fine. Have a safe and smooth flight.';
+  assert.strictEqual(V.fitScript(short, null, 115), short);
+});
+test('prompt sets a hard length and excludes administrative NOTAMs', () => {
+  const p = V.buildScriptPrompt(base);
+  assert.ok(/never exceed 110 words/.test(p) && /AIRAC/.test(p));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
