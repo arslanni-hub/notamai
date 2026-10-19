@@ -2973,8 +2973,8 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             .join('\n');
         }
 
-        const depNotamText = getCriticalNotams(depRes);
-        const arrNotamText = getCriticalNotams(arrRes);
+        let depNotamText = getCriticalNotams(depRes);
+        let arrNotamText = getCriticalNotams(arrRes);
         console.log('[VIDEO] DEP NOTAM text length:', depNotamText.length);
         console.log('[VIDEO] ARR NOTAM text length:', arrNotamText.length);
 
@@ -2990,7 +2990,20 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
               computeBriefingRisk({ icao_dep: depIcao, icao_arr: arrIcao, isSingleAirport: false, notamDepResult: depRes, notamArrResult: arrRes, enrouteCollector: [], metarDep: mD, metarArr: mA, tafDep: tD, tafArr: tA }),
               new Promise(resolve => setTimeout(() => resolve(null), 10000))
             ]);
-            if (rr) { vRisk = videoScript.sanitizeRisk(risk.finalizeForClient(rr, '').riskSummary); if (vRisk) vRisk.partial = true; }
+            if (rr) {
+              vRisk = videoScript.sanitizeRisk(risk.finalizeForClient(rr, '').riskSummary); if (vRisk) vRisk.partial = true;
+              // Speak only about what the rubric itself rates Tier 1/2 at each aerodrome; minor items (e.g. one approach-light section) are left out.
+              const keyNotams = (res, icao) => {
+                if (!res || res.unavailable) return null;
+                const ids = new Set((rr.factors || []).filter(f => f.scope === icao && f.tier <= 2).flatMap(f => f.ids || []));
+                if (!ids.size) return '[No NOTAM at this airport is rated significant by the risk assessment — say there is nothing significant, in a few words]';
+                const picked = (res.activeItems || []).concat(res.nearFutureItems || []).filter(n => ids.has(risk.idOf(n))).slice(0, 3);
+                return picked.length ? picked.map(n => String(n.raw || n.body || '').replace(/\s+/g, ' ').trim().slice(0, 400)).join('\n') : null;
+              };
+              const kd = keyNotams(depRes, depIcao), ka = keyNotams(arrRes, arrIcao);
+              if (kd) depNotamText = kd;
+              if (ka) arrNotamText = ka;
+            }
           } catch (e) { console.log('[VIDEO] risk fallback error:', e.message); }
         }
         lap.riskMs = Date.now() - T0;

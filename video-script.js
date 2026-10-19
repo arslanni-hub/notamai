@@ -89,6 +89,7 @@ MANDATORY:
 - No NOTAM reference numbers, no bulletin numbers
 - 68-76 words in total, never more than 80. Every sentence under 18 words.
 - Choose only what changes the crew's decision or workload: runway / taxiway / approach / navaid outages, airspace restrictions or conflict zones, significant weather. Leave out everything administrative or routine (AIRAC or AIP amendments, trigger or checklist NOTAMs, obstacle lights, general information) and do not mention that you left anything out.
+- Summarise each item in plain words: no distances, section numbers, frequencies, coordinates or times to the minute ("part of the approach lighting is out of service", not "between six nine zero and nine hundred metres"). Keep a time only if it decides whether the runway or airspace is usable.
 - At most one NOTAM item per airport (two only if both change the plan), and only if truly significant. If an airport has nothing significant, say so in a few words.`;
 }
 
