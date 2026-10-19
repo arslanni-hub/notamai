@@ -3075,7 +3075,10 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         console.log('[VIDEO BRIEFING] Started:', predictionId, 'Script:', script.slice(0, 50));
 
         // Step 5: Save to Firestore videos collection
-        await adminDb.collection('videos').add({
+        // Document id sorts newest-first in the Firestore console (which lists by id): "0-" + inverted timestamp + readable date/route.
+        const nowD = new Date();
+        const videoDocId = '0-' + String(9999999999999 - nowD.getTime()).padStart(13, '0') + '_' + nowD.toISOString().slice(0, 16).replace(/[-:T]/g, '') + '_' + (depIcao + '-' + arrIcao).replace(/[^A-Z0-9-]/g, '');
+        await adminDb.collection('videos').doc(videoDocId).set({
           userId,
           route,
           briefingId: briefingId || null,
