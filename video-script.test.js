@@ -82,5 +82,11 @@ test('server-computed (partial) rating: closing line asks for the en-route check
   const hi = Object.assign(V.sanitizeRisk({ score: 9, level: 'CRITICAL', override: true, reasons: [] }), { partial: true });
   assert.strictEqual(V.signoffFor(hi), 'Please review the full briefing before any decision.');
 });
+test('airport names come from the verified lookup; unverified airports are never guessed', () => {
+  const p = V.buildScriptPrompt(Object.assign({}, base, { dep: 'LTFJ', arr: 'OMDB', depName: 'Istanbul Sabiha Gokcen International Airport, Istanbul, Turkey', arrName: 'OMDB' }));
+  assert.ok(p.includes('DEPARTURE: Istanbul Sabiha Gokcen International Airport'));
+  assert.ok(p.includes('ARRIVAL: not verified'));
+  assert.ok(/never guess a city or airport from an ICAO code/.test(p));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

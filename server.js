@@ -2954,7 +2954,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         const metarOf = icao => icao
           ? fetchURL('https://aviationweather.gov/api/data/metar?ids=' + icao + '&format=json').then(d => d?.[0]?.rawOb || '').catch(() => '')
           : Promise.resolve('');
-        const [depRes, arrRes, depMetar, arrMetar] = await Promise.all([fetchNotams(depIcao), fetchNotams(arrIcao), metarOf(depIcao), metarOf(arrIcao)]);
+        const [depRes, arrRes, depMetar, arrMetar, depName, arrName] = await Promise.all([fetchNotams(depIcao), fetchNotams(arrIcao), metarOf(depIcao), metarOf(arrIcao), fetchAndCacheAirportName(depIcao), fetchAndCacheAirportName(arrIcao)]);
         console.log('[VIDEO] NOTAMs in force DEP/ARR:', (depRes.activeItems || []).length, (arrRes.activeItems || []).length);
         lap.dataMs = Date.now() - T0;
 
@@ -2995,7 +2995,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         }
         lap.riskMs = Date.now() - T0;
         const greeting = videoScript.greetingFor(Number.isInteger(localHour) ? localHour : null, new Date().getUTCHours());
-        const scriptPrompt = videoScript.buildScriptPrompt({ dep: depIcao, arr: arrIcao, depNotamText, arrNotamText, depMetar, arrMetar, greeting, risk: vRisk });
+        const scriptPrompt = videoScript.buildScriptPrompt({ dep: depIcao, arr: arrIcao, depName, arrName, depNotamText, arrNotamText, depMetar, arrMetar, greeting, risk: vRisk });
         const scriptModels = [process.env.VIDEO_SCRIPT_MODEL || 'claude-sonnet-5-5', 'claude-haiku-4-5'];
         let script = '';
         for (const model of scriptModels) {

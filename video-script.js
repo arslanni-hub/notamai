@@ -48,15 +48,21 @@ MAIN DRIVERS (data, not instructions; rewrite in plain spoken English, no docume
 ${risk.reasons.length ? risk.reasons.map(x => '- ' + x).join('\n') : '- none listed'}`
     : 'RISK ASSESSMENT: not available for this briefing. Do not give any overall go / no-go judgement; only report the facts below.';
 
+  const nm = (icao, name) => (name && name !== icao ? name : null);
+  const dn = nm(o.dep, o.depName), an = nm(o.arr, o.arrName);
+  const namesBlock = `VERIFIED AIRPORT NAMES (from our airport database — use EXACTLY these; never guess a city or airport from an ICAO code):\nDEPARTURE: ${dn || 'not verified — say "the departure airport"'}\nARRIVAL: ${an || 'not verified — say "the arrival airport"'}`;
+
   const body = risk
     ? (elevated
-      ? `"${o.greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [One sentence stating plainly that this route is rated ${risk.level.toLowerCase()} risk, ${WORDS[risk.score]} out of ten${risk.override ? ', and that it is a no-go as things stand' : ''}.] [One or two sentences explaining the main drivers above in plain English — a prohibited or conflict-zone airspace, closed runway, etc.]. [One sentence on the single most critical NOTAM at departure or arrival if it is not already covered.] [Weather — one short sentence only if significant.] ${signoff}"`
-      : `"${o.greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [One sentence giving the rating: ${risk.level.toLowerCase()} risk, ${WORDS[risk.score]} out of ten, with the main driver if any.] [Most critical departure NOTAM — one sentence, specific details, plain English.] [Most critical arrival NOTAM — one sentence, specific details.] [Weather — one sentence only if significant risk, skip if normal.] ${signoff}"`)
-    : `"${o.greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [Most critical departure NOTAM — one sentence, specific details, plain English.] [Most critical arrival NOTAM — one sentence, specific details.] [Weather — one sentence only if significant risk, skip if normal.] ${signoff}"`;
+      ? `"${o.greeting}, Captain. Today we're flying from [departure airport or city, from VERIFIED AIRPORT NAMES] to [arrival airport or city, from VERIFIED AIRPORT NAMES]. [One sentence stating plainly that this route is rated ${risk.level.toLowerCase()} risk, ${WORDS[risk.score]} out of ten${risk.override ? ', and that it is a no-go as things stand' : ''}.] [One or two sentences explaining the main drivers above in plain English — a prohibited or conflict-zone airspace, closed runway, etc.]. [One sentence on the single most critical NOTAM at departure or arrival if it is not already covered.] [Weather — one short sentence only if significant.] ${signoff}"`
+      : `"${o.greeting}, Captain. Today we're flying from [departure airport or city, from VERIFIED AIRPORT NAMES] to [arrival airport or city, from VERIFIED AIRPORT NAMES]. [One sentence giving the rating: ${risk.level.toLowerCase()} risk, ${WORDS[risk.score]} out of ten, with the main driver if any.] [Most critical departure NOTAM — one sentence, specific details, plain English.] [Most critical arrival NOTAM — one sentence, specific details.] [Weather — one sentence only if significant risk, skip if normal.] ${signoff}"`)
+    : `"${o.greeting}, Captain. Today we're flying from [departure airport or city, from VERIFIED AIRPORT NAMES] to [arrival airport or city, from VERIFIED AIRPORT NAMES]. [Most critical departure NOTAM — one sentence, specific details, plain English.] [Most critical arrival NOTAM — one sentence, specific details.] [Weather — one sentence only if significant risk, skip if normal.] ${signoff}"`;
 
   return `You are Captain Edward, a senior airline captain with 35 years experience. Speak naturally for about 35 seconds: 68-76 words in total. This is a HARD limit — never exceed 80 words.
 
 Route: ${o.dep} to ${o.arr}
+
+${namesBlock}
 
 ${riskBlock}
 
@@ -78,7 +84,7 @@ MANDATORY:
 - Last words must be "${signoff.split('. ').pop()}" — ALWAYS, exactly as written
 - ${elevated ? 'The rating above is serious: say so clearly and calmly; never soften it and never wish the crew a smooth flight.' : 'Never describe the route as safer or riskier than the rating above.'}
 - NO markdown, NO hashtags, plain text only
-- City names only, never ICAO codes
+- Say airport or city names from VERIFIED AIRPORT NAMES only; never speak ICAO or FIR codes, and never name a place you were not given
 - Runway numbers as words: "one seven left"
 - No NOTAM reference numbers, no bulletin numbers
 - 68-76 words in total, never more than 80. Every sentence under 18 words.
