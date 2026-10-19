@@ -2945,6 +2945,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         const icaos = route.trim().toUpperCase().split(/[\s,->]+/).filter(s => s.length === 4);
         const depIcao = icaos[0] || '';
         const arrIcao = icaos[1] || '';
+        const T0 = Date.now(), lap = {};
         console.log('[VIDEO BRIEFING] Route:', route, 'DEP:', depIcao, 'ARR:', arrIcao);
 
         // NOTAMs through the same filter as the written briefing (in force now, not expired, not yet-to-start, no TRIGGER / PERM admin items;
@@ -2955,6 +2956,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
           : Promise.resolve('');
         const [depRes, arrRes, depMetar, arrMetar] = await Promise.all([fetchNotams(depIcao), fetchNotams(arrIcao), metarOf(depIcao), metarOf(arrIcao)]);
         console.log('[VIDEO] NOTAMs in force DEP/ARR:', (depRes.activeItems || []).length, (arrRes.activeItems || []).length);
+        lap.dataMs = Date.now() - T0;
 
         // The few NOTAMs worth speaking about: operational severity first (closures, navaid outages, restrictions), then recency. Purely
         // administrative text (AIRAC / AIP amendments, checklists) never reaches the script prompt.
@@ -2991,6 +2993,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             if (rr) { vRisk = videoScript.sanitizeRisk(risk.finalizeForClient(rr, '').riskSummary); if (vRisk) vRisk.partial = true; }
           } catch (e) { console.log('[VIDEO] risk fallback error:', e.message); }
         }
+        lap.riskMs = Date.now() - T0;
         const greeting = videoScript.greetingFor(Number.isInteger(localHour) ? localHour : null, new Date().getUTCHours());
         const scriptPrompt = videoScript.buildScriptPrompt({ dep: depIcao, arr: arrIcao, depNotamText, arrNotamText, depMetar, arrMetar, greeting, risk: vRisk });
         const scriptModels = [process.env.VIDEO_SCRIPT_MODEL || 'claude-sonnet-5-5', 'claude-haiku-4-5'];
@@ -3012,12 +3015,13 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             const scriptData = await scriptRes.json();
             const text = (scriptData.content || []).filter(b => b.type === 'text').map(b => b.text).join(' ');
             const rawWords = videoScript.wordCount(text);
-            const cleaned = videoScript.fitScript(videoScript.enforceSignoff(videoScript.cleanScript(text), vRisk), vRisk, 115);
+            const cleaned = videoScript.fitScript(videoScript.enforceSignoff(videoScript.cleanScript(text), vRisk), vRisk, 105);
             if (videoScript.wordCount(cleaned) >= 40) { script = cleaned; console.log('[VIDEO SCRIPT]', { model, rawWords, words: videoScript.wordCount(cleaned), risk: vRisk ? vRisk.level + ' ' + vRisk.score : null }); console.log('[VIDEO SCRIPT TEXT]', cleaned); break; }
             console.log('[VIDEO SCRIPT] ' + model + ' returned a script that is too short');
           } catch (e) { console.log('[VIDEO SCRIPT] ' + model + ' error:', e.message); }
         }
         if (!script) throw new Error('Script generation failed');
+        lap.scriptMs = Date.now() - T0;
 
         // Step 3: Convert script to audio with ElevenLabs
         const VOICE_ID = 'jXkeB46JcPXXUSxzn3MD'; // Edward voice
@@ -3041,6 +3045,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         }
         const audioBuffer = Buffer.from(await ttsRes.arrayBuffer());
         console.log('[VIDEO AUDIO] Size:', audioBuffer.length, 'bytes');
+        lap.ttsMs = Date.now() - T0;
         if (audioBuffer.length < 1000) {
           throw new Error('Audio too small - ElevenLabs may have failed: ' + audioBuffer.length);
         }
@@ -3065,6 +3070,8 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         const wsData = await wsRes.json();
         const predictionId = wsData?.data?.id;
         if (!wsRes.ok || !predictionId) throw new Error('Video service did not start the job: ' + JSON.stringify(wsData).slice(0, 200));
+        lap.submitMs = Date.now() - T0;
+        console.log('[VIDEO TIMING] cumulative ms since request start:', JSON.stringify(lap), 'script words:', videoScript.wordCount(script), 'audio bytes:', audioBuffer.length);
         console.log('[VIDEO BRIEFING] Started:', predictionId, 'Script:', script.slice(0, 50));
 
         // Step 5: Save to Firestore videos collection
@@ -3132,30 +3139,31 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
               if (owner && owner.userId) { await decrementUsage(owner.userId, 'video', owner.createdAt && owner.createdAt.toDate ? owner.createdAt.toDate() : null); console.log('[VIDEO] render failed, credit restored:', predId); }
             } catch (e) { console.log('[VIDEO] refund error:', e.message); }
           }
-          // Update Firestore when completed
-          if (status === 'completed' && videoUrl) {
-            let storageUrl = videoUrl;
-            try {
-              const videoResponse = await fetch(videoUrl);
-              if (videoResponse.ok) {
-                const buffer = Buffer.from(await videoResponse.arrayBuffer());
-                const fileName = 'videos/' + (vdata.userId || 'unknown') + '/' + predId + '.mp4';
-                const file = adminStorage.file(fileName);
-                await file.save(buffer, { metadata: { contentType: 'video/mp4' } });
-                await file.makePublic();
-                storageUrl = 'https://storage.googleapis.com/notamai-a9d57.firebasestorage.app/' + fileName;
-                console.log('[VIDEO STORAGE] Uploaded to Firebase:', fileName);
+          // Completed: archive in the background (download + Firebase Storage upload must never delay the player), and only once.
+          if (status === 'completed' && videoUrl && vdata.status !== 'completed') {
+            const docRef = videoQuery.docs[0].ref, ownerId = vdata.userId || 'unknown';
+            const startedMs = vdata.createdAt && vdata.createdAt.toMillis ? vdata.createdAt.toMillis() : null;
+            console.log('[VIDEO TIMING] WaveSpeed completed', startedMs ? Math.round((Date.now() - startedMs) / 1000) + ' s after the request started' : '', 'timings:', JSON.stringify(result?.data?.timings || result?.data?.executionTime || null));
+            docRef.update({ status: 'completed', wavespeedUrl: videoUrl, videoUrl, completedAt: admin.firestore.FieldValue.serverTimestamp() }).catch(() => {});
+            (async () => {
+              let storageUrl = videoUrl;
+              try {
+                const videoResponse = await fetch(videoUrl);
+                if (videoResponse.ok) {
+                  const buffer = Buffer.from(await videoResponse.arrayBuffer());
+                  const fileName = 'videos/' + ownerId + '/' + predId + '.mp4';
+                  const file = adminStorage.file(fileName);
+                  await file.save(buffer, { metadata: { contentType: 'video/mp4' } });
+                  await file.makePublic();
+                  storageUrl = 'https://storage.googleapis.com/notamai-a9d57.firebasestorage.app/' + fileName;
+                  console.log('[VIDEO STORAGE] Uploaded to Firebase:', fileName);
+                }
+              } catch (uploadErr) {
+                console.log('[VIDEO STORAGE] Upload failed, using Wavespeed URL:', uploadErr.message);
               }
-            } catch(uploadErr) {
-              console.log('[VIDEO STORAGE] Upload failed, using Wavespeed URL:', uploadErr.message);
-            }
-            await videoQuery.docs[0].ref.update({
-              status: 'completed',
-              videoUrl: storageUrl,
-              wavespeedUrl: videoUrl,
-              completedAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-            console.log('[VIDEO ARCHIVE] Saved:', predId);
+              await docRef.update({ videoUrl: storageUrl }).catch(() => {});
+              console.log('[VIDEO ARCHIVE] Saved:', predId);
+            })();
           }
         }
       } catch(e) { console.log('[VIDEO] Firestore update error:', e.message); }

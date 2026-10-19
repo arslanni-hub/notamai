@@ -73,7 +73,7 @@ test('fitScript trims an over-long script to the limit, keeps the opening and th
 });
 test('prompt sets a hard length and excludes administrative NOTAMs', () => {
   const p = V.buildScriptPrompt(base);
-  assert.ok(/never exceed 110 words/.test(p) && /AIRAC/.test(p));
+  assert.ok(/never exceed 105 words/.test(p) && /AIRAC/.test(p));
 });
 test('server-computed (partial) rating: closing line asks for the en-route check, elevated keeps the strong line', () => {
   const part = Object.assign(V.sanitizeRisk({ score: 3, level: 'LOW', reasons: [] }), { partial: true });
