@@ -75,5 +75,12 @@ test('prompt sets a hard length and excludes administrative NOTAMs', () => {
   const p = V.buildScriptPrompt(base);
   assert.ok(/never exceed 110 words/.test(p) && /AIRAC/.test(p));
 });
+test('server-computed (partial) rating: closing line asks for the en-route check, elevated keeps the strong line', () => {
+  const part = Object.assign(V.sanitizeRisk({ score: 3, level: 'LOW', reasons: [] }), { partial: true });
+  assert.strictEqual(V.signoffFor(part), 'Have a safe flight, and check the full briefing for en-route details.');
+  assert.ok(V.buildScriptPrompt(Object.assign({}, base, { risk: part })).includes('en-route NOTAMs were not assessed'));
+  const hi = Object.assign(V.sanitizeRisk({ score: 9, level: 'CRITICAL', override: true, reasons: [] }), { partial: true });
+  assert.strictEqual(V.signoffFor(hi), 'Please review the full briefing before any decision.');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

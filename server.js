@@ -2978,7 +2978,19 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
 
         // Step 2: script. Fed with the written briefing's own deterministic risk result (posted by the page and validated here), so the
         // video can never contradict it; an elevated rating is stated plainly and the cheerful sign-off is replaced (video-script.js).
-        const vRisk = videoScript.sanitizeRisk(clientRisk);
+        let vRisk = videoScript.sanitizeRisk(clientRisk);
+        if (!vRisk && depIcao && arrIcao) {
+          // Video mode runs without a written briefing, so rate the route here with the same rubric (aerodromes + conflict-zone check;
+          // no en-route NOTAM fetch, to keep time and SkyLink calls unchanged). Marked partial so the closing line never implies a clear route.
+          try {
+            const [mD, tD, mA, tA] = await Promise.all([fetchMetar(depIcao), fetchTaf(depIcao), fetchMetar(arrIcao), fetchTaf(arrIcao)]);
+            const rr = await Promise.race([
+              computeBriefingRisk({ icao_dep: depIcao, icao_arr: arrIcao, isSingleAirport: false, notamDepResult: depRes, notamArrResult: arrRes, enrouteCollector: [], metarDep: mD, metarArr: mA, tafDep: tD, tafArr: tA }),
+              new Promise(resolve => setTimeout(() => resolve(null), 10000))
+            ]);
+            if (rr) { vRisk = videoScript.sanitizeRisk(risk.finalizeForClient(rr, '').riskSummary); if (vRisk) vRisk.partial = true; }
+          } catch (e) { console.log('[VIDEO] risk fallback error:', e.message); }
+        }
         const greeting = videoScript.greetingFor(Number.isInteger(localHour) ? localHour : null, new Date().getUTCHours());
         const scriptPrompt = videoScript.buildScriptPrompt({ dep: depIcao, arr: arrIcao, depNotamText, arrNotamText, depMetar, arrMetar, greeting, risk: vRisk });
         const scriptModels = [process.env.VIDEO_SCRIPT_MODEL || 'claude-sonnet-5-5', 'claude-haiku-4-5'];
