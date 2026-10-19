@@ -73,11 +73,11 @@ test('fitScript trims an over-long script to the limit, keeps the opening and th
 });
 test('prompt sets a hard length and excludes administrative NOTAMs', () => {
   const p = V.buildScriptPrompt(base);
-  assert.ok(/never exceed 90 words/.test(p) && /AIRAC/.test(p) && /no distances, section numbers/.test(p));
+  assert.ok(/never exceed 76 words/.test(p) && /AIRAC/.test(p) && /no distances, section numbers/.test(p));
 });
 test('server-computed (partial) rating: closing line asks for the en-route check, elevated keeps the strong line', () => {
   const part = Object.assign(V.sanitizeRisk({ score: 3, level: 'LOW', reasons: [] }), { partial: true });
-  assert.strictEqual(V.signoffFor(part), 'Have a safe flight, and check the full briefing for en-route details.');
+  assert.strictEqual(V.signoffFor(part), 'Check the full briefing for en-route details.');
   assert.ok(V.buildScriptPrompt(Object.assign({}, base, { risk: part })).includes('en-route NOTAMs were not assessed'));
   const hi = Object.assign(V.sanitizeRisk({ score: 9, level: 'CRITICAL', override: true, reasons: [] }), { partial: true });
   assert.strictEqual(V.signoffFor(hi), 'Please review the full briefing before any decision.');
@@ -92,7 +92,7 @@ test('both airports are mandatory in every variant, named each time', () => {
   [null, { score: 4, level: 'MEDIUM', verdict: 'GO WITH CONDITIONS', override: false, reasons: [] }, { score: 9, level: 'CRITICAL', verdict: 'NO-GO', override: true, reasons: ['x'] }].forEach(r => {
     const p = V.buildScriptPrompt(Object.assign({}, base, { risk: r && V.sanitizeRisk(r) }));
     assert.ok(p.includes('[DEPARTURE sentence') && p.includes('[ARRIVAL sentence'));
-    assert.ok(/AIRPORT RULE/.test(p) && /nothing significant/.test(p));
+    assert.ok(/AIRPORT RULE/.test(p) && /nothing significant/.test(p) && /full airport names ONLY in the opening/.test(p) && /Weather is fine at both ends/.test(p));
   });
 });
 console.log(`\n${pass} passed, ${fail} failed`);
