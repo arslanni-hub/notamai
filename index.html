@@ -10909,7 +10909,7 @@ const vbMessages = [
 let vbInterval = null;
 let vbProgressInterval = null;
 let vbStartTime = null;
-let vbEstimatedDuration = 160000;
+let vbEstimatedDuration = 200000;
 
 function openVideoBriefing() {
   const user = firebase.auth().currentUser;
@@ -11013,7 +11013,7 @@ async function pollVideoStatus(predictionId) {
   let pollCount = 0;
   const poll = setInterval(async () => {
     pollCount++;
-    if (pollCount > 90) {
+    if (pollCount > 180) {   // 15 min: WaveSpeed render time varies a lot (about 3-7 min for a 35-50 s video)
       clearInterval(poll);
       showVideoBriefingError('Video generation timed out. Please try again.');
       return;

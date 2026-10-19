@@ -61,19 +61,19 @@ test('fitScript trims an over-long script to the limit, keeps the opening and th
   const sent = n => Array.from({ length: n }, (_, i) => 'word' + i).join(' ') + '.';
   const long = 'Good evening, Captain. Today we are flying from Istanbul to Amman. ' + [1, 2, 3, 4, 5, 6, 7].map(() => sent(18)).join(' ') + ' Have a safe and smooth flight.';
   assert.ok(V.wordCount(long) > 140);
-  const out = V.fitScript(long, null, 115);
-  assert.ok(V.wordCount(out) <= 115, String(V.wordCount(out)));
+  const out = V.fitScript(long, null, 80);
+  assert.ok(V.wordCount(out) <= 80, String(V.wordCount(out)));
   assert.ok(out.startsWith('Good evening, Captain.'));
   assert.ok(out.endsWith('Have a safe and smooth flight.'));
   const hi = { score: 8, level: 'HIGH', verdict: 'NO-GO', override: true, reasons: [] };
-  const out2 = V.fitScript(V.enforceSignoff(long.replace(/ Have a safe and smooth flight\./, ''), hi), hi, 115);
-  assert.ok(V.wordCount(out2) <= 115 && out2.endsWith('Please review the full briefing before any decision.'));
+  const out2 = V.fitScript(V.enforceSignoff(long.replace(/ Have a safe and smooth flight\./, ''), hi), hi, 80);
+  assert.ok(V.wordCount(out2) <= 80 && out2.endsWith('Please review the full briefing before any decision.'));
   const short = 'Good evening, Captain. Fine. Have a safe and smooth flight.';
   assert.strictEqual(V.fitScript(short, null, 115), short);
 });
 test('prompt sets a hard length and excludes administrative NOTAMs', () => {
   const p = V.buildScriptPrompt(base);
-  assert.ok(/never exceed 105 words/.test(p) && /AIRAC/.test(p));
+  assert.ok(/never exceed 80 words/.test(p) && /AIRAC/.test(p));
 });
 test('server-computed (partial) rating: closing line asks for the en-route check, elevated keeps the strong line', () => {
   const part = Object.assign(V.sanitizeRisk({ score: 3, level: 'LOW', reasons: [] }), { partial: true });

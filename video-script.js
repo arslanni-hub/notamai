@@ -51,10 +51,10 @@ ${risk.reasons.length ? risk.reasons.map(x => '- ' + x).join('\n') : '- none lis
   const body = risk
     ? (elevated
       ? `"${o.greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [One sentence stating plainly that this route is rated ${risk.level.toLowerCase()} risk, ${WORDS[risk.score]} out of ten${risk.override ? ', and that it is a no-go as things stand' : ''}.] [One or two sentences explaining the main drivers above in plain English — a prohibited or conflict-zone airspace, closed runway, etc.]. [One sentence on the single most critical NOTAM at departure or arrival if it is not already covered.] [Weather — one short sentence only if significant.] ${signoff}"`
-      : `"${o.greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [One sentence giving the rating: ${risk.level.toLowerCase()} risk, ${WORDS[risk.score]} out of ten, with the main driver if any.] [Most critical departure NOTAM — one sentence, specific details, plain English.] [Most critical arrival NOTAM — one sentence, specific details.] [Weather — one sentence only if significant risk, skip if normal.] Check the NOTAMs panel for complete details. ${signoff}"`)
-    : `"${o.greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [Most critical departure NOTAM — one sentence, specific details, plain English.] [Second most critical departure NOTAM if it exists — one sentence.] [Most critical arrival NOTAM — one sentence, specific details.] [Second most critical arrival NOTAM if it exists — one sentence.] [Weather — one sentence only if significant risk, skip if normal.] ${signoff}"`;
+      : `"${o.greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [One sentence giving the rating: ${risk.level.toLowerCase()} risk, ${WORDS[risk.score]} out of ten, with the main driver if any.] [Most critical departure NOTAM — one sentence, specific details, plain English.] [Most critical arrival NOTAM — one sentence, specific details.] [Weather — one sentence only if significant risk, skip if normal.] ${signoff}"`)
+    : `"${o.greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [Most critical departure NOTAM — one sentence, specific details, plain English.] [Most critical arrival NOTAM — one sentence, specific details.] [Weather — one sentence only if significant risk, skip if normal.] ${signoff}"`;
 
-  return `You are Captain Edward, a senior airline captain with 35 years experience. Speak naturally for about 45 seconds: 90-100 words in total. This is a HARD limit — never exceed 105 words.
+  return `You are Captain Edward, a senior airline captain with 35 years experience. Speak naturally for about 35 seconds: 68-76 words in total. This is a HARD limit — never exceed 80 words.
 
 Route: ${o.dep} to ${o.arr}
 
@@ -81,9 +81,9 @@ MANDATORY:
 - City names only, never ICAO codes
 - Runway numbers as words: "one seven left"
 - No NOTAM reference numbers, no bulletin numbers
-- 90-100 words in total, never more than 105. Every sentence under 20 words.
+- 68-76 words in total, never more than 80. Every sentence under 18 words.
 - Choose only what changes the crew's decision or workload: runway / taxiway / approach / navaid outages, airspace restrictions or conflict zones, significant weather. Leave out everything administrative or routine (AIRAC or AIP amendments, trigger or checklist NOTAMs, obstacle lights, general information) and do not mention that you left anything out.
-- At most two NOTAM items per airport, and only if they are truly significant. If an airport has nothing significant, say so in a few words.`;
+- At most one NOTAM item per airport (two only if both change the plan), and only if truly significant. If an airport has nothing significant, say so in a few words.`;
 }
 
 // The model sometimes wraps the script in quotes or markdown; speech must be plain text.
