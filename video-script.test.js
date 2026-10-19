@@ -73,7 +73,7 @@ test('fitScript trims an over-long script to the limit, keeps the opening and th
 });
 test('prompt sets a hard length and excludes administrative NOTAMs', () => {
   const p = V.buildScriptPrompt(base);
-  assert.ok(/never exceed 80 words/.test(p) && /AIRAC/.test(p) && /no distances, section numbers/.test(p));
+  assert.ok(/never exceed 90 words/.test(p) && /AIRAC/.test(p) && /no distances, section numbers/.test(p));
 });
 test('server-computed (partial) rating: closing line asks for the en-route check, elevated keeps the strong line', () => {
   const part = Object.assign(V.sanitizeRisk({ score: 3, level: 'LOW', reasons: [] }), { partial: true });
@@ -87,6 +87,13 @@ test('airport names come from the verified lookup; unverified airports are never
   assert.ok(p.includes('DEPARTURE: Istanbul Sabiha Gokcen International Airport'));
   assert.ok(p.includes('ARRIVAL: not verified'));
   assert.ok(/never guess a city or airport from an ICAO code/.test(p));
+});
+test('both airports are mandatory in every variant, named each time', () => {
+  [null, { score: 4, level: 'MEDIUM', verdict: 'GO WITH CONDITIONS', override: false, reasons: [] }, { score: 9, level: 'CRITICAL', verdict: 'NO-GO', override: true, reasons: ['x'] }].forEach(r => {
+    const p = V.buildScriptPrompt(Object.assign({}, base, { risk: r && V.sanitizeRisk(r) }));
+    assert.ok(p.includes('[DEPARTURE sentence') && p.includes('[ARRIVAL sentence'));
+    assert.ok(/AIRPORT RULE/.test(p) && /nothing significant/.test(p));
+  });
 });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

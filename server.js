@@ -3028,7 +3028,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             const scriptData = await scriptRes.json();
             const text = (scriptData.content || []).filter(b => b.type === 'text').map(b => b.text).join(' ');
             const rawWords = videoScript.wordCount(text);
-            const cleaned = videoScript.fitScript(videoScript.enforceSignoff(videoScript.cleanScript(text), vRisk), vRisk, 80);
+            const cleaned = videoScript.fitScript(videoScript.enforceSignoff(videoScript.cleanScript(text), vRisk), vRisk, 90);
             if (videoScript.wordCount(cleaned) >= 40) { script = cleaned; console.log('[VIDEO SCRIPT]', { model, rawWords, words: videoScript.wordCount(cleaned), risk: vRisk ? vRisk.level + ' ' + vRisk.score : null }); console.log('[VIDEO SCRIPT TEXT]', cleaned); break; }
             console.log('[VIDEO SCRIPT] ' + model + ' returned a script that is too short');
           } catch (e) { console.log('[VIDEO SCRIPT] ' + model + ' error:', e.message); }
