@@ -783,6 +783,28 @@ test('v3.41 conflict-zone override is worded as a conflict-zone prohibition, not
   assert.ok(/conflict zone/.test(R.basisHtml(r)) && !/closed or no usable runway/.test(R.basisHtml(r)));
   assert.ok(!/no usable runway or is closed/.test(R.buildModelBlock({ airports: [], enroute: [] }, r)));
 });
+test('v3.47 conflict zones (EASA review of 19 Oct 2026): Syria is no-go at the aerodrome but only a re-route note when crossed; Mali is HIGH at the aerodrome; Saudi crossing is caution', () => {
+  const ap = (i, r) => ({ icao: i, role: r, notams: [] });
+  const s = R.assessRisk({ now: NOW, airports: [ap('LTFM', 'DEP'), ap('OSDI', 'ARR')], enroute: [] });
+  assert.strictEqual(s.override, true); assert.ok(s.factors.some(f => f.key === 'ROUTE:CONFLICT_NOGO' && /Syria/.test(f.label)));
+  const x = R.assessRisk({ now: NOW, airports: [ap('LTFM', 'DEP'), ap('OMDB', 'ARR')], enroute: [], routeFirs: ['LTAA', 'OSTT', 'OMAE'] });
+  assert.strictEqual(x.override, false);
+  const rr = x.factors.find(f => f.key === 'ROUTE:CONFLICT_REROUTE'); assert.ok(rr && /Syria/.test(rr.label) && /FL260/.test(rr.label));
+  const m = R.assessRisk({ now: NOW, airports: [ap('LFPG', 'DEP'), ap('GABS', 'ARR')], enroute: [] });
+  assert.strictEqual(m.override, false); assert.ok(m.factors.some(f => f.key === 'ROUTE:CONFLICT_HIGH' && /Mali/.test(f.label)));
+  const mc = R.assessRisk({ now: NOW, airports: [ap('LFPG', 'DEP'), ap('FNLU', 'ARR')], enroute: [], routeFirs: ['DRRR', 'GOOO'] });
+  assert.ok(!mc.factors.some(f => /Mali/.test(f.label || '')), 'a FIR crossing alone never triggers the Mali (below FL260) entry');
+  const sa = R.assessRisk({ now: NOW, airports: [ap('LTFM', 'DEP'), ap('FAOR', 'ARR')], enroute: [], routeFirs: ['LTAA', 'OEJD'] });
+  assert.ok(sa.factors.some(f => f.key === 'ROUTE:CONFLICT_CAUTION' && /Saudi/.test(f.label)));
+});
+test('v3.47 conflict zones: validity dates follow the 30 Sep / 14 Oct 2026 EASA revisions', () => {
+  const byName = n => R.CONFIG.conflictZones.find(z => z.name.startsWith(n));
+  assert.strictEqual(byName('Yemen').until, '2027-04-30'); assert.strictEqual(byName('Somalia').until, '2027-04-30');
+  assert.strictEqual(byName('Jordan').until, '2026-11-16'); assert.strictEqual(R.CONFIG.conflictZonesAsOf, '2026-10-19');
+  const base = { now: new Date('2026-12-20T10:00:00Z'), airports: [{ icao: 'LTFM', role: 'DEP', notams: [] }, { icao: 'OMDB', role: 'ARR', notams: [] }], enroute: [], routeFirs: ['OYSC'] };
+  const y = R.assessRisk(base).factors.find(f => /Yemen/.test(f.label || ''));
+  assert.ok(y && !/past its review date/.test(y.label), 'Yemen entry is valid into 2027');
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
 
