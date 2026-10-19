@@ -1659,7 +1659,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         <div id="um_proNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For active pilots &amp; dispatchers</div>
         <button onclick="initiateCheckout('pro', um_isYearly ? 'year' : 'month')" style="width:100%;padding:8px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO PRO →</button>
-        <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:6px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
+        <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:6px;letter-spacing:1px;">* Subject to <a href="/terms#fair-use" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
         <div style="border-top:1px solid #1a2a3a;margin:16px 0 12px;"></div>
         <ul style="list-style:none;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Unlimited AI Briefings*</span></li>
@@ -1685,7 +1685,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         <div id="um_maxNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">7-day free trial · Cancel anytime</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">For aviation professionals</div>
         <button onclick="initiateCheckout('max', um_isYearly ? 'year' : 'month')" style="width:100%;padding:8px;background:#f4841a;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">UPGRADE TO MAX →</button>
-        <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:6px;letter-spacing:1px;">* Subject to <a href="/terms" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
+        <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:6px;letter-spacing:1px;">* Subject to <a href="/terms#fair-use" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
         <div style="border-top:1px solid #1a2a3a;margin:16px 0 12px;"></div>
         <ul style="list-style:none;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Pro +</span></li>
@@ -6638,7 +6638,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
           <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#4a5f72;"><span style="flex-shrink:0;font-size:13px;margin-top:1px;">✗</span>AI Video Briefing</li>
         </ul>
         <button onclick="initiateCheckout('pro', pricing_isYearly ? 'year' : 'month')" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:#4a9eff;border:1px solid #4a9eff;color:#060a0f;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Start Free Trial →</button>
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">* Subject to <a href="#" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">* Subject to <a href="/terms#fair-use" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></div>
       </div>
 
       <!-- MAX -->
@@ -6663,7 +6663,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
           <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#8a9bb0;"><span style="flex-shrink:0;color:#f4841a;font-size:13px;margin-top:1px;">+</span>Extra video pack: $10 = 3 videos</li>
         </ul>
         <button onclick="initiateCheckout('max', pricing_isYearly ? 'year' : 'month')" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:#f4841a;border:1px solid #f4841a;color:#060a0f;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Start Free Trial →</button>
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">* Subject to <a href="#" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">* Subject to <a href="/terms#fair-use" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></div>
       </div>
 
       <!-- ENTERPRISE -->
