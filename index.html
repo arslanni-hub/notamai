@@ -3135,6 +3135,7 @@ async function handleSend(silent = false) {
             const riskMatch = (htmlHead + final).match(/\b(CRITICAL|HIGH|MEDIUM|LOW)\b/);
             const detectedRisk = riskMatch ? riskMatch[1] : 'MEDIUM';
             const route = arr ? `${dep} → ${arr}` : dep;
+            window.currentRiskSummary = evt.riskSummary ? Object.assign({ routeKey: routeKeyOf(route) }, evt.riskSummary) : null;   // handed to the video briefing so it agrees with this rating
             const fullHtml = htmlHead + final + htmlFoot;
             if (silent) {
               // Background mode: save but don't show overlay
@@ -10977,15 +10978,19 @@ function openVideoBriefing() {
   generateVideoBriefing(route, user.uid);
 }
 
+function routeKeyOf(r) { return (String(r || '').toUpperCase().match(/[A-Z]{4}/g) || []).join('>'); }
+
 async function generateVideoBriefing(route, userId) {
   try {
+    const rs = window.currentRiskSummary && window.currentRiskSummary.routeKey === routeKeyOf(route) ? window.currentRiskSummary : null;
+    const vbRisk = rs ? { score: rs.score, level: rs.level, verdict: rs.verdict, override: rs.override, reasons: rs.reasons } : null;
     const response = await fetch('/api/generate-video-briefing', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(await getAuthHeader())
       },
-      body: JSON.stringify({ route, briefingId: window.currentBriefingId })
+      body: JSON.stringify({ route, briefingId: window.currentBriefingId, risk: vbRisk, localHour: new Date().getHours() })
     });
     if (response.status === 401) { handleAuthError(401); return; }
     if (response.status === 403) {
@@ -10997,7 +11002,7 @@ async function generateVideoBriefing(route, userId) {
     if (data.predictionId) {
       pollVideoStatus(data.predictionId);
     } else {
-      showVideoBriefingError('Could not start video generation');
+      showVideoBriefingError('Could not start video generation. Your video credit was not used — please try again.');
     }
   } catch(e) {
     showVideoBriefingError('Error: ' + e.message);
@@ -11016,6 +11021,11 @@ async function pollVideoStatus(predictionId) {
     try {
       const res = await fetch('/api/check-video-briefing/' + predictionId);
       const data = await res.json();
+      if (data.status === 'failed') {
+        clearInterval(poll);
+        showVideoBriefingError('Video generation failed. Your video credit was restored — please try again.');
+        return;
+      }
       if (data.status === 'completed' && data.videoUrl) {
         clearInterval(poll);
         clearInterval(vbInterval);

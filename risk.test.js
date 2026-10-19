@@ -805,6 +805,15 @@ test('v3.47 conflict zones: validity dates follow the 30 Sep / 14 Oct 2026 EASA 
   const y = R.assessRisk(base).factors.find(f => /Yemen/.test(f.label || ''));
   assert.ok(y && !/past its review date/.test(y.label), 'Yemen entry is valid into 2027');
 });
+test('v3.48 finalizeForClient hands the video briefing a risk summary (score, level, verdict, override, main drivers)', () => {
+  const ap = (i, r) => ({ icao: i, role: r, notams: [] });
+  const r = R.assessRisk({ now: NOW, airports: [ap('LTFM', 'DEP'), ap('OSDI', 'ARR')], enroute: [] });
+  const f = R.finalizeForClient(r, '');
+  assert.ok(f.riskSummary && f.riskSummary.override === true && f.riskSummary.score === 10 && f.riskSummary.level === 'CRITICAL' && f.riskSummary.verdict === 'NO-GO');
+  assert.ok(f.riskSummary.reasons.length >= 1 && f.riskSummary.reasons.length <= 4 && /Syria/.test(f.riskSummary.reasons.join(' ')));
+  const ok = R.finalizeForClient(R.assessRisk({ now: NOW, airports: [ap('EGLL', 'DEP'), ap('LTFM', 'ARR')], enroute: [] }), '');
+  assert.strictEqual(ok.riskSummary.override, false); assert.ok(ok.riskSummary.score <= 3);
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
 

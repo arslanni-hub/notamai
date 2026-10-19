@@ -8,11 +8,11 @@ NOTAM Intelligence (notamai.com) is a global AI-powered pre-flight briefing plat
 - **Backend:** Node.js (server.js) on Render.com
 - **Database:** Firebase Firestore (europe-west1) — briefing archive, user data, alerts, videos
 - **Auth:** Firebase Authentication (Google + Email/Password)
-- **AI:** Anthropic Claude API — Sonnet for main briefings, Haiku for chat/analysis/extract/video scripts
+- **AI:** Anthropic Claude API — Sonnet for main briefings and video scripts, Haiku for chat/analysis/extract
 - **NOTAM Data:** SkyLink API (RapidAPI) — env var: SKYLINK_KEY
 - **Weather Data:** aviationweather.gov (free, no key needed)
 - **Video:** WaveSpeed AI (infinitetalk-fast model) + ElevenLabs TTS — LIVE, implemented
-- **Payments:** LemonSqueezy (NOT Stripe) — live, tested, working
+- **Payments:** Stripe (test mode until the company is set up; live payments pending) — LemonSqueezy was replaced
 - **Deploy:** Render.com — auto-deploys from GitHub main branch
 
 ## Repository
@@ -28,11 +28,11 @@ NOTAM Intelligence (notamai.com) is a global AI-powered pre-flight briefing plat
 - FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY
 
 ## Claude Models in Use (current, verified in code)
-- Main briefing generation: `claude-sonnet-4-6`
+- Main briefing generation: admin always `claude-sonnet-5-5`; other plans use Render env `BRIEFING_MODEL` (code default `claude-sonnet-4-6`) — check the env value
 - Ask NOTAM AI chat (briefing-specific): `claude-haiku-4-5-20251001`
 - ✨ Single NOTAM/METAR/TAF analysis: `claude-haiku-4-5-20251001`
 - Route extraction (natural language → ICAO): `claude-haiku-4-5-20251001`
-- Video briefing script generation: `claude-haiku-4-5-20251001`
+- Video briefing script generation: `claude-sonnet-5-5` (Render env `VIDEO_SCRIPT_MODEL` overrides; automatic fallback to `claude-haiku-4-5` if the call fails) — fed with the written briefing's risk summary (video-script.js)
 - Prompt caching: enabled on all chat/analysis endpoints (anthropic-beta: prompt-caching-2024-07-31)
 - ⚠️ Do not assume a chat-type feature should default to Haiku — model choice per plan/feature is a deliberate decision, confirm before changing.
 
@@ -43,13 +43,13 @@ User → index.html (SPA)
 → POST /api/chat → Claude Haiku (Ask NOTAM AI — briefing-specific conversation)
 → POST /api/analyze-notam → Claude Haiku (single NOTAM/METAR/TAF analysis)
 → POST /api/extract-route → Claude Haiku (natural language → ICAO codes)
-→ POST /api/generate-video-briefing → Claude Haiku (script) → ElevenLabs (TTS) → WaveSpeed infinitetalk-fast (video) → Firestore videos collection
+→ POST /api/generate-video-briefing → Claude Sonnet 5.5 (script, with the briefing's risk summary) → ElevenLabs (TTS) → WaveSpeed infinitetalk-fast (video) → Firestore videos collection
 → GET /api/check-video-briefing/:id → polls WaveSpeed prediction status
 → GET /api/raw/notam/:icao → SkyLink proxy
 → GET /api/raw/metar/:icao → aviationweather.gov proxy
 → GET /api/raw/taf/:icao → aviationweather.gov proxy
-→ POST /api/create-checkout → LemonSqueezy checkout URL creation
-→ POST /api/lemonsqueezy-webhook → HMAC-verified plan updates (subscription_created/cancelled → Firestore users.plan)
+→ POST /api/create-checkout → Stripe Checkout session creation
+→ POST /api/stripe-webhook → signature-verified plan updates (→ Firestore users.plan)
 → GET /b/:id → Shared briefing page (Firestore fetch)
 → GET /pricing-upgrade → Upgrade page
 ```
@@ -117,7 +117,7 @@ Separate from "Ask NOTAM AI" (which stays briefing-specific, never touched by th
 
 ## Known Issues / TODO
 - Free/Pro/Max content restrictions: implemented for briefings/chat/analysis caps; video hard limit (5/mo) enforcement should be double-checked
-- AI Video Briefing: working end-to-end (Haiku script → ElevenLabs TTS → WaveSpeed infinitetalk-fast), still being quality-tuned (NOTAM relevance/recency, captain greeting consistency)
+- AI Video Briefing: working end-to-end (Sonnet 5.5 script → ElevenLabs TTS → WaveSpeed infinitetalk-fast). v3.48: script follows the briefing's risk rating (elevated ratings are stated plainly, closing line replaced), greeting uses the browser's local hour, a failed video (at start or while rendering) restores the Max credit once, and the unused /api/test-video-script endpoint was removed
 - General Aviation Expert Chat: live. Citation links and a dedicated "searching the web..." UI indicator are not yet built (deferred, not forgotten).
 - Admin panel: Free-tier conversion tracking/funnel metrics planned, not yet built
 - NOTAM Alerts email notifications: UI ready, needs Resend.com integration

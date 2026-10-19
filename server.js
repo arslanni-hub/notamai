@@ -21,6 +21,7 @@ const fs = require('fs');
 const path = require('path');
 const admin = require('firebase-admin');
 const risk = require('./risk');
+const videoScript = require('./video-script');
 const runwayData = require('./runway-data');
 // RISK_MODE (Render env): 'shadow' (default) = compute + log only; 'active' = the rubric sets the rating floor, the model
 // receives the complete information and the client header is corrected to never fall below the floor.
@@ -271,6 +272,20 @@ async function incrementUsage(userId, field) {
     const ref = adminDb.collection('usage').doc(userId + '_' + monthKey);
     await ref.set({ [field]: admin.firestore.FieldValue.increment(1), userId, month: monthKey }, { merge: true });
   } catch(e) {}
+}
+
+// Give back one unit (e.g. a video briefing that failed before or while rendering). Never goes below zero.
+async function decrementUsage(userId, field, when) {
+  try {
+    const d = when instanceof Date && !isNaN(when) ? when : new Date();
+    const monthKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    const ref = adminDb.collection('usage').doc(userId + '_' + monthKey);
+    await adminDb.runTransaction(async tx => {
+      const snap = await tx.get(ref);
+      const cur = snap.exists ? (snap.data()[field] || 0) : 0;
+      if (cur > 0) tx.set(ref, { [field]: cur - 1 }, { merge: true });
+    });
+  } catch (e) { console.log('[USAGE] decrement error:', e.message); }
 }
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
@@ -2903,8 +2918,9 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
+      let chargedUser = null, started = false;   // a video that fails before it starts gives the credit back
       try {
-        const { route, briefingId } = JSON.parse(body);
+        const { route, briefingId, risk: clientRisk, localHour } = JSON.parse(body);
         const userId = await getVerifiedUserId(req);
         if (!userId) { sendUnauthorized(res, req); return; }
 
@@ -2923,6 +2939,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
           }
         }
         await incrementUsage(userId, 'video');
+        chargedUser = userId;
 
         // Parse ICAO codes from route
         const icaos = route.trim().toUpperCase().split(/[\s,->]+/).filter(s => s.length === 4);
@@ -2930,49 +2947,17 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         const arrIcao = icaos[1] || '';
         console.log('[VIDEO BRIEFING] Route:', route, 'DEP:', depIcao, 'ARR:', arrIcao);
 
-        // Fetch NOTAMs directly from SkyLink for both airports
-        let depNotams = [];
-        let arrNotams = [];
-        let depMetar = '';
-        let arrMetar = '';
-
-        console.log('[VIDEO] Fetching NOTAMs for DEP:', depIcao, 'ARR:', arrIcao);
-        try {
-          const depData = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + depIcao + '?include_future=true', {
-            headers: {
-              'X-RapidAPI-Key': process.env.SKYLINK_KEY,
-              'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
-            }
-          });
-          depNotams = depData?.notams || [];
-          console.log('[VIDEO] DEP NOTAMs:', depNotams.length);
-        } catch(e) {
-          console.log('[VIDEO] DEP NOTAM error:', e.message);
-        }
-
-        try {
-          const arrData = await fetchURL('https://skylink-api.p.rapidapi.com/notams/' + arrIcao + '?include_future=true', {
-            headers: {
-              'X-RapidAPI-Key': process.env.SKYLINK_KEY,
-              'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com'
-            }
-          });
-          arrNotams = arrData?.notams || [];
-          console.log('[VIDEO] ARR NOTAMs:', arrNotams.length);
-        } catch(e) {
-          console.log('[VIDEO] ARR NOTAM error:', e.message);
-        }
-
-        // Fetch METAR for weather
-        try {
-          const depMetarData = await fetchURL('https://aviationweather.gov/api/data/metar?ids=' + depIcao + '&format=json');
-          depMetar = depMetarData?.[0]?.rawOb || '';
-        } catch(e) {}
-
-        try {
-          const arrMetarData = await fetchURL('https://aviationweather.gov/api/data/metar?ids=' + arrIcao + '&format=json');
-          arrMetar = arrMetarData?.[0]?.rawOb || '';
-        } catch(e) {}
+        // NOTAMs (SkyLink, 5-min shared cache — normally already warm from the briefing the user just read) and METARs, all four in parallel.
+        console.log('[VIDEO] Fetching data for DEP:', depIcao, 'ARR:', arrIcao);
+        const skyOpts = { headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' } };
+        const notamsOf = (icao, label) => icao
+          ? fetchURL('https://skylink-api.p.rapidapi.com/notams/' + icao + '?include_future=true', skyOpts).then(d => d?.notams || []).catch(e => { console.log('[VIDEO] ' + label + ' NOTAM error:', e.message); return []; })
+          : Promise.resolve([]);
+        const metarOf = icao => icao
+          ? fetchURL('https://aviationweather.gov/api/data/metar?ids=' + icao + '&format=json').then(d => d?.[0]?.rawOb || '').catch(() => '')
+          : Promise.resolve('');
+        const [depNotams, arrNotams, depMetar, arrMetar] = await Promise.all([notamsOf(depIcao, 'DEP'), notamsOf(arrIcao, 'ARR'), metarOf(depIcao), metarOf(arrIcao)]);
+        console.log('[VIDEO] NOTAMs DEP/ARR:', depNotams.length, arrNotams.length);
 
         // Sort by severity then recency (year-aware) and take top 8
         function getCriticalNotams(notams) {
@@ -2995,52 +2980,35 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         console.log('[VIDEO] DEP NOTAM text length:', depNotamText.length);
         console.log('[VIDEO] ARR NOTAM text length:', arrNotamText.length);
 
-        // Step 2: Generate script with Claude Haiku
-        const hour = new Date().getUTCHours();
-        const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-
-        const scriptPrompt = `You are Captain Edward, a senior airline captain with 35 years experience. Speak naturally for exactly 50 seconds. 105-110 words total — count carefully.
-
-Route: ${depIcao} to ${arrIcao}
-
-DEPARTURE NOTAMs (${depIcao}):
-${depNotamText || 'No active NOTAMs'}
-
-ARRIVAL NOTAMs (${arrIcao}):
-${arrNotamText || 'No active NOTAMs'}
-
-DEPARTURE WEATHER: ${depMetar || 'Not available'}
-ARRIVAL WEATHER: ${arrMetar || 'Not available'}
-
-Write EXACTLY this structure, spoken naturally:
-
-"${greeting}, Captain. Today we're flying from [departure city] to [arrival city]. [Most critical departure NOTAM - one sentence, specific details, plain English]. [Second most critical departure NOTAM if exists - one sentence]. [Most critical arrival NOTAM - one sentence, specific details]. [Second most critical arrival NOTAM if exists - one sentence]. [Weather - one sentence only if significant risk, skip if normal]. Check the NOTAMs panel for complete details. Have a safe and smooth flight."
-
-MANDATORY:
-- First words must be "${greeting}, Captain." — ALWAYS
-- Last words must be "Have a safe and smooth flight." — ALWAYS
-- NO markdown, NO hashtags, plain text only
-- City names only, never ICAO codes
-- Runway numbers as words: "one seven left"
-- No NOTAM reference numbers
-- 105-110 words total — count carefully`;
-
-        const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_KEY,
-            'anthropic-version': '2023-06-01'
-          },
-          body: JSON.stringify({
-            model: 'claude-haiku-4-5',
-            max_tokens: 200,
-            messages: [{ role: 'user', content: scriptPrompt }]
-          })
-        });
-        const scriptData = await scriptRes.json();
-        const script = scriptData.content?.[0]?.text || 'Pre-flight briefing complete. Have a safe flight.';
-        console.log('[VIDEO SCRIPT]', script.slice(0, 100));
+        // Step 2: script. Fed with the written briefing's own deterministic risk result (posted by the page and validated here), so the
+        // video can never contradict it; an elevated rating is stated plainly and the cheerful sign-off is replaced (video-script.js).
+        const vRisk = videoScript.sanitizeRisk(clientRisk);
+        const greeting = videoScript.greetingFor(Number.isInteger(localHour) ? localHour : null, new Date().getUTCHours());
+        const scriptPrompt = videoScript.buildScriptPrompt({ dep: depIcao, arr: arrIcao, depNotamText, arrNotamText, depMetar, arrMetar, greeting, risk: vRisk });
+        const scriptModels = [process.env.VIDEO_SCRIPT_MODEL || 'claude-sonnet-5-5', 'claude-haiku-4-5'];
+        let script = '';
+        for (const model of scriptModels) {
+          try {
+            const scriptRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+              body: JSON.stringify({
+                model,
+                max_tokens: 600,
+                // Sonnet 5.5 settings as proven in the main briefing call: medium effort, lowest thinking level
+                ...(model === 'claude-sonnet-5-5' ? { output_config: { effort: 'medium' }, thinking: { type: 'between_tools' } } : {}),
+                messages: [{ role: 'user', content: scriptPrompt }]
+              })
+            });
+            if (!scriptRes.ok) { console.log('[VIDEO SCRIPT] ' + model + ' HTTP ' + scriptRes.status, (await scriptRes.text()).slice(0, 200)); continue; }
+            const scriptData = await scriptRes.json();
+            const text = (scriptData.content || []).filter(b => b.type === 'text').map(b => b.text).join(' ');
+            const cleaned = videoScript.enforceSignoff(videoScript.cleanScript(text), vRisk);
+            if (videoScript.wordCount(cleaned) >= 40) { script = cleaned; console.log('[VIDEO SCRIPT]', { model, words: videoScript.wordCount(cleaned), risk: vRisk ? vRisk.level + ' ' + vRisk.score : null }); break; }
+            console.log('[VIDEO SCRIPT] ' + model + ' returned a script that is too short');
+          } catch (e) { console.log('[VIDEO SCRIPT] ' + model + ' error:', e.message); }
+        }
+        if (!script) throw new Error('Script generation failed');
 
         // Step 3: Convert script to audio with ElevenLabs
         const VOICE_ID = 'jXkeB46JcPXXUSxzn3MD'; // Edward voice
@@ -3087,6 +3055,7 @@ MANDATORY:
         });
         const wsData = await wsRes.json();
         const predictionId = wsData?.data?.id;
+        if (!wsRes.ok || !predictionId) throw new Error('Video service did not start the job: ' + JSON.stringify(wsData).slice(0, 200));
         console.log('[VIDEO BRIEFING] Started:', predictionId, 'Script:', script.slice(0, 50));
 
         // Step 5: Save to Firestore videos collection
@@ -3099,10 +3068,12 @@ MANDATORY:
           status: 'processing',
           createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
+        started = true;
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ predictionId, script }));
       } catch(e) {
+        if (chargedUser && !started) { await decrementUsage(chargedUser, 'video'); console.log('[VIDEO BRIEFING] failed before start, credit restored:', e.message); }
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: e.message }));
       } finally {
@@ -3112,83 +3083,6 @@ MANDATORY:
     return;
   }
 
-  // ── TEST VIDEO SCRIPT (no WaveSpeed call) ─────────────────────
-  if (req.method === 'POST' && req.url === '/api/test-video-script') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', async () => {
-      try {
-        const { route, briefingId } = JSON.parse(body);
-        const userId = await getVerifiedUserId(req);
-        if (!userId) { sendUnauthorized(res, req); return; }
-
-        // Same logic as generate-video-briefing but without WaveSpeed call
-        let briefingContent = '';
-        console.log('[TEST SCRIPT] briefingId:', briefingId, 'userId:', userId);
-
-        if (briefingId) {
-          const doc = await adminDb.collection('briefings').doc(briefingId).get();
-          if (doc.exists) {
-            let rawHtml3 = doc.data().html || '';
-            rawHtml3 = rawHtml3.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-            rawHtml3 = rawHtml3.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-            rawHtml3 = rawHtml3.replace(/<[^>]*>/g, ' ');
-            rawHtml3 = rawHtml3.replace(/\s+/g, ' ').trim();
-            rawHtml3 = rawHtml3.replace(/--[\w-]+:[^;]+;/g, '');
-            rawHtml3 = rawHtml3.replace(/:root\s*\{[^}]*\}/g, '');
-            briefingContent = rawHtml3.slice(0, 3000);
-            console.log('[TEST SCRIPT] briefingId content length:', briefingContent.length);
-          }
-        }
-
-        if (!briefingContent && userId) {
-          const latest = await adminDb.collection('briefings').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(1).get();
-          if (!latest.empty) {
-            let rawHtml4 = latest.docs[0].data().html || '';
-            rawHtml4 = rawHtml4.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-            rawHtml4 = rawHtml4.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-            rawHtml4 = rawHtml4.replace(/<[^>]*>/g, ' ');
-            rawHtml4 = rawHtml4.replace(/\s+/g, ' ').trim();
-            rawHtml4 = rawHtml4.replace(/--[\w-]+:[^;]+;/g, '');
-            rawHtml4 = rawHtml4.replace(/:root\s*\{[^}]*\}/g, '');
-            briefingContent = rawHtml4.slice(0, 3000);
-            console.log('[TEST SCRIPT] latest briefing content length:', briefingContent.length);
-          }
-        }
-
-        console.log('[TEST SCRIPT] Content preview:', briefingContent.slice(0, 200));
-
-        const hour = new Date().getUTCHours();
-        const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening';
-
-        const scriptResponse = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_KEY,
-            'anthropic-version': '2023-06-01'
-          },
-          body: JSON.stringify({
-            model: 'claude-haiku-4-5',
-            max_tokens: 200,
-            messages: [{ role: 'user', content: `Route: ${route}\nBriefing: ${briefingContent}\nWrite a 45-second briefing starting with "${greeting}, Captain."` }]
-          })
-        });
-
-        const scriptData = await scriptResponse.json();
-        const script = scriptData.content?.[0]?.text || 'No script generated';
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ script, contentLength: briefingContent.length, preview: briefingContent.slice(0, 200) }));
-      } catch(e) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
-      }
-    });
-    return;
-  }
-
-  // ── CHECK VIDEO BRIEFING STATUS ───────────────────────────────
   if (req.method === 'GET' && req.url.startsWith('/api/check-video-briefing/')) {
     const predId = req.url.split('/api/check-video-briefing/')[1];
     try {
@@ -3214,7 +3108,21 @@ MANDATORY:
       try {
         const videoQuery = await adminDb.collection('videos').where('predictionId', '==', predId).limit(1).get();
         if (!videoQuery.empty) {
-          script = videoQuery.docs[0].data().script || null;
+          const vdata = videoQuery.docs[0].data();
+          script = vdata.script || null;
+          // Render failed: give the Max credit back exactly once (transaction-guarded)
+          if (status === 'failed') {
+            try {
+              const ref = videoQuery.docs[0].ref;
+              const owner = await adminDb.runTransaction(async tx => {
+                const snap = await tx.get(ref); const d = snap.data() || {};
+                if (d.refunded) return null;
+                tx.update(ref, { status: 'failed', refunded: true, failedAt: admin.firestore.FieldValue.serverTimestamp() });
+                return d;
+              });
+              if (owner && owner.userId) { await decrementUsage(owner.userId, 'video', owner.createdAt && owner.createdAt.toDate ? owner.createdAt.toDate() : null); console.log('[VIDEO] render failed, credit restored:', predId); }
+            } catch (e) { console.log('[VIDEO] refund error:', e.message); }
+          }
           // Update Firestore when completed
           if (status === 'completed' && videoUrl) {
             let storageUrl = videoUrl;
@@ -3222,7 +3130,7 @@ MANDATORY:
               const videoResponse = await fetch(videoUrl);
               if (videoResponse.ok) {
                 const buffer = Buffer.from(await videoResponse.arrayBuffer());
-                const fileName = 'videos/' + userId + '/' + predId + '.mp4';
+                const fileName = 'videos/' + (vdata.userId || 'unknown') + '/' + predId + '.mp4';
                 const file = adminStorage.file(fileName);
                 await file.save(buffer, { metadata: { contentType: 'video/mp4' } });
                 await file.makePublic();

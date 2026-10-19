@@ -1023,6 +1023,7 @@ function finalizeForClient(r, headText) {
   const finalLevel = levelOfScore(finalScore);
   return {
     riskFix: { cls: CLASS_OF[finalLevel], label: LABEL_OF[finalLevel], score: finalScore },
+    riskSummary: { score: finalScore, level: finalLevel, verdict: r.verdict, override: !!r.override, reasons: (r.factors || []).filter(f => f.tier <= 2).slice(0, 4).map(f => String(f.label || '').slice(0, 200)) },
     riskBasisHtml: basisHtml(r, finalScore, finalLevel, { raised: modelScore !== null && modelScore > r.score, lowered: modelScore === null || modelScore < r.score }),
     modelScore,
   };
