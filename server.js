@@ -288,6 +288,112 @@ async function decrementUsage(userId, field, when) {
   } catch (e) { console.log('[USAGE] decrement error:', e.message); }
 }
 
+// ── Video briefing completion (server side) ─────────────────────────────────────────────────────────────────────────────────────────
+// A video must reach the user's archive even if the page was closed while it rendered: the server watches every started video itself.
+// finalizeVideo() is the single place that reads the WaveSpeed result and settles the Firestore record (completed / failed + refund,
+// each exactly once, transaction-guarded), so the page's own polling and the server watcher can run side by side safely.
+function wavespeedResult(predId) {
+  return new Promise((resolve, reject) => {
+    https.get({
+      hostname: 'api.wavespeed.ai',
+      path: '/api/v3/predictions/' + encodeURIComponent(predId) + '/result',
+      headers: { 'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY }
+    }, statusRes => {
+      let data = '';
+      statusRes.on('data', chunk => data += chunk);
+      statusRes.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { resolve({ error: 'Parse error' }); } });
+    }).on('error', reject);
+  });
+}
+
+async function finalizeVideo(predId) {
+  const result = await wavespeedResult(predId);
+  const status = result?.data?.status;
+  const videoUrl = result?.data?.outputs?.[0];
+  let script = null;
+  try {
+    const videoQuery = await adminDb.collection('videos').where('predictionId', '==', predId).limit(1).get();
+    if (!videoQuery.empty) {
+      const ref = videoQuery.docs[0].ref;
+      const vdata = videoQuery.docs[0].data();
+      script = vdata.script || null;
+      // Render failed: give the Max credit back exactly once
+      if (status === 'failed') {
+        try {
+          const owner = await adminDb.runTransaction(async tx => {
+            const snap = await tx.get(ref); const d = snap.data() || {};
+            if (d.refunded) return null;
+            tx.update(ref, { status: 'failed', refunded: true, failedAt: admin.firestore.FieldValue.serverTimestamp() });
+            return d;
+          });
+          if (owner && owner.userId) { await decrementUsage(owner.userId, 'video', owner.createdAt && owner.createdAt.toDate ? owner.createdAt.toDate() : null); console.log('[VIDEO] render failed, credit restored:', predId); }
+        } catch (e) { console.log('[VIDEO] refund error:', e.message); }
+      }
+      // Completed: claim the record once, then archive in the background (download + Firebase Storage upload never delays the answer)
+      if (status === 'completed' && videoUrl && vdata.status !== 'completed') {
+        const claimed = await adminDb.runTransaction(async tx => {
+          const snap = await tx.get(ref); const d = snap.data() || {};
+          if (d.status === 'completed') return false;
+          tx.update(ref, { status: 'completed', wavespeedUrl: videoUrl, videoUrl, completedAt: admin.firestore.FieldValue.serverTimestamp() });
+          return true;
+        });
+        if (claimed) {
+          const startedMs = vdata.createdAt && vdata.createdAt.toMillis ? vdata.createdAt.toMillis() : null;
+          console.log('[VIDEO TIMING] WaveSpeed completed', startedMs ? Math.round((Date.now() - startedMs) / 1000) + ' s after the request started' : '', 'timings:', JSON.stringify(result?.data?.timings || result?.data?.executionTime || null));
+          const ownerId = vdata.userId || 'unknown';
+          (async () => {
+            let storageUrl = videoUrl;
+            try {
+              const videoResponse = await fetch(videoUrl);
+              if (videoResponse.ok) {
+                const buffer = Buffer.from(await videoResponse.arrayBuffer());
+                const fileName = 'videos/' + ownerId + '/' + predId + '.mp4';
+                const file = adminStorage.file(fileName);
+                await file.save(buffer, { metadata: { contentType: 'video/mp4' } });
+                await file.makePublic();
+                storageUrl = 'https://storage.googleapis.com/notamai-a9d57.firebasestorage.app/' + fileName;
+                console.log('[VIDEO STORAGE] Uploaded to Firebase:', fileName);
+              }
+            } catch (uploadErr) {
+              console.log('[VIDEO STORAGE] Upload failed, using Wavespeed URL:', uploadErr.message);
+            }
+            await ref.update({ videoUrl: storageUrl }).catch(() => {});
+            console.log('[VIDEO ARCHIVE] Saved:', predId);
+          })();
+        }
+      }
+    }
+  } catch (e) { console.log('[VIDEO] Firestore update error:', e.message); }
+  return { status, videoUrl, script };
+}
+
+// Server-side watcher for one started video: first look after 60 s, then every 20 s, for up to 20 minutes.
+function watchVideo(predId) {
+  const deadline = Date.now() + 20 * 60 * 1000;
+  const tick = async () => {
+    try { const r = await finalizeVideo(predId); if (r.status === 'completed' || r.status === 'failed') return; } catch (e) { /* try again */ }
+    if (Date.now() < deadline) setTimeout(tick, 20000);
+  };
+  setTimeout(tick, 60000);
+}
+
+// After a restart or deploy: settle videos that were still rendering. A job that is neither finished nor failed after 6 h is marked expired.
+async function resumeUnfinishedVideos() {
+  try {
+    const snap = await adminDb.collection('videos').where('status', '==', 'processing').limit(30).get();
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      if (!d.predictionId) continue;
+      const r = await finalizeVideo(d.predictionId).catch(() => ({}));
+      if (r.status === 'completed' || r.status === 'failed') continue;
+      const ageMs = d.createdAt && d.createdAt.toMillis ? Date.now() - d.createdAt.toMillis() : 0;
+      if (ageMs > 6 * 3600 * 1000) await doc.ref.update({ status: 'expired' }).catch(() => {});
+      else watchVideo(d.predictionId);
+    }
+    if (snap.size) console.log('[VIDEO] resumed/settled', snap.size, 'unfinished video(s) after start');
+  } catch (e) { console.log('[VIDEO] resume error:', e.message); }
+}
+
 const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 const OPENAI_KEY = process.env.OPENAI_KEY; // Fallback provider
 
@@ -3102,6 +3208,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
           createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
         started = true;
+        watchVideo(predictionId);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ predictionId, script }));
@@ -3119,74 +3226,9 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
   if (req.method === 'GET' && req.url.startsWith('/api/check-video-briefing/')) {
     const predId = req.url.split('/api/check-video-briefing/')[1];
     try {
-      const result = await new Promise((resolve, reject) => {
-        https.get({
-          hostname: 'api.wavespeed.ai',
-          path: '/api/v3/predictions/' + predId + '/result',
-          headers: { 'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY }
-        }, statusRes => {
-          let data = '';
-          statusRes.on('data', chunk => data += chunk);
-          statusRes.on('end', () => {
-            try { resolve(JSON.parse(data)); }
-            catch(e) { resolve({ error: 'Parse error' }); }
-          });
-        }).on('error', reject);
-      });
-      const status = result?.data?.status;
-      const videoUrl = result?.data?.outputs?.[0];
-
-      // Fetch script from Firestore
-      let script = null;
-      try {
-        const videoQuery = await adminDb.collection('videos').where('predictionId', '==', predId).limit(1).get();
-        if (!videoQuery.empty) {
-          const vdata = videoQuery.docs[0].data();
-          script = vdata.script || null;
-          // Render failed: give the Max credit back exactly once (transaction-guarded)
-          if (status === 'failed') {
-            try {
-              const ref = videoQuery.docs[0].ref;
-              const owner = await adminDb.runTransaction(async tx => {
-                const snap = await tx.get(ref); const d = snap.data() || {};
-                if (d.refunded) return null;
-                tx.update(ref, { status: 'failed', refunded: true, failedAt: admin.firestore.FieldValue.serverTimestamp() });
-                return d;
-              });
-              if (owner && owner.userId) { await decrementUsage(owner.userId, 'video', owner.createdAt && owner.createdAt.toDate ? owner.createdAt.toDate() : null); console.log('[VIDEO] render failed, credit restored:', predId); }
-            } catch (e) { console.log('[VIDEO] refund error:', e.message); }
-          }
-          // Completed: archive in the background (download + Firebase Storage upload must never delay the player), and only once.
-          if (status === 'completed' && videoUrl && vdata.status !== 'completed') {
-            const docRef = videoQuery.docs[0].ref, ownerId = vdata.userId || 'unknown';
-            const startedMs = vdata.createdAt && vdata.createdAt.toMillis ? vdata.createdAt.toMillis() : null;
-            console.log('[VIDEO TIMING] WaveSpeed completed', startedMs ? Math.round((Date.now() - startedMs) / 1000) + ' s after the request started' : '', 'timings:', JSON.stringify(result?.data?.timings || result?.data?.executionTime || null));
-            docRef.update({ status: 'completed', wavespeedUrl: videoUrl, videoUrl, completedAt: admin.firestore.FieldValue.serverTimestamp() }).catch(() => {});
-            (async () => {
-              let storageUrl = videoUrl;
-              try {
-                const videoResponse = await fetch(videoUrl);
-                if (videoResponse.ok) {
-                  const buffer = Buffer.from(await videoResponse.arrayBuffer());
-                  const fileName = 'videos/' + ownerId + '/' + predId + '.mp4';
-                  const file = adminStorage.file(fileName);
-                  await file.save(buffer, { metadata: { contentType: 'video/mp4' } });
-                  await file.makePublic();
-                  storageUrl = 'https://storage.googleapis.com/notamai-a9d57.firebasestorage.app/' + fileName;
-                  console.log('[VIDEO STORAGE] Uploaded to Firebase:', fileName);
-                }
-              } catch (uploadErr) {
-                console.log('[VIDEO STORAGE] Upload failed, using Wavespeed URL:', uploadErr.message);
-              }
-              await docRef.update({ videoUrl: storageUrl }).catch(() => {});
-              console.log('[VIDEO ARCHIVE] Saved:', predId);
-            })();
-          }
-        }
-      } catch(e) { console.log('[VIDEO] Firestore update error:', e.message); }
-
+      const out = await finalizeVideo(predId);
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status, videoUrl, script }));
+      res.end(JSON.stringify(out));
     } catch(e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
@@ -4982,6 +5024,7 @@ server.timeout = 120000;
 server.listen(PORT, () => {
   console.log(`NOTAM Intelligence server running on port ${PORT}`);
   runwayData.init();
+  setTimeout(resumeUnfinishedVideos, 20000);
 });
 
 // ─── NOTAM ALERT EMAIL SYSTEM ─────────────────────────────────────────────
