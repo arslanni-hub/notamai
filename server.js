@@ -625,6 +625,15 @@ function notamRecencyKey(n) {
 // SkyLink returns an object with a `notams` ARRAY on success (an empty array means genuinely no NOTAMs).
 // Anything else (quota exceeded, upstream error, non-JSON) is a PROVIDER FAILURE and must never be shown as "no NOTAMs".
 function skylinkNotamsOk(data) { return !!data && typeof data === 'object' && Array.isArray(data.notams); }
+// Video provider failures (WaveSpeed / ElevenLabs): one e-mail per provider per 6 hours, so a drained balance is noticed before customers complain.
+const lastVideoProviderMail = {};
+function notifyVideoProviderFailure(provider, status, detail) {
+  if (Date.now() - (lastVideoProviderMail[provider] || 0) < 6 * 60 * 60 * 1000) return;
+  lastVideoProviderMail[provider] = Date.now();
+  const esc = t => String(t == null ? '' : t).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c])).slice(0, 400);
+  sendAdminNotification('🚨 Video briefing: ' + provider + ' request failed',
+    '<div style="font-size:13px;color:#1e293b;">A video briefing could not start because ' + provider + ' rejected the request (HTTP ' + esc(status) + '). Most likely the account balance or monthly quota is used up — check the ' + provider + ' dashboard and top up. Max users get their video credit back automatically and see "Your video credit was not used".<br><br><span style="color:#64748b;">Provider response: ' + esc(detail) + '</span><br><span style="color:#64748b;">This e-mail is sent at most once every 6 hours per provider.</span></div>').catch(() => {});
+}
 let lastSkylinkFailMail = 0;
 function notifySkylinkFailure(icao) {
   if (Date.now() - lastSkylinkFailMail < 6 * 60 * 60 * 1000) return;
@@ -3161,6 +3170,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         if (!ttsRes.ok) {
           const errText = await ttsRes.text();
           console.log('[TTS ERROR]', errText.slice(0, 200));
+          notifyVideoProviderFailure('ElevenLabs', ttsRes.status, errText);
           throw new Error('ElevenLabs TTS failed: ' + ttsRes.status);
         }
         const audioBuffer = Buffer.from(await ttsRes.arrayBuffer());
@@ -3189,6 +3199,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         });
         const wsData = await wsRes.json();
         const predictionId = wsData?.data?.id;
+        if (!wsRes.ok || !predictionId) notifyVideoProviderFailure('WaveSpeed', wsRes.status, JSON.stringify(wsData));
         if (!wsRes.ok || !predictionId) throw new Error('Video service did not start the job: ' + JSON.stringify(wsData).slice(0, 200));
         lap.submitMs = Date.now() - T0;
         console.log('[VIDEO TIMING] cumulative ms since request start:', JSON.stringify(lap), 'script words:', videoScript.wordCount(script), 'audio bytes:', audioBuffer.length);
