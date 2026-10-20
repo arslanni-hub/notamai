@@ -69,6 +69,10 @@ const PLAN_LIMITS = {
   admin:   { briefings: 9999, chat: 9999, analysis: 9999 }
 };
 
+// Enterprise = Max-level limits per user account (it adds seats, API access and SLA, not bigger per-user caps).
+// Every plan-limit lookup goes through this so 'enterprise' never falls through to the Free defaults.
+function limitPlanOf(plan) { return plan === 'enterprise' ? 'max' : plan; }
+
 const FREE_DAILY_BRIEFING_CAP = parseInt(process.env.FREE_DAILY_BRIEFING_CAP || '20', 10);
 // Global circuit breaker: total Free-plan briefings allowed per UTC day across ALL users.
 async function reserveFreeBriefingSlot() {
@@ -2412,615 +2416,6 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
     return;
   }
 
-  // ── HEYGEN TEST ──────────────────────────────────────────────
-  if (req.method === 'GET' && req.url === '/api/test-heygen') {
-    try {
-      // Step 1: Upload image as asset using v3 API
-      const imageData = fs.readFileSync(PILOT_IMAGE_PATH);
-      console.log('[IMAGE SIZE]', imageData.length, 'bytes');
-      const boundary = '----FormBoundary' + Date.now();
-      const formData = Buffer.concat([
-        Buffer.from('--' + boundary + '\r\n'),
-        Buffer.from('Content-Disposition: form-data; name="file"; filename="pilot.jpeg"\r\n'),
-        Buffer.from('Content-Type: image/jpeg\r\n\r\n'),
-        imageData,
-        Buffer.from('\r\n--' + boundary + '--\r\n')
-      ]);
-      const uploadResult = await new Promise((resolve, reject) => {
-        const uploadReq = https.request({
-          hostname: 'api.heygen.com',
-          path: '/v3/assets',
-          method: 'POST',
-          headers: {
-            'x-api-key': process.env.HEYGEN_API_KEY,
-            'Content-Type': 'multipart/form-data; boundary=' + boundary,
-            'Content-Length': formData.length
-          }
-        }, uploadRes => {
-          let data = '';
-          uploadRes.on('data', chunk => data += chunk);
-          uploadRes.on('end', () => {
-            console.log('[HEYGEN UPLOAD RAW]', data.slice(0, 300));
-            try { resolve(JSON.parse(data)); }
-            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
-          });
-        });
-        uploadReq.on('error', reject);
-        uploadReq.write(formData);
-        uploadReq.end();
-      });
-      const assetId = uploadResult.data?.asset_id;
-      const assetUrl = uploadResult.data?.url;
-      console.log('[ASSET ID]', assetId);
-      if (assetId) {
-        // Step 2: Create photo avatar using v3
-        const avatarPayload = JSON.stringify({
-          type: 'photo',
-          name: 'Pilot Avatar',
-          file: {
-            type: 'asset_id',
-            asset_id: assetId
-          }
-        });
-        const avatarResult = await new Promise((resolve, reject) => {
-          const avatarReq = https.request({
-            hostname: 'api.heygen.com',
-            path: '/v3/avatars',
-            method: 'POST',
-            headers: {
-              'x-api-key': process.env.HEYGEN_API_KEY,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(avatarPayload)
-            }
-          }, avatarRes => {
-            let data = '';
-            avatarRes.on('data', chunk => data += chunk);
-            avatarRes.on('end', () => {
-              console.log('[AVATAR RAW]', data.slice(0, 300));
-              try { resolve(JSON.parse(data)); }
-              catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
-            });
-          });
-          avatarReq.on('error', reject);
-          avatarReq.write(avatarPayload);
-          avatarReq.end();
-        });
-        console.log('[AVATAR RESULT]', JSON.stringify(avatarResult));
-        const avatarId = avatarResult.data?.avatar_id || avatarResult.data?.id;
-        if (avatarId) {
-          // Step 3: Generate video with avatar_id
-          const videoPayload = JSON.stringify({
-            video_inputs: [{
-              character: {
-                type: 'talking_photo',
-                talking_photo_id: avatarId
-              },
-              voice: {
-                type: 'text',
-                input_text: 'Good morning Captain. This is your NOTAM Intelligence pre-flight briefing. Have a safe flight.',
-                voice_id: 'en-US-ChristopherNeural'
-              }
-            }],
-            dimension: { width: 1280, height: 720 }
-          });
-          const videoResult = await new Promise((resolve, reject) => {
-            const videoReq = https.request({
-              hostname: 'api.heygen.com',
-              path: '/v2/video/generate',
-              method: 'POST',
-              headers: {
-                'x-api-key': process.env.HEYGEN_API_KEY,
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(videoPayload)
-              }
-            }, videoRes => {
-              let data = '';
-              videoRes.on('data', chunk => data += chunk);
-              videoRes.on('end', () => {
-                console.log('[VIDEO RAW]', data.slice(0, 300));
-                try { resolve(JSON.parse(data)); }
-                catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
-              });
-            });
-            videoReq.on('error', reject);
-            videoReq.write(videoPayload);
-            videoReq.end();
-          });
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({
-            asset_id: assetId,
-            avatar_id: avatarId,
-            video: videoResult
-          }));
-        } else {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ asset_id: assetId, avatar: avatarResult }));
-        }
-      } else {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ upload: uploadResult }));
-      }
-    } catch(e) {
-      console.log('[HEYGEN ERROR]', e.message);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
-  // ── HEYGEN TEST 2 (use existing avatar ID) ────────────────────
-  // Note: Avatar IV requires HeyGen Creator plan ($24/mo) or higher
-  // Current account is on free tier - Avatar III only
-  if (req.method === 'GET' && req.url === '/api/test-heygen2') {
-    if (heygenTestLock) {
-      res.writeHead(429, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Already processing, please wait' }));
-      return;
-    }
-    heygenTestLock = true;
-    try {
-      const videoPayload = JSON.stringify({
-        video_inputs: [{
-          character: {
-            type: 'talking_photo',
-            talking_photo_id: '8e0149d152e14333a81853524dc7706a',
-            scale: 1,
-            talking_style: 'stable'
-          },
-          voice: {
-            type: 'audio',
-            audio_asset_id: 'a9213dac95834047bd46e741bd40de27'
-          }
-        }],
-        dimension: { width: 1280, height: 720 },
-        use_avatar_iv_model: true,
-        caption: false
-      });
-      const videoResult = await new Promise((resolve, reject) => {
-        const videoReq = https.request({
-          hostname: 'api.heygen.com',
-          path: '/v2/video/generate',
-          method: 'POST',
-          headers: {
-            'x-api-key': process.env.HEYGEN_API_KEY,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(videoPayload)
-          }
-        }, videoRes => {
-          let data = '';
-          videoRes.on('data', chunk => data += chunk);
-          videoRes.on('end', () => {
-            console.log('[VIDEO RAW]', data.slice(0, 300));
-            try { resolve(JSON.parse(data)); }
-            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
-          });
-        });
-        videoReq.on('error', reject);
-        videoReq.write(videoPayload);
-        videoReq.end();
-      });
-      console.log('[VIDEO FULL RESULT]', JSON.stringify(videoResult));
-      const videoId = videoResult.data?.video_id;
-      console.log('[VIDEO ID]', videoId);
-      if (videoId) {
-        // Check status after 20 seconds
-        await new Promise(r => setTimeout(r, 20000));
-        const statusResult = await new Promise((resolve, reject) => {
-          https.get({
-            hostname: 'api.heygen.com',
-            path: '/v1/video_status.get?video_id=' + videoId,
-            headers: { 'x-api-key': process.env.HEYGEN_API_KEY }
-          }, statusRes => {
-            let data = '';
-            statusRes.on('data', chunk => data += chunk);
-            statusRes.on('end', () => {
-              console.log('[STATUS RAW]', data.slice(0, 300));
-              try { resolve(JSON.parse(data)); }
-              catch(e) { resolve({ error: 'Parse error' }); }
-            });
-          }).on('error', reject);
-        });
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ video_id: videoId, status: statusResult }));
-      } else {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'No video ID', result: videoResult }));
-      }
-    } catch(e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    } finally {
-      heygenTestLock = false;
-    }
-    return;
-  }
-
-  // ── CHECK VIDEO STATUS ───────────────────────────────────────
-  if (req.method === 'GET' && req.url.startsWith('/api/check-video/')) {
-    const videoId = req.url.split('/api/check-video/')[1];
-    try {
-      const result = await new Promise((resolve, reject) => {
-        https.get({
-          hostname: 'api.heygen.com',
-          path: '/v1/video_status.get?video_id=' + videoId,
-          headers: { 'x-api-key': process.env.HEYGEN_API_KEY }
-        }, statusRes => {
-          let data = '';
-          statusRes.on('data', chunk => data += chunk);
-          statusRes.on('end', () => {
-            try { resolve(JSON.parse(data)); }
-            catch(e) { resolve({ error: 'Parse error' }); }
-          });
-        }).on('error', reject);
-      });
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(result));
-    } catch(e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
-  // ── UPLOAD AUDIO ─────────────────────────────────────────────
-  if (req.method === 'POST' && req.url === '/api/upload-audio') {
-    let audioBuffer = [];
-    req.on('data', chunk => audioBuffer.push(chunk));
-    req.on('end', async () => {
-      const audioData = Buffer.concat(audioBuffer);
-      console.log('[AUDIO SIZE]', audioData.length);
-      const boundary = '----FormBoundary' + Date.now();
-      const formData = Buffer.concat([
-        Buffer.from('--' + boundary + '\r\n'),
-        Buffer.from('Content-Disposition: form-data; name="file"; filename="pilot_audio.mp3"\r\n'),
-        Buffer.from('Content-Type: audio/mpeg\r\n\r\n'),
-        audioData,
-        Buffer.from('\r\n--' + boundary + '--\r\n')
-      ]);
-      try {
-        const uploadResult = await new Promise((resolve, reject) => {
-          const uploadReq = https.request({
-            hostname: 'api.heygen.com',
-            path: '/v3/assets',
-            method: 'POST',
-            headers: {
-              'x-api-key': process.env.HEYGEN_API_KEY,
-              'Content-Type': 'multipart/form-data; boundary=' + boundary,
-              'Content-Length': formData.length
-            }
-          }, uploadRes => {
-            let data = '';
-            uploadRes.on('data', chunk => data += chunk);
-            uploadRes.on('end', () => {
-              console.log('[AUDIO UPLOAD]', data.slice(0, 200));
-              try { resolve(JSON.parse(data)); }
-              catch(e) { resolve({ error: 'Parse error' }); }
-            });
-          });
-          uploadReq.on('error', reject);
-          uploadReq.write(formData);
-          uploadReq.end();
-        });
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(uploadResult));
-      } catch(e) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
-      }
-    });
-    return;
-  }
-
-  // ── VEED FABRIC TEST (WaveSpeed) ─────────────────────────────
-  if (req.method === 'GET' && req.url === '/api/test-veed') {
-    try {
-      // Read local pilot image
-      const imageBase64 = fs.readFileSync('./pilot_image.jpg').toString('base64');
-      // Download audio from HeyGen asset URL
-      const audioData = await new Promise((resolve, reject) => {
-        https.get('https://resource2.heygen.ai/audio/a9213dac95834047bd46e741bd40de27/original.mp3', res => {
-          const chunks = [];
-          res.on('data', chunk => chunks.push(chunk));
-          res.on('end', () => resolve(Buffer.concat(chunks)));
-          res.on('error', reject);
-        });
-      });
-      const audioBase64 = audioData.toString('base64');
-      console.log('[VEED] Image size:', imageBase64.length, 'Audio size:', audioBase64.length);
-      // Call WaveSpeed VEED Fabric 1.0
-      const payload = JSON.stringify({
-        image: 'data:image/jpeg;base64,' + imageBase64,
-        audio: 'data:audio/mpeg;base64,' + audioBase64,
-        resolution: '480p'
-      });
-      const result = await new Promise((resolve, reject) => {
-        const wavereq = https.request({
-          hostname: 'api.wavespeed.ai',
-          path: '/api/v3/veed/fabric-1.0',
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload)
-          }
-        }, waveres => {
-          let data = '';
-          waveres.on('data', chunk => data += chunk);
-          waveres.on('end', () => {
-            console.log('[VEED RAW]', data.slice(0, 300));
-            try { resolve(JSON.parse(data)); }
-            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
-          });
-        });
-        wavereq.on('error', reject);
-        wavereq.write(payload);
-        wavereq.end();
-      });
-      console.log('[VEED RESULT]', JSON.stringify(result).slice(0, 300));
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(result));
-    } catch(e) {
-      console.log('[VEED ERROR]', e.message);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
-  // ── CHECK VEED STATUS ────────────────────────────────────────
-  if (req.method === 'GET' && req.url.startsWith('/api/check-veed/')) {
-    const predId = req.url.split('/api/check-veed/')[1];
-    try {
-      const result = await new Promise((resolve, reject) => {
-        https.get({
-          hostname: 'api.wavespeed.ai',
-          path: '/api/v3/predictions/' + predId + '/result',
-          headers: { 'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY }
-        }, statusRes => {
-          let data = '';
-          statusRes.on('data', chunk => data += chunk);
-          statusRes.on('end', () => {
-            try { resolve(JSON.parse(data)); }
-            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
-          });
-        }).on('error', reject);
-      });
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(result));
-    } catch(e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
-  // ── SOULX FLASHHEAD TEST ─────────────────────────────────────
-  if (req.method === 'GET' && req.url === '/api/test-flashhead') {
-    try {
-      const imageBase64 = fs.readFileSync('./pilot_image.jpg').toString('base64');
-      const audioData = await new Promise((resolve, reject) => {
-        https.get('https://resource2.heygen.ai/audio/a9213dac95834047bd46e741bd40de27/original.mp3', res => {
-          const chunks = [];
-          res.on('data', chunk => chunks.push(chunk));
-          res.on('end', () => resolve(Buffer.concat(chunks)));
-          res.on('error', reject);
-        });
-      });
-      const audioBase64 = audioData.toString('base64');
-      const payload = JSON.stringify({
-        image: 'data:image/jpeg;base64,' + imageBase64,
-        audio: 'data:audio/mpeg;base64,' + audioBase64,
-        resolution: '720p'
-      });
-      const result = await new Promise((resolve, reject) => {
-        const wavereq = https.request({
-          hostname: 'api.wavespeed.ai',
-          path: '/api/v3/wavespeed-ai/soulx-flashhead',
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload)
-          }
-        }, waveres => {
-          let data = '';
-          waveres.on('data', chunk => data += chunk);
-          waveres.on('end', () => {
-            console.log('[FLASHHEAD RAW]', data.slice(0, 200));
-            try { resolve(JSON.parse(data)); }
-            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
-          });
-        });
-        wavereq.on('error', reject);
-        wavereq.write(payload);
-        wavereq.end();
-      });
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(result));
-    } catch(e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
-  // ── SKYREELS V3 TEST ─────────────────────────────────────────
-  if (req.method === 'GET' && req.url === '/api/test-skyreels') {
-    try {
-      const imageBase64 = fs.readFileSync('./pilot_image.jpg').toString('base64');
-      const audioData = await new Promise((resolve, reject) => {
-        https.get('https://resource2.heygen.ai/audio/a9213dac95834047bd46e741bd40de27/original.mp3', res => {
-          const chunks = [];
-          res.on('data', chunk => chunks.push(chunk));
-          res.on('end', () => resolve(Buffer.concat(chunks)));
-          res.on('error', reject);
-        });
-      });
-      // Use first 20 seconds worth of audio (approximate - first 1/2 of file)
-      const audioTrimmed = audioData.slice(0, Math.floor(audioData.length / 2));
-      const audioBase64 = audioTrimmed.toString('base64');
-      const payload = JSON.stringify({
-        image: 'data:image/jpeg;base64,' + imageBase64,
-        audio: 'data:audio/mpeg;base64,' + audioBase64,
-        resolution: '720p'
-      });
-      const result = await new Promise((resolve, reject) => {
-        const wavereq = https.request({
-          hostname: 'api.wavespeed.ai',
-          path: '/api/v3/wavespeed-ai/skyreels-v3/talking-avatar',
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload)
-          }
-        }, waveres => {
-          let data = '';
-          waveres.on('data', chunk => data += chunk);
-          waveres.on('end', () => {
-            console.log('[SKYREELS RAW]', data.slice(0, 200));
-            try { resolve(JSON.parse(data)); }
-            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
-          });
-        });
-        wavereq.on('error', reject);
-        wavereq.write(payload);
-        wavereq.end();
-      });
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(result));
-    } catch(e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
-  // ── KLING V3 PRO IMAGE-TO-VIDEO TEST ─────────────────────────
-  if (req.method === 'GET' && req.url.startsWith('/api/test-kling-i2v')) {
-    try {
-      const urlObj = new URL('https://notamai.onrender.com' + req.url);
-      const clipNum = urlObj.searchParams.get('clip') || '1';
-      const prompts = {
-        '1': 'Experienced 60-year-old male airline captain with gray hair, wearing dark navy blue pilot uniform with gold epaulettes, pilot cap and aviator sunglasses, walks confidently through narrow aircraft passenger corridor toward cockpit. Opens heavy reinforced cockpit security door and steps inside. Cinematic tracking shot from behind, aircraft interior lighting, professional atmosphere, 24fps film grain, shallow depth of field.',
-        '2': 'Experienced 60-year-old male airline captain with gray hair, navy blue uniform with gold epaulettes, sits down in left pilot seat of commercial aircraft cockpit. Removes pilot cap and places it on glareshield, takes off aviator sunglasses and puts them in breast pocket. Adjusts seat position professionally. Multiple glowing cockpit screens and instrument panels visible. Cinematic wide shot, warm golden cockpit lighting, shallow depth of field, 24fps film look.',
-        '3': 'Experienced 60-year-old male airline captain with gray hair, navy blue uniform with gold epaulettes, reaches for flight documents and NOTAM papers from center console clipboard. Studies papers intensely, uses pen to circle important items and make notes. Occasionally cross-references cockpit instruments and navigation screens. Focused, serious professional expression. Close-up alternating between writing hands and concentrated face. Cinematic cockpit lighting, film grain.',
-        '4': 'Experienced 60-year-old male airline captain with gray hair, navy blue uniform with gold epaulettes, slowly lowers flight documents and raises head to look directly into camera. Calm, authoritative, experienced expression. Slight confident nod as if about to deliver important pre-flight briefing. Cockpit instrument panels glowing in background, city lights or runway visible through windshield. Cinematic portrait shot, shallow depth of field, warm professional lighting.'
-      };
-      const payload = JSON.stringify({
-        image: 'https://i.imgur.com/Aap70Bx.jpeg',
-        prompt: prompts[clipNum],
-        duration: 15,
-        aspect_ratio: '16:9',
-        mode: 'pro'
-      });
-      const result = await new Promise((resolve, reject) => {
-        const wavereq = https.request({
-          hostname: 'api.wavespeed.ai',
-          path: '/api/v3/kwaivgi/kling-v3.0-pro/image-to-video',
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload)
-          }
-        }, waveres => {
-          let data = '';
-          waveres.on('data', chunk => data += chunk);
-          waveres.on('end', () => {
-            console.log('[KLING I2V clip' + clipNum + ']', data.slice(0, 200));
-            try { resolve(JSON.parse(data)); }
-            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
-          });
-        });
-        wavereq.on('error', reject);
-        wavereq.write(payload);
-        wavereq.end();
-      });
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(result));
-    } catch(e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
-  // ── JOIN VIDEOS (Vace Video Joiner) ──────────────────────────
-  if (req.method === 'GET' && req.url === '/api/join-videos') {
-    try {
-      const clipIds = [
-        'e2a42e84bf804423a21c30175060613',
-        'c049d522f6b84eb786c0e30952d3c625',
-        '5ee42d8009c943bdb74d24107a64462b',
-        '02372d2f0a744d0ab875889b18ad893'
-      ];
-      // Fetch video URLs for each clip
-      const videoUrls = [];
-      for (const id of clipIds) {
-        const result = await new Promise((resolve, reject) => {
-          https.get({
-            hostname: 'api.wavespeed.ai',
-            path: '/api/v3/predictions/' + id + '/result',
-            headers: { 'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY }
-          }, statusRes => {
-            let data = '';
-            statusRes.on('data', chunk => data += chunk);
-            statusRes.on('end', () => {
-              try { resolve(JSON.parse(data)); }
-              catch(e) { resolve(null); }
-            });
-          }).on('error', reject);
-        });
-        const url = result?.data?.outputs?.[0];
-        if (url) {
-          videoUrls.push(url);
-          console.log('[JOIN] Clip', id, 'URL:', url);
-        }
-      }
-      console.log('[JOIN] Total clips found:', videoUrls.length);
-      if (videoUrls.length < 2) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Not enough video URLs found', urls: videoUrls }));
-        return;
-      }
-      // Use Vace Video Joiner to concatenate clips
-      const payload = JSON.stringify({
-        videos: videoUrls,
-        transition: 'none'
-      });
-      const joinResult = await new Promise((resolve, reject) => {
-        const wavereq = https.request({
-          hostname: 'api.wavespeed.ai',
-          path: '/api/v3/wavespeed-ai/vace-video-joiner',
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload)
-          }
-        }, waveres => {
-          let data = '';
-          waveres.on('data', chunk => data += chunk);
-          waveres.on('end', () => {
-            console.log('[JOIN RESULT]', data.slice(0, 300));
-            try { resolve(JSON.parse(data)); }
-            catch(e) { resolve({ error: 'Parse error', raw: data.slice(0, 200) }); }
-          });
-        });
-        wavereq.on('error', reject);
-        wavereq.write(payload);
-        wavereq.end();
-      });
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ videoUrls, joinResult }));
-    } catch(e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
   // ── GENERATE VIDEO BRIEFING ───────────────────────────────────
   // ELEVENLABS_KEY must be set in Render environment variables
   if (req.method === 'POST' && req.url === '/api/generate-video-briefing') {
@@ -3041,12 +2436,12 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         if (!userId) { sendUnauthorized(res, req); return; }
 
         const vPlan = await getUserPlan(userId);
-        if (vPlan !== 'max' && vPlan !== 'admin') {
+        if (limitPlanOf(vPlan) !== 'max' && vPlan !== 'admin') {
           res.writeHead(403, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'limit_reached', plan: vPlan, feature: 'video' }));
           return;
         }
-        if (vPlan === 'max') {
+        if (limitPlanOf(vPlan) === 'max') {
           const vUsed = await getUserUsage(userId, 'video');
           if (vUsed >= 5) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -3940,7 +3335,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
     const userId = usageUserId;
     try {
       const plan = await getUserPlan(userId);
-      const effectivePlan = plan;
+      const effectivePlan = limitPlanOf(plan);
       const limits = PLAN_LIMITS[effectivePlan] || PLAN_LIMITS.free;
       const now = new Date();
       const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
@@ -3961,7 +3356,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         plan,
         briefings: { used: briefingsUsed, limit: limits.briefings },
         analysis: { used: analysisUsed, limit: limits.analysis },
-        video: { used: videoUsed, limit: plan === 'admin' ? 9999 : (plan === 'max' ? 5 : 0) },
+        video: { used: videoUsed, limit: plan === 'admin' ? 9999 : (limitPlanOf(plan) === 'max' ? 5 : 0) },
         chat: { tokens: chatTokens, limit: chatCfg.limit, resetInMinutes },
         monthlyResetDays: daysUntilReset,
         memberSince: userData.createdAt ? userData.createdAt.toDate().toISOString() : null
@@ -4023,7 +3418,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             res.end(JSON.stringify({ error: 'upgrade_required', feature: 'analysis' }));
             return;
           }
-          const effectivePlan = plan === 'admin' ? 'max' : plan;
+          const effectivePlan = plan === 'admin' ? 'max' : limitPlanOf(plan);
           const usage = await getUserUsage(userId, 'analysis');
           const limit = PLAN_LIMITS[effectivePlan]?.analysis || 0;
           if (usage >= limit) {
@@ -4213,7 +3608,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             res.end(JSON.stringify({ error: 'upgrade_required', feature: 'chat' }));
             return;
           }
-          const effectivePlan = plan === 'admin' ? 'max' : plan;
+          const effectivePlan = plan === 'admin' ? 'max' : limitPlanOf(plan);
           const usage = await getUserUsage(userId, 'chat');
           const limit = PLAN_LIMITS[effectivePlan]?.chat || 0;
           if (usage >= limit) {
@@ -4441,7 +3836,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         if (!userId) { sendUnauthorized(res, req); return; }
 
         const plan = await getUserPlan(userId);
-        const cfg = GENERAL_CHAT_LIMITS[plan] || GENERAL_CHAT_LIMITS.free;
+        const cfg = GENERAL_CHAT_LIMITS[limitPlanOf(plan)] || GENERAL_CHAT_LIMITS.free;
         const { count, tokenTotal, searchTotal, oldestTimestamp } = await getGeneralChatWindowUsage(userId, cfg.windowMinutes);
         const resetInMinutes = minutesUntilWindowReset(oldestTimestamp, cfg.windowMinutes);
 
@@ -4464,8 +3859,8 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         }
 
         const modelToUse = pastSoftLimit ? GENERAL_CHAT_FALLBACK_MODEL : cfg.model;
-        const searchCapForPlan = GENERAL_CHAT_WEB_SEARCH_CAP[plan] || 0;
-        const webSearchEnabled = GENERAL_CHAT_WEB_SEARCH_PLANS.includes(plan) && !pastSoftLimit && searchTotal < searchCapForPlan;
+        const searchCapForPlan = GENERAL_CHAT_WEB_SEARCH_CAP[limitPlanOf(plan)] || 0;
+        const webSearchEnabled = GENERAL_CHAT_WEB_SEARCH_PLANS.includes(limitPlanOf(plan)) && !pastSoftLimit && searchTotal < searchCapForPlan;
 
         const { question, history, image_base64, image_type, pdf_base64, extra_text, images } = JSON.parse(body);
         if (!question && !image_base64 && !pdf_base64) {
@@ -4726,7 +4121,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         {
           const plan = await getUserPlan(userId);
           const usage = await getUserUsage(userId, 'briefings');
-          const limit = PLAN_LIMITS[plan]?.briefings || (plan === 'admin' ? 9999 : 3);
+          const limit = PLAN_LIMITS[limitPlanOf(plan)]?.briefings || (plan === 'admin' ? 9999 : 3);
           if (usage >= limit) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'limit_reached', plan, usage, limit }));
@@ -5010,13 +4405,6 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         }
       }
     });
-    return;
-  }
-
-  if (req.method === 'POST' && req.url === '/api/test-alert') {
-    checkNotamAlerts();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ message: 'Alert check triggered' }));
     return;
   }
 
