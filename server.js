@@ -4324,10 +4324,11 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         const claudeBody = JSON.stringify({
           model: briefingModel,
           max_tokens: is55Family ? 24000 : 16000,
-          ...(briefingModel === 'claude-sonnet-5-5' ? { output_config: { effort: 'medium' } } : {}),
+          ...(is55Family ? { output_config: { effort: (briefingModel === 'claude-haiku-5-5' && process.env.BRIEFING_HAIKU_EFFORT) || 'medium' } } : {}),
           // Sonnet 5.5 rejects thinking:disabled; 'between_tools' is its lowest setting (no up-front thinking).
           // Toggle with Render env BRIEFING_THINKING_OFF=1 to A/B cost vs quality.
-          ...(briefingModel === 'claude-sonnet-5-5' && process.env.BRIEFING_THINKING_OFF === '1' ? { thinking: { type: 'between_tools' } } : {}),
+          // v3.69: Haiku 5.5 also thinks up front by default (measured 20 Oct: 3 of 4 briefings hit max_tokens, thinking ate ~18K tokens), so it gets the same switch.
+          ...(is55Family && process.env.BRIEFING_THINKING_OFF === '1' ? { thinking: { type: 'between_tools' } } : {}),
           stream: true,
           system: [{ type: 'text', text: (isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt)) + ((is55Family && !isQuickAnalysis) ? '\n\n' + BRIEFING_DEPTH_RULES_55 : '') + (!isQuickAnalysis ? '\n\n' + BRIEFING_WX_RULES : '') + ((riskActive && riskResult) ? '\n\n' + BRIEFING_RISK_RULES : ''), cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: contentBlocks }]
