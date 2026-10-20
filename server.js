@@ -50,6 +50,26 @@ const adminDb = admin.firestore();
 const adminStorage = admin.storage().bucket();
 
 const PILOT_IMAGE_PATH = './pilot_image.jpg';
+
+// Video branding: the "NOTAM INTELLIGENCE" strip (same look as the welcome video modal: top-left, Orbitron, white + blue) is composited onto the
+// source photo once, so it is part of every generated video. Never blocks a video: any failure (or VIDEO_BRAND=0) falls back to the plain photo.
+let brandedPilot; // undefined = not tried yet, null = unavailable, Buffer = ready
+async function pilotImageForVideo() {
+  if (brandedPilot === undefined) {
+    brandedPilot = null;
+    if (process.env.VIDEO_BRAND !== '0') {
+      try {
+        const sharp = require('sharp');
+        const upright = await sharp(fs.readFileSync(PILOT_IMAGE_PATH)).rotate().toBuffer();
+        const meta = await sharp(upright).metadata();
+        const strip = await sharp(path.join(__dirname, 'video-brand.png')).resize({ width: meta.width }).toBuffer();
+        brandedPilot = await sharp(upright).composite([{ input: strip, top: 0, left: 0 }]).jpeg({ quality: 92 }).toBuffer();
+        console.log('[VIDEO BRAND] ready', meta.width + 'x' + meta.height);
+      } catch (e) { console.log('[VIDEO BRAND] skipped, using the plain photo:', e.message); }
+    }
+  }
+  return brandedPilot || fs.readFileSync(PILOT_IMAGE_PATH);
+}
 let heygenTestLock = false;
 let videoBriefingLock = false;
 
@@ -3065,7 +3085,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         }
 
         // Step 4: Send image + audio to WaveSpeed InfiniteTalk Fast
-        const imageData = fs.readFileSync('./pilot_image.jpg');
+        const imageData = await pilotImageForVideo();
         const imageBase64 = imageData.toString('base64');
         const audioBase64 = audioBuffer.toString('base64');
         const payload = JSON.stringify({
