@@ -62,6 +62,10 @@ if (!fs.existsSync(PILOT_IMAGE_PATH)) {
   });
 }
 
+// Small/fast model for chat, analysis, route extraction, agents and the general-chat fallback.
+// Render env HAIKU_MODEL=claude-haiku-5-5 switches all of them at once; unset = claude-haiku-4-5 (previous behavior).
+const HAIKU_MODEL = /^claude-haiku-[a-z0-9.-]+$/i.test(process.env.HAIKU_MODEL || '') ? process.env.HAIKU_MODEL : 'claude-haiku-4-5';
+
 const PLAN_LIMITS = {
   free:    { briefings: 3,   chat: 0,   analysis: 0   },
   pro:     { briefings: 100, chat: 150, analysis: 200  },
@@ -72,6 +76,27 @@ const PLAN_LIMITS = {
 // Enterprise = Max-level limits per user account (it adds seats, API access and SLA, not bigger per-user caps).
 // Every plan-limit lookup goes through this so 'enterprise' never falls through to the Free defaults.
 function limitPlanOf(plan) { return plan === 'enterprise' ? 'max' : plan; }
+
+// ── Briefing model per plan ──────────────────────────────────────────────
+// Render env BRIEFING_MODEL_FREE / _PRO / _MAX / _ADMIN pick the model per plan (enterprise uses _MAX);
+// BRIEFING_MODEL stays as the fallback for non-admin plans, admin falls back to Sonnet 5.5.
+function briefingModelFor(plan) {
+  const own = process.env['BRIEFING_MODEL_' + String(limitPlanOf(plan)).toUpperCase()];
+  const picked = own || (plan === 'admin' ? 'claude-sonnet-5-5' : (process.env.BRIEFING_MODEL || 'claude-sonnet-4-6'));
+  return /^claude-(sonnet|haiku|opus)-[a-z0-9.-]+$/i.test(picked) ? picked : 'claude-sonnet-4-6';
+}
+// USD per million tokens: input, output, cache write (5 min), cache read. Used only for the cost log / briefingCosts records.
+const MODEL_PRICES = {
+  'claude-sonnet-5-5': [2, 10, 2.5, 0.20],
+  'claude-haiku-5-5':  [0.10, 0.50, 0.125, 0.01],
+  'claude-sonnet-4-6': [3, 15, 3.75, 0.30],
+  'claude-haiku-4-5':  [1, 5, 1.25, 0.10],
+};
+function briefingCostUsd(model, u) {
+  const pr = MODEL_PRICES[model];
+  if (!pr || !u) return null;
+  return ((u.input_tokens || 0) * pr[0] + (u.output_tokens || 0) * pr[1] + (u.cache_created || 0) * pr[2] + (u.cache_read || 0) * pr[3]) / 1e6;
+}
 
 const FREE_DAILY_BRIEFING_CAP = parseInt(process.env.FREE_DAILY_BRIEFING_CAP || '20', 10);
 // Global circuit breaker: total Free-plan briefings allowed per UTC day across ALL users.
@@ -108,12 +133,12 @@ async function reserveFreeBriefingSlot() {
 // the existing budget). Free has no soft limit since it's Haiku-only already; it hard-stops
 // at 100% of its small token budget.
 const GENERAL_CHAT_LIMITS = {
-  free:    { windowMinutes: 300, limit: 470,    mode: 'tokens', model: 'claude-haiku-4-5' },
+  free:    { windowMinutes: 300, limit: 470,    mode: 'tokens', model: HAIKU_MODEL },
   pro:     { windowMinutes: 300, limit: 24000,  mode: 'tokens', model: 'claude-sonnet-5-5', softLimitRatio: 0.70 },
   max: { windowMinutes: 300, limit: 48000,  mode: 'tokens', model: 'claude-sonnet-5-5', softLimitRatio: 0.70 },
   admin:   { windowMinutes: 300, limit: 999999, mode: 'tokens', model: 'claude-sonnet-5-5' }
 };
-const GENERAL_CHAT_FALLBACK_MODEL = 'claude-haiku-4-5';
+const GENERAL_CHAT_FALLBACK_MODEL = HAIKU_MODEL;
 
 // Web search for General Aviation Expert Chat — Pro/Max only. The flat $0.01/search
 // fee is NOT covered by the token-budget rate limit below (only token cost is), so we gate
@@ -403,7 +428,7 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 const OPENAI_KEY = process.env.OPENAI_KEY; // Fallback provider
 
 // Provider abstraction
-async function callAI({ model = 'claude-haiku-4-5', maxTokens = 1000, messages, system }) {
+async function callAI({ model = HAIKU_MODEL, maxTokens = 1000, messages, system }) {
   // Try Anthropic first
   try {
     const body = { model, max_tokens: maxTokens, messages };
@@ -2520,7 +2545,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         lap.riskMs = Date.now() - T0;
         const greeting = videoScript.greetingFor(Number.isInteger(localHour) ? localHour : null, new Date().getUTCHours());
         const scriptPrompt = videoScript.buildScriptPrompt({ dep: depIcao, arr: arrIcao, depName, arrName, depNotamText, arrNotamText, depMetar, arrMetar, greeting, risk: vRisk });
-        const scriptModels = [process.env.VIDEO_SCRIPT_MODEL || 'claude-sonnet-5-5', 'claude-haiku-4-5'];
+        const scriptModels = [process.env.VIDEO_SCRIPT_MODEL || 'claude-sonnet-5-5', HAIKU_MODEL];
         let script = '';
         for (const model of scriptModels) {
           try {
@@ -3381,7 +3406,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5',
+            model: HAIKU_MODEL,
             max_tokens: 50,
             system: 'You are an expert aviation dispatcher with complete knowledge of all world airports and their ICAO codes. Your only job is to extract one or two airports from any natural language input (in any language) and return their ICAO codes.\n\nRules:\n- Always use the main international airport for a city unless specified otherwise\n- Convert city names, country names, airport names, or any hint to the correct ICAO code\n- Support any language input (Turkish, English, Spanish, Arabic, etc.)\n- Examples: "Istanbul Frankfurt" -> "LTFM EDDF", "Barcelona Milan dedim" -> "LEBL LIMC", "Paris CDG to Dubai" -> "LFPG OMDB", "bugün istanbul londra var" -> "LTFM EGLL", "مطار دبي إلى لندن" -> "OMDB EGLL"\n- If the input contains ANY hint of two distinct locations — two city/airport names, two codes, or connecting words like "to"/"and"/"için"/"ile" — always return BOTH as a pair. Never silently drop the one you are less confident about; if you can identify it at all, include it.\n- Only return a single ICAO code when there is truly just one location mentioned with no indication of a second (e.g. "Istanbul", "tell me about LTFM")\n- Return ONLY the format: XXXX (single airport) or XXXX XXXX (two airports, space-separated) — exactly 4 letters per code\n- Return UNKNOWN only if you truly cannot identify even one airport',
             messages: [{ role: 'user', content: text }]
@@ -3563,7 +3588,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             'anthropic-beta': 'prompt-caching-2024-07-31'
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5',
+            model: HAIKU_MODEL,
             max_tokens: 800,
             system: [{ type: 'text', text: analyzeSystemPrompt, cache_control: { type: 'ephemeral' } }],
             messages: [{ role: 'user', content: 'Analyze this ' + (type || 'NOTAM') + ':\n\n' + notam + airportContext }]
@@ -3647,7 +3672,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-              body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
+              body: JSON.stringify({ model: HAIKU_MODEL, max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
             });
             const extractData = await extractRes.json();
             const extractedText = extractData.content?.[0]?.text || '';
@@ -3797,7 +3822,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
             'anthropic-beta': 'prompt-caching-2024-07-31'
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5',
+            model: HAIKU_MODEL,
             max_tokens: 1500,
             system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
             messages
@@ -3881,7 +3906,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
             const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-              body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
+              body: JSON.stringify({ model: HAIKU_MODEL, max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
             });
             const extractData = await extractRes.json();
             const extractedText = extractData.content?.[0]?.text || '';
@@ -4218,7 +4243,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
             const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-              body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
+              body: JSON.stringify({ model: HAIKU_MODEL, max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
             });
             const extractData = await extractRes.json();
             const extractedText = extractData.content?.[0]?.text || '';
@@ -4293,17 +4318,18 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         // compared with Sonnet 4.6 on identical routes before any rollout to paying plans.
         const briefingPlan = userId ? await getUserPlan(userId) : 'free';
         // BRIEFING_MODEL (Render env) selects the model for non-admin plans; admin always runs the newest.
-        const briefingModel = briefingPlan === 'admin' ? 'claude-sonnet-5-5' : (process.env.BRIEFING_MODEL || 'claude-sonnet-4-6');
+        const briefingModel = briefingModelFor(briefingPlan);
+        const is55Family = /-5-5$/.test(briefingModel);   // Sonnet 5.5 and Haiku 5.5 share the depth rules and the larger output ceiling
         console.log('[BRIEFING MODEL]', { model: briefingModel, plan: briefingPlan, thinkingOff: process.env.BRIEFING_THINKING_OFF === '1' });
         const claudeBody = JSON.stringify({
           model: briefingModel,
-          max_tokens: briefingModel === 'claude-sonnet-5-5' ? 24000 : 16000,
+          max_tokens: is55Family ? 24000 : 16000,
           ...(briefingModel === 'claude-sonnet-5-5' ? { output_config: { effort: 'medium' } } : {}),
           // Sonnet 5.5 rejects thinking:disabled; 'between_tools' is its lowest setting (no up-front thinking).
           // Toggle with Render env BRIEFING_THINKING_OFF=1 to A/B cost vs quality.
           ...(briefingModel === 'claude-sonnet-5-5' && process.env.BRIEFING_THINKING_OFF === '1' ? { thinking: { type: 'between_tools' } } : {}),
           stream: true,
-          system: [{ type: 'text', text: (isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt)) + ((briefingModel === 'claude-sonnet-5-5' && !isQuickAnalysis) ? '\n\n' + BRIEFING_DEPTH_RULES_55 : '') + (!isQuickAnalysis ? '\n\n' + BRIEFING_WX_RULES : '') + ((riskActive && riskResult) ? '\n\n' + BRIEFING_RISK_RULES : ''), cache_control: { type: 'ephemeral' } }],
+          system: [{ type: 'text', text: (isQuickAnalysis ? quickAnalysisSystemPrompt : (isSingleAirport ? singleAirportSystemPrompt : systemPrompt)) + ((is55Family && !isQuickAnalysis) ? '\n\n' + BRIEFING_DEPTH_RULES_55 : '') + (!isQuickAnalysis ? '\n\n' + BRIEFING_WX_RULES : '') + ((riskActive && riskResult) ? '\n\n' + BRIEFING_RISK_RULES : ''), cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: contentBlocks }]
         });
 
@@ -4326,6 +4352,19 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
           (usageInfo) => {
             if (doneSent) return;
             doneSent = true;
+            {
+              const costUsd = briefingCostUsd(briefingModel, usageInfo);
+              console.log('[BRIEFING COST]', { model: briefingModel, plan: briefingPlan, input: usageInfo?.input_tokens || 0, output: usageInfo?.output_tokens || 0, cache_created: usageInfo?.cache_created || 0, cache_read: usageInfo?.cache_read || 0, usd: costUsd === null ? null : Math.round(costUsd * 10000) / 10000 });
+              if (costUsd !== null && userId) {
+                adminDb.collection('briefingCosts').add({
+                  userId, plan: briefingPlan, model: briefingModel, route: icao_dep + (isSingleAirport ? '' : '-' + (icao_arr || '')),
+                  input: usageInfo?.input_tokens || 0, output: usageInfo?.output_tokens || 0,
+                  cacheCreated: usageInfo?.cache_created || 0, cacheRead: usageInfo?.cache_read || 0,
+                  thinkingBlocks: usageInfo?.thinking_blocks || 0, stopReason: usageInfo?.stop_reason || 'unknown',
+                  costUsd, createdAt: admin.firestore.FieldValue.serverTimestamp()
+                }).catch(e => console.log('[BRIEFING COST] save error:', e.message));
+              }
+            }
             console.log('[BRIEFING STOP REASON]', { stop_reason: usageInfo?.stop_reason || 'unknown', output_tokens: usageInfo?.output_tokens || 0, text_chars: usageInfo?.text_chars || 0, thinking_blocks: usageInfo?.thinking_blocks || 0, thinking_chars: usageInfo?.thinking_chars || 0 });
             Promise.resolve(riskPromise).then(riskResult => {
               const mScore = (modelHeadText.match(/RISK\s*SCORE\s*(?:<[^>]*>)?\s*(\d+)\s*\/\s*10/i) || [])[1];
@@ -4804,7 +4843,7 @@ async function runGrowthReport() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5',
+          model: HAIKU_MODEL,
           max_tokens: 300,
           messages: [{
             role: 'user',
@@ -4960,7 +4999,7 @@ async function runHealthCheck() {
 
   // Anthropic + OpenAI fallback status
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{'Content-Type':'application/json','x-api-key':process.env.ANTHROPIC_KEY,'anthropic-version':'2023-06-01'}, body:JSON.stringify({model:'claude-haiku-4-5',max_tokens:10,messages:[{role:'user',content:'ping'}]}) });
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{'Content-Type':'application/json','x-api-key':process.env.ANTHROPIC_KEY,'anthropic-version':'2023-06-01'}, body:JSON.stringify({model:HAIKU_MODEL,max_tokens:10,messages:[{role:'user',content:'ping'}]}) });
     results.anthropic = r.ok ? '✅ OK' : `❌ HTTP ${r.status}`;
     if (!r.ok) issues.push({ msg:'Anthropic API error: HTTP '+r.status, action:'Check console.anthropic.com — verify API key and billing. OpenAI fallback will activate automatically.' });
   } catch(e) { results.anthropic = '❌ '+e.message; issues.push({ msg:'Anthropic unreachable — OpenAI fallback will activate', action:'Check Render logs. Add OPENAI_KEY to Render env vars if not set.' }); }
@@ -5300,7 +5339,7 @@ async function processSalesLead(email, supportAnalysis) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5',
+        model: HAIKU_MODEL,
         max_tokens: 1500,
         messages: [{
           role: 'user',
@@ -5543,7 +5582,7 @@ async function processSupportEmail(email) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5',
+        model: HAIKU_MODEL,
         max_tokens: 1000,
         messages: [{
           role: 'user',
