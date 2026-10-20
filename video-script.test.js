@@ -95,5 +95,10 @@ test('both airports are mandatory in every variant, named each time', () => {
     assert.ok(/AIRPORT RULE/.test(p) && /nothing significant/.test(p) && /full airport names ONLY in the opening/.test(p) && /Weather is fine at both ends/.test(p));
   });
 });
+test('prompt requires naming the country of a prohibited zone, from the data only', () => {
+  const r = V.sanitizeRisk({ score: 4, level: 'MEDIUM', verdict: 'GO WITH CONDITIONS', override: false, reasons: ['en-route: conflict zone — Iran'] });
+  const p = V.buildScriptPrompt(Object.assign({}, base, { risk: r }));
+  assert.ok(/PLACE RULE/.test(p) && /never say just "a prohibited zone"/.test(p) && p.includes('en-route: conflict zone — Iran'));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
