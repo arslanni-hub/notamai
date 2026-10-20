@@ -5322,6 +5322,7 @@ async function getGA4AccessToken() {
     body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
   });
   const data = await res.json();
+  if (!data.access_token) throw new Error('GA4 token request failed: ' + (data.error_description || data.error || res.status));
   return data.access_token;
 }
 
@@ -5391,7 +5392,7 @@ async function runGrowthReport() {
     }));
 
     // Firebase stats
-    let newSignups = 0, totalUsers = 0, pro = 0, max = 0, mrr = 0, briefings7d = 0;
+    let newSignups = 0, totalUsers = 0, pro = 0, max = 0, ent = 0, mrr = 0, briefings7d = 0;
     try {
       const usersSnap = await adminDb.collection('users').get();
       totalUsers = usersSnap.size;
@@ -5399,9 +5400,10 @@ async function runGrowthReport() {
         const u = d.data();
         if (u.plan === 'pro') pro++;
         if (u.plan === 'max') max++;
+        if (u.plan === 'enterprise') ent++;
         if (u.createdAt && u.createdAt.toDate() >= weekAgo) newSignups++;
       });
-      mrr = (pro * 49) + (max * 99);
+      mrr = (pro * 49) + (max * 99) + (ent * 999);
       const bSnap = await adminDb.collection('briefings').where('createdAt', '>=', weekAgo).get();
       briefings7d = bSnap.size;
     } catch(e) {}
@@ -5538,6 +5540,7 @@ Write 2-3 sentences of actionable growth insight. Be specific and practical. Foc
     console.log('[GROWTH AGENT] Weekly report sent successfully');
   } catch(e) {
     console.log('[GROWTH AGENT ERROR]', e.message);
+    await sendAdminNotification('⚠️ Weekly Growth Report failed', `<div style="font-size:13px;color:#b91c1c;">The weekly growth report could not be produced: ${escHtml(e.message)}</div><div style="font-size:12px;color:#475569;margin-top:8px;">Check GA_SERVICE_ACCOUNT_KEY and that the service account has read access to the GA4 property.</div>`);
   }
 }
 
@@ -5607,6 +5610,32 @@ async function runHealthCheck() {
     if (r.status===401||r.status===403) issues.push({ msg:'WaveSpeed auth error: HTTP '+r.status, action:'Check wavespeed.ai — verify API key in Render environment variables.' });
   } catch(e) { results.wavespeed = '❌ '+e.message; issues.push({ msg:'WaveSpeed unreachable', action:'Check wavespeed.ai status.' }); }
 
+  // WaveSpeed credit balance (best effort — the endpoint is not part of the documented prediction API; never raises a false alarm)
+  try {
+    const r = await fetch('https://api.wavespeed.ai/api/v3/balance', { headers:{'Authorization':'Bearer '+process.env.WAVESPEED_KEY} });
+    const j = r.ok ? await r.json().catch(()=>null) : null;
+    const bal = j && j.data && typeof j.data.balance === 'number' ? j.data.balance : null;
+    if (bal === null) { results.wavespeed_credit = '— balance not readable'; }
+    else {
+      const min = parseFloat(process.env.WAVESPEED_MIN_BALANCE || '5');
+      results.wavespeed_credit = bal < min ? `🔴 $${bal.toFixed(2)} LOW` : `✅ $${bal.toFixed(2)}`;
+      if (bal < min) issues.push({ msg:`WaveSpeed credit low: $${bal.toFixed(2)}`, action:'Top up at wavespeed.ai — video briefings stop working when the balance reaches zero.' });
+    }
+  } catch(e) { results.wavespeed_credit = '— ' + e.message; }
+
+  // ElevenLabs character quota (needs the key to have user-read permission; otherwise just shown as unreadable)
+  try {
+    const r = await fetch('https://api.elevenlabs.io/v1/user/subscription', { headers:{'xi-api-key':process.env.ELEVENLABS_KEY||''} });
+    const j = r.ok ? await r.json().catch(()=>null) : null;
+    if (!j || !j.character_limit) { results.elevenlabs_quota = '— quota not readable'; }
+    else {
+      const left = j.character_limit - j.character_count;
+      const pct = Math.round(left / j.character_limit * 100);
+      results.elevenlabs_quota = left < j.character_limit * 0.1 ? `🔴 ${left.toLocaleString()} chars left (${pct}%)` : `✅ ${left.toLocaleString()} chars left (${pct}%)`;
+      if (left < j.character_limit * 0.1) issues.push({ msg:`ElevenLabs quota low: ${left.toLocaleString()} characters left`, action:'Upgrade the ElevenLabs plan or wait for the monthly reset — video narration fails at zero.' });
+    }
+  } catch(e) { results.elevenlabs_quota = '— ' + e.message; }
+
   // Stats
   const now = new Date();
   const yesterday = new Date(now.getTime()-86400000);
@@ -5617,8 +5646,9 @@ async function runHealthCheck() {
   try {
     const us = await adminDb.collection('users').get();
     totalUsers = us.size;
-    us.docs.forEach(d=>{ if(d.data().plan==='pro') pro++; if(d.data().plan==='max') max++; });
-    mrr = (pro*49)+(max*99);
+    let ent = 0;
+    us.docs.forEach(d=>{ const pl = d.data().plan; if(pl==='pro') pro++; if(pl==='max') max++; if(pl==='enterprise') ent++; });
+    mrr = (pro*49)+(max*99)+(ent*999);
   } catch(e) {}
 
   // Activation stats — first briefings and upgrade candidates
@@ -5768,6 +5798,21 @@ function scheduleDailyHealthCheck() {
 }
 scheduleDailyHealthCheck();
 
+// ─── AGENT HELPERS ───────────────────────────────────────────────────────
+// Customer e-mails and model output are untrusted: escape before putting into the admin HTML.
+function escHtml(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+// First text block of an Anthropic response, or '' when the call failed / returned no text.
+function aiText(data) {
+  const b = data && Array.isArray(data.content) ? data.content.find(x => x && x.type === 'text') : null;
+  return b && typeof b.text === 'string' ? b.text : '';
+}
+function replyAddress(from) {
+  const m = String(from || '').match(/<([^>]+)>/);
+  return (m ? m[1] : String(from || '')).replace(/[<>\s"]/g, '');
+}
+
 // ─── REAL-TIME NOTIFICATION AGENT ────────────────────────────────────────
 async function sendAdminNotification(subject, html) {
   try {
@@ -5801,62 +5846,83 @@ async function sendAdminNotification(subject, html) {
 function startRealtimeNotifications() {
   console.log('[NOTIFICATIONS] Starting real-time watchers...');
 
-  // 1. New user registration — INSTANT
+  // One listener for both events. The plan seen on the first snapshot is the baseline, so only a real
+  // plan change notifies (profile saves and usage writes touch the doc but never change `plan`).
+  const knownPlan = new Map();
+  let firstSnapshot = true;
+  const MRR_BY_PLAN = { pro: 49, max: 99, enterprise: 999 };
+  const planColors = { pro: '#4a9eff', max: '#f4841a', enterprise: '#b57bff' };
+
   adminDb.collection('users').onSnapshot(snapshot => {
+    const initial = firstSnapshot;
+    firstSnapshot = false;
     snapshot.docChanges().forEach(async change => {
-      if (change.type !== 'added') return;
-      const data = change.doc.data();
-      if (data.createdAt) {
-        const created = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
-        if (Date.now() - created.getTime() > 2 * 60 * 1000) return;
-      }
-      const email = data.email || change.doc.id;
-      const plan = data.plan || 'free';
-      const name = data.displayName || email;
-      console.log('[NOTIFICATIONS] New user:', email);
-      await sendAdminNotification(
-        `🆕 New User — ${email}`,
-        `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px;border-left:4px solid #22c55e;">
-          <div style="font-size:11px;color:#16a34a;letter-spacing:2px;margin-bottom:8px;">🆕 NEW USER REGISTERED</div>
-          <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Name:</strong> ${name}</div>
-          <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${email}</div>
-          <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Plan:</strong> ${plan.toUpperCase()}</div>
-          <div style="font-size:13px;color:#1e293b;"><strong>Time:</strong> ${new Date().toUTCString()}</div>
-        </div>`
-      );
+      try {
+        const data = change.doc.data();
+        const uid = change.doc.id;
+        const email = data.email || uid;
+        const name = data.displayName || email;
+        const plan = data.plan || 'free';
+        const prev = knownPlan.get(uid);
+        knownPlan.set(uid, plan);
+        if (change.type === 'removed') { knownPlan.delete(uid); return; }
+        if (initial) return;   // baseline only — never announce existing users on a restart
+
+        if (change.type === 'added') {
+          // Registration time: user doc createdAt, else the Auth account's creation time (Google sign-ups have no createdAt).
+          let created = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate().getTime() : null;
+          if (!created) { try { created = new Date((await admin.auth().getUser(uid)).metadata.creationTime).getTime(); } catch (e) {} }
+          if (!created || Date.now() - created > 10 * 60 * 1000) return;
+          console.log('[NOTIFICATIONS] New user:', email);
+          await sendAdminNotification(
+            `🆕 New User — ${email}`,
+            `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px;border-left:4px solid #22c55e;">
+              <div style="font-size:11px;color:#16a34a;letter-spacing:2px;margin-bottom:8px;">🆕 NEW USER REGISTERED</div>
+              <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Name:</strong> ${escHtml(name)}</div>
+              <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${escHtml(email)}</div>
+              <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Plan:</strong> ${escHtml(plan.toUpperCase())}</div>
+              <div style="font-size:13px;color:#1e293b;"><strong>Time:</strong> ${new Date().toUTCString()}</div>
+            </div>`
+          );
+          return;
+        }
+
+        // modified: only a genuine plan change
+        if (prev === undefined || prev === plan) return;
+        const wasPaid = !!MRR_BY_PLAN[prev], isPaid = !!MRR_BY_PLAN[plan];
+        if (isPaid && MRR_BY_PLAN[plan] > (MRR_BY_PLAN[prev] || 0)) {
+          console.log('[NOTIFICATIONS] Plan upgrade:', email, prev, '->', plan);
+          await sendAdminNotification(
+            `⬆️ Plan Upgrade — ${email} → ${plan.toUpperCase()}`,
+            `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px;border-left:4px solid #22c55e;">
+              <div style="font-size:11px;color:#16a34a;letter-spacing:2px;margin-bottom:8px;">⬆️ PLAN UPGRADED</div>
+              <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>User:</strong> ${escHtml(name)}</div>
+              <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${escHtml(email)}</div>
+              <div style="font-size:16px;color:${planColors[plan] || '#64748b'};font-weight:700;margin-bottom:4px;">${escHtml(prev.toUpperCase())} → ${escHtml(plan.toUpperCase())}</div>
+              <div style="font-size:13px;color:#16a34a;margin-bottom:4px;">💰 MRR change: +$${MRR_BY_PLAN[plan] - (MRR_BY_PLAN[prev] || 0)}/month</div>
+              <div style="font-size:13px;color:#1e293b;"><strong>Time:</strong> ${new Date().toUTCString()}</div>
+            </div>`
+          );
+        } else if (wasPaid && (MRR_BY_PLAN[plan] || 0) < MRR_BY_PLAN[prev]) {
+          // downgrade or cancellation — the most important churn signal
+          console.log('[NOTIFICATIONS] Plan downgrade:', email, prev, '->', plan);
+          await sendAdminNotification(
+            `⬇️ Plan Downgrade — ${email} → ${plan.toUpperCase()}`,
+            `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:14px;border-left:4px solid #ef4444;">
+              <div style="font-size:11px;color:#b91c1c;letter-spacing:2px;margin-bottom:8px;">⬇️ PLAN DOWNGRADED / CANCELLED</div>
+              <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>User:</strong> ${escHtml(name)}</div>
+              <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${escHtml(email)}</div>
+              <div style="font-size:16px;color:#b91c1c;font-weight:700;margin-bottom:4px;">${escHtml(prev.toUpperCase())} → ${escHtml(plan.toUpperCase())}</div>
+              <div style="font-size:13px;color:#b91c1c;margin-bottom:4px;">MRR change: -$${(MRR_BY_PLAN[prev] || 0) - (MRR_BY_PLAN[plan] || 0)}/month</div>
+              <div style="font-size:13px;color:#1e293b;"><strong>Time:</strong> ${new Date().toUTCString()}</div>
+            </div>`
+          );
+        }
+      } catch (e) { console.log('[NOTIFICATIONS] Users watcher handler error:', e.message); }
     });
   }, err => console.log('[NOTIFICATIONS] Users watcher error:', err.message));
 
-  // 2. Plan upgrade — INSTANT
-  adminDb.collection('users').onSnapshot(snapshot => {
-    snapshot.docChanges().forEach(async change => {
-      if (change.type !== 'modified') return;
-      const data = change.doc.data();
-      const newPlan = data.plan;
-      if (!newPlan || newPlan === 'free') return;
-      const updatedAt = data.updatedAt?.toDate ? data.updatedAt.toDate() : null;
-      if (!updatedAt || Date.now() - updatedAt.getTime() > 2 * 60 * 1000) return;
-      const email = data.email || change.doc.id;
-      const name = data.displayName || email;
-      const planColors = { pro: '#4a9eff', max: '#f4841a', enterprise: '#b57bff' };
-      const color = planColors[newPlan] || '#64748b';
-      const mrr = newPlan === 'pro' ? 49 : newPlan === 'max' ? 99 : 999;
-      console.log('[NOTIFICATIONS] Plan upgrade:', email, '->', newPlan);
-      await sendAdminNotification(
-        `⬆️ Plan Upgrade — ${email} → ${newPlan.toUpperCase()}`,
-        `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px;border-left:4px solid #22c55e;">
-          <div style="font-size:11px;color:#16a34a;letter-spacing:2px;margin-bottom:8px;">⬆️ PLAN UPGRADED</div>
-          <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>User:</strong> ${name}</div>
-          <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Email:</strong> ${email}</div>
-          <div style="font-size:16px;color:${color};font-weight:700;margin-bottom:4px;">${newPlan.toUpperCase()}</div>
-          <div style="font-size:13px;color:#16a34a;margin-bottom:4px;">💰 +$${mrr}/month MRR</div>
-          <div style="font-size:13px;color:#1e293b;"><strong>Time:</strong> ${new Date().toUTCString()}</div>
-        </div>`
-      );
-    });
-  }, err => console.log('[NOTIFICATIONS] Plan watcher error:', err.message));
-
-  console.log('[NOTIFICATIONS] Real-time watchers active (new user + upgrade).');
+  console.log('[NOTIFICATIONS] Real-time watcher active (new user + upgrade + downgrade).');
 }
 
 setTimeout(() => startRealtimeNotifications(), 20 * 1000);
@@ -5906,7 +5972,8 @@ Respond ONLY with a valid JSON object, no other text before or after:
     });
 
     const data = await claudeRes.json();
-    const analysis = data.content[0].text;
+    const analysis = aiText(data);
+    if (!analysis) throw new Error('empty AI response (' + claudeRes.status + ')');
     let parsed = {};
     try {
       const jsonMatch = analysis.match(/\{[\s\S]*\}/);
@@ -5933,7 +6000,7 @@ Respond ONLY with a valid JSON object, no other text before or after:
       body: JSON.stringify({
         from: 'NOTAM Intelligence <alerts@notamai.com>',
         to: 'admin@notamai.com',
-        subject: `🎯 Enterprise Lead — ${email.from} — ${estimatedValueClean || estimatedValue || 'Unknown Value'}`,
+        subject: `🎯 Enterprise Lead — ${email.from} — ${estimatedValueClean || estimatedValue || 'Unknown Value'}`.replace(/[\r\n]+/g, ' ').slice(0, 200),
         html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f4f8;font-family:monospace;">
 <div style="max-width:640px;margin:0 auto;padding:28px 20px;">
 
@@ -5945,53 +6012,53 @@ Respond ONLY with a valid JSON object, no other text before or after:
 
   <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px 16px;margin-bottom:20px;border-left:4px solid #22c55e;">
     <div style="font-size:10px;color:#16a34a;letter-spacing:2px;margin-bottom:6px;">💰 NEW ENTERPRISE OPPORTUNITY</div>
-    <div style="font-size:13px;color:#14532d;"><strong>From:</strong> ${email.from}</div>
-    <div style="font-size:13px;color:#14532d;"><strong>Estimated Value:</strong> ${estimatedValue}</div>
+    <div style="font-size:13px;color:#14532d;"><strong>From:</strong> ${escHtml(email.from)}</div>
+    <div style="font-size:13px;color:#14532d;"><strong>Estimated Value:</strong> ${escHtml(estimatedValue)}</div>
   </div>
 
   <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
     <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">ORIGINAL EMAIL</div>
-    <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Subject:</strong> ${email.subject}</div>
-    <div style="margin-top:8px;padding:10px;background:#f8fafc;border-radius:4px;font-size:12px;color:#475569;white-space:pre-wrap;">${email.text.slice(0, 400)}${email.text.length > 400 ? '...' : ''}</div>
+    <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Subject:</strong> ${escHtml(email.subject)}</div>
+    <div style="margin-top:8px;padding:10px;background:#f8fafc;border-radius:4px;font-size:12px;color:#475569;white-space:pre-wrap;">${escHtml(email.text.slice(0, 400))}${email.text.length > 400 ? '...' : ''}</div>
   </div>
 
   <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
     <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">LEAD ANALYSIS</div>
     <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f1f5f9;">
       <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;">COMPANY PROFILE</div>
-      <div style="font-size:13px;color:#1e293b;">${companyProfile}</div>
+      <div style="font-size:13px;color:#1e293b;">${escHtml(companyProfile)}</div>
     </div>
     <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f1f5f9;">
       <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;">ESTIMATED USERS</div>
-      <div style="font-size:13px;color:#1e293b;">${estimatedUsers}</div>
+      <div style="font-size:13px;color:#1e293b;">${escHtml(estimatedUsers)}</div>
     </div>
     <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f1f5f9;">
       <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;">RECOMMENDED PLAN</div>
-      <div style="font-size:13px;color:#1e293b;">${recommendedPlan}</div>
+      <div style="font-size:13px;color:#1e293b;">${escHtml(recommendedPlan)}</div>
     </div>
     <div>
       <div style="font-size:11px;color:#94a3b8;margin-bottom:3px;">ESTIMATED VALUE</div>
-      <div style="font-size:16px;color:#16a34a;font-weight:700;">${estimatedValue}</div>
+      <div style="font-size:16px;color:#16a34a;font-weight:700;">${escHtml(estimatedValue)}</div>
     </div>
   </div>
 
   <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
     <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">KEY QUALIFYING QUESTIONS</div>
-    <div style="font-size:13px;color:#1e293b;white-space:pre-wrap;">${keyQuestions}</div>
+    <div style="font-size:13px;color:#1e293b;white-space:pre-wrap;">${escHtml(keyQuestions)}</div>
   </div>
 
   <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
     <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">FOLLOW-UP PLAN</div>
-    <div style="font-size:13px;color:#1e293b;white-space:pre-wrap;">${followupPlan}</div>
+    <div style="font-size:13px;color:#1e293b;white-space:pre-wrap;">${escHtml(followupPlan)}</div>
   </div>
 
   <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
     <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">PROPOSAL DRAFT</div>
-    <div style="font-size:12px;color:#475569;white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:4px;border-left:3px solid #22c55e;">${proposalDraft.slice(0, 2000)}</div>
+    <div style="font-size:12px;color:#475569;white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:4px;border-left:3px solid #22c55e;">${escHtml(proposalDraft.slice(0, 2000))}</div>
   </div>
 
   <div style="text-align:center;">
-    <a href="mailto:${email.from.replace(/.*<(.+)>.*/, '$1').replace(/[<>]/g,'').trim()}?subject=Re%3A%20${encodeURIComponent(email.subject)}&body=${encodeURIComponent(proposalDraft.slice(0, 1800))}"
+    <a href="mailto:${escHtml(replyAddress(email.from))}?subject=Re%3A%20${encodeURIComponent(email.subject)}&body=${encodeURIComponent(proposalDraft.slice(0, 1800))}"
        style="display:inline-block;padding:11px 28px;background:#22c55e;color:#fff;font-size:12px;letter-spacing:2px;text-decoration:none;border-radius:6px;font-weight:700;">
       SEND PROPOSAL →
     </a>
@@ -6004,6 +6071,14 @@ Respond ONLY with a valid JSON object, no other text before or after:
     console.log('[SALES AGENT] Enterprise lead processed for:', email.from, '| Value:', estimatedValueClean || estimatedValue);
   } catch(e) {
     console.log('[SALES AGENT ERROR]', e.message);
+    // The support path skips its own notification for enterprise mails, so a failure here must not lose the lead.
+    await sendAdminNotification(
+      `⚠️ Enterprise inquiry (AI analysis failed) — ${String(email.subject).replace(/[\r\n]+/g, ' ').slice(0, 120)}`,
+      `<div style="font-size:12px;color:#b91c1c;margin-bottom:8px;">Sales analysis failed: ${escHtml(e.message)}. Original message below.</div>
+       <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>From:</strong> ${escHtml(email.from)}</div>
+       <div style="font-size:13px;color:#1e293b;margin-bottom:8px;"><strong>Subject:</strong> ${escHtml(email.subject)}</div>
+       <div style="padding:10px;background:#f8fafc;border-radius:4px;font-size:12px;color:#475569;white-space:pre-wrap;">${escHtml(email.text.slice(0, 1500))}</div>`
+    );
   }
 }
 
@@ -6056,7 +6131,7 @@ async function checkSupportEmails() {
                     resolveMsg({
                       from: parsed.from?.text || 'Unknown',
                       subject: parsed.subject || '(no subject)',
-                      text: (parsed.text || '').slice(0, 2000),
+                      text: (parsed.text || String(parsed.html || '').replace(/<(style|script)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')).slice(0, 2000),
                       date: parsed.date || new Date()
                     });
                   } else {
@@ -6111,8 +6186,8 @@ async function processSupportEmail(email) {
 
 PLANS & PRICING:
 - Free: 3 AI Briefings/month, NOTAMs & MET live data, SIGMET/AIRMET, Aviation Tools Panel
-- Pro ($49/month): Unlimited AI Briefings, NOTAM Intelligence Chat, En-route FIR Analysis, AI Assistant, NOTAM/METAR/TAF Analysis, Briefing Archive, Saved Routes (3), NOTAM Alerts (3 airports, checked about every 60 min), Share & PDF Export
-- Max ($99/month): Everything in Pro + AI Video Briefing (5/month), higher chat limits, unlimited archive, saved routes (up to 20), NOTAM alerts (5 airports, checked about every 30 min), Priority Support, extra video pack $10=3 videos
+- Pro ($49/month): 100 AI Briefings/month, NOTAM Intelligence Chat, En-route FIR Analysis, AI Assistant, NOTAM/METAR/TAF Analysis, Briefing Archive, Saved Routes (3), NOTAM Alerts (3 airports, checked about every 60 min), Share & PDF Export
+- Max ($99/month): Everything in Pro + 150 AI Briefings/month, AI Video Briefing (5/month), higher chat limits, unlimited archive, saved routes (up to 20), NOTAM alerts (5 airports, checked about every 30 min), Priority Support, extra video pack $10=3 videos
 - Enterprise ($999/month): Everything in Max + up to 10 users, API Access, Priority Support & SLA, Dedicated Account Manager, Custom Onboarding
 - All paid plans have 7-day free trial, cancel anytime
 - Annual billing available with 15% discount
@@ -6144,7 +6219,8 @@ SUGGESTED_REPLY:
     });
 
     const data = await claudeRes.json();
-    const analysis = data.content[0].text;
+    const analysis = aiText(data);
+    if (!analysis) throw new Error('empty AI response (' + claudeRes.status + ')');
 
     // Parse Claude's response
     const categoryMatch = analysis.match(/CATEGORY:\s*(.+)/);
@@ -6173,7 +6249,7 @@ SUGGESTED_REPLY:
       body: JSON.stringify({
         from: 'NOTAM Intelligence <alerts@notamai.com>',
         to: 'admin@notamai.com',
-        subject: `${priorityEmoji} New Support Email — ${category} — ${summary}`,
+        subject: `${priorityEmoji} New Support Email — ${category} — ${summary}`.replace(/[\r\n]+/g, ' ').slice(0, 200),
         html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f4f8;font-family:monospace;">
 <div style="max-width:600px;margin:0 auto;padding:28px 20px;">
 
@@ -6185,28 +6261,28 @@ SUGGESTED_REPLY:
 
   <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
     <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">INCOMING EMAIL</div>
-    <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>From:</strong> ${email.from}</div>
-    <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Subject:</strong> ${email.subject}</div>
-    <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Date:</strong> ${email.date}</div>
-    <div style="margin-top:10px;padding:10px;background:#f8fafc;border-radius:4px;font-size:12px;color:#475569;white-space:pre-wrap;">${email.text.slice(0, 500)}${email.text.length > 500 ? '...' : ''}</div>
+    <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>From:</strong> ${escHtml(email.from)}</div>
+    <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Subject:</strong> ${escHtml(email.subject)}</div>
+    <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>Date:</strong> ${escHtml(email.date)}</div>
+    <div style="margin-top:10px;padding:10px;background:#f8fafc;border-radius:4px;font-size:12px;color:#475569;white-space:pre-wrap;">${escHtml(email.text.slice(0, 500))}${email.text.length > 500 ? '...' : ''}</div>
   </div>
 
   <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
     <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">AI ANALYSIS</div>
     <div style="display:flex;gap:12px;margin-bottom:8px;">
-      <div style="background:#f1f5f9;padding:6px 12px;border-radius:20px;font-size:12px;color:#475569;"><strong>Category:</strong> ${category}</div>
+      <div style="background:#f1f5f9;padding:6px 12px;border-radius:20px;font-size:12px;color:#475569;"><strong>Category:</strong> ${escHtml(category)}</div>
       <div style="background:${priority==='High'?'#fef2f2':priority==='Medium'?'#fffbeb':'#f0fdf4'};padding:6px 12px;border-radius:20px;font-size:12px;color:${priority==='High'?'#dc2626':priority==='Medium'?'#d97706':'#16a34a'};">${priorityEmoji} ${priority} Priority</div>
     </div>
-    <div style="font-size:13px;color:#1e293b;"><strong>Summary:</strong> ${summary}</div>
+    <div style="font-size:13px;color:#1e293b;"><strong>Summary:</strong> ${escHtml(summary)}</div>
   </div>
 
   <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
     <div style="font-size:10px;color:#64748b;letter-spacing:2px;margin-bottom:10px;">SUGGESTED REPLY</div>
-    <div style="font-size:12px;color:#475569;white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:4px;border-left:3px solid #4a9eff;">${suggestedReply}</div>
+    <div style="font-size:12px;color:#475569;white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:4px;border-left:3px solid #4a9eff;">${escHtml(suggestedReply)}</div>
   </div>
 
   <div style="text-align:center;">
-    <a href="mailto:${email.from.replace(/.*<(.+)>.*/, '$1').replace(/[<>]/g,'').trim()}?subject=Re%3A%20${encodeURIComponent(email.subject)}&body=${encodeURIComponent(suggestedReply)}"
+    <a href="mailto:${escHtml(replyAddress(email.from))}?subject=Re%3A%20${encodeURIComponent(email.subject)}&body=${encodeURIComponent(suggestedReply)}"
        style="display:inline-block;padding:11px 24px;background:#4a9eff;color:#fff;font-size:12px;letter-spacing:2px;text-decoration:none;border-radius:6px;font-weight:700;">
       REPLY TO CUSTOMER →
     </a>
@@ -6220,6 +6296,14 @@ SUGGESTED_REPLY:
 
   } catch(e) {
     console.log('[SUPPORT AGENT] Error processing email:', e.message);
+    // The mail is already marked as read on the server — never lose it: forward the raw text to the admin.
+    await sendAdminNotification(
+      `⚠️ Support e-mail (AI analysis failed) — ${String(email.subject).replace(/[\r\n]+/g, ' ').slice(0, 120)}`,
+      `<div style="font-size:12px;color:#b91c1c;margin-bottom:8px;">AI analysis failed: ${escHtml(e.message)}. Original message below.</div>
+       <div style="font-size:13px;color:#1e293b;margin-bottom:4px;"><strong>From:</strong> ${escHtml(email.from)}</div>
+       <div style="font-size:13px;color:#1e293b;margin-bottom:8px;"><strong>Subject:</strong> ${escHtml(email.subject)}</div>
+       <div style="padding:10px;background:#f8fafc;border-radius:4px;font-size:12px;color:#475569;white-space:pre-wrap;">${escHtml(email.text.slice(0, 1500))}</div>`
+    );
   }
 }
 
@@ -6243,6 +6327,7 @@ async function sendWeeklySummaries() {
     const usersSnap = await adminDb.collection('users').get();
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    let weeklySent = 0, weeklyFailed = 0;
 
     for (const userDoc of usersSnap.docs) {
       const userData = userDoc.data();
@@ -6280,14 +6365,17 @@ async function sendWeeklySummaries() {
         .get();
       const weeklyVideos = videoSnap.size;
 
-      const totalSnap = await adminDb.collection('briefings')
-        .where('userId', '==', userId)
-        .get();
-      const totalBriefings = totalSnap.size;
+      let totalBriefings = weeklyBriefings;
+      try {
+        const agg = await adminDb.collection('briefings').where('userId', '==', userId).count().get();
+        totalBriefings = agg.data().count;
+      } catch(e) {
+        totalBriefings = (await adminDb.collection('briefings').where('userId', '==', userId).get()).size;
+      }
 
       const displayName = userData.displayName || userEmail.split('@')[0];
 
-      await fetch('https://api.resend.com/emails', {
+      const wkRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer ' + process.env.RESEND_API_KEY,
@@ -6341,8 +6429,12 @@ async function sendWeeklySummaries() {
 </html>`
         })
       });
-      console.log('[WEEKLY] Sent summary to:', userEmail);
+      if (wkRes.ok) { weeklySent++; console.log('[WEEKLY] Sent summary to:', userEmail); }
+      else { weeklyFailed++; console.log('[WEEKLY] Send failed for', userEmail, 'HTTP', wkRes.status); }
+      await new Promise(r => setTimeout(r, 600));   // stay under the e-mail provider's per-second limit
     }
+    console.log('[WEEKLY] Done. Sent:', weeklySent, 'Failed:', weeklyFailed);
+    if (weeklyFailed > 0) await sendAdminNotification('⚠️ Weekly summaries: ' + weeklyFailed + ' failed', `<div style="font-size:13px;color:#1e293b;">Sent ${weeklySent}, failed ${weeklyFailed}. See Render logs for [WEEKLY].</div>`);
   } catch(e) {
     console.log('[WEEKLY] Error:', e.message);
   }

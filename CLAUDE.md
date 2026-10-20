@@ -125,3 +125,10 @@ Separate from "Ask NOTAM AI" (which stays briefing-specific, never touched by th
 
 ## Maintenance Note
 **This file must be kept up to date.** Update it whenever a change has real architectural or decision-level impact: new feature shipped, payment/model/integration swapped, pricing or plan limits changed. Don't bother updating for small fixes or cosmetic tweaks. If this file conflicts with what the user describes in conversation, the user's current instruction wins — but flag the discrepancy so the file can be corrected.
+
+## Agents (audited v3.65)
+- Support/Sales/Growth/Health/Notification/Weekly agents live in server.js (~5300–6420). Customer mail and model output are untrusted: always pass through `escHtml()`; use `aiText(data)` instead of `data.content[0].text`.
+- Support/Sales failures forward the raw mail to the admin (`sendAdminNotification`) – the mail is already marked read on IMAP, never drop it.
+- Real-time watcher: single `users` snapshot listener; first snapshot is a baseline; upgrade/downgrade only when `plan` really changes; new-user time from `createdAt` or Auth creation time.
+- Support prompt plan text must follow PLAN_LIMITS (Pro 100, Max 150 briefings/month).
+- Health report: MRR includes Enterprise ($999); WaveSpeed balance (`WAVESPEED_MIN_BALANCE`, default 5) and ElevenLabs quota are best-effort checks.
