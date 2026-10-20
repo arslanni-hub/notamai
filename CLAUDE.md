@@ -132,3 +132,4 @@ Separate from "Ask NOTAM AI" (which stays briefing-specific, never touched by th
 - Real-time watcher: single `users` snapshot listener; first snapshot is a baseline; upgrade/downgrade only when `plan` really changes; new-user time from `createdAt` or Auth creation time.
 - Support prompt plan text must follow PLAN_LIMITS (Pro 100, Max 150 briefings/month).
 - Health report: MRR includes Enterprise ($999); WaveSpeed balance (`WAVESPEED_MIN_BALANCE`, default 5) and ElevenLabs quota are best-effort checks.
+- v3.66: Sentinel (30 min: WaveSpeed/ElevenLabs credit, SkyLink %, failed videos), Lifecycle agent (daily 10:00 UTC: onboarding nudge, win-back, upgrade nudge; user mails only when Render env `LIFECYCLE_EMAILS=on`, dedupe in Firestore `agentLog`), weekly feedback digest (Mon 09:30), EASA CZIB watcher (Mon 07:00, state in `system/conflict_watch`). Legacy plan values (e.g. `premium`) are treated as `free`.

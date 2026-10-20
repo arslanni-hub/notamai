@@ -174,7 +174,8 @@ async function getUserPlan(userId) {
     const ADMIN_EMAILS = ['arslanni@gmail.com', 'admin@notamai.com'];
     if (ADMIN_EMAILS.includes(userRecord.email) && userRecord.emailVerified) return 'admin';
     const doc = await adminDb.collection('users').doc(userId).get();
-    const plan = doc.exists ? (doc.data().plan || 'free') : 'free';
+    const rawPlan = doc.exists ? (doc.data().plan || 'free') : 'free';
+    const plan = ['free','pro','max','enterprise','admin'].includes(rawPlan) ? rawPlan : 'free';   // legacy values (e.g. 'premium') count as free
     console.log('[PLAN CHECK]', userId, 'plan:', plan);
     return plan;
   } catch(e) {
@@ -5610,31 +5611,7 @@ async function runHealthCheck() {
     if (r.status===401||r.status===403) issues.push({ msg:'WaveSpeed auth error: HTTP '+r.status, action:'Check wavespeed.ai — verify API key in Render environment variables.' });
   } catch(e) { results.wavespeed = '❌ '+e.message; issues.push({ msg:'WaveSpeed unreachable', action:'Check wavespeed.ai status.' }); }
 
-  // WaveSpeed credit balance (best effort — the endpoint is not part of the documented prediction API; never raises a false alarm)
-  try {
-    const r = await fetch('https://api.wavespeed.ai/api/v3/balance', { headers:{'Authorization':'Bearer '+process.env.WAVESPEED_KEY} });
-    const j = r.ok ? await r.json().catch(()=>null) : null;
-    const bal = j && j.data && typeof j.data.balance === 'number' ? j.data.balance : null;
-    if (bal === null) { results.wavespeed_credit = '— balance not readable'; }
-    else {
-      const min = parseFloat(process.env.WAVESPEED_MIN_BALANCE || '5');
-      results.wavespeed_credit = bal < min ? `🔴 $${bal.toFixed(2)} LOW` : `✅ $${bal.toFixed(2)}`;
-      if (bal < min) issues.push({ msg:`WaveSpeed credit low: $${bal.toFixed(2)}`, action:'Top up at wavespeed.ai — video briefings stop working when the balance reaches zero.' });
-    }
-  } catch(e) { results.wavespeed_credit = '— ' + e.message; }
-
-  // ElevenLabs character quota (needs the key to have user-read permission; otherwise just shown as unreadable)
-  try {
-    const r = await fetch('https://api.elevenlabs.io/v1/user/subscription', { headers:{'xi-api-key':process.env.ELEVENLABS_KEY||''} });
-    const j = r.ok ? await r.json().catch(()=>null) : null;
-    if (!j || !j.character_limit) { results.elevenlabs_quota = '— quota not readable'; }
-    else {
-      const left = j.character_limit - j.character_count;
-      const pct = Math.round(left / j.character_limit * 100);
-      results.elevenlabs_quota = left < j.character_limit * 0.1 ? `🔴 ${left.toLocaleString()} chars left (${pct}%)` : `✅ ${left.toLocaleString()} chars left (${pct}%)`;
-      if (left < j.character_limit * 0.1) issues.push({ msg:`ElevenLabs quota low: ${left.toLocaleString()} characters left`, action:'Upgrade the ElevenLabs plan or wait for the monthly reset — video narration fails at zero.' });
-    }
-  } catch(e) { results.elevenlabs_quota = '— ' + e.message; }
+  await checkProviderCredits(results, issues);
 
   // Stats
   const now = new Date();
@@ -5862,7 +5839,7 @@ function startRealtimeNotifications() {
         const uid = change.doc.id;
         const email = data.email || uid;
         const name = data.displayName || email;
-        const plan = data.plan || 'free';
+        const plan = ['free','pro','max','enterprise'].includes(data.plan) ? data.plan : 'free';   // legacy 'premium' etc. = free
         const prev = knownPlan.get(uid);
         knownPlan.set(uid, plan);
         if (change.type === 'removed') { knownPlan.delete(uid); return; }
@@ -6439,3 +6416,213 @@ async function sendWeeklySummaries() {
     console.log('[WEEKLY] Error:', e.message);
   }
 }
+
+// ─── LIFECYCLE / WATCH AGENTS (v3.66) ───────────────────────────────────────
+// User-facing e-mails (onboarding nudge, win-back, upgrade nudge) are OFF by default:
+// set Render env LIFECYCLE_EMAILS=on to enable. While off, the admin only gets a digest of who WOULD be mailed.
+const LIFECYCLE_EMAILS_ON = () => String(process.env.LIFECYCLE_EMAILS || '').toLowerCase() === 'on';
+const VALID_PLANS = ['free', 'pro', 'max', 'enterprise', 'admin'];
+
+function runDaily(hourUTC, minuteUTC, fn, label) {
+  function schedule() {
+    const now = new Date(), next = new Date(now);
+    next.setUTCHours(hourUTC, minuteUTC, 0, 0);
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+    setTimeout(() => {
+      Promise.resolve().then(fn).catch(e => console.log('[' + label + ' ERROR]', e.message));
+      schedule();   // recompute from the clock every time — no drift
+    }, next - now);
+  }
+  schedule();
+}
+function runWeekly(dayUTC, hourUTC, minuteUTC, fn, label) {
+  runDaily(hourUTC, minuteUTC, () => { if (new Date().getUTCDay() === dayUTC) return fn(); }, label);
+}
+
+async function sendUserMail(to, subject, bodyHtml) {
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'NOTAM Intelligence <alerts@notamai.com>', to, subject,
+      html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f4f8;font-family:Helvetica,Arial,sans-serif;">
+<div style="max-width:520px;margin:0 auto;padding:28px 20px;color:#1e293b;font-size:14px;line-height:1.55;">
+  <div style="font-size:14px;font-weight:700;letter-spacing:3px;margin-bottom:18px;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+  ${bodyHtml}
+  <p style="margin-top:24px;"><a href="https://notamai.onrender.com" style="display:inline-block;padding:10px 22px;background:#4a9eff;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:12px;letter-spacing:1px;">OPEN NOTAM INTELLIGENCE</a></p>
+  <p style="font-size:11px;color:#64748b;margin-top:22px;">You get this because you have an account. Reply to this e-mail if you would rather not receive such messages.</p>
+</div></body></html>`
+    })
+  });
+  return r.ok;
+}
+
+// ── 1. Provider sentinel: balances / failures, every 30 min, alert at most once per 12 h per issue ──
+const sentinelLast = new Map();
+async function checkProviderCredits(results, issues) {
+  try {
+    const r = await fetch('https://api.wavespeed.ai/api/v3/balance', { headers:{'Authorization':'Bearer '+process.env.WAVESPEED_KEY} });
+    const j = r.ok ? await r.json().catch(()=>null) : null;
+    const bal = j && j.data && typeof j.data.balance === 'number' ? j.data.balance : null;
+    if (bal === null) { results.wavespeed_credit = '— balance not readable'; }
+    else {
+      const min = parseFloat(process.env.WAVESPEED_MIN_BALANCE || '5');
+      results.wavespeed_credit = bal < min ? `🔴 $${bal.toFixed(2)} LOW` : `✅ $${bal.toFixed(2)}`;
+      if (bal < min) issues.push({ key:'wavespeed_credit', msg:`WaveSpeed credit low: $${bal.toFixed(2)}`, action:'Top up at wavespeed.ai — video briefings stop working when the balance reaches zero.' });
+    }
+  } catch(e) { results.wavespeed_credit = '— ' + e.message; }
+  try {
+    const r = await fetch('https://api.elevenlabs.io/v1/user/subscription', { headers:{'xi-api-key':process.env.ELEVENLABS_KEY||''} });
+    const j = r.ok ? await r.json().catch(()=>null) : null;
+    if (!j || !j.character_limit) { results.elevenlabs_quota = '— quota not readable'; }
+    else {
+      const left = j.character_limit - j.character_count;
+      const low = left < j.character_limit * 0.1;
+      results.elevenlabs_quota = `${low ? '🔴' : '✅'} ${left.toLocaleString()} chars left (${Math.round(left / j.character_limit * 100)}%)`;
+      if (low) issues.push({ key:'elevenlabs_quota', msg:`ElevenLabs quota low: ${left.toLocaleString()} characters left`, action:'Upgrade the ElevenLabs plan or wait for the monthly reset — video narration fails at zero.' });
+    }
+  } catch(e) { results.elevenlabs_quota = '— ' + e.message; }
+}
+
+async function runSentinel() {
+  const results = {}, issues = [];
+  await checkProviderCredits(results, issues);
+  try {
+    const sd = await adminDb.collection('system').doc('skylink_usage').get();
+    const pct = sd.exists ? (sd.data().pct || 0) : 0;
+    if (pct >= 90) issues.push({ key:'skylink_pct', msg:`SkyLink usage at ${pct}%`, action:'Upgrade the RapidAPI SkyLink plan now.' });
+  } catch (e) {}
+  try {
+    const since = new Date(Date.now() - 2 * 3600 * 1000);
+    const f = await adminDb.collection('videos').where('status', '==', 'failed').where('failedAt', '>=', since).get();
+    if (f.size >= 3) issues.push({ key:'video_failures', msg:`${f.size} video briefings failed in the last 2 hours`, action:'Check Render logs for [VIDEO] errors and the WaveSpeed / ElevenLabs dashboards.' });
+  } catch (e) { /* index missing → skip silently */ }
+  for (const i of issues) {
+    const last = sentinelLast.get(i.key) || 0;
+    if (Date.now() - last < 12 * 3600 * 1000) continue;
+    sentinelLast.set(i.key, Date.now());
+    await sendAdminNotification('🚨 ' + i.msg, `<div style="font-size:13px;color:#b91c1c;margin-bottom:6px;">${escHtml(i.msg)}</div><div style="font-size:12px;color:#475569;">→ ${escHtml(i.action)}</div>`);
+  }
+  console.log('[SENTINEL] Checked. Issues:', issues.length);
+}
+setInterval(() => runSentinel().catch(e => console.log('[SENTINEL ERROR]', e.message)), 30 * 60 * 1000);
+setTimeout(() => runSentinel().catch(e => console.log('[SENTINEL ERROR]', e.message)), 90 * 1000);
+
+// ── 2–4. Lifecycle agent (onboarding nudge, win-back, upgrade nudge) — daily 10:00 UTC ──
+async function runLifecycleAgent() {
+  console.log('[LIFECYCLE] Running...');
+  const usersSnap = await adminDb.collection('users').get();
+  const now = Date.now(), DAY = 86400000;
+  const monthKey = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
+  const live = LIFECYCLE_EMAILS_ON();
+  const report = { onboarding: [], winback: [], upsell: [] };
+
+  async function once(key) {            // returns true the first time, false if this mail was already handled
+    const ref = adminDb.collection('agentLog').doc(key);
+    if ((await ref.get()).exists) return false;
+    await ref.set({ at: admin.firestore.FieldValue.serverTimestamp(), sent: live });
+    return true;
+  }
+
+  for (const doc of usersSnap.docs.slice(0, 1000)) {
+    const uid = doc.id, u = doc.data();
+    const plan = VALID_PLANS.includes(u.plan) ? u.plan : 'free';
+    if (plan === 'admin') continue;
+    if ((u.notifications || {}).lifecycle === false) continue;
+    let rec;
+    try { rec = await admin.auth().getUser(uid); } catch (e) { continue; }
+    if (!rec.email || (rec.providerData.some(p => p.providerId === 'password') && !rec.emailVerified)) continue;
+    if (ADMIN_MAIL_SET.has(rec.email)) continue;
+    const createdMs = new Date(rec.metadata.creationTime).getTime();
+    const name = escHtml((u.displayName || rec.email.split('@')[0]));
+
+    // 2. Onboarding: registered 2–10 days ago, never produced a briefing
+    if (now - createdMs > 2 * DAY && now - createdMs < 10 * DAY) {
+      const any = await adminDb.collection('briefings').where('userId', '==', uid).limit(1).get();
+      if (any.empty && await once('onboarding_' + uid)) {
+        report.onboarding.push(rec.email);
+        if (live) await sendUserMail(rec.email, 'Your first briefing takes about a minute',
+          `<p>Hi ${name},</p><p>You created your NOTAM Intelligence account but have not run a briefing yet. Enter a departure and arrival airport and you get an AI briefing with a plain-language risk rating, based on live NOTAMs and weather.</p><p>Try a route you fly regularly — it is the quickest way to see what it does for you.</p>`);
+      }
+    }
+
+    // 3. Win-back: paid plan, no briefing for 14+ days
+    if (plan === 'pro' || plan === 'max' || plan === 'enterprise') {
+      const last = await adminDb.collection('briefings').where('userId', '==', uid).orderBy('createdAt', 'desc').limit(1).get().catch(() => null);
+      const lastMs = last && !last.empty && last.docs[0].data().createdAt && last.docs[0].data().createdAt.toDate ? last.docs[0].data().createdAt.toDate().getTime() : null;
+      if (lastMs && now - lastMs > 14 * DAY && now - lastMs < 60 * DAY && await once('winback_' + uid + '_' + monthKey)) {
+        report.winback.push(rec.email + ' (' + plan + ', last briefing ' + Math.round((now - lastMs) / DAY) + ' d ago)');
+        if (live) await sendUserMail(rec.email, 'Anything we can do better?',
+          `<p>Hi ${name},</p><p>We noticed you have not run a briefing for a couple of weeks. If something did not work the way you expected, just reply to this e-mail — it goes straight to us.</p>`);
+      }
+    }
+
+    // 4. Upsell: Free at the monthly limit, Pro at 80 %
+    if (plan === 'free' || plan === 'pro') {
+      const us = await adminDb.collection('usage').doc(uid + '_' + monthKey).get();
+      const used = us.exists ? (us.data().briefings || 0) : 0;
+      const limit = PLAN_LIMITS[plan].briefings;
+      const hit = plan === 'free' ? used >= limit : used >= Math.floor(limit * 0.8);
+      if (hit && await once('upsell_' + uid + '_' + monthKey)) {
+        report.upsell.push(`${rec.email} (${plan} ${used}/${limit})`);
+        if (live) await sendUserMail(rec.email, plan === 'free' ? 'You have used your free briefings' : 'You are close to your monthly briefing limit',
+          plan === 'free'
+            ? `<p>Hi ${name},</p><p>You have used your ${limit} free briefings this month. Pro gives you 100 briefings a month, en-route FIR analysis, Ask NOTAM AI, archive and NOTAM alerts, with a 7-day free trial.</p>`
+            : `<p>Hi ${name},</p><p>You have used ${used} of your ${limit} monthly briefings. Max raises this to 150 and adds AI video briefings and faster NOTAM alerts, with a 7-day free trial.</p>`);
+      }
+    }
+  }
+
+  const total = report.onboarding.length + report.winback.length + report.upsell.length;
+  console.log('[LIFECYCLE] Done. Candidates:', total, '| live mails:', live);
+  if (total > 0) {
+    const sec = (t, a) => a.length ? `<div style="margin-bottom:12px;"><div style="font-size:11px;color:#64748b;letter-spacing:2px;margin-bottom:4px;">${t}</div>${a.map(x => `<div style="font-size:12px;color:#1e293b;">${escHtml(x)}</div>`).join('')}</div>` : '';
+    await sendAdminNotification(`${live ? '📨' : '👀'} Lifecycle agent — ${total} user(s)`,
+      `<div style="font-size:12px;color:#475569;margin-bottom:10px;">${live ? 'These users were e-mailed.' : 'E-mails are OFF (set LIFECYCLE_EMAILS=on on Render). These users WOULD be e-mailed.'}</div>`
+      + sec('ONBOARDING NUDGE', report.onboarding) + sec('WIN-BACK', report.winback) + sec('UPGRADE NUDGE', report.upsell));
+  }
+}
+const ADMIN_MAIL_SET = new Set(['arslanni@gmail.com', 'admin@notamai.com']);
+runDaily(10, 0, runLifecycleAgent, 'LIFECYCLE');
+
+// ── 5. Feedback digest — Mondays 09:30 UTC ──
+async function runFeedbackDigest() {
+  const since = new Date(Date.now() - 7 * 86400000);
+  const rf = await adminDb.collection('ratingFeedback').where('createdAt', '>=', since).get();
+  const votes = {}; const lowRoutes = [];
+  rf.docs.forEach(d => { const x = d.data(); votes[x.vote] = (votes[x.vote] || 0) + 1; if (x.vote !== 'about_right' && x.route) lowRoutes.push(`${x.route} (${x.vote}, ${x.level || '?'} ${x.score ?? ''})`); });
+  const bs = await adminDb.collection('briefings').where('createdAt', '>=', since).get();
+  let up = 0, down = 0; const downRoutes = [];
+  bs.docs.forEach(d => { const x = d.data(); if (x.liked === true) up++; else if (x.liked === false) { down++; if (x.route) downRoutes.push(x.route); } });
+  if (rf.size + up + down === 0) { console.log('[FEEDBACK] Nothing this week'); return; }
+  await sendAdminNotification('📝 Weekly feedback digest',
+    `<div style="font-size:13px;color:#1e293b;margin-bottom:8px;"><strong>Briefings:</strong> ${bs.size} · 👍 ${up} · 👎 ${down}</div>
+     <div style="font-size:13px;color:#1e293b;margin-bottom:8px;"><strong>Risk-rating votes:</strong> ${escHtml(JSON.stringify(votes))}</div>
+     ${downRoutes.length ? `<div style="font-size:12px;color:#475569;margin-bottom:6px;"><strong>👎 routes:</strong> ${escHtml(downRoutes.slice(0, 15).join(', '))}</div>` : ''}
+     ${lowRoutes.length ? `<div style="font-size:12px;color:#475569;"><strong>Rating disputed:</strong> ${escHtml(lowRoutes.slice(0, 15).join('; '))}</div>` : ''}`);
+}
+runWeekly(1, 9, 30, runFeedbackDigest, 'FEEDBACK');
+
+// ── 6. Conflict-zone source watcher — Mondays 07:00 UTC; tells you when the EASA CZIB page changed ──
+async function runConflictWatch() {
+  const url = 'https://www.easa.europa.eu/en/domains/air-operations/czibs';
+  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (NOTAM Intelligence conflict watch)' } });
+  if (!r.ok) throw new Error('EASA page HTTP ' + r.status);
+  const html = await r.text();
+  const ids = [...new Set((html.match(/CZIB-\d{4}-\d{2}(?:-R\d+)?/g) || []))].sort();
+  if (!ids.length) throw new Error('no CZIB identifiers found — page layout may have changed');
+  const sig = require('crypto').createHash('sha1').update(ids.join('|')).digest('hex');
+  const ref = adminDb.collection('system').doc('conflict_watch');
+  const prev = await ref.get();
+  await ref.set({ sig, ids, checkedAt: admin.firestore.FieldValue.serverTimestamp() });
+  if (!prev.exists) { console.log('[CONFLICT WATCH] Baseline stored:', ids.length, 'CZIBs'); return; }
+  const old = new Set(prev.data().ids || []);
+  const added = ids.filter(x => !old.has(x));
+  if (prev.data().sig !== sig && added.length) {
+    await sendAdminNotification('🌍 EASA CZIB list changed',
+      `<div style="font-size:13px;color:#1e293b;margin-bottom:6px;">New or revised bulletins: <strong>${escHtml(added.join(', '))}</strong></div>
+       <div style="font-size:12px;color:#475569;">Review them against the conflict-zone list in risk.js (conflictZonesAsOf), then update the list.<br><a href="${url}">${url}</a></div>`);
+  }
+  console.log('[CONFLICT WATCH] Checked. New:', added.length);
+}
+runWeekly(1, 7, 0, () => runConflictWatch().catch(async e => { console.log('[CONFLICT WATCH ERROR]', e.message); await sendAdminNotification('⚠️ Conflict watch failed', `<div style="font-size:13px;color:#b91c1c;">${escHtml(e.message)}</div>`); }), 'CONFLICT WATCH');
