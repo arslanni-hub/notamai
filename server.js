@@ -3047,7 +3047,8 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
           body: JSON.stringify({
             text: script,
             model_id: 'eleven_turbo_v2_5',
-            voice_settings: { stability: 0.75, similarity_boost: 0.85 }
+            // speed 1.1 (ElevenLabs range 0.7-1.2): same words in ~9% less audio, i.e. less WaveSpeed time and cost. VIDEO_TTS_SPEED overrides, 1 = old pace.
+            voice_settings: { stability: 0.75, similarity_boost: 0.85, speed: Math.min(1.2, Math.max(0.9, parseFloat(process.env.VIDEO_TTS_SPEED) || 1.1)) }
           })
         });
         console.log('[TTS STATUS]', ttsRes.status);
