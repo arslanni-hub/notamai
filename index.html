@@ -9493,6 +9493,7 @@ function playArchivedVideo(videoUrl, script) {
     else resultVideo.src = videoUrl;
     resultVideo.load();
     resultVideo.style.display = 'block';
+    vbBrand(true);
     resultVideo.onloadedmetadata = function() {
       resultVideo.play();
       const subtitle = document.getElementById('vbSubtitle');
@@ -10883,6 +10884,10 @@ async function fetchWindsAloft() {
   <video id="resultVideo" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;" controls>
     <source src="" type="video/mp4">
   </video>
+  <!-- Brand label over the finished video (same look as the welcome video); a page layer, not part of the video file -->
+  <div id="vbBrand" style="display:none;position:absolute;top:0;left:0;right:0;padding:16px 20px;pointer-events:none;z-index:2;background:linear-gradient(rgba(6,10,15,0.7),transparent);">
+    <div style="font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.7);">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></div>
+  </div>
 
 
 
@@ -10933,6 +10938,7 @@ function openVideoBriefing() {
   document.getElementById('vbStatus').textContent = 'Initializing briefing...';
   document.getElementById('waitingVideo').style.display = 'block';
   document.getElementById('resultVideo').style.display = 'none';
+  vbBrand(false);
   const content = document.getElementById('vbContentOverlay');
   if (content) content.style.display = 'block';
 
@@ -10978,6 +10984,7 @@ function openVideoBriefing() {
   generateVideoBriefing(route, user.uid);
 }
 
+function vbBrand(on) { const e = document.getElementById('vbBrand'); if (e) e.style.display = on ? 'block' : 'none'; }
 function routeKeyOf(r) { return (String(r || '').toUpperCase().match(/[A-Z]{4}/g) || []).join('>'); }
 
 async function generateVideoBriefing(route, userId) {
@@ -11048,6 +11055,7 @@ function showResultVideo(videoUrl) {
   resultVideo.querySelector('source').src = videoUrl;
   resultVideo.load();
   resultVideo.style.display = 'block';
+  vbBrand(true);
   resultVideo.play();
 
   // Fade out ambient audio
@@ -11075,6 +11083,7 @@ function closeVideoBriefing() {
   const resultVideo = document.getElementById('resultVideo');
   if (waitingVideo) { waitingVideo.pause(); waitingVideo.currentTime = 0; }
   if (resultVideo) { resultVideo.pause(); resultVideo.currentTime = 0; resultVideo.style.display = 'none'; }
+  vbBrand(false);
 
   // Clear intervals
   if (vbInterval) clearInterval(vbInterval);
