@@ -65,6 +65,9 @@ if (!fs.existsSync(PILOT_IMAGE_PATH)) {
 // Small/fast model for chat, analysis, route extraction, agents and the general-chat fallback.
 // Render env HAIKU_MODEL=claude-haiku-5-5 switches all of them at once; unset = claude-haiku-4-5 (previous behavior).
 const HAIKU_MODEL = /^claude-haiku-[a-z0-9.-]+$/i.test(process.env.HAIKU_MODEL || '') ? process.env.HAIKU_MODEL : 'claude-haiku-4-5';
+// Haiku 5.5 thinks up front by default; on small calls (max_tokens 50-600) that would eat the whole budget and return no text.
+// It accepts thinking:{type:'disabled'} (verified 21 Oct 2026), so every Haiku 5.x request carries it.
+const HAIKU_EXTRA = /^claude-haiku-5/i.test(HAIKU_MODEL) ? { thinking: { type: 'disabled' } } : {};
 
 const PLAN_LIMITS = {
   free:    { briefings: 3,   chat: 0,   analysis: 0   },
@@ -448,6 +451,7 @@ async function callAI({ model = HAIKU_MODEL, maxTokens = 1000, messages, system 
   // Try Anthropic first
   try {
     const body = { model, max_tokens: maxTokens, messages };
+    if (/^claude-haiku-5/i.test(model)) body.thinking = { type: 'disabled' };
     if (system) body.system = system;
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -2573,6 +2577,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
                 max_tokens: 600,
                 // Sonnet 5.5 settings as proven in the main briefing call: medium effort, lowest thinking level
                 ...(model === 'claude-sonnet-5-5' ? { output_config: { effort: 'medium' }, thinking: { type: 'between_tools' } } : {}),
+                ...(/^claude-haiku-5/i.test(model) ? { thinking: { type: 'disabled' } } : {}),
                 messages: [{ role: 'user', content: scriptPrompt }]
               })
             });
@@ -3422,7 +3427,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: HAIKU_MODEL,
+            model: HAIKU_MODEL, ...HAIKU_EXTRA,
             max_tokens: 50,
             system: 'You are an expert aviation dispatcher with complete knowledge of all world airports and their ICAO codes. Your only job is to extract one or two airports from any natural language input (in any language) and return their ICAO codes.\n\nRules:\n- Always use the main international airport for a city unless specified otherwise\n- Convert city names, country names, airport names, or any hint to the correct ICAO code\n- Support any language input (Turkish, English, Spanish, Arabic, etc.)\n- Examples: "Istanbul Frankfurt" -> "LTFM EDDF", "Barcelona Milan dedim" -> "LEBL LIMC", "Paris CDG to Dubai" -> "LFPG OMDB", "bugün istanbul londra var" -> "LTFM EGLL", "مطار دبي إلى لندن" -> "OMDB EGLL"\n- If the input contains ANY hint of two distinct locations — two city/airport names, two codes, or connecting words like "to"/"and"/"için"/"ile" — always return BOTH as a pair. Never silently drop the one you are less confident about; if you can identify it at all, include it.\n- Only return a single ICAO code when there is truly just one location mentioned with no indication of a second (e.g. "Istanbul", "tell me about LTFM")\n- Return ONLY the format: XXXX (single airport) or XXXX XXXX (two airports, space-separated) — exactly 4 letters per code\n- Return UNKNOWN only if you truly cannot identify even one airport',
             messages: [{ role: 'user', content: text }]
@@ -3604,7 +3609,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             'anthropic-beta': 'prompt-caching-2024-07-31'
           },
           body: JSON.stringify({
-            model: HAIKU_MODEL,
+            model: HAIKU_MODEL, ...HAIKU_EXTRA,
             max_tokens: 800,
             system: [{ type: 'text', text: analyzeSystemPrompt, cache_control: { type: 'ephemeral' } }],
             messages: [{ role: 'user', content: 'Analyze this ' + (type || 'NOTAM') + ':\n\n' + notam + airportContext }]
@@ -3688,7 +3693,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-              body: JSON.stringify({ model: HAIKU_MODEL, max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
+              body: JSON.stringify({ model: HAIKU_MODEL, ...HAIKU_EXTRA, max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
             });
             const extractData = await extractRes.json();
             const extractedText = extractData.content?.[0]?.text || '';
@@ -3838,7 +3843,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
             'anthropic-beta': 'prompt-caching-2024-07-31'
           },
           body: JSON.stringify({
-            model: HAIKU_MODEL,
+            model: HAIKU_MODEL, ...HAIKU_EXTRA,
             max_tokens: 1500,
             system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
             messages
@@ -3922,7 +3927,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
             const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-              body: JSON.stringify({ model: HAIKU_MODEL, max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
+              body: JSON.stringify({ model: HAIKU_MODEL, ...HAIKU_EXTRA, max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
             });
             const extractData = await extractRes.json();
             const extractedText = extractData.content?.[0]?.text || '';
@@ -4094,6 +4099,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           // Sonnet 5.5 rejects thinking:disabled; 'between_tools' turns off up-front thinking (thinking between web searches stays).
           // Toggle with Render env CHAT_THINKING_OFF=1 to A/B cost, budget use and quality.
           ...(chatModel === 'claude-sonnet-5-5' && process.env.CHAT_THINKING_OFF === '1' ? { thinking: { type: 'between_tools' } } : {}),
+          ...(/^claude-haiku-5/i.test(chatModel) ? { thinking: { type: 'disabled' } } : {}),
           stream: true,
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           messages,
@@ -4265,7 +4271,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
             const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-              body: JSON.stringify({ model: HAIKU_MODEL, max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
+              body: JSON.stringify({ model: HAIKU_MODEL, ...HAIKU_EXTRA, max_tokens: 50, messages: [{ role: 'user', content: extractContent }] })
             });
             const extractData = await extractRes.json();
             const extractedText = extractData.content?.[0]?.text || '';
@@ -4423,6 +4429,10 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             const totalExcludedAdmin = (notamDepResult.excludedAdminCount || 0) + (notamArrResult.excludedAdminCount || 0);
             const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             let notamNotesHtml = '';
+            if (reqPlan === 'free' && !isSingleAirport && !isQuickAnalysis) {
+              // v3.71: Free briefings skip the en-route FIR fetch, so the rating covers less than a Pro/Max rating of the same route.
+              notamNotesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#f2c641;padding:12px 14px;margin:12px 0;border:1px solid rgba(242,198,65,0.4);border-left:4px solid #f2c641;background:rgba(242,198,65,0.07);"><strong>ℹ Rating excludes en-route FIR NOTAMs.</strong> The risk rating covers the two aerodromes, weather and the conflict-zone check only. En-route FIR NOTAMs are part of the Pro and Max plans; for this route check them via official sources.</div>`;
+            }
             if (notamDepResult.unavailable || notamArrResult.unavailable) {
               const which = [notamDepResult.unavailable ? icao_dep : null, notamArrResult.unavailable ? icao_arr : null].filter(Boolean).join(', ');
               notamNotesHtml += `<div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#ff6b6b;padding:12px 14px;margin:12px 0;border:1px solid rgba(255,107,107,0.5);border-left:4px solid #ff4d4d;background:rgba(255,77,77,0.08);"><strong>⚠ NOTAM DATA UNAVAILABLE for ${esc(which)}.</strong> The NOTAM data provider did not return data. This briefing is INCOMPLETE and must not be treated as "no NOTAMs". Check the official AIS/NOTAM office before flight.</div>`;
@@ -4868,7 +4878,7 @@ async function runGrowthReport() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
-          model: HAIKU_MODEL,
+          model: HAIKU_MODEL, ...HAIKU_EXTRA,
           max_tokens: 300,
           messages: [{
             role: 'user',
@@ -5024,7 +5034,7 @@ async function runHealthCheck() {
 
   // Anthropic + OpenAI fallback status
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{'Content-Type':'application/json','x-api-key':process.env.ANTHROPIC_KEY,'anthropic-version':'2023-06-01'}, body:JSON.stringify({model:HAIKU_MODEL,max_tokens:10,messages:[{role:'user',content:'ping'}]}) });
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{'Content-Type':'application/json','x-api-key':process.env.ANTHROPIC_KEY,'anthropic-version':'2023-06-01'}, body:JSON.stringify({model:HAIKU_MODEL,...HAIKU_EXTRA,max_tokens:10,messages:[{role:'user',content:'ping'}]}) });
     results.anthropic = r.ok ? '✅ OK' : `❌ HTTP ${r.status}`;
     if (!r.ok) issues.push({ msg:'Anthropic API error: HTTP '+r.status, action:'Check console.anthropic.com — verify API key and billing. OpenAI fallback will activate automatically.' });
   } catch(e) { results.anthropic = '❌ '+e.message; issues.push({ msg:'Anthropic unreachable — OpenAI fallback will activate', action:'Check Render logs. Add OPENAI_KEY to Render env vars if not set.' }); }
@@ -5374,7 +5384,7 @@ async function processSalesLead(email, supportAnalysis) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: HAIKU_MODEL,
+        model: HAIKU_MODEL, ...HAIKU_EXTRA,
         max_tokens: 1500,
         messages: [{
           role: 'user',
@@ -5617,7 +5627,7 @@ async function processSupportEmail(email) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: HAIKU_MODEL,
+        model: HAIKU_MODEL, ...HAIKU_EXTRA,
         max_tokens: 1000,
         messages: [{
           role: 'user',
