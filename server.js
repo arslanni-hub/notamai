@@ -163,6 +163,44 @@ async function reserveRawNotamLookup(userId, plan) {
   }
 }
 
+// Aviation Tools endpoints that are backed by SkyLink: sign-in required, per-user daily cap, and one global daily request cap
+// (a circuit breaker, so no pattern of traffic can burn the provider quota). Cache hits count too (conservative).
+const SKYLINK_TOOL_PREFIXES = ['/api/airport-info/', '/api/airport-search/', '/api/raw/delays/', '/api/raw/charts/', '/api/distance/', '/api/navaids/', '/api/ml-flighttime/', '/api/flight-status/', '/api/carbon/', '/api/aircraft-performance/', '/api/aircraft/', '/api/routes/', '/api/airsigmet/'];
+const TOOLS_DAILY_FREE = parseInt(process.env.TOOLS_DAILY_FREE || '60', 10);
+const TOOLS_DAILY_PAID = parseInt(process.env.TOOLS_DAILY_PAID || '400', 10);
+const TOOLS_DAILY_GLOBAL = parseInt(process.env.TOOLS_DAILY_GLOBAL || '3000', 10);
+async function skylinkToolGate(req, res) {
+  const send = (code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); return false; };
+  const userId = await getVerifiedUserId(req);
+  if (!userId) return req._authError === 'email_not_verified' ? send(403, { error: 'email_not_verified', message: 'Verify your e-mail address to use Aviation Tools.' }) : send(401, { error: 'unauthorized', message: 'Sign in to use Aviation Tools.' });
+  const plan = await getUserPlan(userId);
+  if (plan === 'admin') return true;
+  const limit = plan === 'free' ? TOOLS_DAILY_FREE : TOOLS_DAILY_PAID;
+  const day = new Date().toISOString().slice(0, 10);
+  const uref = adminDb.collection('toolUsageDaily').doc(userId + '_' + day);
+  const gref = adminDb.collection('system').doc('tools_' + day);
+  try {
+    const r = await adminDb.runTransaction(async (tx) => {
+      const [us, gs] = await Promise.all([tx.get(uref), tx.get(gref)]);
+      const uc = us.exists ? (us.data().count || 0) : 0;
+      const gd = gs.exists ? gs.data() : {};
+      const gc = gd.count || 0;
+      const stamp = admin.firestore.FieldValue.serverTimestamp();
+      if (gc >= TOOLS_DAILY_GLOBAL) { tx.set(gref, { denied: (gd.denied || 0) + 1, day, updatedAt: stamp }, { merge: true }); return { ok: false, why: 'global' }; }
+      if (uc >= limit) return { ok: false, why: 'user' };
+      tx.set(uref, { count: uc + 1, userId, day, plan, updatedAt: stamp }, { merge: true });
+      tx.set(gref, { count: gc + 1, day, updatedAt: stamp }, { merge: true });
+      return { ok: true };
+    });
+    if (r.ok) return true;
+    if (r.why === 'global') return send(503, { error: 'tools_busy', message: 'Aviation Tools are temporarily busy. Please try again later.' });
+    return send(429, { error: 'tool_limit', message: 'Daily Aviation Tools limit reached (' + limit + ' per day on your plan). It resets at 00:00 UTC.' + (plan === 'free' ? ' Upgrade to Pro for a higher limit.' : '') });
+  } catch (e) {
+    console.log('[TOOLS GATE] transaction error, allowing request:', e.message);
+    return true;
+  }
+}
+
 // General Aviation Expert Chat — separate from the briefing-specific "Ask NOTAM AI" above.
 // Uses a 3-hour rolling window, mirroring Claude's own usage-limit UX: soft limits that
 // downgrade the model rather than hard-block (except Free, which hard-stops since it's
@@ -2745,6 +2783,10 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
     return;
   }
 
+  if (req.method === 'GET' && SKYLINK_TOOL_PREFIXES.some(pf => req.url.startsWith(pf))) {
+    if (!(await skylinkToolGate(req, res))) return;
+  }
+
   if (req.method === 'GET' && req.url.startsWith('/api/airport/')) {
     const icao = req.url.split('/api/airport/')[1].split('?')[0];
     try {
@@ -5134,6 +5176,16 @@ async function runHealthCheck() {
     results.free_cap = (denied > 0 ? '🟡 ' : '✅ ') + used + '/' + FREE_DAILY_BRIEFING_CAP + ' used yesterday, ' + denied + ' turned away';
     if (denied > 0) issues.push({ msg: 'Free daily cap turned away ' + denied + ' briefing(s) yesterday', action: 'If this is organic demand and SkyLink usage allows it, raise FREE_DAILY_BRIEFING_CAP in Render; if signups look suspicious, check new accounts.' });
   } catch(e) { results.free_cap = '— ' + e.message; }
+
+  // Aviation Tools (SkyLink-backed) global daily gate: yesterday's requests and refusals
+  try {
+    const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+    const d = await adminDb.collection('system').doc('tools_' + y).get();
+    const used = d.exists ? (d.data().count || 0) : 0;
+    const denied = d.exists ? (d.data().denied || 0) : 0;
+    results.tools_gate = (denied > 0 ? '🟡 ' : '✅ ') + used + '/' + TOOLS_DAILY_GLOBAL + ' tool requests yesterday, ' + denied + ' refused';
+    if (denied > 0) issues.push({ msg: 'Aviation Tools global cap refused ' + denied + ' request(s) yesterday', action: 'Check system/skylink_usage bySource and new signups; raise TOOLS_DAILY_GLOBAL in Render only if the demand is organic and SkyLink quota allows.' });
+  } catch(e) { results.tools_gate = '— ' + e.message; }
 
   // Firebase
   try {

@@ -2672,6 +2672,40 @@ function autoResize(el) {
 let attachedFiles = [];
 let attachedFile = null; // kept for compatibility
 
+// v3.76: every same-origin /api/ request carries the Firebase ID token when a user is signed in, so SkyLink-backed
+// Aviation Tools (which now require sign-in) work without touching each call site. Never blocks a request on failure.
+(function () {
+  const _fetch = window.fetch.bind(window);
+  const TOOL_RE = /^\/api\/(airport-info|airport-search|raw\/delays|raw\/charts|distance|navaids|ml-flighttime|flight-status|carbon|aircraft-performance|aircraft|routes|airsigmet)\//;
+  window.fetch = async function (input, init) {
+    let url = '';
+    try { url = typeof input === 'string' ? input : ((input && input.url) || ''); } catch (e) {}
+    const isApi = url.startsWith('/api/');
+    if (isApi) {
+      try {
+        const u = window.firebase && firebase.auth && firebase.auth().currentUser;
+        if (u) {
+          const hdrs = new Headers((init && init.headers) || (typeof input !== 'string' && input && input.headers) || {});
+          if (!hdrs.has('Authorization')) {
+            hdrs.set('Authorization', 'Bearer ' + (await u.getIdToken()));
+            init = Object.assign({}, init || {}, { headers: hdrs });
+          }
+        }
+      } catch (e) {}
+    }
+    const resp = await _fetch(input, init);
+    if (isApi && TOOL_RE.test(url)) {
+      try {
+        if (resp.status === 401 && typeof handleAuthError === 'function') handleAuthError(401);
+        else if ((resp.status === 429 || resp.status === 503 || resp.status === 403) && typeof showToast === 'function') {
+          resp.clone().json().then(j => { if (j && j.message) showToast(j.message); }).catch(() => {});
+        }
+      } catch (e) {}
+    }
+    return resp;
+  };
+})();
+
 async function getAuthHeader() {
   const user = firebase.auth().currentUser;
   if (!user) return {};
