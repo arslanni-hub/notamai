@@ -7889,13 +7889,15 @@ async function fetchRawData() {
   switchRawTab('notam');
 
   try {
+    const _authH = await getAuthHeader();
     const [notamRes, metarRes, tafRes, sigmetRes] = await Promise.all([
-      fetch('/api/raw/notam/' + icao),
+      fetch('/api/raw/notam/' + icao, { headers: _authH }),
       fetch('/api/raw/metar/' + icao),
       fetch('/api/raw/taf/' + icao),
       fetch('/api/raw/sigmet/' + icao)
     ]);
     const notamText = await notamRes.text();
+    if (notamRes.status === 401) handleAuthError(401);
     const metarText = await metarRes.text();
     const tafText = await tafRes.text();
     const sigmetText = await sigmetRes.text();
@@ -10611,7 +10613,7 @@ async function fetchFirInfo(directCode) {
   if (firInfo) {
     let notamCount = 0;
     try {
-      const notamRes = await fetch('/api/raw/notam/' + icao);
+      const notamRes = await fetch('/api/raw/notam/' + icao, { headers: await getAuthHeader() });
       const notamText = await notamRes.text();
       const notamMatches = notamText.match(/![\w]/g);
       notamCount = notamMatches ? notamMatches.length : 0;

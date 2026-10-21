@@ -141,6 +141,28 @@ async function reserveFreeBriefingSlot() {
   }
 }
 
+// Raw NOTAM lookups (NOTAMs & MET panel) cost one SkyLink call each, so they need a signed-in user and a per-user daily cap.
+const RAW_NOTAM_DAILY_FREE = parseInt(process.env.RAW_NOTAM_DAILY_FREE || '10', 10);
+const RAW_NOTAM_DAILY_PAID = parseInt(process.env.RAW_NOTAM_DAILY_PAID || '100', 10);
+async function reserveRawNotamLookup(userId, plan) {
+  if (plan === 'admin') return { ok: true };
+  const limit = plan === 'free' ? RAW_NOTAM_DAILY_FREE : RAW_NOTAM_DAILY_PAID;
+  const day = new Date().toISOString().slice(0, 10);
+  const ref = adminDb.collection('rawNotamDaily').doc(userId + '_' + day);
+  try {
+    return await adminDb.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const count = snap.exists ? (snap.data().count || 0) : 0;
+      if (count >= limit) return { ok: false, count, limit };
+      tx.set(ref, { count: count + 1, userId, day, plan, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      return { ok: true, count: count + 1, limit };
+    });
+  } catch (e) {
+    console.log('[RAW NOTAM LIMIT] transaction error, allowing request:', e.message);
+    return { ok: true };
+  }
+}
+
 // General Aviation Expert Chat — separate from the briefing-specific "Ask NOTAM AI" above.
 // Uses a 3-hour rolling window, mirroring Claude's own usage-limit UX: soft limits that
 // downgrade the model rather than hard-block (except Free, which hard-stops since it's
@@ -3065,6 +3087,21 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
     const [type, icao] = urlParams.split('/');
 
     if (type === 'notam') {
+      // v3.75: sign-in required and a per-user daily cap (METAR/TAF stay open: they come from the free aviationweather.gov).
+      const rawUserId = await getVerifiedUserId(req);
+      if (!rawUserId) {
+        const notVerified = req._authError === 'email_not_verified';
+        res.writeHead(notVerified ? 403 : 401, { 'Content-Type': 'text/plain' });
+        res.end(notVerified ? 'VERIFY YOUR E-MAIL ADDRESS to view NOTAMs. METAR and TAF remain available.' : 'SIGN IN to view NOTAMs. METAR and TAF remain available without an account.');
+        return;
+      }
+      const rawPlan = await getUserPlan(rawUserId);
+      const rawSlot = await reserveRawNotamLookup(rawUserId, rawPlan);
+      if (!rawSlot.ok) {
+        res.writeHead(429, { 'Content-Type': 'text/plain' });
+        res.end('DAILY NOTAM LOOKUP LIMIT REACHED (' + rawSlot.limit + ' per day on your plan). It resets at 00:00 UTC. METAR and TAF remain available.' + (rawPlan === 'free' ? ' Upgrade to Pro for a higher limit.' : ''));
+        return;
+      }
       try {
         const skyUrl = 'https://skylink-api.p.rapidapi.com/notams/' + icao + '?include_future=true';
         const data = await fetchURL(skyUrl, {
