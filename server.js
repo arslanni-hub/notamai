@@ -23,6 +23,7 @@ const admin = require('firebase-admin');
 const risk = require('./risk');
 const videoScript = require('./video-script');
 const runwayData = require('./runway-data');
+const alternates = require('./alternates');
 // RISK_MODE (Render env): 'shadow' (default) = compute + log only; 'active' = the rubric sets the rating floor, the model
 // receives the complete information and the client header is corrected to never fall below the floor.
 const RISK_MODE = (process.env.RISK_MODE || 'shadow').toLowerCase();
@@ -1573,7 +1574,7 @@ const BRIEFING_DEPTH_RULES_55 = `DEPTH AND SPECIFICITY RULES — these OVERRIDE 
 1. EXECUTIVE SUMMARY: first paragraph of 5-6 sentences. Name the 2-3 most critical hazards with their NOTAM IDs and state the operational consequence of each (what the crew can no longer do, or must now do). Second paragraph: the classification and the one-sentence reason for it.
 2. COMPOUNDING RISK MATRIX: each compound-item starts with a short bold label naming the interacting hazards, for example <strong>RWY CLOSURE × LLWAS U/S:</strong>, followed by 2 sentences explaining the specific interaction effect. Max 4 items.
 3. FULL NOTAM CARDS: the <imp> text must state the concrete effect with values (runway, minima, times). The <act> text must be 2-3 sentences: the specific action, the specific value/time/runway it applies to, and why. Add a <cmp> element (starting with COMPOUNDS WITH:) whenever the NOTAM interacts with another NOTAM in this briefing, citing the NOTAM IDs. The compact one-line format stays as specified.
-4. ALTERNATE ASSESSMENT (route briefings, Dispatch Notes - ALTERNATE AERODROME): explicitly assess whether the departure and arrival aerodromes could serve as alternates under the NOTAMs in this data, and say so plainly when one cannot (for example because of runway closures or lost approach capability). Name at least two specific candidate alternates (ICAO code and name) with a one-clause reason each (approach capability, proximity, NOTAM state), labelled as candidates whose weather and NOTAMs must be verified. Never present them as confirmed alternates.
+4. ALTERNATE ASSESSMENT (route briefings, Dispatch Notes - ALTERNATE AERODROME): explicitly assess whether the departure and arrival aerodromes could serve as alternates under the NOTAMs in this data, and say so plainly when one cannot (for example because of runway closures or lost approach capability). Name at least two specific candidate alternates (ICAO code and name) with a one-clause reason each (approach capability, proximity, NOTAM state), labelled as candidates whose weather and NOTAMs must be verified. When the data contains a CANDIDATE ALTERNATES list, take the candidates from it (code and name exactly as listed, with the distance); never answer with a generic 'select a nearby alternate'. Never present them as confirmed alternates.
 5. ACTION ITEMS (Pilot Action Items, or Airport Operational Considerations in single-airport briefings): 8-10 items, each 2 sentences, each containing at least one concrete parameter (value, time, runway, procedure ID or NOTAM ID) plus the reason.
 6. GO/NO-GO (or the airport operational status verdict): every condition must contain at least one concrete value taken from the data (time window, minima or amended OCA(H)/DH value, runway, procedure or NOTAM ID) — never a generic statement. NO-GO IF / AVOID IF triggers must combine the real compounding factors of this briefing, not generic statements.
 7. NO FILLER: NEVER write "none were supplied", "none were provided", "no slot data provided" or similar wording anywhere (including action items and the alternate card); omit what has no data. List missing inputs (alternate METAR/TAF, slot data) ONCE, in one short line at the end of the last notes grid (Dispatch Notes, or Ground and ATC Notes), as <div class="notam-overflow-note">DATA GAPS: [comma-separated list]</div>, and omit that line when nothing is missing. The statement about en-route FIR NOTAMs not being retrieved stays in the Airspace section as already required and is not repeated in DATA GAPS.
@@ -2316,6 +2317,29 @@ const server = http.createServer(async (req, res) => {
       console.log('[CALIBRATION] error:', e.message);
       res.writeHead(500, { 'Content-Type': 'text/plain' }); res.end('Calibration export failed: ' + e.message);
     }
+    return;
+  }
+
+  // Measured Anthropic cost of this month's briefings (briefingCosts records written by /briefing), for the admin cost tables.
+  if (req.method === 'GET' && req.url === '/api/admin/briefing-costs') {
+    try {
+      const dec = await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', ''));
+      if (dec.email !== 'arslanni@gmail.com') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Forbidden' })); return; }
+      const now = new Date();
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      const snap = await adminDb.collection('briefingCosts').where('createdAt', '>=', monthStart).limit(20000).get();
+      let count = 0, usd = 0;
+      const byPlan = {}, byModel = {};
+      snap.forEach(d => {
+        const x = d.data();
+        const c = typeof x.costUsd === 'number' ? x.costUsd : 0;
+        count++; usd += c;
+        const P = (byPlan[x.plan || 'unknown'] = byPlan[x.plan || 'unknown'] || { count: 0, usd: 0 }); P.count++; P.usd += c;
+        const M = (byModel[x.model || 'unknown'] = byModel[x.model || 'unknown'] || { count: 0, usd: 0 }); M.count++; M.usd += c;
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ month: now.toISOString().slice(0, 7), count, usd: Math.round(usd * 10000) / 10000, avg: count ? Math.round(usd / count * 10000) / 10000 : null, byPlan, byModel }));
+    } catch (e) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'unavailable' })); }
     return;
   }
 
@@ -4440,7 +4464,7 @@ METAR DEPARTURE: ${metarDep || 'Not available'}
 METAR ARRIVAL: ${metarArr || 'Not available'}
 TAF DEPARTURE: ${tafDep || 'Not available'}
 TAF ARRIVAL: ${tafArr || 'Not available'}
-${enrouteNotamData ? '\nEN-ROUTE FIR NOTAMs:\n' + enrouteNotamData : '\nEN-ROUTE FIR NOTAMs: No FIR data available — advise crew to check current FIR NOTAMs via official sources.'}
+${alternates.candidateBlock(icao_dep, icao_arr)}${enrouteNotamData ? '\nEN-ROUTE FIR NOTAMs:\n' + enrouteNotamData : '\nEN-ROUTE FIR NOTAMs: No FIR data available — advise crew to check current FIR NOTAMs via official sources.'}
 ${notam_text ? `\nADDITIONAL USER DATA:\n${notam_text}` : ''}
 
 Generate the complete pre-flight operational intelligence briefing HTML content.`;
@@ -4612,6 +4636,7 @@ server.timeout = 120000;
 server.listen(PORT, () => {
   console.log(`NOTAM Intelligence server running on port ${PORT}`);
   runwayData.init();
+  alternates.init();
   setTimeout(resumeUnfinishedVideos, 20000);
 });
 
