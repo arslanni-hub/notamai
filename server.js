@@ -80,11 +80,19 @@ function limitPlanOf(plan) { return plan === 'enterprise' ? 'max' : plan; }
 // ── Briefing model per plan ──────────────────────────────────────────────
 // Render env BRIEFING_MODEL_FREE / _PRO / _MAX / _ADMIN pick the model per plan (enterprise uses _MAX);
 // BRIEFING_MODEL stays as the fallback for non-admin plans, admin falls back to Sonnet 5.5.
-function briefingModelFor(plan) {
+function briefingModelFor(plan, usedThisMonth) {
   const own = process.env['BRIEFING_MODEL_' + String(limitPlanOf(plan)).toUpperCase()];
-  const picked = own || (plan === 'admin' ? 'claude-sonnet-5-5' : (process.env.BRIEFING_MODEL || 'claude-sonnet-4-6'));
-  return /^claude-(sonnet|haiku|opus)-[a-z0-9.-]+$/i.test(picked) ? picked : 'claude-sonnet-4-6';
+  let picked = own || (plan === 'admin' ? 'claude-sonnet-5-5' : (process.env.BRIEFING_MODEL || 'claude-sonnet-4-6'));
+  if (!/^claude-(sonnet|haiku|opus)-[a-z0-9.-]+$/i.test(picked)) picked = 'claude-sonnet-4-6';
+  // v3.71 Max hybrid: the first MAX_SONNET_BRIEFINGS briefings of the month use the Max model (Sonnet 5.5); later ones drop to MAX_FALLBACK_MODEL (Haiku 5.5).
+  // Only plan 'max' (not Enterprise, not admin); 0 disables the downgrade.
+  if (plan === 'max' && /^claude-sonnet-/i.test(picked) && MAX_SONNET_BRIEFINGS > 0 && (usedThisMonth || 0) >= MAX_SONNET_BRIEFINGS) {
+    const fb = process.env.MAX_FALLBACK_MODEL || 'claude-haiku-5-5';
+    if (/^claude-haiku-[a-z0-9.-]+$/i.test(fb)) picked = fb;
+  }
+  return picked;
 }
+const MAX_SONNET_BRIEFINGS = parseInt(process.env.MAX_SONNET_BRIEFINGS || '40', 10);
 // USD per million tokens: input, output, cache write (5 min), cache read. Used only for the cost log / briefingCosts records.
 const MODEL_PRICES = {
   'claude-sonnet-5-5': [2, 10, 2.5, 0.20],
@@ -98,7 +106,7 @@ function briefingCostUsd(model, u) {
   return ((u.input_tokens || 0) * pr[0] + (u.output_tokens || 0) * pr[1] + (u.cache_created || 0) * pr[2] + (u.cache_read || 0) * pr[3]) / 1e6;
 }
 
-const FREE_DAILY_BRIEFING_CAP = parseInt(process.env.FREE_DAILY_BRIEFING_CAP || '20', 10);
+const FREE_DAILY_BRIEFING_CAP = parseInt(process.env.FREE_DAILY_BRIEFING_CAP || '60', 10);
 // Global circuit breaker: total Free-plan briefings allowed per UTC day across ALL users.
 async function reserveFreeBriefingSlot() {
   const day = new Date().toISOString().slice(0, 10);
@@ -107,10 +115,18 @@ async function reserveFreeBriefingSlot() {
     const result = await adminDb.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       const count = snap.exists ? (snap.data().count || 0) : 0;
-      if (count >= FREE_DAILY_BRIEFING_CAP) return { ok: false, count };
+      if (count >= FREE_DAILY_BRIEFING_CAP) {
+        // Count the Free briefings turned away today: this is the unmet demand the cap is hiding.
+        tx.set(ref, { denied: ((snap.exists && snap.data().denied) || 0) + 1, day, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        return { ok: false, count };
+      }
       tx.set(ref, { count: count + 1, day, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
       return { ok: true, count: count + 1 };
     });
+    if (result.ok && FREE_DAILY_BRIEFING_CAP >= 10 && result.count === Math.ceil(FREE_DAILY_BRIEFING_CAP * 0.8)) {
+      sendAdminNotification('Free daily briefing cap at 80% (' + result.count + '/' + FREE_DAILY_BRIEFING_CAP + ')',
+        '<div style="font-size:13px;color:#1e293b;">The global Free-plan cap reached 80% on ' + day + '. If this keeps happening, check SkyLink usage first (each Free briefing is about 2 calls), then raise FREE_DAILY_BRIEFING_CAP in Render.</div>').catch(() => {});
+    }
     if (result.ok && result.count === FREE_DAILY_BRIEFING_CAP) {
       sendAdminNotification('⚠️ Free daily briefing cap reached (' + FREE_DAILY_BRIEFING_CAP + ')',
         '<div style="font-size:13px;color:#1e293b;">The global Free-plan cap of ' + FREE_DAILY_BRIEFING_CAP + ' briefings/day was reached on ' + day + '. Further Free briefings are paused until 00:00 UTC. If this is organic demand, raise FREE_DAILY_BRIEFING_CAP in Render; if it looks like abuse, check new signups.</div>').catch(() => {});
@@ -4143,9 +4159,12 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         // Plan check before any heavy fetching
         const userId = await getVerifiedUserId(req);
         if (!userId) { sendUnauthorized(res, req); return; }
+        let reqPlan = 'free';      // plan and monthly count before this briefing; used below for the Free FIR gate and the Max hybrid model
+        let reqUsage = 0;
         {
           const plan = await getUserPlan(userId);
           const usage = await getUserUsage(userId, 'briefings');
+          reqPlan = plan; reqUsage = usage;
           const limit = PLAN_LIMITS[limitPlanOf(plan)]?.briefings || (plan === 'admin' ? 9999 : 3);
           if (usage >= limit) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -4183,7 +4202,10 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           if (!isSingleAirport) {
             await new Promise(r => setTimeout(r, 500));
             notamArrResult = await fetchNotams(icao_arr);
-            enrouteNotamData = await getEnrouteNotams(icao_dep, icao_arr, enrouteCollector, { includeDomestic: RISK_MODE === 'active' });
+            // v3.71: En-route FIR NOTAMs are not part of the Free plan (pricing table); skipping saves the FIR SkyLink calls.
+            // The prompt then states plainly that FIR NOTAMs were not retrieved (see 'No FIR data available').
+            if (reqPlan === 'free') console.log('[ENROUTE] skipped: Free plan');
+            else enrouteNotamData = await getEnrouteNotams(icao_dep, icao_arr, enrouteCollector, { includeDomestic: RISK_MODE === 'active' });
             [metarArr, tafArr] = await Promise.all([fetchMetar(icao_arr), fetchTaf(icao_arr)]);
           }
         }
@@ -4318,9 +4340,9 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         // compared with Sonnet 4.6 on identical routes before any rollout to paying plans.
         const briefingPlan = userId ? await getUserPlan(userId) : 'free';
         // BRIEFING_MODEL (Render env) selects the model for non-admin plans; admin always runs the newest.
-        const briefingModel = briefingModelFor(briefingPlan);
+        const briefingModel = briefingModelFor(briefingPlan, reqUsage);
         const is55Family = /-5-5$/.test(briefingModel);   // Sonnet 5.5 and Haiku 5.5 share the depth rules and the larger output ceiling
-        console.log('[BRIEFING MODEL]', { model: briefingModel, plan: briefingPlan, thinkingOff: process.env.BRIEFING_THINKING_OFF === '1' });
+        console.log('[BRIEFING MODEL]', { model: briefingModel, plan: briefingPlan, usedThisMonth: reqUsage, thinkingOff: process.env.BRIEFING_THINKING_OFF === '1' });
         const claudeBody = JSON.stringify({
           model: briefingModel,
           max_tokens: is55Family ? 24000 : 16000,
@@ -5020,6 +5042,16 @@ async function runHealthCheck() {
       else if (pct>=70) issues.push({ msg:`SkyLink at ${pct}% — plan ahead`, action:'Go to rapidapi.com → SkyLink → consider upgrading plan.' });
     } else { results.skylink = '✅ Free tier'; }
   } catch(e) { results.skylink = '❌ '+e.message; }
+
+  // Free daily cap: yesterday's use and the briefings turned away (unmet demand)
+  try {
+    const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+    const d = await adminDb.collection('system').doc('free_briefings_' + y).get();
+    const used = d.exists ? (d.data().count || 0) : 0;
+    const denied = d.exists ? (d.data().denied || 0) : 0;
+    results.free_cap = (denied > 0 ? '🟡 ' : '✅ ') + used + '/' + FREE_DAILY_BRIEFING_CAP + ' used yesterday, ' + denied + ' turned away';
+    if (denied > 0) issues.push({ msg: 'Free daily cap turned away ' + denied + ' briefing(s) yesterday', action: 'If this is organic demand and SkyLink usage allows it, raise FREE_DAILY_BRIEFING_CAP in Render; if signups look suspicious, check new accounts.' });
+  } catch(e) { results.free_cap = '— ' + e.message; }
 
   // Firebase
   try {
