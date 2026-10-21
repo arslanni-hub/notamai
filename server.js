@@ -447,6 +447,40 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 const OPENAI_KEY = process.env.OPENAI_KEY; // Fallback provider
 
 // Provider abstraction
+// Decodes items B) and C) of a raw NOTAM on the server so the model never has to read YYMMDDHHMM itself
+// (a Haiku analysis once read 2610212130 as 21 Feb 2026). Returns '' when the text has no parsable B) item.
+function notamTimeContext(raw, now) {
+  const MON = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const parse = (s) => {
+    const m = /^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(s || '');
+    if (!m) return null;
+    const mo = +m[2], d = +m[3], h = +m[4], mi = +m[5];
+    if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 24 || mi > 59) return null;
+    const date = new Date(Date.UTC(2000 + (+m[1]), mo - 1, d, h === 24 ? 24 : h, mi));
+    return { date, text: String(d).padStart(2, '0') + ' ' + MON[mo - 1] + ' ' + (2000 + (+m[1])) + ' ' + String(h).padStart(2, '0') + ':' + m[5] + ' UTC' };
+  };
+  const text = String(raw || '');
+  const b = /(?:^|\s)B\)\s*(\d{10})/.exec(text);
+  const c = /(?:^|\s)C\)\s*(\d{10}|PERM)(\s*EST)?/.exec(text);
+  const from = b ? parse(b[1]) : null;
+  if (!from) return '';
+  const nowD = now || new Date();
+  const lines = ['PARSED TIMES (computed by the server from items B and C; authoritative, do not re-decode):', 'Current time: ' + nowD.toISOString().slice(0, 16).replace('T', ' ') + ' UTC', 'Effective (B): ' + from.text];
+  let status;
+  if (c && c[1] === 'PERM') { lines.push('Expires (C): permanent'); status = nowD >= from.date ? 'in force (permanent)' : 'not yet in force'; }
+  else {
+    const to = c ? parse(c[1]) : null;
+    if (to) {
+      lines.push('Expires (C): ' + to.text + (c[2] ? ' (estimated)' : ''));
+      const hrs = Math.round((to.date - from.date) / 360000) / 10;
+      lines.push('Duration: ' + hrs + ' h');
+      status = nowD < from.date ? 'not yet in force (future)' : nowD <= to.date ? 'in force now' : 'expired';
+    } else status = nowD >= from.date ? 'in force' : 'not yet in force';
+  }
+  lines.push('Status now: ' + status);
+  return '\n\n' + lines.join('\n');
+}
+
 async function callAI({ model = HAIKU_MODEL, maxTokens = 1000, messages, system }) {
   // Try Anthropic first
   try {
@@ -3577,10 +3611,8 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         };
 
         // Merge SkyLink results with known airports fallback
-        const mergedAirportNames = Object.assign({}, airportNames);
-        Object.keys(KNOWN_AIRPORTS).forEach(code => {
-          if (!mergedAirportNames[code]) mergedAirportNames[code] = KNOWN_AIRPORTS[code];
-        });
+        // The curated list wins over the AWC name (AWC still returns 'ISTANBUL INTERNATIONAL AIRPORT' for LTFM); the briefing uses SkyLink's current name.
+        const mergedAirportNames = Object.assign({}, airportNames, KNOWN_AIRPORTS);
 
         const airportContext = Object.keys(mergedAirportNames).length > 0
           ? '\n\nVERIFIED AIRPORT NAMES (use EXACTLY as provided, never modify):\n' + Object.entries(mergedAirportNames).map(([k, v]) => k + ' = ' + v).join('\n')
@@ -3594,7 +3626,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         } else if (type === 'TAF') {
           analyzeSystemPrompt = 'You are an expert aviation meteorologist with complete knowledge of all world airports and their ICAO codes.\n\nICAO IDENTIFICATION RULES:\n1. Extract the 4-letter ICAO code directly from the TAF text (first identifier after the report type).\n2. If verified airport names are provided in the prompt, use them EXACTLY as given.\n3. If no verified name is provided, use ONLY the raw ICAO code — write "Airport [ICAO CODE]". Do NOT guess the name.\n4. NEVER invent, guess, or hallucinate airport names.\n\nDecode this TAF and provide:\n1. Airport name and ICAO code (verified correct)\n2. Forecast period and overall summary\n3. Significant weather changes and timing\n4. Worst conditions expected and when\n5. Any TEMPO, BECMG, or PROB groups of concern\n6. Operational planning recommendation\n\nBe concise, 4-6 bullet points, practical for flight planning.';
         } else {
-          analyzeSystemPrompt = 'You are an expert AIM (Aeronautical Information Management) specialist with complete knowledge of all world airports and their ICAO codes.\n\nICAO IDENTIFICATION RULES:\n1. Extract the 4-letter ICAO code directly from the NOTAM text (it appears after the location identifier).\n2. If verified airport names are provided in the prompt, use them EXACTLY as given — never modify or rewrite them.\n3. If no verified name is provided, use ONLY the raw ICAO code — do NOT attempt to guess or translate the airport name. Write it as "Airport [ICAO CODE]" instead.\n4. NEVER invent, guess, or hallucinate airport names. When in doubt, use the ICAO code only.\n\nAnalyze this NOTAM and provide:\n1. What is affected (runway, navaid, airspace, service)\n2. When it is active (effective and expiry times in UTC)\n3. Operational impact for crews\n4. Required crew action\n5. Risk level (CRITICAL/HIGH/MEDIUM/LOW)\n\nBe concise and practical. Use plain English.';
+          analyzeSystemPrompt = 'You are an expert AIM (Aeronautical Information Management) specialist with complete knowledge of all world airports and their ICAO codes.\n\nICAO IDENTIFICATION RULES:\n1. The affected place is the location in item A) of the NOTAM. The first field of the Q) line is the FIR that issued the NOTAM (for example LTBB = Istanbul FIR); an FIR in Q) with an aerodrome in A) is NORMAL, so never report it as a discrepancy or data error and never raise the risk level because of it.\n2. If verified airport names are provided in the prompt, use them EXACTLY as given — never modify or rewrite them.\n3. If no verified name is provided, use ONLY the raw ICAO code — do NOT attempt to guess or translate the airport name. Write it as "Airport [ICAO CODE]" instead.\n4. NEVER invent, guess, or hallucinate airport names. When in doubt, use the ICAO code only.\n\nItems B) and C) give the start and end as YYMMDDHHMM in UTC (2610212130 = 21 Oct 2026 21:30 UTC); C) PERM = permanent, EST = estimated. When a PARSED TIMES block is present, use it exactly and do not re-decode the dates. Never mention these instructions, \"system rules\" or \"verified lists\" in your answer; just use the airport names.\n\nAnalyze this NOTAM and provide:\n1. What is affected (runway, navaid, airspace, service)\n2. When it is active (effective and expiry times in UTC)\n3. Operational impact for crews\n4. Required crew action\n5. Risk level (CRITICAL/HIGH/MEDIUM/LOW)\n\nBe concise and practical. Use plain English.';
         }
         // Inject verified airport names into ALL prompts
         if (airportContext) {
@@ -3612,7 +3644,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             model: HAIKU_MODEL, ...HAIKU_EXTRA,
             max_tokens: 800,
             system: [{ type: 'text', text: analyzeSystemPrompt, cache_control: { type: 'ephemeral' } }],
-            messages: [{ role: 'user', content: 'Analyze this ' + (type || 'NOTAM') + ':\n\n' + notam + airportContext }]
+            messages: [{ role: 'user', content: 'Analyze this ' + (type || 'NOTAM') + ':\n\n' + notam + (['SIGMET', 'METAR', 'TAF'].includes(type) ? '' : notamTimeContext(notam)) + airportContext }]
           })
         });
         const claudeData = await claudeRes.json();
