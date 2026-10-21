@@ -152,7 +152,7 @@ async function reserveFreeBriefingSlot() {
 // the existing budget). Free has no soft limit since it's Haiku-only already; it hard-stops
 // at 100% of its small token budget.
 const GENERAL_CHAT_LIMITS = {
-  free:    { windowMinutes: 300, limit: 470,    mode: 'tokens', model: HAIKU_MODEL },
+  free:    { windowMinutes: 300, limit: 1000,    mode: 'tokens', model: HAIKU_MODEL },
   pro:     { windowMinutes: 300, limit: 24000,  mode: 'tokens', model: 'claude-sonnet-5-5', softLimitRatio: 0.70 },
   max: { windowMinutes: 300, limit: 48000,  mode: 'tokens', model: 'claude-sonnet-5-5', softLimitRatio: 0.70 },
   admin:   { windowMinutes: 300, limit: 999999, mode: 'tokens', model: 'claude-sonnet-5-5' }
@@ -4076,9 +4076,10 @@ Produce the NOTAM summary and explanation in the SAME LANGUAGE the user is askin
 Remember: LTBB = Istanbul FIR (western Turkey), LTAA = Ankara FIR (central/eastern Turkey)
 
 ### ICAO CODE VERIFICATION:
-- You have web search capability — USE IT to verify any ICAO code you are not 100% certain about
+${webSearchEnabled ? `- You have web search capability — USE IT to verify any ICAO code you are not 100% certain about
 - For Turkish airports especially, ALWAYS web search "DHMI [airport name] ICAO code" before using a code
-- NEVER guess or assume an ICAO code — if uncertain, search first
+- NEVER guess or assume an ICAO code — if uncertain, search first` : `- You have NO web search in this conversation. Never say you will search or look something up.
+- NEVER guess or assume an ICAO code — if you are not certain of a code, say so and give the airport name instead.`}
 - The verified airport names injected in this prompt (from SkyLink database) take priority over your training data
 - If a code is provided in the request form, verify it matches the airport name via web search
 
@@ -4090,6 +4091,8 @@ DEPTH AND QUALITY — calibrate length to the actual question, don't default to 
 - Genuinely broad or multi-part questions (e.g. "explain everything about CAT III ILS operations", "walk me through ETOPS planning end to end") earn a longer, structured answer with headers/tables/lists, because the question itself spans multiple distinct sub-topics that benefit from separation.
 - The test is: does this specific question have multiple distinct sub-topics that need separating? If not, don't manufacture structure. A long answer to a narrow question isn't more expert — it's padding.
 - Whatever the length, be accurate and use correct terminology — depth means precision and correctness, not word count. Cite regulatory context (ICAO Annexes, FAA/EASA differences) when relevant, briefly if the question is narrow, more fully if it's broad.
+
+GENERAL FACTS AND STATISTICS — questions about a country's or region's aviation in general (for example how many airports, helipads, airlines or air traffic controllers a country has) are NOT live data and NOT a platform feature: never redirect them to a panel. Answer from your knowledge with your best figure, say plainly that it is approximate and may have changed, and name the official source to confirm it (for Turkey: DHMI or SHGM). Do not answer with only 'I don't know'.
 
 SCOPE BOUNDARY — these are paid platform features you cannot do conversationally, and must NOT fabricate or guess at. When a question clearly needs one of these, do not attempt to answer from memory or estimate current data. Instead, briefly redirect (1-2 sentences) and include the matching marker below so the user gets a real clickable button to the actual feature — never just describe it in prose without the marker, and never follow the redirect with a guessed answer anyway.
 
