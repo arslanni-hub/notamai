@@ -181,6 +181,7 @@ const SKYLINK_TOOL_PREFIXES = ['/api/airport-info/', '/api/airport-search/', '/a
 const TOOLS_DAILY_FREE = parseInt(process.env.TOOLS_DAILY_FREE || '60', 10);
 const TOOLS_DAILY_PAID = parseInt(process.env.TOOLS_DAILY_PAID || '400', 10);
 const TOOLS_DAILY_GLOBAL = parseInt(process.env.TOOLS_DAILY_GLOBAL || '3000', 10);
+const TOOLS_DAILY_GLOBAL_FREE = parseInt(process.env.TOOLS_DAILY_GLOBAL_FREE || '1000', 10);   // v3.81: all Free accounts together, inside the global cap
 async function skylinkToolGate(req, res) {
   const send = (code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); return false; };
   const userId = await getVerifiedUserId(req);
@@ -191,20 +192,26 @@ async function skylinkToolGate(req, res) {
   const day = new Date().toISOString().slice(0, 10);
   const uref = adminDb.collection('toolUsageDaily').doc(userId + '_' + day);
   const gref = adminDb.collection('system').doc('tools_' + day);
+  const fref = plan === 'free' ? adminDb.collection('system').doc('tools_free_' + day) : null;
   try {
     const r = await adminDb.runTransaction(async (tx) => {
-      const [us, gs] = await Promise.all([tx.get(uref), tx.get(gref)]);
+      const [us, gs, fsnap] = await Promise.all([tx.get(uref), tx.get(gref), fref ? tx.get(fref) : Promise.resolve(null)]);
       const uc = us.exists ? (us.data().count || 0) : 0;
       const gd = gs.exists ? gs.data() : {};
       const gc = gd.count || 0;
+      const fd = fsnap && fsnap.exists ? fsnap.data() : {};
+      const fc = fd.count || 0;
       const stamp = admin.firestore.FieldValue.serverTimestamp();
       if (gc >= TOOLS_DAILY_GLOBAL) { tx.set(gref, { denied: (gd.denied || 0) + 1, day, updatedAt: stamp }, { merge: true }); return { ok: false, why: 'global' }; }
+      if (fref && fc >= TOOLS_DAILY_GLOBAL_FREE) { tx.set(fref, { denied: (fd.denied || 0) + 1, day, updatedAt: stamp }, { merge: true }); return { ok: false, why: 'free_global' }; }
       if (uc >= limit) return { ok: false, why: 'user' };
       tx.set(uref, { count: uc + 1, userId, day, plan, updatedAt: stamp }, { merge: true });
       tx.set(gref, { count: gc + 1, day, updatedAt: stamp }, { merge: true });
+      if (fref) tx.set(fref, { count: fc + 1, day, updatedAt: stamp }, { merge: true });
       return { ok: true };
     });
     if (r.ok) return true;
+    if (r.why === 'free_global') return send(503, { error: 'tools_free_capacity', message: 'Free-plan Aviation Tools are at today\'s capacity. Please try again after 00:00 UTC, or upgrade to Pro for guaranteed access.' });
     if (r.why === 'global') return send(503, { error: 'tools_busy', message: 'Aviation Tools are temporarily busy. Please try again later.' });
     return send(429, { error: 'tool_limit', message: 'Daily Aviation Tools limit reached (' + limit + ' per day on your plan). It resets at 00:00 UTC.' + (plan === 'free' ? ' Upgrade to Pro for a higher limit.' : '') });
   } catch (e) {
@@ -5249,6 +5256,14 @@ async function runHealthCheck() {
     results.tools_gate = (denied > 0 ? '🟡 ' : '✅ ') + used + '/' + TOOLS_DAILY_GLOBAL + ' tool requests yesterday, ' + denied + ' refused';
     if (denied > 0) issues.push({ msg: 'Aviation Tools global cap refused ' + denied + ' request(s) yesterday', action: 'Check system/skylink_usage bySource and new signups; raise TOOLS_DAILY_GLOBAL in Render only if the demand is organic and SkyLink quota allows.' });
   } catch(e) { results.tools_gate = '— ' + e.message; }
+  try {
+    const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+    const d = await adminDb.collection('system').doc('tools_free_' + y).get();
+    const used = d.exists ? (d.data().count || 0) : 0;
+    const denied = d.exists ? (d.data().denied || 0) : 0;
+    results.tools_free = (denied > 0 ? '🟡 ' : '✅ ') + used + '/' + TOOLS_DAILY_GLOBAL_FREE + ' Free tool requests yesterday, ' + denied + ' refused';
+    if (denied > 0) issues.push({ msg: 'Free-plan Aviation Tools ceiling refused ' + denied + ' request(s) yesterday', action: 'Check new signups; raise TOOLS_DAILY_GLOBAL_FREE in Render only if the demand is organic and SkyLink quota allows.' });
+  } catch(e) { results.tools_free = '— ' + e.message; }
 
   // Free-plan raw NOTAM lookups: shared daily ceiling (v3.80)
   try {
