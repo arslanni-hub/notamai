@@ -2807,6 +2807,32 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
     return;
   }
 
+  // Airport search box: served from the OurAirports index in memory (alternates.js) — no SkyLink call, so it is not
+  // counted against the daily Aviation Tools cap (every keystroke is a request). Sign-in is still required.
+  // Falls back to the SkyLink handler below only while the index is not loaded yet (right after a deploy).
+  // Render env AIRPORT_SEARCH_COMPARE=1 also queries SkyLink and logs both result lists (costs SkyLink calls; testing only).
+  if (req.method === 'GET' && req.url.startsWith('/api/airport-search/')) {
+    let query = '';
+    try { query = decodeURIComponent(req.url.split('/api/airport-search/')[1].split('?')[0]); } catch (e) { query = ''; }
+    const local = alternates.searchAirports(query, 8);
+    if (local) {
+      const userId = await getVerifiedUserId(req);
+      if (!userId) {
+        res.writeHead(req._authError === 'email_not_verified' ? 403 : 401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(req._authError === 'email_not_verified' ? { error: 'email_not_verified', message: 'Verify your e-mail address to use Aviation Tools.' } : { error: 'unauthorized', message: 'Sign in to use Aviation Tools.' }));
+        return;
+      }
+      if (process.env.AIRPORT_SEARCH_COMPARE === '1') {
+        fetchURL('https://skylink-api.p.rapidapi.com/airports/search/text?q=' + encodeURIComponent(query) + '&limit=8', { headers: { 'X-RapidAPI-Key': process.env.SKYLINK_KEY, 'X-RapidAPI-Host': 'skylink-api.p.rapidapi.com' } })
+          .then(d => { const l = Array.isArray(d) ? d : (d?.airports || d?.results || []); console.log('[AIRPORT SEARCH COMPARE]', JSON.stringify({ q: query, local: local.map(a => a.id), skylink: l.map(a => a.icao || a.ident) })); })
+          .catch(e => console.log('[AIRPORT SEARCH COMPARE] skylink failed:', e.message));
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(local));
+      return;
+    }
+  }
+
   if (req.method === 'GET' && SKYLINK_TOOL_PREFIXES.some(pf => req.url.startsWith(pf))) {
     if (!(await skylinkToolGate(req, res))) return;
   }

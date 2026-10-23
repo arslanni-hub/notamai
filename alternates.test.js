@@ -42,5 +42,24 @@ test('block lists both ends and the warning', () => {
 test('unknown airport gives an empty block', () => { assert.strictEqual(A.buildBlock('ZZZZ', 'YYYY', aps, rws), ''); });
 test('candidateBlock before load returns an empty string', () => { assert.strictEqual(A.candidateBlock('LTFM', 'LTAI'), ''); });
 
+// Airport search box index
+const SA = 'id,ident,type,name,latitude_deg,longitude_deg,elevation_ft,continent,iso_country,iso_region,municipality,scheduled_service,icao_code,iata_code,gps_code\n' +
+  '1,LTFM,large_airport,"İstanbul Airport",41.27,28.75,325,AS,TR,TR-34,Istanbul,yes,LTFM,IST,LTFM\n' +
+  '2,LTFJ,large_airport,"Istanbul Sabiha Gökçen International Airport",40.89,29.3,312,AS,TR,TR-34,"Pendik, Istanbul",yes,LTFJ,SAW,LTFJ\n' +
+  '3,LTAC,large_airport,"Esenboğa International Airport",40.12,32.99,3125,AS,TR,TR-06,Ankara,yes,LTAC,ESB,LTAC\n' +
+  '4,EGGW,large_airport,"London Luton Airport",51.87,-0.36,526,EU,GB,GB-ENG,Luton,yes,EGGW,LTN,EGGW\n' +
+  '5,TR-0045,heliport,"Ataköy Marina Helipad",40.97,28.87,0,AS,TR,TR-34,Istanbul,no,,,\n' +
+  '6,XX99,closed,"Old Field",40,29,0,AS,TR,TR-34,Istanbul,no,,,\n';
+const idx = A.buildSearchIndex(SA);
+test('search index skips closed aerodromes and keeps heliports', () => { assert(idx.length === 5 && !idx.some(a => a.id === 'XX99')); });
+test('exact ICAO and IATA codes come first', () => { assert.strictEqual(A.searchIn(idx, 'ltac')[0].id, 'LTAC'); assert.strictEqual(A.searchIn(idx, 'SAW')[0].id, 'LTFJ'); });
+test('ICAO prefix beats IATA prefix ("LT" -> Turkish airports before Luton)', () => { const r = A.searchIn(idx, 'lt').map(a => a.id); assert(r.indexOf('EGGW') > r.indexOf('LTFM')); });
+test('Turkish letters and accents are ignored', () => {
+  ['İstanbul', 'ıstanbul', 'ISTANBUL'].forEach(q => { const r = A.searchIn(idx, q).map(a => a.id); assert(r.includes('LTFM') && r.includes('LTFJ'), q); });
+  assert.strictEqual(A.searchIn(idx, 'esenboga')[0].id, 'LTAC');
+});
+test('airports rank above heliports for the same city', () => { const r = A.searchIn(idx, 'istanbul').map(a => a.id); assert.strictEqual(r[r.length - 1], 'TR-0045'); });
+test('one character returns nothing; searchAirports is null before load', () => { assert.deepStrictEqual(A.searchIn(idx, 'l'), []); assert.strictEqual(A.searchAirports('ltfm'), null); });
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

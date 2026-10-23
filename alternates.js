@@ -19,6 +19,7 @@ const NEVER = new Set(['LTBA']);  // closed to commercial traffic
 
 let airports = null;              // Map<ICAO, { icao, name, city, country, lat, lon, cand:boolean }>
 let rwyMaxFt = null;              // Map<ICAO, longest open runway in ft>
+let searchIndex = null;           // [{ id, iata, codes:[...], name, city, country, type, n, c, rank }] for the airport search box
 let loadedAt = 0, lastAttempt = 0, loading = null;
 
 function httpGet(url, timeoutMs, redirects) {
@@ -58,7 +59,7 @@ function parseCsv(text) {
 }
 
 function buildAirports(csv) {
-  const rows = parseCsv(csv);
+  const rows = Array.isArray(csv) ? csv : parseCsv(csv);
   const map = new Map();
   if (!rows.length) return map;
   const head = rows[0].map(h => h.trim());
@@ -77,6 +78,66 @@ function buildAirports(csv) {
     map.set(icao, { icao, name: (row[iName] || '').trim(), city: (row[iCity] || '').trim(), country: (row[iCountry] || '').trim(), lat, lon, cand });
   }
   return map;
+}
+
+// Accent/case-insensitive key (Turkish dotless i included): "İstanbul" / "ıstanbul" / "ISTANBUL" -> "ISTANBUL".
+function norm(t) {
+  return String(t || '').replace(/ı/g, 'i').replace(/İ/g, 'I').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+}
+const TYPE_RANK = { large_airport: 40, medium_airport: 30, small_airport: 15, seaplane_base: 5, heliport: 0 };
+
+// Every open aerodrome (not only 4-letter idents) for the airport search box. The shown code is the ICAO code when
+// OurAirports has one, else the GPS code, else the OurAirports ident (same as SkyLink's search, which serves this data).
+function buildSearchIndex(csv) {
+  const rows = Array.isArray(csv) ? csv : parseCsv(csv);
+  const out = [];
+  if (!rows.length) return out;
+  const head = rows[0].map(h => h.trim());
+  const ix = n => head.indexOf(n);
+  const iIdent = ix('ident'), iType = ix('type'), iName = ix('name'), iCountry = ix('iso_country'), iCity = ix('municipality');
+  const iIcao = ix('icao_code'), iGps = ix('gps_code'), iIata = ix('iata_code'), iSched = ix('scheduled_service');
+  if (iIdent < 0 || iName < 0) throw new Error('unexpected airports.csv header');
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    const type = (row[iType] || '').trim();
+    if (!(type in TYPE_RANK)) continue;                       // closed, balloonport
+    const ident = (row[iIdent] || '').trim().toUpperCase();
+    const icao = iIcao >= 0 ? (row[iIcao] || '').trim().toUpperCase() : '';
+    const gps = iGps >= 0 ? (row[iGps] || '').trim().toUpperCase() : '';
+    const iata = iIata >= 0 ? (row[iIata] || '').trim().toUpperCase() : '';
+    const id = icao || gps || ident;
+    if (!id) continue;
+    const name = (row[iName] || '').trim(), city = iCity >= 0 ? (row[iCity] || '').trim() : '';
+    const codes = [...new Set([id, ident, icao, gps].filter(Boolean))];   // ICAO-style codes; IATA kept apart
+    const rank = TYPE_RANK[type] + (iSched >= 0 && (row[iSched] || '').trim() === 'yes' ? 10 : 0);
+    out.push({ id, iata, codes, name, city, country: iCountry >= 0 ? (row[iCountry] || '').trim() : '', type, n: norm(name), c: norm(city), rank });
+  }
+  return out;
+}
+
+// Pure ranking: exact code > code prefix > name/city word start > name/city substring; within a group large > medium >
+// small > heliport, scheduled service first; an ICAO-code prefix beats an IATA-code prefix. Nothing below 2 characters,
+// substring (not word-start) text matches only from 3 characters.
+function searchIn(index, query, limit) {
+  const q = norm(query);
+  limit = limit || 8;
+  if (!index || q.length < 2) return [];
+  const hits = [];
+  for (const a of index) {
+    let score = 0;
+    if (a.codes.includes(q) || a.iata === q) score = 1000;
+    else if (a.codes.some(c => c.startsWith(q))) score = 500;                 // "LT" -> LTAC, LTAI ... before LTN (Luton)
+    else if (a.iata && a.iata.startsWith(q)) score = 400;
+    else {
+      const wordStart = s => s.startsWith(q) || s.includes(' ' + q) || s.includes('-' + q) || s.includes('/' + q);
+      if (wordStart(a.n) || wordStart(a.c)) score = 200;
+      else if (q.length >= 3 && (a.n.includes(q) || a.c.includes(q))) score = 100;
+    }
+    if (score) hits.push({ a, s: score + a.rank });
+  }
+  hits.sort((x, y) => y.s - x.s || x.a.id.localeCompare(y.a.id));
+  const clean = t => String(t || '').replace(/[<>]/g, '');          // the page puts these into innerHTML
+  return hits.slice(0, limit).map(h => ({ id: h.a.id, name: clean(h.a.name), country: clean(h.a.country), city: clean(h.a.city), iata: h.a.iata || undefined }));
 }
 
 function buildRunwayLengths(csv) {
@@ -145,10 +206,12 @@ function load(force) {
   lastAttempt = now;
   loading = Promise.all([httpGet(AIRPORTS_URL, 40000), httpGet(RUNWAYS_URL, 40000).catch(() => null)])
     .then(([a, r]) => {
-      airports = buildAirports(a);
+      const rows = parseCsv(a);        // parsed once for both tables (the CSV is ~13 MB)
+      airports = buildAirports(rows);
+      try { searchIndex = buildSearchIndex(rows); } catch (e) { console.log('[AIRPORT SEARCH] index build failed:', e.message); }
       rwyMaxFt = r ? buildRunwayLengths(r) : null;
       loadedAt = Date.now();
-      console.log('[ALTERNATES] loaded:', airports.size, 'aerodromes,', rwyMaxFt ? rwyMaxFt.size + ' with runway lengths' : 'no runway lengths');
+      console.log('[ALTERNATES] loaded:', airports.size, 'aerodromes,', searchIndex ? searchIndex.length + ' in search index,' : 'no search index,', rwyMaxFt ? rwyMaxFt.size + ' with runway lengths' : 'no runway lengths');
     })
     .catch(e => console.log('[ALTERNATES] load failed:', e.message))
     .finally(() => { loading = null; });
@@ -169,4 +232,10 @@ function candidateBlock(dep, arr) {
   } catch (e) { return ''; }
 }
 
-module.exports = { init, candidateBlock, buildAirports, buildRunwayLengths, nearestCandidates, buildBlock, distNm };
+// null when the index is not loaded yet (the caller then falls back to SkyLink).
+function searchAirports(query, limit) {
+  if (!searchIndex || !searchIndex.length) return null;
+  try { return searchIn(searchIndex, query, limit); } catch (e) { return null; }
+}
+
+module.exports = { init, candidateBlock, searchAirports, buildSearchIndex, searchIn, norm, buildAirports, buildRunwayLengths, nearestCandidates, buildBlock, distNm };
