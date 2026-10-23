@@ -148,17 +148,25 @@ async function reserveFreeBriefingSlot() {
 // Raw NOTAM lookups (NOTAMs & MET panel) cost one SkyLink call each, so they need a signed-in user and a per-user daily cap.
 const RAW_NOTAM_DAILY_FREE = parseInt(process.env.RAW_NOTAM_DAILY_FREE || '10', 10);
 const RAW_NOTAM_DAILY_PAID = parseInt(process.env.RAW_NOTAM_DAILY_PAID || '100', 10);
+// v3.80: one shared daily ceiling for all Free accounts together (SkyLink quota protection when many Free accounts appear).
+const RAW_NOTAM_DAILY_GLOBAL_FREE = parseInt(process.env.RAW_NOTAM_DAILY_GLOBAL_FREE || '1000', 10);
 async function reserveRawNotamLookup(userId, plan) {
   if (plan === 'admin') return { ok: true };
   const limit = plan === 'free' ? RAW_NOTAM_DAILY_FREE : RAW_NOTAM_DAILY_PAID;
   const day = new Date().toISOString().slice(0, 10);
   const ref = adminDb.collection('rawNotamDaily').doc(userId + '_' + day);
+  const gref = plan === 'free' ? adminDb.collection('system').doc('raw_notam_free_' + day) : null;
   try {
     return await adminDb.runTransaction(async (tx) => {
-      const snap = await tx.get(ref);
+      const [snap, gs] = await Promise.all([tx.get(ref), gref ? tx.get(gref) : Promise.resolve(null)]);
       const count = snap.exists ? (snap.data().count || 0) : 0;
+      const gd = gs && gs.exists ? gs.data() : {};
+      const gc = gd.count || 0;
+      const stamp = admin.firestore.FieldValue.serverTimestamp();
+      if (gref && gc >= RAW_NOTAM_DAILY_GLOBAL_FREE) { tx.set(gref, { denied: (gd.denied || 0) + 1, day, updatedAt: stamp }, { merge: true }); return { ok: false, global: true, count, limit }; }
       if (count >= limit) return { ok: false, count, limit };
-      tx.set(ref, { count: count + 1, userId, day, plan, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      tx.set(ref, { count: count + 1, userId, day, plan, updatedAt: stamp }, { merge: true });
+      if (gref) tx.set(gref, { count: gc + 1, day, updatedAt: stamp }, { merge: true });
       return { ok: true, count: count + 1, limit };
     });
   } catch (e) {
@@ -3194,6 +3202,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
       const rawSlot = await reserveRawNotamLookup(rawUserId, rawPlan);
       if (!rawSlot.ok) {
         res.writeHead(429, { 'Content-Type': 'text/plain' });
+        if (rawSlot.global) { res.end('FREE-PLAN NOTAM LOOKUPS ARE AT TODAY\'S CAPACITY. Please try again after 00:00 UTC, or upgrade to Pro for guaranteed access. METAR and TAF remain available.'); return; }
         res.end('DAILY NOTAM LOOKUP LIMIT REACHED (' + rawSlot.limit + ' per day on your plan). It resets at 00:00 UTC. METAR and TAF remain available.' + (rawPlan === 'free' ? ' Upgrade to Pro for a higher limit.' : ''));
         return;
       }
@@ -5240,6 +5249,16 @@ async function runHealthCheck() {
     results.tools_gate = (denied > 0 ? '🟡 ' : '✅ ') + used + '/' + TOOLS_DAILY_GLOBAL + ' tool requests yesterday, ' + denied + ' refused';
     if (denied > 0) issues.push({ msg: 'Aviation Tools global cap refused ' + denied + ' request(s) yesterday', action: 'Check system/skylink_usage bySource and new signups; raise TOOLS_DAILY_GLOBAL in Render only if the demand is organic and SkyLink quota allows.' });
   } catch(e) { results.tools_gate = '— ' + e.message; }
+
+  // Free-plan raw NOTAM lookups: shared daily ceiling (v3.80)
+  try {
+    const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+    const d = await adminDb.collection('system').doc('raw_notam_free_' + y).get();
+    const used = d.exists ? (d.data().count || 0) : 0;
+    const denied = d.exists ? (d.data().denied || 0) : 0;
+    results.raw_notam_free = (denied > 0 ? '🟡 ' : '✅ ') + used + '/' + RAW_NOTAM_DAILY_GLOBAL_FREE + ' Free NOTAM lookups yesterday, ' + denied + ' refused';
+    if (denied > 0) issues.push({ msg: 'Free-plan NOTAM lookup ceiling refused ' + denied + ' request(s) yesterday', action: 'Check new signups; raise RAW_NOTAM_DAILY_GLOBAL_FREE in Render only if the demand is organic and SkyLink quota allows.' });
+  } catch(e) { results.raw_notam_free = '— ' + e.message; }
 
   // Firebase
   try {
