@@ -121,6 +121,69 @@ const briefingCache = new Map();   // key -> { t, init, text, done }
 // v3.83: the Free plan may use at most FREE_SKYLINK_SHARE of the monthly SkyLink quota (SKYLINK_MONTHLY_LIMIT), so paid users
 // never meet a quota problem and Free can never push us into overage. Units are SkyLink calls (estimated per action:
 // briefing 2, raw NOTAM 1, tool 1; cache hits are counted too, so the estimate is conservative). Fails open on Firestore errors.
+// ── v3.87 COST LEDGER: measured cost per user / plan / category (not estimates) ──────────────────────────────────────────
+// Every cost event (AI call, SkyLink call, finished video, alert poll share) is added in memory and flushed every minute as
+// increments to costLedger/<uid>_<YYYY-MM> {userId, plan, month, total, cats.<cat>.{usd,n}} and system/costs_<YYYY-MM>
+// {byPlan.<plan>.<cat>.{usd,n}}. SkyLink calls are attributed through an AsyncLocalStorage context (costCtx) that the
+// cost-bearing handlers enter once the user and plan are known; calls without a context land on _system/skylink_unattributed.
+const { AsyncLocalStorage } = require('async_hooks');
+const costCtx = new AsyncLocalStorage();
+const costPending = new Map();   // "<uid>|<month>" -> { plan, cats: { cat: { usd, n } } }
+let costFlushTimer = null;
+function recordCost(userId, plan, category, usd, n) {
+  if (!userId || !category || !(usd >= 0)) return;
+  const month = new Date().toISOString().slice(0, 7);
+  const key = userId + '|' + month;
+  const e = costPending.get(key) || { plan: plan || 'unknown', cats: {} };
+  if (plan) e.plan = plan;
+  const c = e.cats[category] || (e.cats[category] = { usd: 0, n: 0 });
+  c.usd += usd; c.n += (n === undefined ? 1 : n);
+  costPending.set(key, e);
+  if (!costFlushTimer) costFlushTimer = setTimeout(flushCosts, 60 * 1000);
+}
+function recordCostCtx(category, usd, n) {
+  const st = costCtx.getStore();
+  if (st && st.userId) recordCost(st.userId, st.plan, category, usd, n);
+  else recordCost('_system', 'system', category + '_unattributed', usd, n);
+}
+async function flushCosts() {
+  costFlushTimer = null;
+  const items = [...costPending.entries()];
+  costPending.clear();
+  if (!items.length) return;
+  const inc = admin.firestore.FieldValue.increment;
+  const sys = {};   // month -> byPlan
+  try {
+    let batch = adminDb.batch(), ops = 0;
+    for (const [key, e] of items) {
+      const [uid, month] = key.split('|');
+      const cats = {}; let total = 0;
+      for (const [cat, v] of Object.entries(e.cats)) {
+        cats[cat] = { usd: inc(v.usd), n: inc(v.n) }; total += v.usd;
+        const bp = ((sys[month] = sys[month] || {})[e.plan] = (sys[month][e.plan] || {}));
+        const sc = bp[cat] || (bp[cat] = { usd: 0, n: 0 }); sc.usd += v.usd; sc.n += v.n;
+      }
+      batch.set(adminDb.collection('costLedger').doc(uid + '_' + month), { userId: uid, plan: e.plan, month, total: inc(total), cats, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      if (++ops >= 400) { await batch.commit(); batch = adminDb.batch(); ops = 0; }
+    }
+    for (const [month, byPlan] of Object.entries(sys)) {
+      const bp = {};
+      for (const [plan, cats] of Object.entries(byPlan)) { bp[plan] = {}; for (const [cat, v] of Object.entries(cats)) bp[plan][cat] = { usd: inc(v.usd), n: inc(v.n) }; }
+      batch.set(adminDb.collection('system').doc('costs_' + month), { month, byPlan: bp, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    }
+    await batch.commit();
+  } catch (err) { console.log('[COST LEDGER] flush error:', err.message); }
+}
+// AI cost from a usage object { input_tokens, output_tokens, cache_created, cache_read } (MODEL_PRICES; same formula as briefings)
+function aiCostUsd(model, u) {
+  const key = Object.keys(MODEL_PRICES).find(k => String(model || '').startsWith(k));
+  return key ? briefingCostUsd(key, u) : null;
+}
+function aiCostFromApiUsage(model, usage) {
+  if (!usage) return null;
+  return aiCostUsd(model, { input_tokens: usage.input_tokens, output_tokens: usage.output_tokens, cache_created: usage.cache_creation_input_tokens || 0, cache_read: usage.cache_read_input_tokens || 0 });
+}
+
 const FREE_SKYLINK_SHARE = Math.min(1, Math.max(0, parseFloat(process.env.FREE_SKYLINK_SHARE || '0.25')));
 const SKYLINK_OVERAGE_USD = parseFloat(process.env.SKYLINK_OVERAGE_USD || '0.003');
 function freeSkylinkBudget() { return Math.floor(FREE_SKYLINK_SHARE * parseInt(process.env.SKYLINK_MONTHLY_LIMIT || '1000', 10)); }
@@ -223,7 +286,8 @@ async function skylinkToolGate(req, res) {
   const userId = await getVerifiedUserId(req);
   if (!userId) return req._authError === 'email_not_verified' ? send(403, { error: 'email_not_verified', message: 'Verify your e-mail address to use Aviation Tools.' }) : send(401, { error: 'unauthorized', message: 'Sign in to use Aviation Tools.' });
   const plan = await getUserPlan(userId);
-  if (plan === 'admin') return true;
+  const who = { userId, plan };   // truthy: the caller enters the cost context with it (v3.87)
+  if (plan === 'admin') return who;
   const limit = plan === 'free' ? TOOLS_DAILY_FREE : TOOLS_DAILY_PAID;
   const day = new Date().toISOString().slice(0, 10);
   const uref = adminDb.collection('toolUsageDaily').doc(userId + '_' + day);
@@ -252,14 +316,14 @@ async function skylinkToolGate(req, res) {
       return { ok: true };
     });
     if (r.ok && plan === 'free' && !(await reserveFreeSkylink(1))) r.ok = false, r.why = 'free_global';
-    if (r.ok) return true;
+    if (r.ok) return who;
     if (r.why === 'free_global') return send(503, { error: 'tools_free_capacity', message: 'Free-plan Aviation Tools are at today\'s capacity. Please try again after 00:00 UTC, or upgrade to Pro for guaranteed access.' });
     if (r.why === 'month') return send(429, { error: 'tool_limit', message: 'Monthly Aviation Tools limit reached (' + monthLimit + ' per month on your plan). It resets on the 1st (UTC).' + (limitPlanOf(plan) === 'pro' ? ' Max includes a higher limit.' : '') });
     if (r.why === 'global') return send(503, { error: 'tools_busy', message: 'Aviation Tools are temporarily busy. Please try again later.' });
     return send(429, { error: 'tool_limit', message: 'Daily Aviation Tools limit reached (' + limit + ' per day on your plan). It resets at 00:00 UTC.' + (plan === 'free' ? ' Upgrade to Pro for a higher limit.' : '') });
   } catch (e) {
     console.log('[TOOLS GATE] transaction error, allowing request:', e.message);
-    return true;
+    return who;
   }
 }
 
@@ -536,6 +600,16 @@ function wavespeedResult(predId) {
   });
 }
 
+// v3.87: video cost = WaveSpeed seconds x VIDEO_USD_PER_SEC + ElevenLabs characters x ELEVENLABS_USD_PER_CHAR + script AI (~$0.02).
+// Spoken length from the script (~2.1 words/s at speed 1.0, divided by VIDEO_TTS_SPEED).
+function videoCostEstimate(script) {
+  const t = String(script || '');
+  const words = (t.match(/\S+/g) || []).length;
+  const speed = Math.min(1.2, Math.max(0.9, parseFloat(process.env.VIDEO_TTS_SPEED || '1.1') || 1.1));
+  const secs = words / 2.1 / speed;
+  return Math.round((secs * parseFloat(process.env.VIDEO_USD_PER_SEC || '0.015') + t.length * parseFloat(process.env.ELEVENLABS_USD_PER_CHAR || '0.0002') + 0.02) * 10000) / 10000;
+}
+
 async function finalizeVideo(predId) {
   const result = await wavespeedResult(predId);
   const status = result?.data?.status;
@@ -567,6 +641,7 @@ async function finalizeVideo(predId) {
           tx.update(ref, { status: 'completed', wavespeedUrl: videoUrl, videoUrl, completedAt: admin.firestore.FieldValue.serverTimestamp() });
           return true;
         });
+        if (claimed && vdata.userId) recordCost(vdata.userId, vdata.plan || 'max', 'video', typeof vdata.costEst === 'number' ? vdata.costEst : videoCostEstimate(vdata.script));
         if (claimed) {
           const startedMs = vdata.createdAt && vdata.createdAt.toMillis ? vdata.createdAt.toMillis() : null;
           console.log('[VIDEO TIMING] WaveSpeed completed', startedMs ? Math.round((Date.now() - startedMs) / 1000) + ' s after the request started' : '', 'timings:', JSON.stringify(result?.data?.timings || result?.data?.executionTime || null));
@@ -676,6 +751,7 @@ async function callAI({ model = HAIKU_MODEL, maxTokens = 1000, messages, system 
     if (!res.ok) throw new Error('Anthropic HTTP ' + res.status);
     const data = await res.json();
     if (!data.content?.[0]?.text) throw new Error('Anthropic empty response');
+    if (data.usage) recordCostCtx('ai_small', aiCostFromApiUsage(model, data.usage) || 0);
     return { text: data.content[0].text, provider: 'anthropic' };
   } catch(e) {
     console.log('[AI PROVIDER] Anthropic failed:', e.message, '— trying fallback...');
@@ -801,6 +877,9 @@ function skylinkCategory(path) {
 
 function trackSkylinkCall(category) {
   skylinkPending[category] = (skylinkPending[category] || 0) + 1;
+  // v3.87: per-user cost attribution (alert polls are attributed explicitly to their subscribers in checkNotamAlerts)
+  const st = costCtx.getStore();
+  if (!(st && st.system === 'alerts')) recordCostCtx('skylink', SKYLINK_OVERAGE_USD);
   if (!skylinkFlushTimer) skylinkFlushTimer = setTimeout(flushSkylinkUsage, 30 * 1000);
 }
 
@@ -2443,6 +2522,29 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // v3.87: measured cost per plan from the cost ledger (costLedger + system/costs_<month>), with subscriber counts and the top users
+  if (req.method === 'GET' && req.url.startsWith('/api/admin/costs')) {
+    try {
+      const dec = await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', ''));
+      if (dec.email !== 'arslanni@gmail.com') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Forbidden' })); return; }
+      await flushCosts();
+      const m = (new URL(req.url, 'http://x').searchParams.get('month') || new Date().toISOString().slice(0, 7)).slice(0, 7);
+      const sysDoc = await adminDb.collection('system').doc('costs_' + m).get();
+      const byPlan = sysDoc.exists ? (sysDoc.data().byPlan || {}) : {};
+      const led = await adminDb.collection('costLedger').where('month', '==', m).limit(10000).get();
+      const usersWithCost = {}; const rows = [];
+      led.forEach(d => { const x = d.data(); usersWithCost[x.plan] = (usersWithCost[x.plan] || 0) + 1; if (x.userId !== '_system') rows.push({ userId: x.userId, plan: x.plan, total: x.total || 0, cats: Object.fromEntries(Object.entries(x.cats || {}).map(([k, v]) => [k, Math.round((v.usd || 0) * 10000) / 10000])) }); });
+      rows.sort((a, b) => b.total - a.total);
+      const top = rows.slice(0, 10);
+      await Promise.all(top.map(async r => { try { r.email = (await admin.auth().getUser(r.userId)).email || ''; } catch (e) { r.email = ''; } }));
+      const subs = {};
+      for (const p of ['free', 'pro', 'max', 'enterprise']) { try { subs[p] = (await adminDb.collection('users').where('plan', '==', p).count().get()).data().count; } catch (e) { subs[p] = null; } }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ month: m, byPlan, usersWithCost, subscribers: subs, top, prices: { free: 0, pro: 49, max: 99, enterprise: 999 } }));
+    } catch (e) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'unavailable' })); }
+    return;
+  }
+
   // Measured Anthropic cost of this month's briefings (briefingCosts records written by /briefing), for the admin cost tables.
   if (req.method === 'GET' && req.url === '/api/admin/briefing-costs') {
     try {
@@ -2723,6 +2825,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         if (!userId) { sendUnauthorized(res, req); return; }
 
         const vPlan = await getUserPlan(userId);
+        costCtx.enterWith({ userId, plan: vPlan });
         if (limitPlanOf(vPlan) !== 'max' && vPlan !== 'admin') {
           res.writeHead(403, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'limit_reached', plan: vPlan, feature: 'video' }));
@@ -2905,6 +3008,8 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
           script,
           status: 'processing',
           chargedFrom,
+          plan: vPlan,
+          costEst: videoCostEstimate(script),
           createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
         started = true;
@@ -2981,7 +3086,9 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
   }
 
   if (req.method === 'GET' && SKYLINK_TOOL_PREFIXES.some(pf => req.url.startsWith(pf))) {
-    if (!(await skylinkToolGate(req, res))) return;
+    const gateWho = await skylinkToolGate(req, res);
+    if (!gateWho) return;
+    if (gateWho.userId) costCtx.enterWith({ userId: gateWho.userId, plan: gateWho.plan });
   }
 
   if (req.method === 'GET' && req.url.startsWith('/api/airport/')) {
@@ -3335,6 +3442,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         return;
       }
       const rawPlan = await getUserPlan(rawUserId);
+      costCtx.enterWith({ userId: rawUserId, plan: rawPlan });
       let rawSlot = await reserveRawNotamLookup(rawUserId, rawPlan);
       if (rawSlot.ok && rawPlan === 'free' && !(await reserveFreeSkylink(1))) rawSlot = { ok: false, global: true };
       if (!rawSlot.ok) {
@@ -3821,6 +3929,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         if (!userId) { sendUnauthorized(res, req); return; }
         {
           const plan = await getUserPlan(userId);
+          costCtx.enterWith({ userId, plan });   // v3.87 cost ledger
           if (plan === 'free') {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'upgrade_required', feature: 'analysis' }));
@@ -3976,6 +4085,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
           })
         });
         const claudeData = await claudeRes.json();
+        if (claudeData.usage) recordCostCtx('ai_analysis', aiCostFromApiUsage(HAIKU_MODEL, claudeData.usage) || 0);
         if (claudeData.usage) {
           console.log('[CACHE /analyze-notam]', {
             input: claudeData.usage.input_tokens,
@@ -4009,6 +4119,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         if (!userId) { sendUnauthorized(res, req); return; }
         {
           const plan = await getUserPlan(userId);
+          costCtx.enterWith({ userId, plan });   // v3.87 cost ledger
           if (plan === 'free') {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'upgrade_required', feature: 'chat' }));
@@ -4211,6 +4322,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         });
 
         const claudeData = await claudeRes.json();
+        if (claudeData.usage) recordCostCtx('ai_ask', aiCostFromApiUsage(HAIKU_MODEL, claudeData.usage) || 0);
         if (claudeData.usage) {
           console.log('[CACHE /chat]', {
             input: claudeData.usage.input_tokens,
@@ -4242,6 +4354,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         if (!userId) { sendUnauthorized(res, req); return; }
 
         const plan = await getUserPlan(userId);
+        costCtx.enterWith({ userId, plan });   // v3.87 cost ledger
         const cfg = GENERAL_CHAT_LIMITS[limitPlanOf(plan)] || GENERAL_CHAT_LIMITS.free;
         const { count, tokenTotal, searchTotal, oldestTimestamp } = await getGeneralChatWindowUsage(userId, cfg.windowMinutes);
         const resetInMinutes = minutesUntilWindowReset(oldestTimestamp, cfg.windowMinutes);
@@ -4507,6 +4620,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
             const totalTokens = (usageInfo?.input_tokens || 0) + (usageInfo?.output_tokens || 0);
             console.log('[GENERAL CHAT USAGE]', { plan, model: chatModel, input: usageInfo?.input_tokens || 0, output: usageInfo?.output_tokens || 0, stop: usageInfo?.stop_reason || 'unknown', text_chars: usageInfo?.text_chars || 0, thinking_blocks: usageInfo?.thinking_blocks || 0, thinkingOff: process.env.CHAT_THINKING_OFF === '1' });
             const searchCount = usageInfo?.web_search_requests || 0;
+            recordCost(userId, plan, 'ai_chat', (aiCostUsd(chatModel, usageInfo) || 0) + searchCount * 0.01);
             if (searchCount > 0) {
               console.log('[GENERAL CHAT] Web search used', { userId, plan, searchCount });
             }
@@ -4551,6 +4665,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
           const plan = await getUserPlan(userId);
           const usage = await getUserUsage(userId, 'briefings');
           reqPlan = plan; reqUsage = usage;
+          costCtx.enterWith({ userId, plan });
           const limit = PLAN_LIMITS[limitPlanOf(plan)]?.briefings || (plan === 'admin' ? 9999 : 3);
           if (usage >= limit) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -4789,6 +4904,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             doneSent = true;
             {
               const costUsd = briefingCostUsd(briefingModel, usageInfo);
+              if (costUsd !== null && userId) recordCost(userId, briefingPlan, 'ai_briefing', costUsd);
               console.log('[BRIEFING COST]', { model: briefingModel, plan: briefingPlan, input: usageInfo?.input_tokens || 0, output: usageInfo?.output_tokens || 0, cache_created: usageInfo?.cache_created || 0, cache_read: usageInfo?.cache_read || 0, usd: costUsd === null ? null : Math.round(costUsd * 10000) / 10000 });
               if (costUsd !== null && userId) {
                 adminDb.collection('briefingCosts').add({
@@ -5030,6 +5146,7 @@ async function checkNotamAlerts() {
   const stats = { airports: 0, fetched: 0, reused: 0, skipped: 0, emails: 0, newNotams: 0 };
   try {
     const alertsSnap = await adminDb.collection('alerts').where('active', '==', true).get();
+    costCtx.enterWith({ system: 'alerts' });   // v3.87: poll calls are booked to their subscribers below, not to whoever ran last
     if (alertsSnap.empty) { console.log('[ALERT CHECK] No active alerts'); return; }
 
     // plan caps (server side): resolve each owner's plan once (15 min memory), keep the oldest alerts up to the cap
@@ -5094,6 +5211,7 @@ async function checkNotamAlerts() {
         }
         checkedAt = Date.now();
         stats.fetched++;
+        for (const sub of subs) recordCost(sub.userId, sub.plan, 'alerts', SKYLINK_OVERAGE_USD / subs.length, 1 / subs.length);
       } else {
         stats.reused++;
       }

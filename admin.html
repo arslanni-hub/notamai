@@ -240,6 +240,37 @@ async function loadUsers() {
   }
 }
 
+// v3.87: measured cost per plan (server cost ledger): subscribers, cost per subscriber vs price, categories, top users
+async function loadPlanCosts() {
+  const el = document.getElementById('planCostLedger');
+  if (!el) return;
+  try {
+    const idToken = await firebase.auth().currentUser.getIdToken();
+    const r = await fetch('/api/admin/costs', { headers: { 'Authorization': 'Bearer ' + idToken } });
+    if (!r.ok) { el.innerHTML = '<div class="loading">Cost ledger unavailable</div>'; return; }
+    const j = await r.json();
+    const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const usd = v => '$' + (v || 0).toFixed(2);
+    const plans = ['free', 'pro', 'max', 'enterprise', 'admin', 'system'];
+    let rows = '';
+    for (const p of plans) {
+      const cats = j.byPlan[p] || {};
+      const tot = Object.values(cats).reduce((a, c) => a + (c.usd || 0), 0);
+      if (!tot && !(j.subscribers || {})[p]) continue;
+      const subs = (j.subscribers || {})[p];
+      const per = subs ? tot / subs : null;
+      const price = (j.prices || {})[p];
+      const pct = per !== null && price ? (per / price * 100).toFixed(1) + '%' : '—';
+      const breakdown = Object.entries(cats).sort((a, b) => (b[1].usd || 0) - (a[1].usd || 0)).map(([k, v]) => esc(k) + ' ' + usd(v.usd)).join(' · ');
+      rows += '<tr><td>' + esc(p.toUpperCase()) + '</td><td>' + (subs == null ? '—' : subs) + '</td><td>' + (j.usersWithCost[p] || 0) + '</td><td>' + usd(tot) + '</td><td>' + (per === null ? '—' : usd(per)) + '</td><td>' + pct + '</td><td style="font-size:11px;">' + breakdown + '</td></tr>';
+    }
+    const top = (j.top || []).map(u => '<tr><td>' + esc(u.email || u.userId) + '</td><td>' + esc((u.plan || '').toUpperCase()) + '</td><td>' + usd(u.total) + '</td><td style="font-size:11px;">' + Object.entries(u.cats || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => esc(k) + ' ' + usd(v)).join(' · ') + '</td></tr>').join('');
+    el.innerHTML = '<table><thead><tr><th>PLAN</th><th>SUBSCRIBERS</th><th>USERS WITH COST</th><th>TOTAL COST</th><th>COST / SUBSCRIBER</th><th>% OF PRICE</th><th>BY CATEGORY</th></tr></thead><tbody>' + (rows || '<tr><td colspan="7">No cost recorded yet this month</td></tr>') + '</tbody></table>' +
+      '<div class="section-title" style="margin-top:18px;">TOP 10 USERS BY COST</div><table><thead><tr><th>USER</th><th>PLAN</th><th>COST</th><th>BY CATEGORY</th></tr></thead><tbody>' + (top || '<tr><td colspan="4">—</td></tr>') + '</tbody></table>' +
+      '<div style="font-size:11px;color:#4a5f72;margin-top:8px;">Measured since v3.87 (' + esc(j.month) + '). SkyLink valued at the overage price per call; alert polls split across subscribers of the same airport; Stripe fees not included.</div>';
+  } catch (e) { el.innerHTML = '<div class="loading">Cost ledger error: ' + e.message + '</div>'; }
+}
+
 async function loadRevenue() {
   document.getElementById('tab-revenue').innerHTML = '<div class="loading">LOADING...</div>';
   try {
@@ -323,6 +354,9 @@ async function loadRevenue() {
         </div>
       </div>
 
+      <div class="section-title">MEASURED COST PER PLAN (THIS MONTH, COST LEDGER)</div>
+      <div id="planCostLedger" class="table-wrap"><div class="loading">LOADING...</div></div>
+
       <div class="section-title">MONTHLY COST BREAKDOWN</div>
       <div class="table-wrap">
         <table>
@@ -348,6 +382,7 @@ async function loadRevenue() {
         </table>
       </div>
     `;
+    loadPlanCosts();
   } catch(e) {
     document.getElementById('tab-revenue').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
   }
