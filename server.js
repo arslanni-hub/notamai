@@ -114,6 +114,9 @@ function briefingCostUsd(model, u) {
 }
 
 const FREE_DAILY_BRIEFING_CAP = parseInt(process.env.FREE_DAILY_BRIEFING_CAP || '60', 10);
+// v3.84: same-route briefing cache (see /briefing). Render env BRIEFING_CACHE_MIN (default 10, 0 = off).
+const BRIEFING_CACHE_MS = Math.max(0, parseFloat(process.env.BRIEFING_CACHE_MIN || '10')) * 60 * 1000;
+const briefingCache = new Map();   // key -> { t, init, text, done }
 // Global circuit breaker: total Free-plan briefings allowed per UTC day across ALL users.
 // v3.83: the Free plan may use at most FREE_SKYLINK_SHARE of the monthly SkyLink quota (SKYLINK_MONTHLY_LIMIT), so paid users
 // never meet a quota problem and Free can never push us into overage. Units are SkyLink calls (estimated per action:
@@ -286,11 +289,31 @@ const GENERAL_CHAT_WEB_SEARCH_CAP = { pro: 3, max: 6, admin: 10 };
 // Tokens = input+output (same count as the window); searches = web-search requests ($0.01 each, not in the token count).
 // When the weekly token cap is reached the chat stops until older usage leaves the 7-day window; when the weekly search
 // cap is reached web search turns off silently and the chat keeps answering.
+// v3.84: `sonnet` = weekly Sonnet allowance (hybrid): within it the chat answers on Sonnet as before; past it the rest of the
+// week runs on Haiku 5.5 (the 5 h window and the weekly token cap still apply). Sized to realistic heavy use, so normal users
+// never notice it; it only bounds the worst case.
 const GENERAL_CHAT_WEEKLY = {
-  pro: { tokens: parseInt(process.env.GENERAL_CHAT_WEEKLY_TOKENS_PRO || '150000', 10), searches: parseInt(process.env.GENERAL_CHAT_WEEKLY_SEARCHES_PRO || '20', 10) },
-  max: { tokens: parseInt(process.env.GENERAL_CHAT_WEEKLY_TOKENS_MAX || '300000', 10), searches: parseInt(process.env.GENERAL_CHAT_WEEKLY_SEARCHES_MAX || '40', 10) },
+  pro: { tokens: parseInt(process.env.GENERAL_CHAT_WEEKLY_TOKENS_PRO || '150000', 10), searches: parseInt(process.env.GENERAL_CHAT_WEEKLY_SEARCHES_PRO || '20', 10), sonnet: parseInt(process.env.GENERAL_CHAT_WEEKLY_SONNET_PRO || '40000', 10) },
+  max: { tokens: parseInt(process.env.GENERAL_CHAT_WEEKLY_TOKENS_MAX || '300000', 10), searches: parseInt(process.env.GENERAL_CHAT_WEEKLY_SEARCHES_MAX || '40', 10), sonnet: parseInt(process.env.GENERAL_CHAT_WEEKLY_SONNET_MAX || '80000', 10) },
 };
-const WEEK_MINUTES = 7 * 24 * 60;
+
+// v3.84: weekly usage from one Firestore document per user per UTC day (general_chat_daily/<uid>_<YYYY-MM-DD>: tokens, searches,
+// sonnetTokens) — 7 reads per message instead of reading every message of the last 7 days. The week = today + the 6 previous UTC days.
+function chatDayKey(d) { return d.toISOString().slice(0, 10); }
+async function getGeneralChatWeekUsage(userId) {
+  try {
+    const refs = [];
+    for (let i = 0; i < 7; i++) refs.push(adminDb.collection('general_chat_daily').doc(userId + '_' + chatDayKey(new Date(Date.now() - i * 864e5))));
+    const snaps = await adminDb.getAll(...refs);
+    let tokenTotal = 0, searchTotal = 0, sonnetTotal = 0;
+    snaps.forEach(sn => { if (sn.exists) { const d = sn.data(); tokenTotal += d.tokens || 0; searchTotal += d.searches || 0; sonnetTotal += d.sonnetTokens || 0; } });
+    const next = new Date(); next.setUTCHours(24, 0, 0, 0);
+    return { tokenTotal, searchTotal, sonnetTotal, resetInMinutes: Math.max(1, Math.ceil((next - Date.now()) / 60000)) };
+  } catch (e) {
+    console.error('[GENERAL CHAT WEEK] usage error:', e.message);
+    return { tokenTotal: 0, searchTotal: 0, sonnetTotal: 0, resetInMinutes: 0 };
+  }
+}
 
 async function getGeneralChatWindowUsage(userId, windowMinutes) {
   try {
@@ -316,8 +339,13 @@ async function getGeneralChatWindowUsage(userId, windowMinutes) {
   }
 }
 
-async function recordGeneralChatRateLimitEntry(userId, tokens, searchCount) {
+async function recordGeneralChatRateLimitEntry(userId, tokens, searchCount, model) {
   try {
+    const inc = admin.firestore.FieldValue.increment;
+    adminDb.collection('general_chat_daily').doc(userId + '_' + chatDayKey(new Date())).set({
+      userId, day: chatDayKey(new Date()), tokens: inc(tokens || 0), searches: inc(searchCount || 0),
+      sonnetTokens: inc(/^claude-sonnet/i.test(String(model || '')) ? (tokens || 0) : 0), updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true }).catch(e => console.error('[GENERAL CHAT WEEK] record error:', e.message));
     await adminDb.collection('general_chat_rate_limit').add({
       userId,
       tokens: tokens || 0,
@@ -4131,9 +4159,9 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
 
         const currentUsage = tokenTotal; // all plans are token-based now
         const weeklyCfg = plan === 'admin' ? null : GENERAL_CHAT_WEEKLY[limitPlanOf(plan)];
-        const week = weeklyCfg ? await getGeneralChatWindowUsage(userId, WEEK_MINUTES) : null;
+        const week = weeklyCfg ? await getGeneralChatWeekUsage(userId) : null;
         if (weeklyCfg && week.tokenTotal >= weeklyCfg.tokens) {
-          const weekReset = minutesUntilWindowReset(week.oldestTimestamp, WEEK_MINUTES);
+          const weekReset = week.resetInMinutes;
           console.log('[GENERAL CHAT] weekly cap reached', { userId, plan, weeklyTokens: week.tokenTotal, cap: weeklyCfg.tokens });
           res.writeHead(403, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
@@ -4141,7 +4169,7 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
             scope: 'weekly',
             usagePercent: 100,
             resetInMinutes: weekReset,
-            message: "You've reached your weekly chat limit. It frees up gradually as usage from 7 days ago drops off (next in about " + (weekReset >= 120 ? Math.round(weekReset / 60) + ' hours' : weekReset + ' minutes') + ')' + (limitPlanOf(plan) === 'pro' ? '. Max includes a higher weekly limit.' : '.')
+            message: "You've reached your weekly chat limit. It frees up day by day as usage from 7 days ago drops off (next at 00:00 UTC, in about " + (weekReset >= 120 ? Math.round(weekReset / 60) + ' hours' : weekReset + ' minutes') + ')' + (limitPlanOf(plan) === 'pro' ? '. Max includes a higher weekly limit.' : '.')
           }));
           return;
         }
@@ -4162,7 +4190,8 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
           return;
         }
 
-        const modelToUse = pastSoftLimit ? GENERAL_CHAT_FALLBACK_MODEL : cfg.model;
+        const weeklySonnetUsed = !!(weeklyCfg && weeklyCfg.sonnet && week.sonnetTotal >= weeklyCfg.sonnet);
+        const modelToUse = (pastSoftLimit || weeklySonnetUsed) ? GENERAL_CHAT_FALLBACK_MODEL : cfg.model;
         const searchCapForPlan = GENERAL_CHAT_WEB_SEARCH_CAP[limitPlanOf(plan)] || 0;
         const weeklySearchOk = !weeklyCfg || week.searchTotal < weeklyCfg.searches;
         const webSearchEnabled = GENERAL_CHAT_WEB_SEARCH_PLANS.includes(limitPlanOf(plan)) && !pastSoftLimit && searchTotal < searchCapForPlan && weeklySearchOk;
@@ -4379,7 +4408,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         res.write(`data: ${JSON.stringify({ type: 'init', usagePercent: preEstimatePercent, resetInMinutes })}\n\n`);
 
         let doneSent = false;
-        console.log('[GENERAL CHAT]', { userId, plan, model: modelToUse, pastSoftLimit, webSearchEnabled, searchTotal, searchCap: searchCapForPlan, currentUsage, limit: cfg.limit, weeklyTokens: week ? week.tokenTotal : null, weeklySearches: week ? week.searchTotal : null });
+        console.log('[GENERAL CHAT]', { userId, plan, model: modelToUse, pastSoftLimit, webSearchEnabled, searchTotal, searchCap: searchCapForPlan, currentUsage, limit: cfg.limit, weeklyTokens: week ? week.tokenTotal : null, weeklySearches: week ? week.searchTotal : null, weeklySonnet: week ? week.sonnetTotal : null, weeklySonnetUsed });
 
         streamClaude(requestBody,
           (text) => { res.write(`data: ${JSON.stringify({ type: 'chunk', text })}\n\n`); },
@@ -4392,7 +4421,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
             if (searchCount > 0) {
               console.log('[GENERAL CHAT] Web search used', { userId, plan, searchCount });
             }
-            recordGeneralChatRateLimitEntry(userId, totalTokens, searchCount)
+            recordGeneralChatRateLimitEntry(userId, totalTokens, searchCount, chatModel)
               .catch(e => console.error('[GENERAL CHAT] Post-response record error:', e.message));
             const newUsage = currentUsage + totalTokens;
             const finalUsagePercent = Math.min(100, Math.round((newUsage / cfg.limit) * 100));
@@ -4453,6 +4482,27 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         }
 
         const { icao_dep, icao_arr, notam_text, image_base64, image_type, pdf_base64, images } = JSON.parse(body);
+
+        // v3.84: same-route briefing cache. A plain ICAO briefing (no pasted text / files) for the same aerodromes, on the same model and
+        // the same plan scope (Free = no FIR), generated within BRIEFING_CACHE_MIN minutes is replayed instead of regenerated: no AI call and
+        // no SkyLink calls. Its data was at most that old anyway (NOTAM responses are cached 5 min); the page shows when it was generated.
+        // Still counts as a briefing for the user's monthly allowance. Admin is never served from the cache.
+        const bcKey = (!notam_text && !image_base64 && !pdf_base64 && !(images && images.length) && reqPlan !== 'admin' && /^[A-Z]{4}$/.test(String(icao_dep || '')) && (!icao_arr || /^[A-Z]{4}$/.test(String(icao_arr))))
+          ? [briefingModelFor(reqPlan, reqUsage), reqPlan === 'free' ? 'nofir' : 'fir', icao_dep, icao_arr || ''].join('|') : null;
+        const bcHit = bcKey ? briefingCache.get(bcKey) : null;
+        if (bcHit && Date.now() - bcHit.t < BRIEFING_CACHE_MS) {
+          const ageMin = Math.max(1, Math.round((Date.now() - bcHit.t) / 60000));
+          console.log('[BRIEFING CACHE] hit', { key: bcKey, ageMin, plan: reqPlan });
+          res.setHeader('Content-Type', 'text/event-stream'); res.setHeader('Cache-Control', 'no-cache'); res.setHeader('Connection', 'keep-alive');
+          res.writeHead(200);
+          res.write(`data: ${JSON.stringify(bcHit.init)}\n\n`);
+          for (let i = 0; i < bcHit.text.length; i += 4000) res.write(`data: ${JSON.stringify({ type: 'chunk', text: bcHit.text.slice(i, i + 4000) })}\n\n`);
+          const note = `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;padding:8px 12px;margin-top:6px;">ℹ Generated ${ageMin} min ago (${new Date(bcHit.t).toISOString().slice(11, 16)}Z) for this route from the same live data; NOTAM data is refreshed every 5 min — run a new briefing after ${new Date(bcHit.t + BRIEFING_CACHE_MS).toISOString().slice(11, 16)}Z for a fresh one.</div>`;
+          res.write(`data: ${JSON.stringify(Object.assign({}, bcHit.done, { notamNotesHtml: (bcHit.done.notamNotesHtml || '') + note }))}\n\n`);
+          res.end();
+          adminDb.collection('briefingCosts').add({ userId, plan: reqPlan, model: bcKey.split('|')[0], route: icao_dep + (icao_arr ? '-' + icao_arr : ''), input: 0, output: 0, cacheCreated: 0, cacheRead: 0, costUsd: 0, cached: true, createdAt: admin.firestore.FieldValue.serverTimestamp() }).catch(() => {});
+          return;
+        }
 
         const isValidIcaoCode = (code) => !!code && /^[A-Z]{4}$/.test(code.trim());
         const isQuickAnalysis = !isValidIcaoCode(icao_dep);
@@ -4636,12 +4686,15 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
         // Raw NOTAM texts by id: the page fills them into the cards (the model no longer copies them).
         const notamRaw = {};
         [notamDepResult, notamArrResult].forEach(r => { if (r) [...(r.activeItems || []), ...(r.nearFutureItems || [])].forEach(n => { if (n && n.notam_id) notamRaw[n.notam_id] = String(n.raw || n.body || ''); }); });
-        res.write(`data: ${JSON.stringify({ type: 'init', html_head: HTML_HEAD, html_foot: HTML_FOOT, notamRaw })}\n\n`);
+        const initPayload = { type: 'init', html_head: HTML_HEAD, html_foot: HTML_FOOT, notamRaw };
+        res.write(`data: ${JSON.stringify(initPayload)}\n\n`);
 
         let doneSent = false;
         let modelHeadText = '';
+        let fullText = '';
+        let stopReason = '';
         streamClaude(claudeBody,
-          (text) => { if (modelHeadText.length < 4000) modelHeadText += text; res.write(`data: ${JSON.stringify({ type: 'chunk', text })}\n\n`); },
+          (text) => { if (modelHeadText.length < 4000) modelHeadText += text; if (bcKey) fullText += text; res.write(`data: ${JSON.stringify({ type: 'chunk', text })}\n\n`); },
           (usageInfo) => {
             if (doneSent) return;
             doneSent = true;
@@ -4658,6 +4711,7 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
                 }).catch(e => console.log('[BRIEFING COST] save error:', e.message));
               }
             }
+            stopReason = usageInfo?.stop_reason || '';
             console.log('[BRIEFING STOP REASON]', { stop_reason: usageInfo?.stop_reason || 'unknown', output_tokens: usageInfo?.output_tokens || 0, text_chars: usageInfo?.text_chars || 0, thinking_blocks: usageInfo?.thinking_blocks || 0, thinking_chars: usageInfo?.thinking_chars || 0 });
             Promise.resolve(riskPromise).then(riskResult => {
               const mScore = (modelHeadText.match(/RISK\s*SCORE\s*(?:<[^>]*>)?\s*(\d+)\s*\/\s*10/i) || [])[1];
@@ -4728,8 +4782,15 @@ Generate the complete pre-flight operational intelligence briefing HTML content.
             // Tier 1/2 NOTAMs in force per aerodrome (0 -> the page says so instead of showing nothing for that aerodrome)
             const notamInForce = {};
             if (riskResult && riskResult.airportRows) Object.keys(riskResult.airportRows).forEach(ic => { notamInForce[ic] = ((riskResult.airportRows[ic]) || []).filter(x => x && (x.sev === 'CRITICAL' || x.sev === 'HIGH') && x.inWindow !== false && !x.upcoming).length; });
-            res.write(`data: ${JSON.stringify(Object.assign({ type: 'done', notamNotesHtml, notamOwners, notamGroups, notamOutside, notamT3, notamInForce }, riskExtra))}\n\n`);
+            const donePayload = Object.assign({ type: 'done', notamNotesHtml, notamOwners, notamGroups, notamOutside, notamT3, notamInForce }, riskExtra);
+            res.write(`data: ${JSON.stringify(donePayload)}\n\n`);
             res.end();
+            // only complete briefings with real NOTAM data on both ends are reused (never a truncated one or a provider outage)
+            const notamOk = !notamNotesHtml.includes('NOTAM DATA UNAVAILABLE');
+            if (bcKey && BRIEFING_CACHE_MS > 0 && stopReason === 'end_turn' && notamOk && fullText.length > 2000) {
+              if (briefingCache.size > 300) briefingCache.clear();
+              briefingCache.set(bcKey, { t: Date.now(), init: initPayload, text: fullText, done: donePayload });
+            }
           },
           (err) => { if (!doneSent) { doneSent = true; res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`); res.end(); } }
         );
@@ -4808,7 +4869,7 @@ async function sendNotamAlert(userEmail, icao, notamText) {
     <!-- NOTAM content -->
     <div style="background:#060a0f;border:1px solid #1a2a3a;border-left:3px solid #4a9eff;border-radius:4px;padding:16px;margin-bottom:20px;overflow:hidden;">
       <div style="font-family:'Courier New','Lucida Console',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;text-transform:uppercase;">NOTAM · ${icao}</div>
-      <pre style="font-family:'Courier New',monospace;font-size:12px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;word-break:break-word;margin:0;padding:0;">${notamText}</pre>
+      <pre style="font-family:'Courier New',monospace;font-size:12px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;word-break:break-word;margin:0;padding:0;">${escHtml(notamText)}</pre>
     </div>
 
     <!-- Link -->
@@ -4908,6 +4969,7 @@ async function checkNotamAlerts() {
     stats.airportBudget = ALERT_AIRPORT_BUDGET;
     stats.overBudget = uniqueIcaos.length > ALERT_AIRPORT_BUDGET;
     if (stats.overBudget) console.warn('[ALERT CHECK] WARNING:', uniqueIcaos.length, 'distinct airports polled (budget', ALERT_AIRPORT_BUDGET + ') — check SkyLink quota');
+    const mailQueue = {};  // userId -> { email, items:[{label,text}] } — one mail per user per run (v3.84)
     const userInfo = {};   // looked up lazily, only for users who actually receive something this run
     const infoFor = async (userId) => {
       if (userInfo[userId] !== undefined) return userInfo[userId];
@@ -4973,22 +5035,23 @@ async function checkNotamAlerts() {
           const info = await infoFor(userId);
           if (!info) continue;
           const patch = {};
-          if (freshNotams.length) {
-            await sendNotamAlert(info.email, icao, alertPoll.digestText(freshNotams));
-            stats.emails++;
-            patch.lastSentNotamId = latestFreshId;
-          }
-          if (sigmetNew) {
-            await sendNotamAlert(info.email, icao + ' SIGMET', sigmetNew.text);
-            stats.emails++;
-            patch.lastSentSigmetId = sigmetNew.id;
-          }
+          // v3.84: queued, not sent here — every user gets ONE mail per run with all of their airports (sent after the loop)
+          const q = (mailQueue[userId] = mailQueue[userId] || { email: info.email, items: [] });
+          if (freshNotams.length) { q.items.push({ label: icao, text: alertPoll.digestText(freshNotams) }); patch.lastSentNotamId = latestFreshId; }
+          if (sigmetNew) { q.items.push({ label: icao + ' SIGMET', text: sigmetNew.text }); patch.lastSentSigmetId = sigmetNew.id; }
           try { await alertDoc.ref.update({ ...patch, lastChecked: admin.firestore.FieldValue.serverTimestamp() }); } catch (e) { /* alert deleted meanwhile */ }
-          await new Promise(r => setTimeout(r, 200));
         }
       }
       await saveAlertState(icao, next);
       if (action === 'fetch') await new Promise(r => setTimeout(r, 600));   // stay under the provider's per-second limit
+    }
+    for (const q of Object.values(mailQueue)) {
+      if (!q.items.length) continue;
+      const label = q.items.length === 1 ? q.items[0].label : q.items.map(i => i.label).join(', ');
+      const text = q.items.length === 1 ? q.items[0].text : q.items.map(i => '=== ' + i.label + ' ===\n\n' + i.text).join('\n\n\n');
+      await sendNotamAlert(q.email, label, text);
+      stats.emails++;
+      await new Promise(r => setTimeout(r, 200));
     }
   } catch (e) {
     console.log('[ALERT CHECK MAIN ERROR]', e.message);
