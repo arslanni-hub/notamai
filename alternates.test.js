@@ -67,5 +67,16 @@ test('Turkish letters and accents are ignored', () => {
 test('airports rank above heliports for the same city', () => { const r = A.searchIn(idx, 'istanbul').map(a => a.id); assert.strictEqual(r[r.length - 1], 'TR-0045'); });
 test('one character returns nothing; searchAirports is null before load', () => { assert.deepStrictEqual(A.searchIn(idx, 'l'), []); assert.strictEqual(A.searchAirports('ltfm'), null); });
 
+// Local distance / bearing
+test('distanceBearing: LTFM -> LTAI about 300 NM, bearing south', () => {
+  const d = A.distanceBearing({ lat: 41.2753, lon: 28.7519 }, { lat: 36.8987, lon: 30.8005 });
+  assert(d.distance > 270 && d.distance < 300, d.distance); assert(d.bearing > 150 && d.bearing < 175, d.bearing);
+});
+test('airportPoint resolves ICAO and IATA codes from the index', () => {
+  assert.strictEqual(A.airportPoint('IST', idx).id, 'LTFM'); assert.strictEqual(A.airportPoint('LTAC', idx).name, 'Esenboğa International Airport');
+  assert.strictEqual(A.airportPoint('ZZZZ', idx), null);
+});
+test('localDistance is null before the index is loaded', () => { assert.strictEqual(A.localDistance('LTFM', 'LTAI'), null); });
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

@@ -99,6 +99,7 @@ function buildSearchIndex(csv) {
   const ix = n => head.indexOf(n);
   const iIdent = ix('ident'), iType = ix('type'), iName = ix('name'), iCountry = ix('iso_country'), iCity = ix('municipality');
   const iIcao = ix('icao_code'), iGps = ix('gps_code'), iIata = ix('iata_code'), iSched = ix('scheduled_service');
+  const iLat = ix('latitude_deg'), iLon = ix('longitude_deg');
   if (iIdent < 0 || iName < 0) throw new Error('unexpected airports.csv header');
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
@@ -113,7 +114,8 @@ function buildSearchIndex(csv) {
     const name = (row[iName] || '').trim(), city = iCity >= 0 ? (row[iCity] || '').trim() : '';
     const codes = [...new Set([id, ident, icao, gps].filter(Boolean))];   // ICAO-style codes; IATA kept apart
     const rank = TYPE_RANK[type] + (iSched >= 0 && (row[iSched] || '').trim() === 'yes' ? 10 : 0);
-    out.push({ id, iata, codes, name, city, country: iCountry >= 0 ? (row[iCountry] || '').trim() : '', type, n: norm(name), c: norm(city), rank });
+    const lat = iLat >= 0 ? parseFloat(row[iLat]) : NaN, lon = iLon >= 0 ? parseFloat(row[iLon]) : NaN;
+    out.push({ id, iata, codes, name, city, country: iCountry >= 0 ? (row[iCountry] || '').trim() : '', type, n: norm(name), c: norm(city), rank, lat: isFinite(lat) ? lat : null, lon: isFinite(lon) ? lon : null });
   }
   return out;
 }
@@ -235,10 +237,44 @@ function candidateBlock(dep, arr) {
   } catch (e) { return ''; }
 }
 
+// Aerodrome position by ICAO (or IATA / GPS / local) code from the search index: { id, name, lat, lon } or null.
+// An exact ICAO-style code wins over an IATA code (prefers large/scheduled aerodromes when several share a code).
+function airportPoint(code, index) {
+  index = index || searchIndex;
+  const q = String(code || '').trim().toUpperCase();
+  if (!index || !q) return null;
+  let best = null, bestScore = -1;
+  for (const a of index) {
+    if (a.lat === null || a.lon === null) continue;
+    const sc = a.codes.includes(q) ? 2000 + a.rank : (a.iata === q ? 1000 + a.rank : -1);
+    if (sc > bestScore) { best = a; bestScore = sc; }
+  }
+  return best ? { id: best.id, name: best.name, lat: best.lat, lon: best.lon } : null;
+}
+
+// Great-circle distance (NM) and initial true bearing (deg) — exact maths, same answer as the provider's /distance.
+function distanceBearing(a, b) {
+  const R = Math.PI / 180;
+  const p1 = a.lat * R, p2 = b.lat * R, dl = (b.lon - a.lon) * R;
+  const h = Math.sin((p2 - p1) / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  const nm = 2 * 3440.065 * Math.asin(Math.min(1, Math.sqrt(h)));
+  const y = Math.sin(dl) * Math.cos(p2), x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+  const brg = (Math.atan2(y, x) / R + 360) % 360;
+  return { distance: Math.round(nm * 10) / 10, bearing: Math.round(brg * 10) / 10 };
+}
+
+// /api/distance answer in the provider's shape, or null when either code is unknown / the index is not loaded.
+function localDistance(from, to) {
+  const a = airportPoint(from), b = airportPoint(to);
+  if (!a || !b) return null;
+  const d = distanceBearing(a, b);
+  return { distance: d.distance, bearing: d.bearing, unit: 'nm', from_point: { icao: a.id, name: a.name, latitude: a.lat, longitude: a.lon }, to_point: { icao: b.id, name: b.name, latitude: b.lat, longitude: b.lon }, source: 'local' };
+}
+
 // null when the index is not loaded yet (the caller then falls back to SkyLink).
 function searchAirports(query, limit) {
   if (!searchIndex || !searchIndex.length) return null;
   try { return searchIn(searchIndex, query, limit); } catch (e) { return null; }
 }
 
-module.exports = { init, setBlockedPrefixes, candidateBlock, searchAirports, buildSearchIndex, searchIn, norm, buildAirports, buildRunwayLengths, nearestCandidates, buildBlock, distNm };
+module.exports = { init, setBlockedPrefixes, candidateBlock, searchAirports, airportPoint, distanceBearing, localDistance, buildSearchIndex, searchIn, norm, buildAirports, buildRunwayLengths, nearestCandidates, buildBlock, distNm };

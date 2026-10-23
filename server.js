@@ -115,6 +115,36 @@ function briefingCostUsd(model, u) {
 
 const FREE_DAILY_BRIEFING_CAP = parseInt(process.env.FREE_DAILY_BRIEFING_CAP || '60', 10);
 // Global circuit breaker: total Free-plan briefings allowed per UTC day across ALL users.
+// v3.83: the Free plan may use at most FREE_SKYLINK_SHARE of the monthly SkyLink quota (SKYLINK_MONTHLY_LIMIT), so paid users
+// never meet a quota problem and Free can never push us into overage. Units are SkyLink calls (estimated per action:
+// briefing 2, raw NOTAM 1, tool 1; cache hits are counted too, so the estimate is conservative). Fails open on Firestore errors.
+const FREE_SKYLINK_SHARE = Math.min(1, Math.max(0, parseFloat(process.env.FREE_SKYLINK_SHARE || '0.25')));
+const SKYLINK_OVERAGE_USD = parseFloat(process.env.SKYLINK_OVERAGE_USD || '0.003');
+function freeSkylinkBudget() { return Math.floor(FREE_SKYLINK_SHARE * parseInt(process.env.SKYLINK_MONTHLY_LIMIT || '1000', 10)); }
+async function reserveFreeSkylink(units) {
+  const month = new Date().toISOString().slice(0, 7);
+  const budget = freeSkylinkBudget();
+  const ref = adminDb.collection('system').doc('skylink_free_' + month);
+  try {
+    const r = await adminDb.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const d = snap.exists ? snap.data() : {};
+      const count = d.count || 0;
+      const stamp = admin.firestore.FieldValue.serverTimestamp();
+      if (count + units > budget) { tx.set(ref, { denied: (d.denied || 0) + 1, month, budget, updatedAt: stamp }, { merge: true }); return { ok: false, count }; }
+      const warn80 = !d.warned80 && count + units >= budget * 0.8;
+      tx.set(ref, { count: count + units, month, budget, updatedAt: stamp, ...(warn80 ? { warned80: true } : {}) }, { merge: true });
+      return { ok: true, count: count + units, warn80 };
+    });
+    if (r.warn80) sendAdminNotification('Free-plan SkyLink share at 80% (' + r.count + '/' + budget + ')',
+      '<div style="font-size:13px;color:#1e293b;">Free accounts have used 80% of their ' + Math.round(FREE_SKYLINK_SHARE * 100) + '% share of this month\'s SkyLink quota. At 100% Free briefings, NOTAM lookups and SkyLink tools pause until the 1st; paid plans are not affected. Raise FREE_SKYLINK_SHARE only if this is organic demand.</div>').catch(() => {});
+    return r.ok;
+  } catch (e) {
+    console.log('[FREE SKYLINK] transaction error, allowing request:', e.message);
+    return true;
+  }
+}
+
 async function reserveFreeBriefingSlot() {
   const day = new Date().toISOString().slice(0, 10);
   const ref = adminDb.collection('system').doc('free_briefings_' + day);
@@ -210,6 +240,7 @@ async function skylinkToolGate(req, res) {
       if (fref) tx.set(fref, { count: fc + 1, day, updatedAt: stamp }, { merge: true });
       return { ok: true };
     });
+    if (r.ok && plan === 'free' && !(await reserveFreeSkylink(1))) r.ok = false, r.why = 'free_global';
     if (r.ok) return true;
     if (r.why === 'free_global') return send(503, { error: 'tools_free_capacity', message: 'Free-plan Aviation Tools are at today\'s capacity. Please try again after 00:00 UTC, or upgrade to Pro for guaranteed access.' });
     if (r.why === 'global') return send(503, { error: 'tools_busy', message: 'Aviation Tools are temporarily busy. Please try again later.' });
@@ -691,6 +722,8 @@ const skylinkCache = new Map();
 // Airport / FIR NOTAM responses: short shared cache (the provider recommends 2-5 min) so a briefing, the raw NOTAM panel and the alert
 // checker never pay twice for the same airport. airportNotamStore keeps the newest REAL provider response per airport for the alert diff.
 const SKYLINK_NOTAM_TTL_MS = 5 * 60 * 1000;
+// v3.83: short shared caches for live-but-slow data (AIRMET/SIGMET areas change over hours, FAA delay status every few minutes)
+const SKYLINK_SHORT_TTL = [['/weather/airsigmet', 10 * 60 * 1000], ['/delays/', 5 * 60 * 1000]];
 const airportNotamStore = new Map();   // ICAO/FIR -> { t, data }
 const skylinkInflight = new Map();
 const skylinkPending = {};
@@ -729,7 +762,7 @@ async function flushSkylinkUsage() {
       for (const [k, v] of Object.entries(pending)) bySource[k] = (bySource[k] || 0) + v;
       const warned = same ? (cur.warned || []) : [];
       const pct = Math.round((count / limit) * 100);
-      const fresh = [70, 90].filter(t => pct >= t && !warned.includes(t));
+      const fresh = [70, 90, 100, 150, 200, 300].filter(t => pct >= t && !warned.includes(t));
       tx.set(ref, { count, month: monthKey, limit, pct, bySource, warned: [...warned, ...fresh], updatedAt: admin.firestore.FieldValue.serverTimestamp() });
       return fresh.map(t => ({ t, pct, count }));
     });
@@ -740,8 +773,8 @@ async function flushSkylinkUsage() {
         body: JSON.stringify({
           from: 'NOTAM Intelligence <alerts@notamai.com>',
           to: 'admin@notamai.com',
-          subject: w.t >= 90 ? '🚨 URGENT: SkyLink API at 90% — Upgrade Now' : '⚠️ SkyLink API at 70% — Plan Ahead',
-          html: `<div style="font-family:monospace;padding:20px;">SkyLink usage: ${w.pct}% (${w.count}/${limit}). Upgrade the RapidAPI plan and update SKYLINK_MONTHLY_LIMIT in Render.</div>`
+          subject: w.t >= 100 ? `🚨 SkyLink over plan quota: ${w.pct}% — overage ≈ $${((w.count - limit) * SKYLINK_OVERAGE_USD).toFixed(2)} so far` : (w.t >= 90 ? '🚨 SkyLink API at 90% of the plan quota' : '⚠️ SkyLink API at 70% — Plan Ahead'),
+          html: `<div style="font-family:monospace;padding:20px;">SkyLink usage: ${w.pct}% (${w.count}/${limit}) this month.${w.t >= 100 ? ` Calls beyond the plan are billed at $${SKYLINK_OVERAGE_USD} each: ≈ $${((w.count - limit) * SKYLINK_OVERAGE_USD).toFixed(2)} overage so far. Check system/skylink_usage bySource for the source.` : ' Calls beyond the plan quota are billed per call (overage).'} Free-plan SkyLink use is capped at ${Math.round(FREE_SKYLINK_SHARE * 100)}% of the quota.</div>`
         })
       });
     }
@@ -753,7 +786,8 @@ function fetchURL(url, options = {}) {
   const path = url.slice(SKYLINK_ORIGIN.length).split('?')[0];
   const isStatic = SKYLINK_STATIC_PATHS.some(p => path.startsWith(p));
   const notamMatch = /^\/notams\/([A-Za-z0-9]{3,4})$/.exec(path);
-  if (isStatic || notamMatch) {
+  const shortTtl = (SKYLINK_SHORT_TTL.find(([p]) => path.startsWith(p)) || [])[1] || 0;
+  if (isStatic || notamMatch || shortTtl) {
     const hit = skylinkCache.get(url);
     if (hit && hit.expires > Date.now()) return Promise.resolve(hit.data);
   }
@@ -763,9 +797,9 @@ function fetchURL(url, options = {}) {
     trackSkylinkCall(skylinkCategory(path));
     const data = await fetchURLRaw(url, options);
     const ok = data && typeof data === 'object' && !data.error && !data.message;
-    if (isStatic && ok) {
+    if ((isStatic || shortTtl) && ok) {
       if (skylinkCache.size > 2000) skylinkCache.clear();
-      skylinkCache.set(url, { expires: Date.now() + SKYLINK_STATIC_TTL_MS, data });
+      skylinkCache.set(url, { expires: Date.now() + (isStatic ? SKYLINK_STATIC_TTL_MS : shortTtl), data });
     }
     if (notamMatch && skylinkNotamsOk(data)) {   // only genuine NOTAM responses (never quota / outage replies) are cached or stored
       if (skylinkCache.size > 2000) skylinkCache.clear();
@@ -2861,6 +2895,24 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
     }
   }
 
+  // v3.83: distance/bearing computed locally from the OurAirports index (exact great-circle maths): no SkyLink call, so not
+  // counted against the tool caps; sign-in still required. Unknown codes fall through to the gated SkyLink handler below.
+  if (req.method === 'GET' && req.url.startsWith('/api/distance/')) {
+    const dp = req.url.split('/api/distance/')[1].split('?')[0].split('/');
+    const local = dp.length >= 2 ? alternates.localDistance(decodeURIComponent(dp[0]), decodeURIComponent(dp[1])) : null;
+    if (local) {
+      const uid = await getVerifiedUserId(req);
+      if (!uid) {
+        res.writeHead(req._authError === 'email_not_verified' ? 403 : 401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(req._authError === 'email_not_verified' ? { error: 'email_not_verified', message: 'Verify your e-mail address to use Aviation Tools.' } : { error: 'unauthorized', message: 'Sign in to use Aviation Tools.' }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(local));
+      return;
+    }
+  }
+
   if (req.method === 'GET' && SKYLINK_TOOL_PREFIXES.some(pf => req.url.startsWith(pf))) {
     if (!(await skylinkToolGate(req, res))) return;
   }
@@ -3216,7 +3268,8 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         return;
       }
       const rawPlan = await getUserPlan(rawUserId);
-      const rawSlot = await reserveRawNotamLookup(rawUserId, rawPlan);
+      let rawSlot = await reserveRawNotamLookup(rawUserId, rawPlan);
+      if (rawSlot.ok && rawPlan === 'free' && !(await reserveFreeSkylink(1))) rawSlot = { ok: false, global: true };
       if (!rawSlot.ok) {
         res.writeHead(429, { 'Content-Type': 'text/plain' });
         if (rawSlot.global) { res.end('FREE-PLAN NOTAM LOOKUPS ARE AT TODAY\'S CAPACITY. Please try again after 00:00 UTC, or upgrade to Pro for guaranteed access. METAR and TAF remain available.'); return; }
@@ -4386,7 +4439,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
             res.end(JSON.stringify({ error: 'limit_reached', plan, usage, limit }));
             return;
           }
-          if (plan === 'free' && !(await reserveFreeBriefingSlot())) {
+          if (plan === 'free' && (!(await reserveFreeSkylink(2)) || !(await reserveFreeBriefingSlot()))) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'free_capacity', plan }));
             return;
@@ -5290,6 +5343,12 @@ async function runHealthCheck() {
     results.tools_free = (denied > 0 ? '🟡 ' : '✅ ') + used + '/' + TOOLS_DAILY_GLOBAL_FREE + ' Free tool requests yesterday, ' + denied + ' refused';
     if (denied > 0) issues.push({ msg: 'Free-plan Aviation Tools ceiling refused ' + denied + ' request(s) yesterday', action: 'Check new signups; raise TOOLS_DAILY_GLOBAL_FREE in Render only if the demand is organic and SkyLink quota allows.' });
   } catch(e) { results.tools_free = '— ' + e.message; }
+  try {
+    const m = new Date().toISOString().slice(0, 7);
+    const d = await adminDb.collection('system').doc('skylink_free_' + m).get();
+    const used = d.exists ? (d.data().count || 0) : 0, denied = d.exists ? (d.data().denied || 0) : 0, budget = freeSkylinkBudget();
+    results.skylink_free_share = (denied > 0 ? '🟡 ' : '✅ ') + used + '/' + budget + ' Free SkyLink units this month (' + Math.round(FREE_SKYLINK_SHARE * 100) + '% of quota), ' + denied + ' refused';
+  } catch(e) { results.skylink_free_share = '— ' + e.message; }
 
   // Free-plan raw NOTAM lookups: shared daily ceiling (v3.80)
   try {
