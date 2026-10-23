@@ -39,6 +39,12 @@ test('block lists both ends and the warning', () => {
   const b = A.buildBlock('LTFM', 'LTAI', aps, rws);
   assert(/CANDIDATE ALTERNATES/.test(b) && /Near LTAI/.test(b) && /LTBS Dalaman Airport/.test(b) && /NOT checked/.test(b));
 });
+test('aerodromes in blocked (conflict-zone) countries are never candidates', () => {
+  A.setBlockedPrefixes(['LTB']);
+  const c = A.nearestCandidates('LTAI', ['LTFM', 'LTAI'], 4, aps, rws).map(x => x.icao);
+  A.setBlockedPrefixes([]);
+  assert(!c.includes('LTBS') && c.includes('LTFE'), c.join(','));
+});
 test('unknown airport gives an empty block', () => { assert.strictEqual(A.buildBlock('ZZZZ', 'YYYY', aps, rws), ''); });
 test('candidateBlock before load returns an empty string', () => { assert.strictEqual(A.candidateBlock('LTFM', 'LTAI'), ''); });
 

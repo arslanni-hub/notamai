@@ -24,6 +24,9 @@ const risk = require('./risk');
 const videoScript = require('./video-script');
 const runwayData = require('./runway-data');
 const alternates = require('./alternates');
+// Never offer an alternate inside a country whose aerodromes are no-go / high-risk in the conflict-zone list (e.g. OIBA Abu Musa for OMDB).
+// CAUTION/INFO zones (Gulf states, Jordan, Lebanon, Pakistan...) stay, they are normal alternates.
+alternates.setBlockedPrefixes(risk.CONFIG.conflictZones.filter(z => z.endpoint === 'NOGO' || z.endpoint === 'HIGH').flatMap(z => z.prefixes || []));
 // RISK_MODE (Render env): 'shadow' (default) = compute + log only; 'active' = the rubric sets the rating floor, the model
 // receives the complete information and the client header is corrected to never fall below the floor.
 const RISK_MODE = (process.env.RISK_MODE || 'shadow').toLowerCase();
@@ -6144,12 +6147,26 @@ async function runSentinel() {
     const f = await adminDb.collection('videos').where('status', '==', 'failed').where('failedAt', '>=', since).get();
     if (f.size >= 3) issues.push({ key:'video_failures', msg:`${f.size} video briefings failed in the last 2 hours`, action:'Check Render logs for [VIDEO] errors and the WaveSpeed / ElevenLabs dashboards.' });
   } catch (e) { /* index missing → skip silently */ }
+  // Mail state lives in Firestore (system/sentinel_state), not in memory, so a deploy/restart does not re-send the same alert.
+  // An issue is mailed when it first appears, then at most once per SENTINEL_REPEAT_HOURS (default 24) while it stays open;
+  // when it clears it is marked resolved (no mail), so it is mailed again only if it comes back.
+  const repeatMs = Math.max(1, parseFloat(process.env.SENTINEL_REPEAT_HOURS || '24')) * 3600 * 1000;
+  const stRef = adminDb.collection('system').doc('sentinel_state');
+  let st = {};
+  try { const d = await stRef.get(); st = d.exists ? (d.data() || {}) : {}; } catch (e) { st = null; }
+  const open = new Set(issues.map(i => i.key));
+  const upd = {};
   for (const i of issues) {
-    const last = sentinelLast.get(i.key) || 0;
-    if (Date.now() - last < 12 * 3600 * 1000) continue;
+    const prev = st ? st[i.key] : null;
+    const lastMs = prev && prev.lastSent ? (prev.lastSent.toMillis ? prev.lastSent.toMillis() : +new Date(prev.lastSent)) : (sentinelLast.get(i.key) || 0);
+    if (prev && prev.active && Date.now() - lastMs < repeatMs) continue;
+    if (!st && Date.now() - (sentinelLast.get(i.key) || 0) < repeatMs) continue;   // Firestore unreadable: in-memory fallback
     sentinelLast.set(i.key, Date.now());
-    await sendAdminNotification('🚨 ' + i.msg, `<div style="font-size:13px;color:#b91c1c;margin-bottom:6px;">${escHtml(i.msg)}</div><div style="font-size:12px;color:#475569;">→ ${escHtml(i.action)}</div>`);
+    upd[i.key] = { active: true, lastSent: new Date(), msg: i.msg };
+    await sendAdminNotification('🚨 ' + i.msg, `<div style="font-size:13px;color:#b91c1c;margin-bottom:6px;">${escHtml(i.msg)}</div><div style="font-size:12px;color:#475569;">→ ${escHtml(i.action)}</div><div style="font-size:11px;color:#94a3b8;margin-top:8px;">Next reminder in ${Math.round(repeatMs / 3600000)} h if still open.</div>`);
   }
+  if (st) for (const k of Object.keys(st)) if (st[k] && st[k].active && !open.has(k)) upd[k] = Object.assign({}, st[k], { active: false, resolvedAt: new Date() });
+  if (st && Object.keys(upd).length) { try { await stRef.set(upd, { merge: true }); } catch (e) {} }
   console.log('[SENTINEL] Checked. Issues:', issues.length);
 }
 setInterval(() => runSentinel().catch(e => console.log('[SENTINEL ERROR]', e.message)), 30 * 60 * 1000);

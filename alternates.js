@@ -16,6 +16,9 @@ const RETRY_MS = 10 * 60 * 1000;
 const MIN_RWY_FT = 6562;          // 2,000 m
 const MAX_RADIUS_NM = 350;
 const NEVER = new Set(['LTBA']);  // closed to commercial traffic
+let blockedPrefixes = [];         // ICAO prefixes of countries whose aerodromes are no-go / high-risk (risk.js conflictZones), set by the server
+function setBlockedPrefixes(list) { blockedPrefixes = (list || []).map(p => String(p || '').toUpperCase()).filter(Boolean); }
+const isBlocked = icao => blockedPrefixes.some(p => icao.startsWith(p));
 
 let airports = null;              // Map<ICAO, { icao, name, city, country, lat, lon, cand:boolean }>
 let rwyMaxFt = null;              // Map<ICAO, longest open runway in ft>
@@ -171,7 +174,7 @@ function nearestCandidates(icao, exclude, count, airportsMap, runways) {
   if (!home) return [];
   const out = [];
   for (const a of airportsMap.values()) {
-    if (!a.cand || a.icao === icao || (exclude && exclude.includes(a.icao))) continue;
+    if (!a.cand || a.icao === icao || (exclude && exclude.includes(a.icao)) || isBlocked(a.icao)) continue;
     if (Math.abs(a.lat - home.lat) > 6) continue;           // cheap pre-filter (about 360 NM)
     const d = distNm(home, a);
     if (d > MAX_RADIUS_NM) continue;
@@ -191,7 +194,7 @@ function buildBlock(dep, arr, airportsMap, runways) {
   const arrC = nearestCandidates(arr, exclude, 4, airportsMap, runways);
   const depC = nearestCandidates(dep, exclude, 2, airportsMap, runways);
   if (!arrC.length && !depC.length) return '';
-  const lines = ['CANDIDATE ALTERNATES (computed by the server from OurAirports data: scheduled-service aerodromes with a runway of at least 2,000 m, nearest first; their weather and NOTAMs were NOT checked):'];
+  const lines = ['CANDIDATE ALTERNATES (computed by the server from OurAirports data: scheduled-service aerodromes with a runway of at least 2,000 m, nearest first, aerodromes in EASA/FAA no-go or high-risk conflict zones left out; their weather and NOTAMs were NOT checked):'];
   if (arrC.length) lines.push('Near ' + arr + ' (destination alternates): ' + arrC.map(fmt).join('; '));
   if (depC.length) lines.push('Near ' + dep + ' (take-off alternates): ' + depC.map(fmt).join('; '));
   lines.push('Use these as the named candidates in the ALTERNATE card and in the Dispatch Notes (ICAO code and name exactly as listed), labelled as candidates to verify. Do not invent other alternates.');
@@ -238,4 +241,4 @@ function searchAirports(query, limit) {
   try { return searchIn(searchIndex, query, limit); } catch (e) { return null; }
 }
 
-module.exports = { init, candidateBlock, searchAirports, buildSearchIndex, searchIn, norm, buildAirports, buildRunwayLengths, nearestCandidates, buildBlock, distNm };
+module.exports = { init, setBlockedPrefixes, candidateBlock, searchAirports, buildSearchIndex, searchIn, norm, buildAirports, buildRunwayLengths, nearestCandidates, buildBlock, distNm };
