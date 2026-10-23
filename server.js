@@ -147,7 +147,7 @@ async function reserveFreeBriefingSlot() {
 
 // Raw NOTAM lookups (NOTAMs & MET panel) cost one SkyLink call each, so they need a signed-in user and a per-user daily cap.
 const RAW_NOTAM_DAILY_FREE = parseInt(process.env.RAW_NOTAM_DAILY_FREE || '10', 10);
-const RAW_NOTAM_DAILY_PAID = parseInt(process.env.RAW_NOTAM_DAILY_PAID || '100', 10);
+const RAW_NOTAM_DAILY_PAID = parseInt(process.env.RAW_NOTAM_DAILY_PAID || '50', 10);   // v3.82: 100 -> 50 (hard cost ceiling)
 // v3.80: one shared daily ceiling for all Free accounts together (SkyLink quota protection when many Free accounts appear).
 const RAW_NOTAM_DAILY_GLOBAL_FREE = parseInt(process.env.RAW_NOTAM_DAILY_GLOBAL_FREE || '1000', 10);
 async function reserveRawNotamLookup(userId, plan) {
@@ -179,7 +179,7 @@ async function reserveRawNotamLookup(userId, plan) {
 // (a circuit breaker, so no pattern of traffic can burn the provider quota). Cache hits count too (conservative).
 const SKYLINK_TOOL_PREFIXES = ['/api/airport-info/', '/api/airport-search/', '/api/raw/delays/', '/api/raw/charts/', '/api/distance/', '/api/navaids/', '/api/ml-flighttime/', '/api/flight-status/', '/api/carbon/', '/api/aircraft-performance/', '/api/aircraft/', '/api/routes/', '/api/airsigmet/'];
 const TOOLS_DAILY_FREE = parseInt(process.env.TOOLS_DAILY_FREE || '60', 10);
-const TOOLS_DAILY_PAID = parseInt(process.env.TOOLS_DAILY_PAID || '400', 10);
+const TOOLS_DAILY_PAID = parseInt(process.env.TOOLS_DAILY_PAID || '150', 10);   // v3.82: 400 -> 150 (hard cost ceiling)
 const TOOLS_DAILY_GLOBAL = parseInt(process.env.TOOLS_DAILY_GLOBAL || '3000', 10);
 const TOOLS_DAILY_GLOBAL_FREE = parseInt(process.env.TOOLS_DAILY_GLOBAL_FREE || '1000', 10);   // v3.81: all Free accounts together, inside the global cap
 async function skylinkToolGate(req, res) {
@@ -250,6 +250,16 @@ const GENERAL_CHAT_WEB_SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_s
 // signal that downgrades Sonnet to Haiku) — search silently turns off for the rest of that
 // window; chat keeps answering normally, just without search. Never blocks the user.
 const GENERAL_CHAT_WEB_SEARCH_CAP = { pro: 3, max: 6, admin: 10 };
+
+// v3.82: rolling 7-day ceiling on top of the 5-hour window (hard monthly cost cap, like Claude's own weekly limit).
+// Tokens = input+output (same count as the window); searches = web-search requests ($0.01 each, not in the token count).
+// When the weekly token cap is reached the chat stops until older usage leaves the 7-day window; when the weekly search
+// cap is reached web search turns off silently and the chat keeps answering.
+const GENERAL_CHAT_WEEKLY = {
+  pro: { tokens: parseInt(process.env.GENERAL_CHAT_WEEKLY_TOKENS_PRO || '150000', 10), searches: parseInt(process.env.GENERAL_CHAT_WEEKLY_SEARCHES_PRO || '20', 10) },
+  max: { tokens: parseInt(process.env.GENERAL_CHAT_WEEKLY_TOKENS_MAX || '300000', 10), searches: parseInt(process.env.GENERAL_CHAT_WEEKLY_SEARCHES_MAX || '40', 10) },
+};
+const WEEK_MINUTES = 7 * 24 * 60;
 
 async function getGeneralChatWindowUsage(userId, windowMinutes) {
   try {
@@ -4067,6 +4077,21 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
         const resetInMinutes = minutesUntilWindowReset(oldestTimestamp, cfg.windowMinutes);
 
         const currentUsage = tokenTotal; // all plans are token-based now
+        const weeklyCfg = plan === 'admin' ? null : GENERAL_CHAT_WEEKLY[limitPlanOf(plan)];
+        const week = weeklyCfg ? await getGeneralChatWindowUsage(userId, WEEK_MINUTES) : null;
+        if (weeklyCfg && week.tokenTotal >= weeklyCfg.tokens) {
+          const weekReset = minutesUntilWindowReset(week.oldestTimestamp, WEEK_MINUTES);
+          console.log('[GENERAL CHAT] weekly cap reached', { userId, plan, weeklyTokens: week.tokenTotal, cap: weeklyCfg.tokens });
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: 'limit_reached',
+            scope: 'weekly',
+            usagePercent: 100,
+            resetInMinutes: weekReset,
+            message: "You've reached your weekly chat limit. It frees up gradually as usage from 7 days ago drops off (next in about " + (weekReset >= 120 ? Math.round(weekReset / 60) + ' hours' : weekReset + ' minutes') + ')' + (limitPlanOf(plan) === 'pro' ? '. Max includes a higher weekly limit.' : '.')
+          }));
+          return;
+        }
         const hardLimitReached = currentUsage >= cfg.limit;
         const softLimitThreshold = cfg.softLimitRatio ? cfg.limit * cfg.softLimitRatio : cfg.limit;
         const pastSoftLimit = currentUsage >= softLimitThreshold;
@@ -4086,7 +4111,8 @@ When relevant, mention this feature and suggest they open the NOTAMs & MET panel
 
         const modelToUse = pastSoftLimit ? GENERAL_CHAT_FALLBACK_MODEL : cfg.model;
         const searchCapForPlan = GENERAL_CHAT_WEB_SEARCH_CAP[limitPlanOf(plan)] || 0;
-        const webSearchEnabled = GENERAL_CHAT_WEB_SEARCH_PLANS.includes(limitPlanOf(plan)) && !pastSoftLimit && searchTotal < searchCapForPlan;
+        const weeklySearchOk = !weeklyCfg || week.searchTotal < weeklyCfg.searches;
+        const webSearchEnabled = GENERAL_CHAT_WEB_SEARCH_PLANS.includes(limitPlanOf(plan)) && !pastSoftLimit && searchTotal < searchCapForPlan && weeklySearchOk;
 
         const { question, history, image_base64, image_type, pdf_base64, extra_text, images } = JSON.parse(body);
         if (!question && !image_base64 && !pdf_base64) {
@@ -4300,7 +4326,7 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         res.write(`data: ${JSON.stringify({ type: 'init', usagePercent: preEstimatePercent, resetInMinutes })}\n\n`);
 
         let doneSent = false;
-        console.log('[GENERAL CHAT]', { userId, plan, model: modelToUse, pastSoftLimit, webSearchEnabled, searchTotal, searchCap: searchCapForPlan, currentUsage, limit: cfg.limit });
+        console.log('[GENERAL CHAT]', { userId, plan, model: modelToUse, pastSoftLimit, webSearchEnabled, searchTotal, searchCap: searchCapForPlan, currentUsage, limit: cfg.limit, weeklyTokens: week ? week.tokenTotal : null, weeklySearches: week ? week.searchTotal : null });
 
         streamClaude(requestBody,
           (text) => { res.write(`data: ${JSON.stringify({ type: 'chunk', text })}\n\n`); },
