@@ -5388,6 +5388,9 @@ firebase.auth().onAuthStateChanged(async user => {
     } catch(e) {}
     // Handle return from checkout
     const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('videopack') === 'success') {
+      setTimeout(() => { showToast('🎬 Extra videos added to your account.'); window.history.replaceState({}, '', '/'); }, 1000);
+    }
     if (urlParams.get('upgrade') === 'success') {
       setTimeout(() => {
         showToast('🎉 Welcome to your new plan! Your account has been upgraded.');
@@ -5672,6 +5675,7 @@ async function pmLoadUsage() {
     </div>`;
     if (d.plan === 'max' || d.plan === 'admin') {
       html += row('AI Video Briefings', resetStr, d.video.used, d.video.limit);
+      if (d.video.packCredits > 0) html += '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin:-4px 0 10px;">+' + d.video.packCredits + ' extra video' + (d.video.packCredits === 1 ? '' : 's') + ' (pack, no expiry)</div>';
     }
     el.innerHTML = html;
   } catch(e) {
@@ -9206,6 +9210,7 @@ async function loadSettingsData() {
       const cp = pct(d.chat.tokens, d.chat.limit); const cc = barColor(cp);
       html += '<div style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">NOTAM Intelligence Chat</span><span style="font-family:Share Tech Mono,monospace;font-size:10px;color:' + cc + ';">' + cp + '%</span></div><div style="height:3px;background:#1a2a3a;border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + cp + '%;background:' + cc + ';border-radius:2px;"></div></div><div style="font-family:Share Tech Mono,monospace;font-size:9px;color:#4a5f72;margin-top:3px;">current session \xb7 ' + chatReset + '</div></div>';
       if (plan === 'max' || plan === 'admin') html += row('AI Video Briefings', resetStr, d.video.used, d.video.limit);
+      if ((plan === 'max' || plan === 'admin') && d.video.packCredits > 0) html += '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin:-4px 0 10px;">+' + d.video.packCredits + ' extra video' + (d.video.packCredits === 1 ? '' : 's') + ' (pack, no expiry)</div>';
       usageEl.innerHTML = html;
     }
   } catch(e) {}
@@ -11038,6 +11043,7 @@ async function generateVideoBriefing(route, userId) {
     if (response.status === 401) { handleAuthError(401); return; }
     if (response.status === 403) {
       const data = await response.json();
+      if (data.error === 'limit_reached' && data.packAvailable) { showVideoPackOffer(data.packSize || 3); return; }
       showVideoBriefingError(data.error === 'limit_reached' ? 'Video briefing limit reached for this month.' : 'Video briefing requires a Max plan.');
       return;
     }
@@ -11100,6 +11106,29 @@ function showResultVideo(videoUrl) {
     if (ambient.volume > 0.02) ambient.volume -= 0.02;
     else { clearInterval(fadeOut); ambient.pause(); }
   }, 100);
+}
+
+// v3.86: monthly videos used up -> offer the extra video pack (one-time Stripe payment)
+function showVideoPackOffer(n) {
+  clearInterval(vbInterval);
+  clearInterval(vbProgressInterval);
+  const st = document.getElementById('vbStatus');
+  st.innerHTML = '<div style="margin-bottom:14px;">You have used your 5 video briefings for this month.</div>' +
+    '<button onclick="buyVideoPack(this)" style="background:#4a9eff;color:#060a0f;border:none;border-radius:6px;padding:10px 20px;font-family:Rajdhani,sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;cursor:pointer;">GET ' + n + ' MORE VIDEOS — $10</button>' +
+    '<div style="font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;letter-spacing:0;margin-top:10px;">One-time payment. Extra videos do not expire.</div>';
+}
+async function buyVideoPack(btn) {
+  const user = firebase.auth().currentUser;
+  if (!user) { openLoginModal(); return; }
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.innerHTML = 'Loading...'; btn.disabled = true; }
+  try {
+    const r = await fetch('/api/buy-video-pack', { method: 'POST', headers: { 'Authorization': 'Bearer ' + (await user.getIdToken()) } });
+    const d = await r.json().catch(() => ({}));
+    if (d.url) { window.location.href = d.url; return; }
+    showToast(d.error === 'max_only' ? 'Extra video packs are available on the Max plan.' : 'Could not start checkout. Please try again.');
+  } catch (e) { showToast('Could not start checkout. Please try again.'); }
+  if (btn) { btn.innerHTML = orig; btn.disabled = false; }
 }
 
 function showVideoBriefingError(msg) {

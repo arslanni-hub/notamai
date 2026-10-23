@@ -420,6 +420,30 @@ const STRIPE_PRICES = {
   pro: { month: process.env.STRIPE_PRICE_PRO_MONTHLY, year: process.env.STRIPE_PRICE_PRO_YEARLY },
   max: { month: process.env.STRIPE_PRICE_MAX_MONTHLY, year: process.env.STRIPE_PRICE_MAX_YEARLY }
 };
+// v3.86: extra video pack — one-time Stripe price (Render env STRIPE_PRICE_VIDEO_PACK, $10) = VIDEO_PACK_SIZE (3) extra videos for Max.
+// Pack videos are kept on users/{uid}.videoCredits and never expire; they are used only after the 5 monthly videos.
+const STRIPE_PRICE_VIDEO_PACK = process.env.STRIPE_PRICE_VIDEO_PACK || '';
+const VIDEO_PACK_SIZE = parseInt(process.env.VIDEO_PACK_SIZE || '3', 10);
+const VIDEO_MONTHLY_MAX = 5;
+async function addVideoCredits(userId, n) {
+  await adminDb.collection('users').doc(userId).set({ videoCredits: admin.firestore.FieldValue.increment(n) }, { merge: true });
+}
+async function takeVideoCredit(userId) {
+  const ref = adminDb.collection('users').doc(userId);
+  return adminDb.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    const c = snap.exists ? (snap.data().videoCredits || 0) : 0;
+    if (c <= 0) return false;
+    tx.set(ref, { videoCredits: c - 1 }, { merge: true });
+    return true;
+  });
+}
+// gives back exactly what a failed video took: a pack credit, or one of the monthly videos
+async function refundVideoCharge(userId, chargedFrom, when) {
+  if (chargedFrom === 'pack') { await addVideoCredits(userId, 1).catch(e => console.log('[VIDEO] pack refund error:', e.message)); return; }
+  await decrementUsage(userId, 'video', when);
+}
+
 function planFromPriceId(priceId) {
   for (const [plan, p] of Object.entries(STRIPE_PRICES)) {
     if (priceId && (priceId === p.month || priceId === p.year)) return plan;
@@ -532,7 +556,7 @@ async function finalizeVideo(predId) {
             tx.update(ref, { status: 'failed', refunded: true, failedAt: admin.firestore.FieldValue.serverTimestamp() });
             return d;
           });
-          if (owner && owner.userId) { await decrementUsage(owner.userId, 'video', owner.createdAt && owner.createdAt.toDate ? owner.createdAt.toDate() : null); console.log('[VIDEO] render failed, credit restored:', predId); }
+          if (owner && owner.userId) { await refundVideoCharge(owner.userId, owner.chargedFrom, owner.createdAt && owner.createdAt.toDate ? owner.createdAt.toDate() : null); console.log('[VIDEO] render failed, credit restored:', predId); }
         } catch (e) { console.log('[VIDEO] refund error:', e.message); }
       }
       // Completed: claim the record once, then archive in the background (download + Firebase Storage upload never delays the answer)
@@ -2692,6 +2716,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       let chargedUser = null, started = false;   // a video that fails before it starts gives the credit back
+      let chargedFrom = 'monthly';               // v3.86: 'monthly' (one of the 5) or 'pack' (a purchased extra video)
       try {
         const { route, briefingId, risk: clientRisk, localHour } = JSON.parse(body);
         const userId = await getVerifiedUserId(req);
@@ -2705,13 +2730,17 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         }
         if (limitPlanOf(vPlan) === 'max') {
           const vUsed = await getUserUsage(userId, 'video');
-          if (vUsed >= 5) {
-            res.writeHead(403, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'limit_reached', plan: vPlan, feature: 'video', usage: vUsed, limit: 5 }));
-            return;
+          if (vUsed >= VIDEO_MONTHLY_MAX) {
+            // monthly videos used up: take one from a purchased pack, otherwise offer the pack
+            if (await takeVideoCredit(userId).catch(() => false)) chargedFrom = 'pack';
+            else {
+              res.writeHead(403, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'limit_reached', plan: vPlan, feature: 'video', usage: vUsed, limit: VIDEO_MONTHLY_MAX, packAvailable: !!(stripe && STRIPE_PRICE_VIDEO_PACK), packSize: VIDEO_PACK_SIZE }));
+              return;
+            }
           }
         }
-        await incrementUsage(userId, 'video');
+        if (chargedFrom !== 'pack') await incrementUsage(userId, 'video');
         chargedUser = userId;
 
         // Parse ICAO codes from route
@@ -2875,6 +2904,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
           predictionId,
           script,
           status: 'processing',
+          chargedFrom,
           createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
         started = true;
@@ -2883,7 +2913,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ predictionId, script }));
       } catch(e) {
-        if (chargedUser && !started) { await decrementUsage(chargedUser, 'video'); console.log('[VIDEO BRIEFING] failed before start, credit restored:', e.message); }
+        if (chargedUser && !started) { await refundVideoCharge(chargedUser, chargedFrom); console.log('[VIDEO BRIEFING] failed before start, credit restored (' + chargedFrom + '):', e.message); }
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: e.message }));
       } finally {
@@ -3590,6 +3620,41 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
     return;
   }
 
+  // ── EXTRA VIDEO PACK (v3.86): one-time payment, Max/Enterprise only ──
+  if (req.method === 'POST' && req.url === '/api/buy-video-pack') {
+    req.on('data', () => {});
+    req.on('end', async () => {
+      try {
+        const userId = await getVerifiedUserId(req);
+        if (!userId) { sendUnauthorized(res, req); return; }
+        if (!stripe || !STRIPE_PRICE_VIDEO_PACK) { res.writeHead(503, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'payments_not_configured' })); return; }
+        const plan = await getUserPlan(userId);
+        if (limitPlanOf(plan) !== 'max') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'max_only' })); return; }
+        const snap = await adminDb.collection('users').doc(userId).get();
+        const u = snap.exists ? snap.data() : {};
+        const params = {
+          mode: 'payment',
+          line_items: [{ price: STRIPE_PRICE_VIDEO_PACK, quantity: 1 }],
+          client_reference_id: userId,
+          metadata: { user_id: userId, kind: 'video_pack', videos: String(VIDEO_PACK_SIZE) },
+          success_url: PUBLIC_BASE_URL + '/?videopack=success',
+          cancel_url: PUBLIC_BASE_URL + '/?videopack=cancelled'
+        };
+        if (u.stripeCustomerId) params.customer = u.stripeCustomerId;
+        else params.customer_email = (await admin.auth().getUser(userId)).email;
+        if (process.env.STRIPE_MANAGED_PAYMENTS !== 'false') params.managed_payments = { enabled: true };
+        const session = await stripe.checkout.sessions.create(params);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ url: session.url }));
+      } catch (e) {
+        console.log('[VIDEO PACK CHECKOUT ERROR]', e.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
   // ── STRIPE BILLING PORTAL ──
   if (req.method === 'POST' && req.url === '/api/billing-portal') {
     req.on('data', () => {});
@@ -3634,6 +3699,21 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         if (event.type === 'checkout.session.completed' && obj.mode === 'subscription' && obj.subscription) {
           const sub = await stripe.subscriptions.retrieve(obj.subscription);
           await syncStripeSubscription(sub, obj.client_reference_id);
+        } else if ((event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') && obj.mode === 'payment' && obj.metadata?.kind === 'video_pack') {
+          // credited exactly once per Checkout session (Stripe may deliver the same event more than once)
+          const uid = obj.metadata.user_id || obj.client_reference_id;
+          const n = parseInt(obj.metadata.videos || String(VIDEO_PACK_SIZE), 10) || VIDEO_PACK_SIZE;
+          if (uid && obj.payment_status === 'paid') {
+            try {
+              await adminDb.collection('videoPacks').doc(obj.id).create({ userId: uid, videos: n, amount: obj.amount_total || null, currency: obj.currency || null, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+              await addVideoCredits(uid, n);
+              console.log('[VIDEO PACK] credited', n, 'videos to', uid, obj.id);
+              sendAdminNotification('🎬 Video pack sold (+' + n + ')', '<div style="font-size:13px;color:#1e293b;">' + escHtml(obj.customer_details?.email || uid) + ' bought an extra video pack (' + n + ' videos).</div>').catch(() => {});
+            } catch (e) {
+              if (String(e.code) === '6' || /already exists/i.test(e.message)) console.log('[VIDEO PACK] duplicate event ignored', obj.id);
+              else throw e;
+            }
+          }
         } else if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
           await syncStripeSubscription(obj);
         } else if (event.type === 'invoice.payment_failed') {
@@ -3684,7 +3764,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         plan,
         briefings: { used: briefingsUsed, limit: limits.briefings },
         analysis: { used: analysisUsed, limit: limits.analysis },
-        video: { used: videoUsed, limit: plan === 'admin' ? 9999 : (limitPlanOf(plan) === 'max' ? 5 : 0) },
+        video: { used: videoUsed, limit: plan === 'admin' ? 9999 : (limitPlanOf(plan) === 'max' ? VIDEO_MONTHLY_MAX : 0), packCredits: userData.videoCredits || 0, packAvailable: !!(stripe && STRIPE_PRICE_VIDEO_PACK) },
         chat: { tokens: chatTokens, limit: chatCfg.limit, resetInMinutes },
         monthlyResetDays: daysUntilReset,
         memberSince: userData.createdAt ? userData.createdAt.toDate().toISOString() : null
