@@ -5849,7 +5849,7 @@ function closeProfileModal() {
   document.getElementById('profileModal').style.display = 'none';
 }
 
-async function saveProfile() {
+async function saveProfile(btn) {   // v3.98: button passed in (window.event is gone after the await — Safari error)
   const user = firebase.auth().currentUser;
   if (!user) return;
   const displayName = document.getElementById('profileDisplayName').value.trim();
@@ -5861,7 +5861,7 @@ async function saveProfile() {
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     if (displayName) document.getElementById('sidebarName').textContent = displayName;
-    const btn = event.currentTarget;
+    if (!btn) return;
     btn.textContent = '✓ SAVED';
     btn.style.color = '#2ec4b6';
     btn.style.borderColor = 'rgba(46,196,182,0.4)';
@@ -7414,7 +7414,7 @@ document.addEventListener('mouseout', function(e) {
           <label style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#8a9bb0;letter-spacing:1px;display:block;margin-bottom:5px;">AIRLINE / ORGANIZATION</label>
           <input id="profileOrg" type="text" placeholder="e.g. American Airlines" style="width:100%;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:10px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='rgba(74,158,255,0.4)'" onblur="this.style.borderColor='#1a2a3a'">
         </div>
-        <button onclick="saveProfile()" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">SAVE CHANGES</button>
+        <button onclick="saveProfile(this)" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">SAVE CHANGES</button>
       </div>
 
       <!-- USAGE TAB -->
@@ -7627,11 +7627,11 @@ document.addEventListener('mouseout', function(e) {
     <!-- PRIVACY & DATA -->
     <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
       <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">PRIVACY & DATA</div>
-      <button onclick="exportMyData()" style="width:100%;padding:10px 14px;background:transparent;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;letter-spacing:1px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a'">
+      <button onclick="exportMyData(this)" style="width:100%;padding:10px 14px;background:transparent;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;letter-spacing:1px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='#1a2a3a'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download My Data
       </button>
-      <button onclick="clearHistory()" style="width:100%;padding:10px 14px;background:transparent;border:1px solid rgba(230,57,70,0.2);color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;letter-spacing:1px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#e63946';this.style.borderColor='rgba(230,57,70,0.4)'" onmouseout="this.style.color='#4a5f72';this.style.borderColor='rgba(230,57,70,0.2)'">
+      <button onclick="clearHistory(this)" style="width:100%;padding:10px 14px;background:transparent;border:1px solid rgba(230,57,70,0.2);color:#4a5f72;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;letter-spacing:1px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#e63946';this.style.borderColor='rgba(230,57,70,0.4)'" onmouseout="this.style.color='#4a5f72';this.style.borderColor='rgba(230,57,70,0.2)'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         Clear All History
       </button>
@@ -9322,10 +9322,9 @@ function copySettingsRefCode() {
   setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = '#4a5f72'; }, 2000);
 }
 
-async function exportMyData() {
+async function exportMyData(btn) {
   const user = firebase.auth().currentUser;
-  if (!user) return;
-  const btn = event.currentTarget;
+  if (!user || !btn) return;
   btn.textContent = 'Preparing...';
   try {
     const snapshot = await db.collection('briefings').where('userId','==',user.uid).get();
@@ -9364,11 +9363,11 @@ async function exportMyData() {
   }
 }
 
-async function clearHistory() {
+async function clearHistory(btn) {
+  if (!btn) return;
   if (!confirm('This will permanently delete all your briefings, chats, saved routes and NOTAM alerts. This cannot be undone. Continue?')) return;
   const user = firebase.auth().currentUser;
   if (!user) return;
-  const btn = event.currentTarget;
   btn.textContent = 'Deleting...';
   try {
     const collections = ['briefings', 'general_chats', 'saved_routes', 'notam_alerts', 'videos'];
