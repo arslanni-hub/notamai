@@ -78,23 +78,23 @@ User → index.html (SPA)
 
 ## Pricing Plans — FINAL, do not alter without explicit instruction
 Plan names (decided 27 Oct 2026, same scheme as Claude): Free / Pro / Max / Team / Enterprise. Team = $69/seat/month ($59 annual), 3–50 seats, pooled per seat: 60 briefings (15 Sonnet), 2 alert airports @60 min, 1 video; personal limits = Pro; team admin + central billing + priority support; sold manually until the organisation feature exists. Enterprise = 50+ seats / special needs, custom quote, annual contract, API only on request, no uptime SLA yet. Target realistic cost ≤10% of price (Team ~$6.70/seat), worst case never a loss.
-Credit-based system was discussed and explicitly abandoned (June 2026). Current model is simple per-feature limits:
+Credit-based system was discussed and explicitly abandoned (June 2026). Current model is simple per-feature limits (Team column added 27 Oct 2026; Team has no organisation code yet — sold manually, members are set to plan 'max' until the pooled team feature exists). Enterprise (50+ seats / special needs) = custom quote, not in this table; in code `enterprise` follows the Max rules (v3.89).
 
-| Feature | Free | Pro $49 | Max $99 |
-|---|---|---|---|
-| AI Briefing | 3/month | Unlimited* | Unlimited* |
-| En-route FIR | ❌ | ✅ | ✅ |
-| Ask NOTAM AI (briefing-specific chat) | ❌ | ✅ | ✅ |
-| ✨ Single NOTAM/METAR/TAF AI analysis | ❌ | ✅ | ✅ |
-| AI Video Briefing | ❌ | ❌ | 5/month hard limit, +$10 = 3 more |
-| NOTAMs & MET raw data | ✅ | ✅ | ✅ |
-| Archive | ❌ | ✅ (no limit enforced in code) | Unlimited* |
-| Saved Routes | ❌ | 3 (enforced client-side) | up to 20 (localStorage cap) |
-| NOTAM Alerts | ❌ | 3 airports, checked ~every 60 min | 5 airports, ~every 30 min (Enterprise: 5 until the pooled team plan, v3.89) |
-| Share + PDF export | ❌ | ✅ | ✅ |
-| Priority support | ❌ | ❌ | ✅ |
+| Feature | Free | Pro $49 | Max $99 | Team $69/seat (3–50 seats) |
+|---|---|---|---|---|
+| AI Briefing | 3/month | Unlimited* | Unlimited* | 60/seat, shared team pool (15/seat Sonnet) |
+| En-route FIR | ❌ | ✅ | ✅ | ✅ |
+| Ask NOTAM AI (briefing-specific chat) | ❌ | ✅ | ✅ | ✅ (Pro level per member) |
+| ✨ Single NOTAM/METAR/TAF AI analysis | ❌ | ✅ | ✅ | ✅ (Pro level per member) |
+| AI Video Briefing | ❌ | ❌ | 5/month hard limit, +$10 = 3 more | 1/seat/month, shared pool |
+| NOTAMs & MET raw data | ✅ | ✅ | ✅ | ✅ |
+| Archive | ❌ | ✅ (no limit enforced in code) | Unlimited* | ✅ |
+| Saved Routes | ❌ | 3 (enforced client-side) | up to 20 (localStorage cap) | as Pro |
+| NOTAM Alerts | ❌ | 3 airports, checked ~every 60 min | 5 airports, ~every 30 min | 2 airports/seat, shared pool, ~every 60 min |
+| Share + PDF export | ❌ | ✅ | ✅ | ✅ |
+| Priority support | ❌ | ❌ | ✅ | ✅ + team admin & central billing |
 
-*"Unlimited" items are marketing labels backed by soft caps: briefings 100/150 per month (PLAN_LIMITS, warning at 80%, limit modal at 100%), Free-plan global cap 20/day; fair use clause in terms.html §8 (incl. Capacity Limits paragraph). Alerts are the one cost-bearing feature shown with explicit numbers (Pro 3 airports/60 min, Max 5/30 min) — keep ALERT_CAPS, index.html alert banners, pricing pages and support text in sync.
+*"Unlimited" items are marketing labels backed by soft caps: briefings 100/150 per month (PLAN_LIMITS, warning at 80%, limit modal at 100%), Free-plan global cap 60/day (FREE_DAILY_BRIEFING_CAP, since v3.71); fair use clause in terms.html §8 (incl. Capacity Limits paragraph). Alerts are the one cost-bearing feature shown with explicit numbers (Pro 3 airports/60 min, Max 5/30 min) — keep ALERT_CAPS, index.html alert banners, pricing pages and support text in sync.
 
 In code: `PLAN_LIMITS` in server.js currently uses `{briefings, chat, analysis}` numeric caps (free: 3/0/0, pro: 100/150/200, max: 150/400/300) as the enforcement mechanism for the table above — these numbers implement the table, they are not a separate source of truth. Don't change PLAN_LIMITS values without first confirming against this table.
 
@@ -132,7 +132,7 @@ Separate from "Ask NOTAM AI" (which stays briefing-specific, never touched by th
 - Support/Sales failures forward the raw mail to the admin (`sendAdminNotification`) – the mail is already marked read on IMAP, never drop it.
 - Real-time watcher: single `users` snapshot listener; first snapshot is a baseline; upgrade/downgrade only when `plan` really changes; new-user time from `createdAt` or Auth creation time.
 - Support prompt plan text must follow PLAN_LIMITS (Pro 100, Max 150 briefings/month).
-- Health report: MRR includes Enterprise ($999); WaveSpeed balance (`WAVESPEED_MIN_BALANCE`, default 5) and ElevenLabs quota are best-effort checks.
+- Health report: MRR from revenueSummary (paying subscribers only, yearly at price/12, v3.88); WaveSpeed balance (`WAVESPEED_MIN_BALANCE`, default 5) and ElevenLabs quota are best-effort checks.
 - v3.66: Sentinel (30 min: WaveSpeed/ElevenLabs credit, SkyLink %, failed videos), Lifecycle agent (daily 10:00 UTC: onboarding nudge, win-back, upgrade nudge; user mails only when Render env `LIFECYCLE_EMAILS=on`, dedupe in Firestore `agentLog`), weekly feedback digest (Mon 09:30), EASA CZIB watcher (Mon 07:00, state in `system/conflict_watch`). Legacy plan values (e.g. `premium`) are treated as `free`.
 - v3.67: `limitPlanOf(plan)` maps enterprise → max for every plan-limit lookup (briefings, analysis, chat, general chat, video, web search) — Enterprise previously fell through to Free defaults. Legacy unauthenticated test endpoints (HeyGen/Veed/FlashHead/SkyReels/Kling/join-videos/upload-audio/test-alert) were removed; do not re-add unauthenticated endpoints that spend provider credit.
 - v3.68: briefing model per plan via Render env `BRIEFING_MODEL_FREE/_PRO/_MAX/_ADMIN` (enterprise uses _MAX; `BRIEFING_MODEL` stays the non-admin fallback; code defaults unchanged). `HAIKU_MODEL` env (default `claude-haiku-4-5`) switches every small-model call (chat, analysis, route extraction, agents, general-chat fallback) at once. Every briefing logs `[BRIEFING COST]` and writes a `briefingCosts` Firestore record (model, tokens, USD from MODEL_PRICES). Sonnet 5.5 and Haiku 5.5 share BRIEFING_DEPTH_RULES_55 and the 24k output ceiling; Haiku 5.5 verified (v3.70): accepts `thinking:{type:'disabled'}` (env BRIEFING_HAIKU_THINKING=disabled, required or thinking eats the 24k output budget) and `output_config.effort`, REJECTS `between_tools`; Sonnet 5.5 is the opposite (`between_tools` only).
