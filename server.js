@@ -92,8 +92,9 @@ function briefingModelFor(plan, usedThisMonth) {
   let picked = own || (plan === 'admin' ? 'claude-sonnet-5-5' : (process.env.BRIEFING_MODEL || 'claude-sonnet-4-6'));
   if (!/^claude-(sonnet|haiku|opus)-[a-z0-9.-]+$/i.test(picked)) picked = 'claude-sonnet-4-6';
   // v3.71 Max hybrid: the first MAX_SONNET_BRIEFINGS briefings of the month use the Max model (Sonnet 5.5); later ones drop to MAX_FALLBACK_MODEL (Haiku 5.5).
-  // Only plan 'max' (not Enterprise, not admin); 0 disables the downgrade.
-  if (plan === 'max' && /^claude-sonnet-/i.test(picked) && MAX_SONNET_BRIEFINGS > 0 && (usedThisMonth || 0) >= MAX_SONNET_BRIEFINGS) {
+  // Plans 'max' and (v3.89) 'enterprise' — until the pooled team plan exists an Enterprise account follows the Max rules, so it can never
+  // run at a loss; admin never downgrades; 0 disables the downgrade.
+  if ((plan === 'max' || plan === 'enterprise') && /^claude-sonnet-/i.test(picked) && MAX_SONNET_BRIEFINGS > 0 && (usedThisMonth || 0) >= MAX_SONNET_BRIEFINGS) {
     const fb = process.env.MAX_FALLBACK_MODEL || 'claude-haiku-5-5';
     if (/^claude-haiku-[a-z0-9.-]+$/i.test(fb)) picked = fb;
   }
@@ -5147,7 +5148,7 @@ let alertCheckCycle = 0;
 //  - every NEW id is reported (digest e-mail), not just the newest one; user e-mail / preferences are looked up only when something is sent
 const alertPoll = require('./alert-poll');
 const ALERT_TICK_MS = 15 * 60 * 1000;
-const ALERT_CAPS = { free: 0, pro: 3, max: 5, enterprise: 10 };
+const ALERT_CAPS = { free: 0, pro: 3, max: 5, enterprise: 5 };   // v3.89: enterprise = Max until the pooled team plan exists
 // soft budget for DISTINCT airports polled at once (each ≈720 provider calls/month at 60 min, ≈1,440 at 30 min); exceeding it only raises a warning
 const ALERT_AIRPORT_BUDGET = parseInt(process.env.ALERT_AIRPORT_BUDGET, 10) || 150;
 const alertStateMem = new Map();      // ICAO -> state | null (null = no state yet)
@@ -5997,11 +5998,11 @@ async function processSalesLead(email, supportAnalysis) {
 PRICING:
 - Pro: $49/month per user
 - Max: $99/month per user
-- Enterprise: $999/month (up to 10 users) — Everything in Max + API Access, Priority Support & SLA, Dedicated Account Manager, Custom Onboarding
-- 11-25 users: $1,999/month
-- 26-50 users: $3,499/month
-- 50+ users: Custom pricing, annual contract required
-- Annual discount: 15% off
+- Team / Enterprise (operators, flight schools, dispatch and ops centres): custom quote only — never state a price or a seat count.
+  Being designed as a shared monthly allowance for the whole team (briefings, alerts, video), central billing (annual invoice possible),
+  onboarding and priority support. API access and integrations: on request / roadmap — never promise them as available now.
+  No uptime SLA is offered yet; support response times can be agreed.
+- Annual billing (Pro, Max): about 15% off
 
 Customer email:
 From: ${email.from}
@@ -6241,7 +6242,7 @@ PLANS & PRICING:
 - Free: 3 AI Briefings/month, NOTAMs & MET live data, SIGMET/AIRMET, Aviation Tools Panel
 - Pro ($49/month): 100 AI Briefings/month, NOTAM Intelligence Chat, En-route FIR Analysis, AI Assistant, NOTAM/METAR/TAF Analysis, Briefing Archive, Saved Routes (3), NOTAM Alerts (3 airports, checked about every 60 min), Share & PDF Export
 - Max ($99/month): Everything in Pro + 150 AI Briefings/month, AI Video Briefing (5/month), higher chat limits, unlimited archive, saved routes (up to 20), NOTAM alerts (5 airports, checked about every 30 min), Priority Support, extra video pack $10=3 videos
-- Enterprise ($999/month): Everything in Max + up to 10 users, API Access, Priority Support & SLA, Dedicated Account Manager, Custom Onboarding
+- Team / Enterprise: custom quote for operators, flight schools and ops centres (shared team allowance, central billing, onboarding). Do not quote a price or seat count; API access is on request (roadmap), no uptime SLA yet. Forward such requests to sales.
 - All paid plans have 7-day free trial, cancel anytime
 - Annual billing available with 15% discount
 
