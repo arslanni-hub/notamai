@@ -546,6 +546,12 @@ async function initiateCheckout(plan, interval = 'month') {
       return;
     }
     const data = await response.json();
+    if (data.error === 'email_not_verified') {   // v3.100
+      alert('Please verify your email address first. We sent a link to ' + (user.email || 'your email') + ' — check your inbox and spam folder, click the link, then try again.');
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+      return;
+    }
     if (data.url) {
       window.location.href = data.url;
     } else {

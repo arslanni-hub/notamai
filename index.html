@@ -4253,6 +4253,12 @@ async function initiateCheckout(plan, interval = 'month') {
       return;
     }
     const data = await response.json();
+    if (data.error === 'email_not_verified') {   // v3.100: unverified e-mail/password account — the banner above offers "Resend email"
+      showToast('Please verify your email first — check your inbox (and spam folder) for the link.');
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+      return;
+    }
     console.log('[CHECKOUT RESPONSE]', data);
     if (data.url) {
       window.location.href = data.url;
