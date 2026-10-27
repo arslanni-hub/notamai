@@ -2609,6 +2609,66 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // v3.96: Free -> paid conversion funnel for the admin panel. Cohort = accounts created in the last `days` days (0 = all time),
+  // from Firebase Auth (creation time + e-mail verification) joined with users/{uid} and the monthly usage docs. Admin accounts excluded.
+  if (req.method === 'GET' && req.url.startsWith('/api/admin/funnel')) {
+    try {
+      const dec = await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', ''));
+      if (dec.email !== 'arslanni@gmail.com') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Forbidden' })); return; }
+      const days = Math.max(0, Math.min(3650, parseInt(new URL(req.url, 'http://x').searchParams.get('days') || '30', 10) || 0));
+      const since = days ? Date.now() - days * 86400000 : 0;
+      const ADMIN_MAILS = ['arslanni@gmail.com', 'admin@notamai.com'];
+      const authUsers = [];
+      let pageToken;
+      do { const r = await admin.auth().listUsers(1000, pageToken); authUsers.push(...r.users); pageToken = r.pageToken; } while (pageToken && authUsers.length < 100000);
+      const docs = {};
+      (await adminDb.collection('users').get()).forEach(d => { docs[d.id] = d.data(); });
+      const now = new Date();
+      const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');   // same key as getUserUsage
+      const usage = {};   // uid -> { total, maxMonth, thisMonth }
+      (await adminDb.collection('usage').limit(100000).get()).forEach(d => {
+        const x = d.data(); const uid = x.userId || d.id.split('_')[0]; const b = x.briefings || 0;
+        const u = (usage[uid] = usage[uid] || { total: 0, maxMonth: 0, thisMonth: 0 });
+        u.total += b; u.maxMonth = Math.max(u.maxMonth, b);
+        if ((x.month || d.id.slice(-7)) === monthKey) u.thisMonth = b;
+      });
+      const steps = { signup: 0, verified: 0, activated: 0, reachedLimit: 0, trial: 0, paying: 0 };
+      const extra = { canceling: 0, lost: 0, trialing: 0 };
+      const weeks = {};   // ISO date of the week's Monday -> { signup, activated, paying }
+      const candidates = [];
+      for (const a of authUsers) {
+        if (ADMIN_MAILS.includes(a.email)) continue;
+        const d = docs[a.uid] || {};
+        if (d.plan === 'admin') continue;
+        const created = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().getTime() : Date.parse(a.metadata.creationTime);
+        const u = usage[a.uid] || { total: 0, maxMonth: 0, thisMonth: 0 };
+        const rev = userRevenueState(d);
+        const startedSub = !!(d.trialUsed || d.stripeSubscriptionId || d.subscriptionStatus || (parseFloat(d.manualMrr) || 0) > 0);
+        // upgrade candidates: Free accounts (any signup date) that used their 3 briefings this month
+        if ((!d.plan || d.plan === 'free') && u.thisMonth >= 3 && candidates.length < 25) candidates.push({ email: a.email || a.uid, signup: new Date(created).toISOString().slice(0, 10), thisMonth: u.thisMonth, total: u.total, trialUsed: !!d.trialUsed });
+        if (since && !(created >= since)) continue;
+        steps.signup++;
+        if (a.emailVerified || (a.providerData || []).some(p => p.providerId === 'google.com')) steps.verified++;
+        if (u.total >= 1) steps.activated++;
+        if (u.maxMonth >= 3 || startedSub) steps.reachedLimit++;
+        if (startedSub) steps.trial++;
+        if (rev.kind === 'paying') steps.paying++;
+        if (rev.kind === 'trial') extra.trialing++;
+        if (rev.kind === 'paying' && d.cancelAtPeriodEnd) extra.canceling++;
+        if (d.stripeSubscriptionId && (!d.plan || d.plan === 'free')) extra.lost++;
+        const wd = new Date(created); wd.setUTCHours(0, 0, 0, 0); wd.setUTCDate(wd.getUTCDate() - ((wd.getUTCDay() + 6) % 7));
+        const wk = wd.toISOString().slice(0, 10);
+        const w = (weeks[wk] = weeks[wk] || { signup: 0, activated: 0, paying: 0 });
+        w.signup++; if (u.total >= 1) w.activated++; if (rev.kind === 'paying') w.paying++;
+      }
+      const weekRows = Object.entries(weeks).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 12).map(([week, v]) => Object.assign({ week }, v));
+      candidates.sort((a, b) => b.thisMonth - a.thisMonth);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ days, steps, extra, weeks: weekRows, candidates }));
+    } catch (e) { console.log('[ADMIN FUNNEL] error:', e.message); res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'unavailable' })); }
+    return;
+  }
+
   // Measured Anthropic cost of this month's briefings (briefingCosts records written by /briefing), for the admin cost tables.
   if (req.method === 'GET' && req.url === '/api/admin/briefing-costs') {
     try {

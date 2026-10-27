@@ -63,6 +63,7 @@ tr:hover td { background:rgba(74,158,255,0.03); }
     <button class="tab active" onclick="switchTab('overview')">Overview</button>
     <button class="tab" onclick="switchTab('users')">Users</button>
     <button class="tab" onclick="switchTab('revenue')">Revenue</button>
+    <button class="tab" onclick="switchTab('funnel')">Funnel</button>
     <button class="tab" onclick="switchTab('usage')">Usage</button>
     <button class="tab" onclick="switchTab('system')">System</button>
     <button class="tab" onclick="switchTab('feedback')">Rating feedback</button>
@@ -72,6 +73,7 @@ tr:hover td { background:rgba(74,158,255,0.03); }
     <div id="tab-overview" class="tab-content active"><div class="loading">LOADING...</div></div>
     <div id="tab-users" class="tab-content"><div class="loading">LOADING...</div></div>
     <div id="tab-revenue" class="tab-content"><div class="loading">LOADING...</div></div>
+    <div id="tab-funnel" class="tab-content"><div class="loading">LOADING...</div></div>
     <div id="tab-usage" class="tab-content"><div class="loading">LOADING...</div></div>
     <div id="tab-system" class="tab-content"><div class="loading">LOADING...</div></div>
     <div id="tab-feedback" class="tab-content"><div class="loading">LOADING...</div></div>
@@ -114,6 +116,7 @@ function switchTab(tab) {
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab === 'users') loadUsers();
   if (tab === 'revenue') loadRevenue();
+  if (tab === 'funnel') loadFunnel();
   if (tab === 'usage') loadUsage();
   if (tab === 'system') loadSystem();
   if (tab === 'feedback') loadFeedback();
@@ -404,6 +407,52 @@ async function loadRevenue() {
   } catch(e) {
     document.getElementById('tab-revenue').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
   }
+}
+
+// v3.96: Free -> paid conversion funnel (server: /api/admin/funnel)
+let funnelDays = 30;
+async function loadFunnel(days) {
+  if (typeof days === 'number') funnelDays = days;
+  const el = document.getElementById('tab-funnel');
+  el.innerHTML = '<div class="loading">LOADING...</div>';
+  try {
+    const idToken = await firebase.auth().currentUser.getIdToken();
+    const r = await fetch('/api/admin/funnel?days=' + funnelDays, { headers: { 'Authorization': 'Bearer ' + idToken } });
+    if (!r.ok) { el.innerHTML = '<div class="loading">Funnel unavailable (HTTP ' + r.status + ')</div>'; return; }
+    const j = await r.json();
+    const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const pct = (n, d) => d ? (n / d * 100).toFixed(1) + '%' : '—';
+    const S = j.steps;
+    const defs = [
+      ['signup', 'Signed up', 'Accounts created in the period'],
+      ['verified', 'E-mail verified', 'Verified e-mail or Google sign-in'],
+      ['activated', 'First briefing', 'Generated at least one AI briefing'],
+      ['reachedLimit', 'Used 3+ briefings in a month', 'Reached the Free allowance (or subscribed before)'],
+      ['trial', 'Started trial / subscription', 'Ever started a Stripe trial or subscription, or invoiced'],
+      ['paying', 'Paying now', 'Active / past-due subscription or invoiced (manualMrr)']
+    ];
+    let prev = null;
+    const rows = defs.map(([k, label, hint]) => {
+      const n = S[k] || 0;
+      const w = S.signup ? Math.max(n ? 2 : 0, Math.round(n / S.signup * 100)) : 0;
+      const row = '<tr><td>' + label + '<div style="font-size:11px;color:#4a5f72;">' + hint + '</div></td><td style="font-family:Orbitron,sans-serif;">' + n + '</td><td>' + pct(n, S.signup) + '</td><td>' + (prev === null ? '—' : pct(n, prev)) + '</td><td style="width:35%;"><div style="height:8px;background:#0d1520;border-radius:4px;"><div style="height:8px;width:' + w + '%;background:#4a9eff;border-radius:4px;"></div></div></td></tr>';
+      prev = n; return row;
+    }).join('');
+    const btn = d => '<button onclick="loadFunnel(' + d + ')" style="font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:1px;padding:5px 12px;border-radius:4px;cursor:pointer;border:1px solid ' + (funnelDays === d ? '#4a9eff' : '#1a2a3a') + ';background:' + (funnelDays === d ? 'rgba(74,158,255,0.12)' : 'transparent') + ';color:' + (funnelDays === d ? '#4a9eff' : '#8a9bb0') + ';">' + (d ? 'LAST ' + d + ' DAYS' : 'ALL TIME') + '</button>';
+    const weeks = (j.weeks || []).map(w => '<tr><td>' + esc(w.week) + '</td><td>' + w.signup + '</td><td>' + w.activated + ' (' + pct(w.activated, w.signup) + ')</td><td>' + w.paying + ' (' + pct(w.paying, w.signup) + ')</td></tr>').join('');
+    const cands = (j.candidates || []).map(c => '<tr><td>' + esc(c.email) + '</td><td>' + esc(c.signup) + '</td><td>' + c.thisMonth + '</td><td>' + c.total + '</td><td>' + (c.trialUsed ? 'used' : 'available') + '</td></tr>').join('');
+    el.innerHTML = '<div style="display:flex;gap:8px;margin-bottom:16px;">' + btn(30) + btn(90) + btn(0) + '</div>' +
+      '<div class="stats-grid">' +
+        '<div class="stat-card"><div class="stat-label">SIGNUPS</div><div class="stat-value">' + S.signup + '</div><div class="stat-sub">' + (j.days ? 'last ' + j.days + ' days' : 'all time') + '</div></div>' +
+        '<div class="stat-card"><div class="stat-label">ACTIVATION</div><div class="stat-value">' + pct(S.activated, S.signup) + '</div><div class="stat-sub">signup → first briefing</div></div>' +
+        '<div class="stat-card"><div class="stat-label">CONVERSION</div><div class="stat-value" style="color:#2ec4b6;">' + pct(S.paying, S.signup) + '</div><div class="stat-sub">signup → paying now</div></div>' +
+        '<div class="stat-card"><div class="stat-label">IN TRIAL / CANCELING / LOST</div><div class="stat-value">' + j.extra.trialing + ' / ' + j.extra.canceling + ' / ' + j.extra.lost + '</div><div class="stat-sub">trialing now · paying but set to cancel · subscribed before, now Free</div></div>' +
+      '</div>' +
+      '<div class="section-title">CONVERSION FUNNEL</div><div class="table-wrap"><table><thead><tr><th>STEP</th><th>USERS</th><th>% OF SIGNUPS</th><th>% OF PREVIOUS</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="section-title">BY SIGNUP WEEK (MONDAY, UTC)</div><div class="table-wrap"><table><thead><tr><th>WEEK</th><th>SIGNUPS</th><th>FIRST BRIEFING</th><th>PAYING NOW</th></tr></thead><tbody>' + (weeks || '<tr><td colspan="4">No signups in this period</td></tr>') + '</tbody></table></div>' +
+      '<div class="section-title">UPGRADE CANDIDATES — FREE ACCOUNTS AT THE 3-BRIEFING LIMIT THIS MONTH</div><div class="table-wrap"><table><thead><tr><th>USER</th><th>SIGNED UP</th><th>BRIEFINGS THIS MONTH</th><th>ALL-TIME</th><th>FREE TRIAL</th></tr></thead><tbody>' + (cands || '<tr><td colspan="5">None this month</td></tr>') + '</tbody></table></div>' +
+      '<div style="font-size:11px;color:#4a5f72;">Steps are counted for accounts created in the period (admin accounts excluded); a user counts in a step if they ever reached it. Upgrade candidates are listed regardless of signup date.</div>';
+  } catch (e) { el.innerHTML = '<div class="loading">Funnel error: ' + e.message + '</div>'; }
 }
 
 async function loadUsage() {
