@@ -1553,8 +1553,13 @@ async function fetchTaf(icao) {
 }
 
 function streamClaude(requestBody, onChunk, onDone, onError, onSearchStart) {
-  let usageInfo = { input_tokens: 0, output_tokens: 0, text_chars: 0, thinking_chars: 0, thinking_blocks: 0 };
+  let usageInfo = { input_tokens: 0, output_tokens: 0, text_chars: 0, thinking_chars: 0, thinking_blocks: 0, citations: [], searchResults: [] };
   const searchBlocks = {};
+  // v3.95: web sources — pages the answer cites (citations_delta) and, as a fallback, the pages the searches returned
+  const addSource = (list, url, title) => {
+    if (!/^https?:\/\//i.test(String(url || '')) || list.length >= 20 || list.some(x => x.url === url)) return;
+    list.push({ url: String(url).slice(0, 500), title: String(title || '').slice(0, 200) });
+  };
   const req = https.request({
     hostname: 'api.anthropic.com',
     path: '/v1/messages',
@@ -1599,6 +1604,14 @@ function streamClaude(requestBody, onChunk, onDone, onError, onSearchStart) {
             searchBlocks[evt.index] = '';
           } else if (evt.type === 'content_block_delta' && evt.delta?.type === 'input_json_delta' && searchBlocks[evt.index] !== undefined) {
             searchBlocks[evt.index] += evt.delta.partial_json || '';
+          } else if (evt.type === 'content_block_start' && evt.content_block?.type === 'web_search_tool_result') {
+            const rs = Array.isArray(evt.content_block.content) ? evt.content_block.content : [];
+            for (const r of rs) if (r && r.type === 'web_search_result') addSource(usageInfo.searchResults, r.url, r.title);
+          } else if (evt.type === 'content_block_start' && Array.isArray(evt.content_block?.citations)) {
+            for (const c of evt.content_block.citations) if (c && c.url) addSource(usageInfo.citations, c.url, c.title);
+          } else if (evt.type === 'content_block_delta' && evt.delta?.type === 'citations_delta') {
+            const c = evt.delta.citation;
+            if (c && c.url) addSource(usageInfo.citations, c.url, c.title);
           } else if (evt.type === 'content_block_start' && evt.content_block?.type === 'thinking') {
             usageInfo.thinking_blocks += 1;
           } else if (evt.type === 'content_block_delta' && evt.delta?.type === 'thinking_delta') {
@@ -2656,6 +2669,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && req.url.startsWith('/b/')) {
     const briefingId = req.url.split('/b/')[1].split('?')[0];
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(briefingId)) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not found'); return; }   // v3.95: the id is inlined into a script
     const shareHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2749,6 +2763,7 @@ if (getAccessBtn) {
 
   if (req.method === 'GET' && req.url.startsWith('/c/')) {
     const chatId = req.url.split('/c/')[1].split('?')[0];
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(chatId)) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not found'); return; }   // v3.95: the id is inlined into a script
     const shareHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2838,6 +2853,16 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>';
       row.innerHTML = '<div class="msg-icon">' + iconSvg + '</div><div class="msg-bubble"></div>';
       row.querySelector('.msg-bubble').textContent = m.text;
+      if (m.role === 'ai' && Array.isArray(m.sources) && m.sources.length) {
+        const src = document.createElement('div');
+        src.style.cssText = 'margin-top:10px;padding-top:8px;border-top:1px solid #1a2a3a;font-size:13px;white-space:normal;';
+        src.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:10px;letter-spacing:2px;color:#4a5f72;margin-bottom:4px;">SOURCES</div>' +
+          m.sources.filter(x => /^https?:\\/\\//i.test(x.url || '')).slice(0, 8).map((x, i) => {
+            let host = ''; try { host = new URL(x.url).hostname.replace(/^www\\./, ''); } catch (e) {}
+            return '<div style="margin:2px 0;"><span style="color:#4a5f72;">' + (i + 1) + '.</span> <a href="' + escapeHtml(x.url).replace(/"/g, '&quot;') + '" target="_blank" rel="noopener noreferrer nofollow" style="color:#4a9eff;text-decoration:none;">' + escapeHtml(x.title || host) + '</a> <span style="color:#4a5f72;font-size:11px;">' + escapeHtml(host) + '</span></div>';
+          }).join('');
+        row.querySelector('.msg-bubble').appendChild(src);
+      }
       body.appendChild(row);
     });
     document.title = 'NOTAM Intelligence — Aviation Chat';
@@ -4679,6 +4704,10 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
               .catch(e => console.error('[GENERAL CHAT] Post-response record error:', e.message));
             const newUsage = currentUsage + totalTokens;
             const finalUsagePercent = Math.min(100, Math.round((newUsage / cfg.limit) * 100));
+            // v3.95: sources shown under the answer — the pages it cites; if it searched but cited nothing, the pages the search returned
+            const cited = usageInfo?.citations || [];
+            const sources = (cited.length ? cited : (searchCount > 0 ? (usageInfo?.searchResults || []) : [])).slice(0, cited.length ? 8 : 5);
+            if (sources.length) res.write(`data: ${JSON.stringify({ type: 'sources', sources, cited: cited.length > 0 })}\n\n`);
             res.write(`data: ${JSON.stringify({ type: 'done', usagePercent: finalUsagePercent })}\n\n`);
             res.end();
           },

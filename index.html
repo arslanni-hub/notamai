@@ -639,6 +639,13 @@ canvas#sky {
   font-size: 13px;
   color: #8a9bb0;
 }
+.chat-sources { margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(74,158,255,0.12); font-size: 12.5px; line-height: 1.5; }
+.chat-sources-title { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 2px; color: #4a5f72; margin-bottom: 4px; }
+.chat-sources a { color: #4a9eff; text-decoration: none; }
+.chat-sources a:hover { text-decoration: underline; }
+.chat-sources .chat-source-n, .chat-sources .chat-source-host { color: #4a5f72; }
+.chat-sources .chat-source-host { font-size: 11px; margin-left: 4px; }
+.chat-search-status.inline { margin-top: 10px; }
 .chat-search-status .chat-search-dot {
   width: 6px; height: 6px;
   border-radius: 50%;
@@ -2215,7 +2222,7 @@ async function resumeChatSession(sessionId) {
         bubble.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span style="font-size:12px;color:#8a9bb0;font-family:'Share Tech Mono',monospace;">${m.meta.name || 'File'}</span></div>`;
         bubble.style.cssText = 'background:transparent;border:none;padding:0;';
       } else if (m.role === 'ai') {
-        bubble.innerHTML = renderChatMarkdown(m.text || '');
+        bubble.innerHTML = renderChatMarkdown(m.text || '') + renderChatSources(m.sources);
       } else {
         bubble.textContent = m.text || '';
       }
@@ -2323,7 +2330,13 @@ function addChatBubble(role, text) {
 
 function copyChatBubble(btn) {
   const bubble = btn.closest('.chat-msg-row').querySelector('.chat-msg-bubble');
-  navigator.clipboard.writeText(bubble.textContent).then(() => {
+  // v3.95: copy the answer text, then its sources as plain URLs
+  const clone = bubble.cloneNode(true);
+  const srcEl = clone.querySelector('.chat-sources');
+  const links = srcEl ? [...srcEl.querySelectorAll('a')].map((a, i) => (i + 1) + '. ' + a.textContent + ' — ' + a.href) : [];
+  if (srcEl) srcEl.remove();
+  const copyText = clone.textContent.trim() + (links.length ? '\n\nSources:\n' + links.join('\n') : '');
+  navigator.clipboard.writeText(copyText).then(() => {
     btn.classList.add('copied');
     setTimeout(() => btn.classList.remove('copied'), 1500);
   });
@@ -2486,6 +2499,17 @@ function renderChatSearchStatus(query) {
   return `<div class="chat-search-status"><span class="chat-search-dot"></span>Searching the web for "<em>${safeQuery}</em>"</div>`;
 }
 
+// v3.95: web sources under an expert-chat answer (cited pages; stored on the message as m.sources)
+function renderChatSources(sources) {
+  if (!Array.isArray(sources) || !sources.length) return '';
+  const esc = v => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const rows = sources.filter(x => x && /^https?:\/\//i.test(x.url || '')).slice(0, 8).map((x, i) => {
+    let host = ''; try { host = new URL(x.url).hostname.replace(/^www\./, ''); } catch (e) {}
+    return `<div><span class="chat-source-n">${i + 1}.</span> <a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer nofollow">${esc(x.title || host)}</a>${x.title ? `<span class="chat-source-host">${esc(host)}</span>` : ''}</div>`;
+  });
+  return rows.length ? `<div class="chat-sources"><div class="chat-sources-title">SOURCES</div>${rows.join('')}</div>` : '';
+}
+
 async function mockChatResponse(question, filePayload = {}) {
   const isNotamDraft = /notam.*hazırla|notam.*yaz|notam.*üret|yayına hazırla|notam talep.*form|produce.*notam|draft.*notam|generate.*notam|notam.*draft|icao.*format.*notam|q.?line.*oluştur/i.test(question || '');
   const hasAttachment = !!(filePayload && ((filePayload.images && filePayload.images.length) || filePayload.image_base64 || filePayload.pdf_base64 || filePayload.extra_text));
@@ -2540,6 +2564,7 @@ async function mockChatResponse(question, filePayload = {}) {
     let accumulated = '';
     let usagePercent = null;
     let resetInMinutes = null;
+    let sources = [];
 
     while (true) {
       const { done, value } = await reader.read();
@@ -2561,10 +2586,13 @@ async function mockChatResponse(question, filePayload = {}) {
         if (evt.type === 'init') {
           usagePercent = evt.usagePercent;
           resetInMinutes = evt.resetInMinutes;
-        } else if (evt.type === 'search' && !accumulated) {
+        } else if (evt.type === 'search') {
+          // v3.95: also shown when the model searches again mid-answer (below the text so far; the next chunk replaces it)
           clearInterval(thinkInterval);
-          bubble.innerHTML = renderChatSearchStatus(evt.query);
+          bubble.innerHTML = accumulated ? renderChatMarkdown(accumulated) + renderChatSearchStatus(evt.query).replace('class="chat-search-status"', 'class="chat-search-status inline"') : renderChatSearchStatus(evt.query);
           messagesArea.scrollTop = messagesArea.scrollHeight;
+        } else if (evt.type === 'sources' && Array.isArray(evt.sources)) {
+          sources = evt.sources;
         } else if (evt.type === 'chunk') {
           clearInterval(thinkInterval);
           accumulated += evt.text;
@@ -2579,8 +2607,10 @@ async function mockChatResponse(question, filePayload = {}) {
     }
 
     const finalText = accumulated || 'Sorry, I could not process that question.';
-    bubble.innerHTML = renderChatMarkdown(finalText);
-    finalizeChatBubbleText(row, finalText);
+    if (!accumulated) sources = [];
+    bubble.innerHTML = renderChatMarkdown(finalText) + renderChatSources(sources);
+    finalizeChatBubbleText(row, finalText, sources);
+    messagesArea.scrollTop = messagesArea.scrollHeight;
 
     if (typeof usagePercent === 'number') {
       renderChatUsageBanner(usagePercent, false, resetInMinutes);
@@ -2593,9 +2623,11 @@ async function mockChatResponse(question, filePayload = {}) {
   }
 }
 
-function finalizeChatBubbleText(row, finalText) {
+function finalizeChatBubbleText(row, finalText, sources) {
   if (currentChatMessages.length > 0) {
     currentChatMessages[currentChatMessages.length - 1].text = finalText;
+    if (Array.isArray(sources) && sources.length) currentChatMessages[currentChatMessages.length - 1].sources = sources.slice(0, 8);
+    else delete currentChatMessages[currentChatMessages.length - 1].sources;
     if (currentChatSessionId) {
       db.collection('general_chats').doc(currentChatSessionId).update({
         messages: currentChatMessages,
