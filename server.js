@@ -508,6 +508,37 @@ async function refundVideoCharge(userId, chargedFrom, when) {
   await decrementUsage(userId, 'video', when);
 }
 
+// v3.88: one place for revenue maths. List prices per month (yearly = the yearly price / 12), Render env can override.
+// MRR counts only PAYING subscribers: Stripe status active / past_due (pro, max); enterprise unless it is trialing (enterprise
+// may be invoiced outside Stripe). Trials and complimentary/manual plans count as 0 and are reported separately.
+const PLAN_PRICE = {
+  pro: { month: parseFloat(process.env.PRICE_PRO_MONTHLY || '49'), year: parseFloat(process.env.PRICE_PRO_YEARLY_PER_MONTH || '42') },
+  max: { month: parseFloat(process.env.PRICE_MAX_MONTHLY || '99'), year: parseFloat(process.env.PRICE_MAX_YEARLY_PER_MONTH || '84') },
+  enterprise: { month: parseFloat(process.env.PRICE_ENTERPRISE_MONTHLY || '999'), year: parseFloat(process.env.PRICE_ENTERPRISE_YEARLY_PER_MONTH || '849') },
+};
+function userRevenueState(u) {
+  const plan = u && u.plan;
+  if (!PLAN_PRICE[plan]) return { plan: null, kind: 'free', mrr: 0 };
+  const status = u.subscriptionStatus || '';
+  const interval = u.billingInterval === 'year' ? 'year' : 'month';
+  if (status === 'trialing') return { plan, kind: 'trial', interval, mrr: 0 };
+  const paying = ['active', 'past_due'].includes(status) || (plan === 'enterprise' && !u.stripeSubscriptionId);
+  return paying ? { plan, kind: 'paying', interval, mrr: PLAN_PRICE[plan][interval] } : { plan, kind: 'comp', interval, mrr: 0 };
+}
+function revenueSummary(users) {
+  const out = { mrr: 0, paying: { pro: 0, max: 0, enterprise: 0 }, yearly: { pro: 0, max: 0, enterprise: 0 }, trial: { pro: 0, max: 0, enterprise: 0 }, comp: { pro: 0, max: 0, enterprise: 0 }, avgRevenue: {} };
+  const sum = { pro: 0, max: 0, enterprise: 0 };
+  for (const u of users) {
+    const r = userRevenueState(u);
+    if (!r.plan) continue;
+    out[r.kind][r.plan]++;
+    if (r.kind === 'paying') { out.mrr += r.mrr; sum[r.plan] += r.mrr; if (r.interval === 'year') out.yearly[r.plan]++; }
+  }
+  out.mrr = Math.round(out.mrr * 100) / 100;
+  for (const p of Object.keys(sum)) out.avgRevenue[p] = out.paying[p] ? Math.round(sum[p] / out.paying[p] * 100) / 100 : PLAN_PRICE[p].month;
+  return out;
+}
+
 function planFromPriceId(priceId) {
   for (const [plan, p] of Object.entries(STRIPE_PRICES)) {
     if (priceId && (priceId === p.month || priceId === p.year)) return plan;
@@ -2377,12 +2408,16 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (req.method === 'GET' && req.url === '/api/health') {
+    // v3.88: public callers only get status (it used to expose users/MRR and read the whole users collection on every hit);
+    // the business numbers need the admin token.
+    let isAdminCaller = false;
+    try { const dec = await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', '')); isAdminCaller = dec.email === 'arslanni@gmail.com'; } catch (e) { isAdminCaller = false; }
+    if (!isAdminCaller) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() })); return; }
     try {
       const usersSnap = await adminDb.collection('users').get();
       const users = usersSnap.docs.map(d => d.data());
-      const pro = users.filter(u => u.plan === 'pro').length;
-      const max = users.filter(u => u.plan === 'max').length;
-      const mrr = (pro * 49) + (max * 99);
+      const rev = revenueSummary(users);
+      const pro = rev.paying.pro, max = rev.paying.max, mrr = rev.mrr;
       const skylinkDoc = await adminDb.collection('system').doc('skylink_usage').get();
       const skylink = skylinkDoc.exists ? skylinkDoc.data() : {};
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -2390,7 +2425,7 @@ const server = http.createServer(async (req, res) => {
         status: 'ok',
         timestamp: new Date().toISOString(),
         users: usersSnap.size,
-        pro, max, mrr,
+        pro, max, mrr, revenue: rev,
         skylink_pct: skylink.pct || 0,
         skylink_count: skylink.count || 0
       }));
@@ -2539,8 +2574,10 @@ const server = http.createServer(async (req, res) => {
       await Promise.all(top.map(async r => { try { r.email = (await admin.auth().getUser(r.userId)).email || ''; } catch (e) { r.email = ''; } }));
       const subs = {};
       for (const p of ['free', 'pro', 'max', 'enterprise']) { try { subs[p] = (await adminDb.collection('users').where('plan', '==', p).count().get()).data().count; } catch (e) { subs[p] = null; } }
+      let prices = { free: 0, pro: PLAN_PRICE.pro.month, max: PLAN_PRICE.max.month, enterprise: PLAN_PRICE.enterprise.month };
+      try { const rv = revenueSummary((await adminDb.collection('users').where('plan', 'in', ['pro', 'max', 'enterprise']).get()).docs.map(d => d.data())); prices = { free: 0, ...rv.avgRevenue }; } catch (e) {}
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ month: m, byPlan, usersWithCost, subscribers: subs, top, prices: { free: 0, pro: 49, max: 99, enterprise: 999 } }));
+      res.end(JSON.stringify({ month: m, byPlan, usersWithCost, subscribers: subs, top, prices }));
     } catch (e) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'unavailable' })); }
     return;
   }
@@ -5394,12 +5431,11 @@ async function runGrowthReport() {
       totalUsers = usersSnap.size;
       usersSnap.docs.forEach(d => {
         const u = d.data();
-        if (u.plan === 'pro') pro++;
-        if (u.plan === 'max') max++;
-        if (u.plan === 'enterprise') ent++;
         if (u.createdAt && u.createdAt.toDate() >= weekAgo) newSignups++;
       });
-      mrr = (pro * 49) + (max * 99) + (ent * 999);
+      const rev = revenueSummary(usersSnap.docs.map(d => d.data()));   // v3.88: paying subscribers only, yearly at price/12
+      pro = rev.paying.pro; max = rev.paying.max; ent = rev.paying.enterprise;
+      mrr = rev.mrr;
       const bSnap = await adminDb.collection('briefings').where('createdAt', '>=', weekAgo).get();
       briefings7d = bSnap.size;
     } catch(e) {}
@@ -5662,9 +5698,10 @@ async function runHealthCheck() {
   try {
     const us = await adminDb.collection('users').get();
     totalUsers = us.size;
-    let ent = 0;
-    us.docs.forEach(d=>{ const pl = d.data().plan; if(pl==='pro') pro++; if(pl==='max') max++; if(pl==='enterprise') ent++; });
-    mrr = (pro*49)+(max*99)+(ent*999);
+    const rev = revenueSummary(us.docs.map(d => d.data()));   // v3.88: paying subscribers only, yearly at price/12
+    pro = rev.paying.pro; max = rev.paying.max;
+    mrr = rev.mrr;
+    results.revenue_mix = `paying Pro ${rev.paying.pro} (yearly ${rev.yearly.pro}), Max ${rev.paying.max} (yearly ${rev.yearly.max}), Enterprise ${rev.paying.enterprise}; trials ${rev.trial.pro + rev.trial.max + rev.trial.enterprise}; complimentary ${rev.comp.pro + rev.comp.max + rev.comp.enterprise}`;
   } catch(e) {}
 
   // Activation stats — first briefings and upgrade candidates

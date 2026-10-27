@@ -126,7 +126,7 @@ async function loadOverview() {
     const free = users.filter(u => !u.plan || u.plan === 'free').length;
     const pro = users.filter(u => u.plan === 'pro').length;
     const max = users.filter(u => u.plan === 'max').length;
-    const mrr = (pro * 49) + (max * 99);
+    const mrr = adminMrr(users);   // v3.88: paying subscribers only, yearly at price / 12 (same rule as the server)
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const briefingsSnap = await db.collection('briefings').where('createdAt', '>=', monthStart).get();
@@ -271,6 +271,21 @@ async function loadPlanCosts() {
   } catch (e) { el.innerHTML = '<div class="loading">Cost ledger error: ' + e.message + '</div>'; }
 }
 
+// v3.88: MRR = paying subscribers only (Stripe active / past_due; enterprise unless trialing), yearly plans at the yearly price / 12.
+// Keep in sync with PLAN_PRICE / userRevenueState in server.js.
+const ADMIN_PLAN_PRICE = { pro: { month: 49, year: 42 }, max: { month: 99, year: 84 }, enterprise: { month: 999, year: 849 } };
+function adminMrr(users) {
+  let m = 0;
+  for (const u of users) {
+    const p = ADMIN_PLAN_PRICE[u.plan]; if (!p) continue;
+    const st = u.subscriptionStatus || '';
+    if (st === 'trialing') continue;
+    if (!(st === 'active' || st === 'past_due' || (u.plan === 'enterprise' && !u.stripeSubscriptionId))) continue;
+    m += u.billingInterval === 'year' ? p.year : p.month;
+  }
+  return Math.round(m * 100) / 100;
+}
+
 async function loadRevenue() {
   document.getElementById('tab-revenue').innerHTML = '<div class="loading">LOADING...</div>';
   try {
@@ -278,7 +293,7 @@ async function loadRevenue() {
     const users = snap.docs.map(d => d.data());
     const pro = users.filter(u => u.plan === 'pro').length;
     const max = users.filter(u => u.plan === 'max').length;
-    const mrr = (pro * 49) + (max * 99);
+    const mrr = adminMrr(users);   // v3.88: paying subscribers only, yearly at price / 12 (same rule as the server)
     const arr = mrr * 12;
 
     const now = new Date();
