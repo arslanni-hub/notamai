@@ -559,6 +559,26 @@ function planFromPriceId(priceId) {
   }
   return null;
 }
+// v3.97: one free trial per person, not per account. A deleted-and-recreated account (new uid) or a re-created users doc would
+// otherwise get the 7-day trial again. Keyed by a SHA-256 of the normalised e-mail (lower case, +tag removed, Gmail dots removed),
+// so the ledger keeps no readable address after an account is deleted. Collection trialLedger (server-only, no client rule).
+function trialKey(email) {
+  let e = String(email || '').trim().toLowerCase();
+  const at = e.lastIndexOf('@'); if (at < 1) return null;
+  let local = e.slice(0, at).split('+')[0]; let domain = e.slice(at + 1);
+  if (domain === 'googlemail.com') domain = 'gmail.com';
+  if (domain === 'gmail.com') local = local.replace(/\./g, '');
+  return require('crypto').createHash('sha256').update(local + '@' + domain).digest('hex');
+}
+async function trialAlreadyUsed(email) {
+  const k = trialKey(email); if (!k) return false;
+  try { return (await adminDb.collection('trialLedger').doc(k).get()).exists; } catch (e) { return false; }
+}
+async function recordTrialUsed(uid, email) {
+  const k = trialKey(email); if (!k) return;
+  await adminDb.collection('trialLedger').doc(k).set({ uid, at: admin.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(e => console.log('[TRIAL LEDGER] write error:', e.message));
+}
+
 async function findUserByStripeCustomer(customerId) {
   if (!customerId) return null;
   const snap = await adminDb.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
@@ -590,6 +610,7 @@ async function syncStripeSubscription(sub, fallbackUid) {
     update.updatedAt = admin.firestore.FieldValue.serverTimestamp();
   }
   await ref.set(update, { merge: true });
+  try { await recordTrialUsed(uid, cur.email || (await admin.auth().getUser(uid)).email); } catch (e) {}   // v3.97
   console.log('[STRIPE] Synced', uid, sub.status, '->', newPlan || '(unchanged)');
 }
 
@@ -3819,6 +3840,40 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
     return;
   }
 
+  // v3.97: account deletion runs on the server — cancels a running Stripe subscription first (deleting only the Firestore doc left
+  // the card being charged), keeps the one-trial-per-person record, then removes the user's doc, alerts and Auth account.
+  // users/{uid} can no longer be deleted from the browser (Firestore rules), so a user cannot wipe trialUsed / plan history.
+  if (req.method === 'POST' && req.url === '/api/delete-account') {
+    try {
+      // any signed-in owner may delete, including e-mail/password accounts that never verified their address
+      let userId = null;
+      try { userId = (await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', ''))).uid; } catch (e) {}
+      if (!userId) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'unauthorized' })); return; }
+      const ref = adminDb.collection('users').doc(userId);
+      const snap = await ref.get();
+      const u = snap.exists ? snap.data() : {};
+      let email = u.email || '';
+      try { email = (await admin.auth().getUser(userId)).email || email; } catch (e) {}
+      if (stripe && u.stripeSubscriptionId && ['active', 'trialing', 'past_due', 'unpaid', 'incomplete'].includes(u.subscriptionStatus)) {
+        try { await stripe.subscriptions.cancel(u.stripeSubscriptionId); console.log('[DELETE ACCOUNT] Stripe subscription cancelled', u.stripeSubscriptionId); }
+        catch (e) {
+          console.log('[DELETE ACCOUNT] Stripe cancel failed:', e.message);
+          if (!/No such subscription|canceled/i.test(e.message)) { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'subscription_cancel_failed' })); return; }
+        }
+      }
+      if (u.trialUsed || u.stripeSubscriptionId) await recordTrialUsed(userId, email);
+      try { const al = await adminDb.collection('alerts').where('userId', '==', userId).get(); await Promise.all(al.docs.map(d => d.ref.delete())); } catch (e) {}
+      await ref.delete().catch(() => {});
+      await admin.auth().deleteUser(userId);
+      if (u.plan && u.plan !== 'free') sendAdminNotification('👋 Account deleted — ' + escHtml(email || userId), '<div style="font-size:13px;color:#1e293b;">A ' + escHtml(u.plan) + ' account was deleted by its owner' + (u.stripeSubscriptionId ? '; its Stripe subscription was cancelled' : '') + '.</div>').catch(() => {});
+      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
+    } catch (e) {
+      console.log('[DELETE ACCOUNT] error:', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'delete_failed' }));
+    }
+    return;
+  }
+
   // ── STRIPE CHECKOUT ──
   if (req.method === 'POST' && req.url === '/api/create-checkout') {
     let body = '';
@@ -3848,9 +3903,10 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
           success_url: PUBLIC_BASE_URL + '/?upgrade=success',
           cancel_url: PUBLIC_BASE_URL + '/?upgrade=cancelled'
         };
+        const authEmail = (await admin.auth().getUser(userId)).email;
         if (u.stripeCustomerId) params.customer = u.stripeCustomerId;
-        else params.customer_email = (await admin.auth().getUser(userId)).email;
-        if (!u.trialUsed) params.subscription_data.trial_period_days = 7;
+        else params.customer_email = authEmail;
+        if (!u.trialUsed && !(await trialAlreadyUsed(authEmail))) params.subscription_data.trial_period_days = 7;   // v3.97: per person
         if (process.env.STRIPE_MANAGED_PAYMENTS !== 'false') params.managed_payments = { enabled: true };
         const session = await stripe.checkout.sessions.create(params);
         res.writeHead(200, { 'Content-Type': 'application/json' });

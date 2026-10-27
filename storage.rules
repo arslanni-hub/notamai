@@ -1,0 +1,13 @@
+rules_version = '2';
+// v3.97 — source of truth for the Storage rules (unchanged from the console version). Firebase Console → Storage → Rules.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /chat_uploads/{userId}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

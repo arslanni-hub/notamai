@@ -1,0 +1,85 @@
+rules_version = '2';
+// v3.97 — source of truth for the Firestore rules. Paste into Firebase Console → Firestore Database → Rules and Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isOwnerOf(data) { return signedIn() && data.userId == request.auth.uid; }
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == 'arslanni@gmail.com';
+    }
+    // Fields only the server writes (Stripe webhook, video pack, invoiced revenue, Admin SDK). Never from the browser.
+    function serverOnlyFields() {
+      return ['plan', 'stripeCustomerId', 'stripeSubscriptionId', 'subscriptionStatus', 'billingInterval',
+              'cancelAtPeriodEnd', 'trialUsed', 'videoCredits', 'manualMrr', 'manualPlan'];
+    }
+
+    match /users/{userId} {
+      allow read: if (signedIn() && request.auth.uid == userId) || isAdmin();
+      // sign-up: only plan 'free' (or no plan), no server-only field
+      allow create: if signedIn() && request.auth.uid == userId
+        && request.resource.data.get('plan', 'free') == 'free'
+        && !request.resource.data.keys().hasAny(serverOnlyFields().removeAll(['plan']));
+      // profile/settings updates: never a server-only field, never the sign-up date or the account e-mail
+      allow update: if signedIn() && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(serverOnlyFields().concat(['createdAt', 'email']));
+      // account deletion goes through POST /api/delete-account (cancels Stripe, keeps the one-trial record)
+      allow delete: if false;
+    }
+
+    // Usage counters and system docs: server-only writes, admin-only reads.
+    match /usage/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /system/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Single-doc read stays public so shared links keep working; listing is owner/admin only.
+    match /briefings/{briefingId} {
+      allow get: if true;
+      allow list: if isAdmin() || isOwnerOf(resource.data);
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isOwnerOf(resource.data) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isOwnerOf(resource.data);
+
+      match /chats/{chatId} {
+        allow read, write: if signedIn() && (
+          get(/databases/$(database)/documents/briefings/$(briefingId)).data.userId == request.auth.uid
+          || isAdmin());
+      }
+    }
+
+    match /general_chats/{chatId} {
+      allow get: if true;
+      allow list: if isAdmin() || isOwnerOf(resource.data);
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isOwnerOf(resource.data) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isOwnerOf(resource.data);
+    }
+
+    // Alerts: the server polls at most ALERT_CAPS[plan] airports per user, so extra docs cost nothing.
+    match /alerts/{alertId} {
+      allow read: if isAdmin() || isOwnerOf(resource.data);
+      allow create, update: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && alertId == request.auth.uid + '_' + request.resource.data.icao
+        && request.resource.data.icao is string
+        && request.resource.data.icao.size() == 4;
+      allow delete: if isOwnerOf(resource.data);
+    }
+
+    // Videos are created by the server only; users can read their own.
+    match /videos/{videoId} {
+      allow read: if isAdmin() || isOwnerOf(resource.data);
+      allow write: if false;
+    }
+
+    // Everything else (costLedger, trialLedger, videoPacks, briefingCosts, toolUsage*, rawNotamDaily, general_chat_*,
+    // agentLog ...) has no rule and is therefore closed to the browser; the server uses the Admin SDK.
+  }
+}
