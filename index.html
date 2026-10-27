@@ -4298,6 +4298,19 @@ async function openBillingPortal() {
   };
 })();
 
+// v3.101: verification mail through our server (Resend, from notamai.com); falls back to Firebase's own mail if that fails.
+async function sendVerificationEmail(user) {
+  if (!user) return false;
+  try {
+    const t = await user.getIdToken();
+    const r = await fetch('/api/send-verification', { method: 'POST', headers: { 'Authorization': 'Bearer ' + t } });
+    if (r.ok) return true;
+    if (r.status === 429) throw new Error('too_many');
+  } catch (e) { if (e.message === 'too_many') throw e; }
+  await user.sendEmailVerification();
+  return true;
+}
+
 let emailVerifyPoll = null;
 function needsEmailVerification(user) {
   return !!user && !user.emailVerified && user.providerData.some(p => p.providerId === 'password');
@@ -4319,7 +4332,7 @@ function showEmailVerifyBanner() {
   resend.textContent = 'Resend email';
   resend.style.cssText = "background:transparent;border:1px solid rgba(242,198,65,0.5);color:#f2c641;border-radius:6px;padding:4px 12px;cursor:pointer;font-family:inherit;font-size:12px;";
   resend.onclick = async () => {
-    try { await user.sendEmailVerification(); showToast('Verification email sent'); }
+    try { await sendVerificationEmail(user); showToast('Verification email sent to ' + user.email + ' — check spam too'); }
     catch (e) { showToast('Please wait a moment before requesting another email'); }
   };
   b.appendChild(msg);
@@ -5112,7 +5125,7 @@ function signInWithEmail() {
     .catch(err => {
       if (err.code === 'auth/user-not-found') {
         auth.createUserWithEmailAndPassword(email, password)
-          .then(cred => { cred.user.sendEmailVerification().catch(() => {}); closeAuthModal(); })
+          .then(cred => { sendVerificationEmail(cred.user).catch(() => {}); closeAuthModal(); })
           .catch(e => { alert(e.message); });
       } else {
         alert(err.message);
@@ -5590,7 +5603,7 @@ async function createAccount() {
       referredBy: referralCode || null,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    result.user.sendEmailVerification().catch(() => {});
+    sendVerificationEmail(result.user).catch(() => {});
     gtag('event', 'sign_up', { method: 'email' });
     closeSignupModal();
   } catch(e) {
