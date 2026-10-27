@@ -5905,7 +5905,7 @@ function startRealtimeNotifications() {
   const knownPlan = new Map();
   let firstSnapshot = true;
   const MRR_BY_PLAN = { pro: 49, max: 99, enterprise: 999 };
-  const planColors = { pro: '#4a9eff', max: '#f4841a', enterprise: '#b57bff' };
+  const planColors = { pro: '#4a9eff', max: '#f4841a', team: '#b57bff', enterprise: '#b57bff' };
 
   adminDb.collection('users').onSnapshot(snapshot => {
     const initial = firstSnapshot;

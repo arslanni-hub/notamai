@@ -1705,15 +1705,17 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         </ul>
       </div>
 
-      <!-- TEAM (v3.90; replaces the old Enterprise card) -->
-      <div style="background:#0d1520;border:1px solid #2a1a4a;border-radius:8px;padding:28px 20px;">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#b57bff;letter-spacing:2px;margin-bottom:8px;">TEAM</div>
+      <!-- TEAM (v3.90/v3.93: same header structure as Pro/Max so the lists line up) -->
+      <div style="background:#0d1520;border:1px solid rgba(181,123,255,0.4);border-radius:8px;padding:28px 20px;position:relative;">
+        <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#b57bff;color:#060a0f;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 12px;border-radius:20px;white-space:nowrap;">TEAM</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#b57bff;letter-spacing:2px;margin-bottom:8px;">&nbsp;</div>
         <div style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#cdd9e5;margin-bottom:16px;">Team</div>
-        <div style="margin-bottom:6px;"><span style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:700;color:#b57bff;letter-spacing:1px;">$69</span><span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;"> /seat/month</span></div>
-        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">$59/seat billed annually</div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">3–50 seats · Operators, flight schools &amp; dispatch</div>
-        <button onclick="window.location.href='mailto:support@notamai.com?subject=Team Plan Inquiry'" style="width:100%;padding:8px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">CONTACT SALES</button>
-        <div style="border-top:1px solid #1a2a3a;margin:20px 0 12px;"></div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;"><span id="um_teamPrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#b57bff;">$69</span><span style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;">/seat/month</span></div>
+        <div id="um_teamNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">Min. 3 seats · $59/seat billed annually</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;">Operators, schools &amp; dispatch</div>
+        <button onclick="window.location.href='mailto:support@notamai.com?subject=Team Plan Inquiry'" style="width:100%;padding:7px 8px;background:transparent;border:1px solid rgba(181,123,255,0.5);color:#b57bff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:6px;cursor:pointer;">CONTACT SALES →</button>
+        <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:6px;letter-spacing:1px;">50+ seats? Enterprise — contact us</p>
+        <div style="border-top:1px solid #1a2a3a;margin:16px 0 12px;"></div>
         <ul style="list-style:none;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">Everything in Pro, for every member</span></li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:13px;padding:5px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;gap:8px;"><span style="color:#cdd9e5;flex-shrink:0;">✓</span><span style="color:#cdd9e5;">60 AI briefings per seat — shared team pool</span></li>
@@ -4529,7 +4531,7 @@ function showLimitModal(plan, feature, usage, limit) {
     <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;margin-bottom:20px;line-height:1.6;">${message}</div>
     <div style="display:flex;gap:8px;justify-content:center;">
       <button onclick="this.closest('[style]').remove()" style="padding:8px 16px;background:none;border:1px solid #1a2a3a;color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:13px;border-radius:6px;cursor:pointer;">Maybe Later</button>
-      <button onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'" style="padding:8px 20px;background:#b57bff;border:none;color:#fff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;border-radius:6px;cursor:pointer;">Upgrade Now ⚡</button>
+      <button onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'" style="padding:8px 20px;background:#4a9eff;border:none;color:#060a0f;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;border-radius:6px;cursor:pointer;">Upgrade Now ⚡</button>
     </div>
   `;
   document.body.appendChild(warningDiv);
@@ -4953,8 +4955,8 @@ async function loadUserPlan(uid) {
     const d = await res.json();
     const plan = d.plan || 'free';
     const planEl = document.getElementById('sidebarPlan');
-    const planColors = { free: '#4a5f72', pro: '#4a9eff', max: '#b57bff', admin: '#f2c641' };
-    const planLabels = { free: 'FREE', pro: 'PRO', max: 'MAX', admin: 'ADMIN' };
+    const planColors = { free: '#4a5f72', pro: '#4a9eff', max: '#f4841a', team: '#b57bff', enterprise: '#b57bff', admin: '#f2c641' };
+    const planLabels = { free: 'FREE', pro: 'PRO', max: 'MAX', team: 'TEAM', enterprise: 'ENTERPRISE', admin: 'ADMIN' };
     if (planEl) {
       planEl.textContent = planLabels[plan] || plan.toUpperCase();
       planEl.style.color = planColors[plan] || '#4a9eff';
@@ -4962,8 +4964,8 @@ async function loadUserPlan(uid) {
     window.currentUserPlan = plan;
     const popupName = document.getElementById('popupName');
     const popupBadge = document.getElementById('popupPlanBadge');
-    const planBg = { free: 'rgba(74,95,114,0.15)', pro: 'rgba(74,158,255,0.1)', max: 'rgba(181,123,255,0.1)', admin: 'rgba(242,198,65,0.1)' };
-    const planBorder = { free: 'rgba(74,95,114,0.3)', pro: 'rgba(74,158,255,0.2)', max: 'rgba(181,123,255,0.2)', admin: 'rgba(242,198,65,0.2)' };
+    const planBg = { free: 'rgba(74,95,114,0.15)', pro: 'rgba(74,158,255,0.1)', max: 'rgba(244,132,26,0.1)', team: 'rgba(181,123,255,0.1)', enterprise: 'rgba(181,123,255,0.1)', admin: 'rgba(242,198,65,0.1)' };
+    const planBorder = { free: 'rgba(74,95,114,0.3)', pro: 'rgba(74,158,255,0.2)', max: 'rgba(244,132,26,0.2)', team: 'rgba(181,123,255,0.2)', enterprise: 'rgba(181,123,255,0.2)', admin: 'rgba(242,198,65,0.2)' };
     if (popupBadge) {
       popupBadge.textContent = planLabels[plan] || plan.toUpperCase();
       popupBadge.style.color = planColors[plan] || planColors.free;
@@ -5591,12 +5593,12 @@ function openProfileModal() {
     fetch('/api/usage', { headers: { 'Authorization': 'Bearer ' + token } })
   ).then(r => r.json()).then(d => {
     const plan = d.plan || 'free';
-    const planColors = { free: '#4a5f72', pro: '#4a9eff', max: '#b57bff', admin: '#f2c641' };
-    const planBg = { free: 'rgba(74,95,114,0.15)', pro: 'rgba(74,158,255,0.1)', max: 'rgba(181,123,255,0.1)', admin: 'rgba(242,198,65,0.1)' };
-    const planBorder = { free: 'rgba(74,95,114,0.3)', pro: 'rgba(74,158,255,0.2)', max: 'rgba(181,123,255,0.2)', admin: 'rgba(242,198,65,0.25)' };
-    const planLabels = { free: 'FREE', pro: 'PRO', max: 'MAX', admin: 'ADMIN' };
-    const planDescs = { free: 'Basic access — 3 briefings/month', pro: '100 briefings/month · Chat · Analysis', max: 'Everything in Pro + 150 briefings · Video Briefings', admin: 'Full access — all features enabled' };
-    const planPrices = { free: '$0 / month', pro: '$49 / month', max: '$99 / month', admin: '—' };
+    const planColors = { free: '#4a5f72', pro: '#4a9eff', max: '#f4841a', team: '#b57bff', enterprise: '#b57bff', admin: '#f2c641' };
+    const planBg = { free: 'rgba(74,95,114,0.15)', pro: 'rgba(74,158,255,0.1)', max: 'rgba(244,132,26,0.1)', team: 'rgba(181,123,255,0.1)', enterprise: 'rgba(181,123,255,0.1)', admin: 'rgba(242,198,65,0.1)' };
+    const planBorder = { free: 'rgba(74,95,114,0.3)', pro: 'rgba(74,158,255,0.2)', max: 'rgba(244,132,26,0.2)', team: 'rgba(181,123,255,0.2)', enterprise: 'rgba(181,123,255,0.2)', admin: 'rgba(242,198,65,0.25)' };
+    const planLabels = { free: 'FREE', pro: 'PRO', max: 'MAX', team: 'TEAM', enterprise: 'ENTERPRISE', admin: 'ADMIN' };
+    const planDescs = { free: 'Basic access — 3 briefings/month', pro: '100 briefings/month · Chat · Analysis', max: 'Everything in Pro + 150 briefings · Video Briefings', team: 'Team plan — shared team pool', enterprise: 'Enterprise — custom agreement', admin: 'Full access — all features enabled' };
+    const planPrices = { free: '$0 / month', pro: '$49 / month', max: '$99 / month', team: '$69 / seat / month', enterprise: 'Custom', admin: '—' };
     const badge = document.getElementById('pmPlanBadge');
     badge.textContent = planLabels[plan] || plan.toUpperCase();
     badge.style.color = planColors[plan] || planColors.free;
@@ -6729,8 +6731,8 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
           <span id="pricing_enterprisePrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#b57bff;">$69</span>
           <span id="pricing_enterprisePeriod" style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#4a5f72;">/seat/month</span>
         </div>
-        <div id="pricing_enterpriseNote2" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;min-height:18px;visibility:hidden;"></div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:24px;">3–50 seats · Operators, flight schools &amp; dispatch</div>
+        <div id="pricing_enterpriseNote2" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;min-height:18px;">Min. 3 seats · $59/seat billed annually</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:24px;">Operators, schools &amp; dispatch</div>
         <ul style="list-style:none;flex:1;margin-bottom:28px;">
           <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>Everything in Pro, for every member</li>
           <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>60 AI briefings per seat — shared team pool</li>
@@ -6740,7 +6742,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
           <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>Priority support</li>
         </ul>
         <button onclick="window.location.href='mailto:support@notamai.com?subject=Team Plan Inquiry'" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid rgba(181,123,255,0.4);color:#b57bff;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">Contact Sales →</button>
-        <div id="pricing_enterpriseNote" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">Min. 3 seats · 50+ seats? Enterprise — contact us</div>
+        <div id="pricing_enterpriseNote" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">50+ seats? Enterprise — contact us</div>
       </div>
 
     </div>
@@ -6829,6 +6831,8 @@ function um_toggleBilling() {
     document.getElementById('um_maxPrice').textContent = '$84';
     document.getElementById('um_proNote').innerHTML = '$504/year · <span style="color:#2ec4b6;font-weight:700;">Save $108</span>';
     document.getElementById('um_maxNote').innerHTML = '$1,008/year · <span style="color:#2ec4b6;font-weight:700;">Save $180</span>';
+    document.getElementById('um_teamPrice').textContent = '$59';
+    document.getElementById('um_teamNote').innerHTML = '$708/seat/year · <span style="color:#2ec4b6;font-weight:700;">Save $120 per seat</span>';
   } else {
     dot.style.left = '2px'; toggle.style.background = '#1a2a3a';
     badge.style.display = 'none';
@@ -6837,6 +6841,8 @@ function um_toggleBilling() {
     document.getElementById('um_maxPrice').textContent = '$99';
     document.getElementById('um_proNote').innerHTML = '7-day free trial · Cancel anytime';
     document.getElementById('um_maxNote').innerHTML = '7-day free trial · Cancel anytime';
+    document.getElementById('um_teamPrice').textContent = '$69';
+    document.getElementById('um_teamNote').textContent = 'Min. 3 seats · $59/seat billed annually';
   }
 }
 
@@ -6859,7 +6865,7 @@ function pricing_toggleBilling() {
     document.getElementById('pricing_maxNote').innerHTML = '$1,008/year · <span style="color:#2ec4b6;font-weight:700;">Save $180</span>';
     document.getElementById('pricing_enterprisePrice').textContent = '$59';
     document.getElementById('pricing_enterprisePeriod').textContent = '/seat/month';
-    document.getElementById('pricing_enterpriseNote').textContent = 'Min. 3 seats · 50+ seats? Enterprise — contact us';
+    document.getElementById('pricing_enterpriseNote').textContent = '50+ seats? Enterprise — contact us';
     document.getElementById('pricing_enterpriseNote2').style.visibility = 'visible';
     document.getElementById('pricing_enterpriseNote2').innerHTML = '$708/seat/year · <span style="color:#2ec4b6;font-weight:700;">Save $120 per seat</span>';
   } else {
@@ -6872,9 +6878,9 @@ function pricing_toggleBilling() {
     document.getElementById('pricing_maxNote').textContent = '7-day free trial · Cancel anytime';
     document.getElementById('pricing_enterprisePrice').textContent = '$69';
     document.getElementById('pricing_enterprisePeriod').textContent = '/seat/month';
-    document.getElementById('pricing_enterpriseNote').textContent = 'Min. 3 seats · 50+ seats? Enterprise — contact us';
-    document.getElementById('pricing_enterpriseNote2').style.visibility = 'hidden';
-    document.getElementById('pricing_enterpriseNote2').innerHTML = '';
+    document.getElementById('pricing_enterpriseNote').textContent = '50+ seats? Enterprise — contact us';
+    document.getElementById('pricing_enterpriseNote2').style.visibility = 'visible';
+    document.getElementById('pricing_enterpriseNote2').textContent = 'Min. 3 seats · $59/seat billed annually';
   }
 }
 </script>
@@ -9194,8 +9200,8 @@ async function loadSettingsData() {
     const res = await fetch('/api/usage', { headers: { 'Authorization': 'Bearer ' + token } });
     const d = await res.json();
     const plan = d.plan || 'free';
-    const planColors = { free: '#4a5f72', pro: '#4a9eff', max: '#b57bff', admin: '#f2c641' };
-    const planLabels = { free: 'Free Plan', pro: 'Pro Plan', max: 'Max Plan', admin: 'Admin' };
+    const planColors = { free: '#4a5f72', pro: '#4a9eff', max: '#f4841a', team: '#b57bff', enterprise: '#b57bff', admin: '#f2c641' };
+    const planLabels = { free: 'Free Plan', pro: 'Pro Plan', max: 'Max Plan', team: 'Team Plan', enterprise: 'Enterprise Plan', admin: 'Admin' };
     const planEl = document.getElementById('settingsPlan');
     if (planEl) { planEl.textContent = planLabels[plan] || plan; planEl.style.color = planColors[plan] || '#cdd9e5'; }
     const upgradeBtn = document.getElementById('settingsUpgradeBtn');

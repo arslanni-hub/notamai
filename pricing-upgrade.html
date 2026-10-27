@@ -492,8 +492,8 @@ canvas#sky {
         <span id="enterprisePrice" style="font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;line-height:1;color:#b57bff;">$69</span>
         <span id="enterprisePeriod" style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#4a5f72;">/seat/month</span>
       </div>
-      <div id="enterpriseNote2" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;min-height:18px;visibility:hidden;"></div>
-      <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:24px;">3–50 seats · Operators, flight schools &amp; dispatch</div>
+      <div id="enterpriseNote2" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;min-height:18px;">Min. 3 seats · $59/seat billed annually</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:24px;">Operators, schools &amp; dispatch</div>
       <ul style="list-style:none;flex:1;margin-bottom:28px;">
         <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>Everything in Pro, for every member</li>
         <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;border-bottom:1px solid rgba(26,42,58,0.6);display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>60 AI briefings per seat — shared team pool</li>
@@ -503,7 +503,7 @@ canvas#sky {
         <li style="font-family:'Rajdhani',sans-serif;font-size:14px;padding:6px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.4;color:#cdd9e5;"><span style="flex-shrink:0;color:#b57bff;font-size:13px;margin-top:1px;">✓</span>Priority support</li>
       </ul>
       <button onclick="window.location.href='mailto:support@notamai.com?subject=Team Plan Inquiry'" style="width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid rgba(181,123,255,0.4);color:#b57bff;transition:opacity 0.2s;margin-top:auto;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">CONTACT SALES →</button>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">Min. 3 seats · 50+ seats? Enterprise — contact us</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">50+ seats? Enterprise — contact us</div>
     </div>
 
   </div>
@@ -604,8 +604,8 @@ function pricing_toggleBilling() {
     document.getElementById('pricing_proNote').textContent = '7-day free trial \u00b7 Cancel anytime';
     document.getElementById('pricing_maxNote').textContent = '7-day free trial \u00b7 Cancel anytime';
     document.getElementById('enterprisePrice').textContent = '$69';
-    document.getElementById('enterpriseNote2').style.visibility = 'hidden';
-    document.getElementById('enterpriseNote2').innerHTML = '';
+    document.getElementById('enterpriseNote2').style.visibility = 'visible';
+    document.getElementById('enterpriseNote2').textContent = 'Min. 3 seats · $59/seat billed annually';
   }
 }
 </script>
@@ -656,6 +656,12 @@ firebase.auth().onAuthStateChanged(async (user) => {
       const label = document.getElementById('current_pro');
       if (label) label.style.display = 'block';
       if (proBtn) { proBtn.textContent = '\u2713 CURRENT PLAN'; proBtn.style.opacity = '0.6'; proBtn.onclick = null; proBtn.style.cursor = 'default'; }
+      if (freeBtn) { freeBtn.textContent = 'Downgrade'; freeBtn.style.opacity = '0.5'; }
+    } else if (plan === 'enterprise' || plan === 'team') {
+      const label = document.getElementById('current_enterprise');
+      if (label) label.style.display = 'block';
+      if (proBtn) { proBtn.style.opacity = '0.5'; }
+      if (maxBtn) { maxBtn.style.opacity = '0.5'; }
       if (freeBtn) { freeBtn.textContent = 'Downgrade'; freeBtn.style.opacity = '0.5'; }
     } else if (plan === 'max') {
       const label = document.getElementById('current_max');
