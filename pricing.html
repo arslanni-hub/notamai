@@ -541,23 +541,26 @@ canvas#sky {
       <p style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;letter-spacing:1px;">* Subject to <a href="/terms#fair-use" style="color:#4a5f72;text-decoration:underline;">fair use policy</a></p>
     </div>
 
-    <!-- ENTERPRISE -->
+    <!-- TEAM (v3.90) -->
     <div class="pricing-card" style="border: 1px solid #2a1a4a;">
-      <div class="card-badge" style="color:#b57bff;">ENTERPRISE</div>
-      <div class="card-name">Enterprise</div>
-      <div class="card-price" style="margin-bottom:6px;">
-        <span style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:700;color:#b57bff;letter-spacing:1px;">Contact Sales</span>
+      <div class="card-badge" style="color:#b57bff;">TEAM</div>
+      <div class="card-name">Team</div>
+      <div class="card-price">
+        <span class="price-amount" id="teamPrice" style="color:#b57bff;">$69</span>
+        <span class="price-period">/seat/month</span>
       </div>
-      <div class="card-subtitle">For airlines &amp; operations centers</div>
+      <div id="pricing_teamNote" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a5f72;margin-bottom:6px;">$59/seat billed annually</div>
+      <div class="card-subtitle">3–50 seats · Operators, flight schools &amp; dispatch</div>
       <ul class="features-list">
-        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Max +</span></li>
-        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Multi-user access</span></li>
-        <li><span class="feat-check feat-on">✓</span><span class="feat-on">API Access</span></li>
-        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Custom integrations</span></li>
-        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Dedicated support &amp; SLA</span></li>
-        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Custom onboarding</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Everything in Pro, for every member</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">60 AI briefings per seat — shared team pool</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">2 NOTAM alert airports per seat (~every 60 min)</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">1 AI video briefing per seat / month</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Team admin &amp; central billing</span></li>
+        <li><span class="feat-check feat-on">✓</span><span class="feat-on">Priority support</span></li>
       </ul>
-      <button class="card-btn" style="background:#b57bff;border:1px solid #b57bff;color:#fff;font-weight:700;" onclick="window.location.href='mailto:hello@notamai.com'">Contact Sales →</button>
+      <button class="card-btn" style="background:#b57bff;border:1px solid #b57bff;color:#fff;font-weight:700;" onclick="window.location.href='mailto:support@notamai.com?subject=Team Plan Inquiry'">Contact Sales →</button>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;margin-top:8px;">Min. 3 seats · 50+ seats? Enterprise — contact us</div>
     </div>
 
   </div>
@@ -679,8 +682,10 @@ function pricing_toggleBilling() {
     badge.style.display = 'inline-block';
     monthlyLabel.style.color = '#4a5f72';
     yearlyLabel.style.color = '#cdd9e5';
-    document.getElementById('proPrice').textContent = '42';
-    document.getElementById('premiumPrice').textContent = '84';
+    document.getElementById('proPrice').textContent = '$42';
+    document.getElementById('premiumPrice').textContent = '$84';
+    document.getElementById('teamPrice').textContent = '$59';
+    document.getElementById('pricing_teamNote').innerHTML = '$708/seat/year · <span style="color:#2ec4b6;font-weight:700;">Save $120 per seat</span>';
     document.getElementById('pricing_proNote').innerHTML = '$504/year · <span style="color:#2ec4b6;font-weight:700;">Save $108</span>';
     document.getElementById('pricing_premiumNote').innerHTML = '$1,008/year · <span style="color:#2ec4b6;font-weight:700;">Save $180</span>';
   } else {
@@ -689,8 +694,10 @@ function pricing_toggleBilling() {
     badge.style.display = 'none';
     monthlyLabel.style.color = '#cdd9e5';
     yearlyLabel.style.color = '#4a5f72';
-    document.getElementById('proPrice').textContent = '49';
-    document.getElementById('premiumPrice').textContent = '99';
+    document.getElementById('proPrice').textContent = '$49';
+    document.getElementById('premiumPrice').textContent = '$99';
+    document.getElementById('teamPrice').textContent = '$69';
+    document.getElementById('pricing_teamNote').textContent = '$59/seat billed annually';
     document.getElementById('pricing_proNote').textContent = '7-day free trial · Cancel anytime';
     document.getElementById('pricing_premiumNote').textContent = '7-day free trial · Cancel anytime';
   }

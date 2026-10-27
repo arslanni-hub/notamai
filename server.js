@@ -5998,10 +5998,11 @@ async function processSalesLead(email, supportAnalysis) {
 PRICING:
 - Pro: $49/month per user
 - Max: $99/month per user
-- Team / Enterprise (operators, flight schools, dispatch and ops centres): custom quote only — never state a price or a seat count.
-  Being designed as a shared monthly allowance for the whole team (briefings, alerts, video), central billing (annual invoice possible),
-  onboarding and priority support. API access and integrations: on request / roadmap — never promise them as available now.
-  No uptime SLA is offered yet; support response times can be agreed.
+- Team: $69 per seat per month ($59 billed annually), 3 to 50 seats, for operators, flight schools and dispatch teams. Every member gets
+  everything in Pro; each seat adds 60 AI briefings, 2 NOTAM alert airports (~every 60 min) and 1 AI video briefing per month to a shared
+  team pool. Team admin, central billing, priority support. Set up by our team on request (not self-serve yet).
+- Enterprise (50+ seats or special requirements): custom quote, annual contract and invoice, onboarding. API access and integrations are
+  on request / roadmap — never promise them as available now. No uptime SLA yet; support response times can be agreed in the contract.
 - Annual billing (Pro, Max): about 15% off
 
 Customer email:
@@ -6242,7 +6243,8 @@ PLANS & PRICING:
 - Free: 3 AI Briefings/month, NOTAMs & MET live data, SIGMET/AIRMET, Aviation Tools Panel
 - Pro ($49/month): 100 AI Briefings/month, NOTAM Intelligence Chat, En-route FIR Analysis, AI Assistant, NOTAM/METAR/TAF Analysis, Briefing Archive, Saved Routes (3), NOTAM Alerts (3 airports, checked about every 60 min), Share & PDF Export
 - Max ($99/month): Everything in Pro + 150 AI Briefings/month, AI Video Briefing (5/month), higher chat limits, unlimited archive, saved routes (up to 20), NOTAM alerts (5 airports, checked about every 30 min), Priority Support, extra video pack $10=3 videos
-- Team / Enterprise: custom quote for operators, flight schools and ops centres (shared team allowance, central billing, onboarding). Do not quote a price or seat count; API access is on request (roadmap), no uptime SLA yet. Forward such requests to sales.
+- Team ($69/seat/month, $59 billed annually; 3-50 seats): everything in Pro for every member + per seat 60 AI briefings, 2 NOTAM alert airports and 1 AI video per month in a shared team pool, team admin, central billing, priority support; set up by our team on request.
+- Enterprise (50+ seats or special requirements): custom quote, annual contract. API access only on request (roadmap), no uptime SLA yet. Forward Team/Enterprise requests to sales.
 - All paid plans have 7-day free trial, cancel anytime
 - Annual billing available with 15% discount
 
