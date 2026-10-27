@@ -2698,6 +2698,27 @@ function updateHUD() {
 
 /* ═══ GREETING ═══ */
 let greetingName = 'Captain';
+// v3.99: the name shown in the greeting, sidebar and account popup follows Profile settings — display name (users.displayName,
+// else the sign-in name, else the e-mail prefix) with a title from the role: Captain → "Cpt.", First Officer → "F/O",
+// other roles no title. No role saved yet → "Cpt." as before. A name that already starts with a title is used as typed.
+function profileTitleName(user, data) {
+  data = data || {};
+  const name = String(data.displayName || (user && user.displayName) || ((user && user.email) || '').split('@')[0] || '').trim();
+  if (!name) return 'Captain';
+  if (/^(cpt\.?|capt\.?|captain|f\/o|fo\b|first officer)\s/i.test(name)) return name;
+  const title = { captain: 'Cpt. ', fo: 'F/O ' }[data.role] ?? (data.role ? '' : 'Cpt. ');
+  return title + name;
+}
+function applyProfileName(user, data) {
+  const full = profileTitleName(user, data);
+  const sn = document.getElementById('sidebarName'); if (sn) sn.textContent = full;
+  const pn = document.getElementById('popupName'); if (pn) pn.textContent = full;
+  const av = document.getElementById('sidebarAvatar');
+  const base = String((data && data.displayName) || (user && user.displayName) || (user && user.email) || '').replace(/^(cpt\.?|capt\.?|captain|f\/o|fo|first officer)\s+/i, '').trim();
+  if (av && base) av.textContent = base.charAt(0).toUpperCase();
+  greetingName = full;
+  setGreeting();
+}
 function setGreeting() {
   const h = new Date().getHours();
   const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
@@ -5415,6 +5436,7 @@ firebase.auth().onAuthStateChanged(async user => {
     try {
       const userDoc = await db.collection('users').doc(user.uid).get();
       const data = userDoc.exists ? userDoc.data() : {};
+      applyProfileName(user, data);   // v3.99: saved display name + role title
       if (!data.onboardingComplete) {
         setTimeout(() => showOnboarding(), 1500);
       }
@@ -5860,7 +5882,7 @@ async function saveProfile(btn) {   // v3.98: button passed in (window.event is 
       displayName, role, org: organization,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
-    if (displayName) document.getElementById('sidebarName').textContent = displayName;
+    applyProfileName(user, { displayName, role });   // v3.99: greeting / sidebar follow the profile right away
     if (!btn) return;
     btn.textContent = '✓ SAVED';
     btn.style.color = '#2ec4b6';
