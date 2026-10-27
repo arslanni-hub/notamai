@@ -510,25 +510,37 @@ async function refundVideoCharge(userId, chargedFrom, when) {
 }
 
 // v3.88: one place for revenue maths. List prices per month (yearly = the yearly price / 12), Render env can override.
-// MRR counts only PAYING subscribers: Stripe status active / past_due (pro, max); enterprise unless it is trialing (enterprise
-// may be invoiced outside Stripe). Trials and complimentary/manual plans count as 0 and are reported separately.
+// MRR counts only PAYING subscribers: Stripe status active / past_due (pro, max). Trials and complimentary plans count as 0.
+// v3.94: invoiced (non-Stripe) revenue — Team and Enterprise are sold manually, so their revenue is recorded by hand on ONE user
+// document of the customer (the team admin): users/{uid}.manualMrr = monthly USD (e.g. 5 seats x $69 = 345; annual 5 x $59 = 295),
+// optional manualPlan 'team' | 'enterprise' (default: 'enterprise' if that user's plan is enterprise, otherwise 'team').
+// The other members (plan 'max' until the organisation feature exists) carry no manualMrr and count as complimentary.
+// Enterprise without Stripe and without manualMrr is no longer assumed to pay the old $999 list price.
 const PLAN_PRICE = {
   pro: { month: parseFloat(process.env.PRICE_PRO_MONTHLY || '49'), year: parseFloat(process.env.PRICE_PRO_YEARLY_PER_MONTH || '42') },
   max: { month: parseFloat(process.env.PRICE_MAX_MONTHLY || '99'), year: parseFloat(process.env.PRICE_MAX_YEARLY_PER_MONTH || '84') },
-  enterprise: { month: parseFloat(process.env.PRICE_ENTERPRISE_MONTHLY || '999'), year: parseFloat(process.env.PRICE_ENTERPRISE_YEARLY_PER_MONTH || '849') },
+  team: { month: parseFloat(process.env.PRICE_TEAM_MONTHLY || '69'), year: parseFloat(process.env.PRICE_TEAM_YEARLY_PER_MONTH || '59') },   // per seat
+  enterprise: { month: parseFloat(process.env.PRICE_ENTERPRISE_MONTHLY || '69'), year: parseFloat(process.env.PRICE_ENTERPRISE_YEARLY_PER_MONTH || '59') },   // per seat, custom quote
 };
+const REVENUE_PLANS = ['pro', 'max', 'team', 'enterprise'];
 function userRevenueState(u) {
   const plan = u && u.plan;
-  if (!PLAN_PRICE[plan]) return { plan: null, kind: 'free', mrr: 0 };
+  const manual = parseFloat(u && u.manualMrr) || 0;
+  if (manual > 0) {
+    const mp = ['team', 'enterprise'].includes(u.manualPlan) ? u.manualPlan : (plan === 'enterprise' ? 'enterprise' : 'team');
+    return { plan: mp, kind: 'paying', interval: u.billingInterval === 'year' ? 'year' : 'month', mrr: manual, manual: true };
+  }
+  if (!['pro', 'max', 'enterprise'].includes(plan)) return { plan: null, kind: 'free', mrr: 0 };
   const status = u.subscriptionStatus || '';
   const interval = u.billingInterval === 'year' ? 'year' : 'month';
   if (status === 'trialing') return { plan, kind: 'trial', interval, mrr: 0 };
-  const paying = ['active', 'past_due'].includes(status) || (plan === 'enterprise' && !u.stripeSubscriptionId);
+  const paying = ['active', 'past_due'].includes(status);
   return paying ? { plan, kind: 'paying', interval, mrr: PLAN_PRICE[plan][interval] } : { plan, kind: 'comp', interval, mrr: 0 };
 }
 function revenueSummary(users) {
-  const out = { mrr: 0, paying: { pro: 0, max: 0, enterprise: 0 }, yearly: { pro: 0, max: 0, enterprise: 0 }, trial: { pro: 0, max: 0, enterprise: 0 }, comp: { pro: 0, max: 0, enterprise: 0 }, avgRevenue: {} };
-  const sum = { pro: 0, max: 0, enterprise: 0 };
+  const z = () => Object.fromEntries(REVENUE_PLANS.map(p => [p, 0]));
+  const out = { mrr: 0, paying: z(), yearly: z(), trial: z(), comp: z(), avgRevenue: {} };
+  const sum = z();
   for (const u of users) {
     const r = userRevenueState(u);
     if (!r.plan) continue;
@@ -536,7 +548,8 @@ function revenueSummary(users) {
     if (r.kind === 'paying') { out.mrr += r.mrr; sum[r.plan] += r.mrr; if (r.interval === 'year') out.yearly[r.plan]++; }
   }
   out.mrr = Math.round(out.mrr * 100) / 100;
-  for (const p of Object.keys(sum)) out.avgRevenue[p] = out.paying[p] ? Math.round(sum[p] / out.paying[p] * 100) / 100 : PLAN_PRICE[p].month;
+  // average revenue per paying account (Team/Enterprise: per invoiced customer, not per seat)
+  for (const p of REVENUE_PLANS) out.avgRevenue[p] = out.paying[p] ? Math.round(sum[p] / out.paying[p] * 100) / 100 : PLAN_PRICE[p].month;
   return out;
 }
 
@@ -5435,7 +5448,7 @@ async function runGrowthReport() {
         if (u.createdAt && u.createdAt.toDate() >= weekAgo) newSignups++;
       });
       const rev = revenueSummary(usersSnap.docs.map(d => d.data()));   // v3.88: paying subscribers only, yearly at price/12
-      pro = rev.paying.pro; max = rev.paying.max; ent = rev.paying.enterprise;
+      pro = rev.paying.pro; max = rev.paying.max; ent = rev.paying.enterprise + rev.paying.team;
       mrr = rev.mrr;
       const bSnap = await adminDb.collection('briefings').where('createdAt', '>=', weekAgo).get();
       briefings7d = bSnap.size;
@@ -5702,7 +5715,7 @@ async function runHealthCheck() {
     const rev = revenueSummary(us.docs.map(d => d.data()));   // v3.88: paying subscribers only, yearly at price/12
     pro = rev.paying.pro; max = rev.paying.max;
     mrr = rev.mrr;
-    results.revenue_mix = `paying Pro ${rev.paying.pro} (yearly ${rev.yearly.pro}), Max ${rev.paying.max} (yearly ${rev.yearly.max}), Enterprise ${rev.paying.enterprise}; trials ${rev.trial.pro + rev.trial.max + rev.trial.enterprise}; complimentary ${rev.comp.pro + rev.comp.max + rev.comp.enterprise}`;
+    results.revenue_mix = `paying Pro ${rev.paying.pro} (yearly ${rev.yearly.pro}), Max ${rev.paying.max} (yearly ${rev.yearly.max}), Team ${rev.paying.team} (invoiced), Enterprise ${rev.paying.enterprise}; trials ${rev.trial.pro + rev.trial.max + rev.trial.enterprise}; complimentary ${rev.comp.pro + rev.comp.max + rev.comp.enterprise}`;
   } catch(e) {}
 
   // Activation stats — first briefings and upgrade candidates

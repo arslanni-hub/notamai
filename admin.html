@@ -272,16 +272,18 @@ async function loadPlanCosts() {
   } catch (e) { el.innerHTML = '<div class="loading">Cost ledger error: ' + e.message + '</div>'; }
 }
 
-// v3.88: MRR = paying subscribers only (Stripe active / past_due; enterprise unless trialing), yearly plans at the yearly price / 12.
+// v3.88: MRR = paying subscribers only (Stripe active / past_due), yearly plans at the yearly price / 12.
+// v3.94: invoiced Team/Enterprise revenue = users/{uid}.manualMrr (monthly USD, set by hand on the paying team admin).
 // Keep in sync with PLAN_PRICE / userRevenueState in server.js.
-const ADMIN_PLAN_PRICE = { pro: { month: 49, year: 42 }, max: { month: 99, year: 84 }, enterprise: { month: 999, year: 849 } };
+const ADMIN_PLAN_PRICE = { pro: { month: 49, year: 42 }, max: { month: 99, year: 84 } };
 function adminMrr(users) {
   let m = 0;
   for (const u of users) {
+    const manual = parseFloat(u.manualMrr) || 0;
+    if (manual > 0) { m += manual; continue; }
     const p = ADMIN_PLAN_PRICE[u.plan]; if (!p) continue;
     const st = u.subscriptionStatus || '';
-    if (st === 'trialing') continue;
-    if (!(st === 'active' || st === 'past_due' || (u.plan === 'enterprise' && !u.stripeSubscriptionId))) continue;
+    if (!(st === 'active' || st === 'past_due')) continue;
     m += u.billingInterval === 'year' ? p.year : p.month;
   }
   return Math.round(m * 100) / 100;
