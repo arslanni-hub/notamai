@@ -70,7 +70,8 @@ User → index.html (SPA)
 - Dark aviation/cockpit theme — background: #060a0f
 - Fonts: Orbitron (headings), Rajdhani (body), Share Tech Mono (data/mono)
 - Primary blue: #4a9eff — this is the project's accent color for new UI; do not introduce new accent colors (e.g. purple) without explicit instruction
-- Status colors only: red #e63946 (critical/error), orange #f4841a (warning), yellow #f2c641 (caution), green #2ec4b6 (success/safe), purple #b57bff (reserved for specific existing UI elements — NOT a general-purpose accent)
+- Status colors only: red #e63946 (critical/error), orange #f4841a (warning), yellow #f2c641 (caution), green #2ec4b6 (success/safe), purple #b57bff (reserved for specific existing UI elements, incl. the Team/Enterprise plan identity — NOT a general-purpose accent)
+- Plan identity colors (v3.93, use only to mark a plan: badges, pricing cards, plan labels): Free #4a5f72, Pro #4a9eff, Max #f4841a, Team/Enterprise #b57bff, Admin #f2c641. Not for buttons or general UI accents (e.g. upgrade buttons stay blue #4a9eff).
 - All styling: inline CSS only — NO external CSS frameworks
 - Sidebar: 260px open / 52px collapsed
 - Sidebar panels: slide-in from right, 320-380px wide — this applies to sidebar-launched panels (NOTAMs & MET, Saved Routes, Archive, Alerts, Settings, Ask NOTAM AI). It does NOT mean every new chat/panel feature must slide in from the right — confirm placement per feature, some are designed to occupy the main input area in place instead.
