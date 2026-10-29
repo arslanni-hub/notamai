@@ -951,8 +951,13 @@ canvas#sky {
 #routeAnimBox { position: absolute; inset: 0; overflow: hidden; }
 .loading-state.anim-on { justify-content: flex-end; align-items: flex-start; padding: 0 24px 22px; }
 .loading-state.anim-on .loading-ring, .loading-state.anim-on .loading-text { display: none; }
-#briefDesk { position: relative; z-index: 1; width: 100%; margin-bottom: 10px; opacity: 0; transition: opacity .5s; pointer-events: none; }
-#briefDesk.show { opacity: 1; pointer-events: auto; }
+#briefDesk { position: relative; z-index: 1; width: 100%; display: none; }
+#briefDesk.show { display: block; animation: bdIn .5s ease; }
+@keyframes bdIn { from { opacity: 0; } to { opacity: 1; } }
+.loading-state.anim-on.desk-on .loading-steps { display: none; }
+.ra-dots i { font-style: normal; animation: raDot 1.4s infinite; opacity: .15; }
+.ra-dots i:nth-child(2) { animation-delay: .2s; } .ra-dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes raDot { 0%, 80%, 100% { opacity: .15; } 40% { opacity: 1; } }
 #briefDesk .bd-now { font-family: var(--mono); font-size: 10.5px; letter-spacing: 2px; color: var(--blue); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #briefDesk .bd-bar { height: 2px; background: rgba(74,158,255,0.12); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
 #briefDesk .bd-fill { height: 100%; width: 0; background: var(--blue); box-shadow: 0 0 8px rgba(74,158,255,0.8); transition: width .8s ease; }
@@ -2770,18 +2775,24 @@ function updateHUD() {
     hud.innerHTML =
       '<div data-k="top" style="position:absolute;top:22px;left:24px;font-family:\'Share Tech Mono\',monospace;font-size:10px;letter-spacing:3px;color:' + C.dim + ';"></div>' +
       '<div data-k="card" style="position:absolute;top:46px;left:16px;width:fit-content;max-width:min(580px,calc(100% - 32px));box-sizing:border-box;padding:9px 13px;background:rgba(6,10,15,0.74);border-left:2px solid rgba(74,158,255,0.6);border-radius:4px;font-family:\'Share Tech Mono\',monospace;font-size:11.5px;line-height:1.75;letter-spacing:1px;color:' + C.mid + ';white-space:pre-wrap;word-break:break-word;transition:opacity .4s;opacity:0;"></div>' +
-      '<div data-k="big" style="position:absolute;left:24px;bottom:150px;right:24px;font-family:\'Orbitron\',sans-serif;font-weight:900;letter-spacing:2px;color:' + C.text + ';line-height:1.05;"></div>' +
-      '<div data-k="sub" style="position:absolute;left:24px;bottom:126px;right:24px;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;color:' + C.mid + ';"></div>';
+      // v3.107: big text, sub line and conflict-zone warning stacked in one column that sits just above the progress panel
+      '<div data-k="info" style="position:absolute;left:24px;right:24px;bottom:22px;display:flex;flex-direction:column;gap:7px;">' +
+      '<div data-k="big" style="font-family:\'Orbitron\',sans-serif;font-weight:900;letter-spacing:2px;color:' + C.text + ';line-height:1.05;"></div>' +
+      '<div data-k="sub" style="font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;color:' + C.mid + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>' +
+      '<div data-k="warn" style="display:none;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div></div>';
     container.appendChild(canvas); container.appendChild(hud);
     const el = k => hud.querySelector('[data-k="' + k + '"]');
     const ctx = canvas.getContext('2d');
+    const zm = document.createElement('canvas'), ze = document.createElement('canvas');   // conflict-zone mask / outer-edge buffers
+    const zmc = zm.getContext('2d'), zec = ze.getContext('2d');
     let W = 0, H = 0, dpr = 1, label = '';
     function resize() {
       dpr = Math.min(2, window.devicePixelRatio || 1);
       W = container.clientWidth || 800; H = container.clientHeight || 600;
       canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      el('sub').style.fontSize = W < 520 ? '9.5px' : '11px';
+      el('sub').style.fontSize = el('warn').style.fontSize = W < 520 ? '9.5px' : '11px';
+      for (const cv of [zm, ze]) { cv.width = canvas.width; cv.height = canvas.height; }
       el('card').style.fontSize = W < 520 ? '10px' : '11.5px';
       el('card').style.top = W < 600 ? '82px' : '46px';
       label = '';
@@ -2794,11 +2805,11 @@ function updateHUD() {
     const interp = B ? d3.geoInterpolate(A, B) : null;
     const mid = B ? interp(0.5) : A;
     const proj = d3.geoOrthographic().clipAngle(90).precision(0.3);
-    const path = d3.geoPath(proj, ctx);
+    const path = d3.geoPath(proj, ctx), zpath = d3.geoPath(proj, zmc);
     const grat = d3.geoGraticule10();
     const now0 = new Date();
     const dstr = String(now0.getUTCDate()).padStart(2, '0') + '.' + String(now0.getUTCMonth() + 1).padStart(2, '0') + '.' + now0.getUTCFullYear();
-    el('top').textContent = dstr + ' · ' + (B ? dep.id + ' → ' + arr.id : dep.id) + ((container.clientWidth || 800) < 520 ? '' : (B ? ' · ROUTE BRIEFING' : ' · AIRPORT BRIEFING'));
+    el('top').innerHTML = esc(dstr + ' · ' + (B ? dep.id + ' → ' + arr.id : dep.id) + ((container.clientWidth || 800) < 520 ? '' : (B ? ' · ROUTE BRIEFING' : ' · AIRPORT BRIEFING'))) + '<span class="ra-dots"><i>.</i><i>.</i><i>.</i></span>';
     const eteH = B ? totalNm / CRUISE_KT + 0.3 : 0;   // + climb / descent allowance
     const ete = B ? 'ETE ≈ ' + Math.floor(eteH) + 'H' + String(Math.round((eteH % 1) * 60)).padStart(2, '0') : '';
     const sun = subsolar(now0), night = d3.geoCircle().center([sun[0] + 180, -sun[1]]).radius(90)(), dusk = d3.geoCircle().center([sun[0] + 180, -sun[1]]).radius(96)();
@@ -2818,12 +2829,38 @@ function updateHUD() {
     let p = 0, briefP = 0, finishAt = null, finishFrom = null, onLanded = null, landedFired = false;
     loadWorld().then(w => { world = w; }).catch(() => {});
 
-    function setText(big, sub, small, color) {
-      const key = big + '|' + sub + '|' + !!small + '|' + W + '|' + (color || '');
+    function setText(big, sub, small, warn, warnColor) {
+      const key = big + '|' + sub + '|' + !!small + '|' + W + '|' + (warn || '') + '|' + (warnColor || '');
       if (label === key) return; label = key;
       const b = el('big');
       b.style.fontSize = small ? Math.round(clamp(Math.min(W, H) * 0.06, 20, 42)) + 'px' : Math.round(clamp(Math.min(W, H) * 0.095, 28, 64)) + 'px';
-      b.textContent = big; el('sub').textContent = sub; el('sub').style.color = color || C.mid;
+      b.textContent = big; el('sub').textContent = sub;
+      const w = el('warn'); w.textContent = warn || ''; w.style.display = warn ? 'block' : 'none'; w.style.color = warnColor || C.mid;
+    }
+    // keep the text column just above whatever sits at the bottom of the loading screen (progress panel / step list)
+    let layoutAt = 0;
+    function placeInfo(now) {
+      if (now - layoutAt < 250) return; layoutAt = now;
+      let top = H;
+      for (const n of container.parentElement ? container.parentElement.children : []) {
+        if (n === container || n.id === 'briefLive' || n.offsetParent === null || !n.offsetHeight) continue;
+        top = Math.min(top, n.offsetTop);
+      }
+      el('info').style.bottom = Math.max(22, H - top + 16) + 'px';
+    }
+    // conflict zone: hatched fill + one outline around the whole zone (no inner FIR borders)
+    const NB = [[-1, 0], [1, 0], [0, -1], [0, 1], [-0.7, -0.7], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7]];
+    function drawZone(z) {
+      zmc.setTransform(1, 0, 0, 1, 0, 0); zmc.clearRect(0, 0, zm.width, zm.height); zmc.setTransform(dpr, 0, 0, dpr, 0, 0);
+      zmc.beginPath(); for (const poly of z.polys) zpath(poly); zmc.fillStyle = '#fff'; zmc.fill();
+      ctx.beginPath(); for (const poly of z.polys) path(poly); ctx.fillStyle = z.pattern; ctx.fill();
+      zec.globalCompositeOperation = 'source-over'; zec.clearRect(0, 0, ze.width, ze.height);
+      const k = 1.3 * dpr;
+      for (const [dx, dy] of NB) zec.drawImage(zm, dx * k, dy * k);
+      zec.globalCompositeOperation = 'destination-out'; zec.drawImage(zm, 0, 0);
+      zec.globalCompositeOperation = 'source-in'; zec.fillStyle = 'rgba(' + z.rgb + ',0.8)'; zec.fillRect(0, 0, ze.width, ze.height);
+      zec.globalCompositeOperation = 'source-over';
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(ze, 0, 0); ctx.restore();
     }
     function cityOf(q) { return String(q.city || q.name || q.id).toUpperCase(); }
     function airportLine(q) { return q.id + ' · ' + dms(q.lat, 'N', 'S') + ' ' + dms(q.lon, 'E', 'W'); }
@@ -2912,14 +2949,7 @@ function updateHUD() {
       ctx.beginPath(); path({ type: 'Sphere' }); ctx.strokeStyle = C.oceanEdge; ctx.lineWidth = 1; ctx.stroke();
 
       // conflict zones near the route (hatched, coloured by severity)
-      for (const z of zones) {
-        ctx.save();
-        for (const poly of z.polys) {
-          ctx.beginPath(); path(poly); ctx.fillStyle = z.pattern; ctx.fill();
-          ctx.strokeStyle = 'rgba(' + z.rgb + ',0.75)'; ctx.lineWidth = 1.1; ctx.stroke();
-        }
-        ctx.restore();
-      }
+      for (const z of zones) drawZone(z);
       // the en-route FIR the aircraft is in
       let curFir = null;
       if (B && firs && phase !== 'dep') {
@@ -2963,6 +2993,7 @@ function updateHUD() {
       const zoneNow = B ? zones.find(z => z.crossing && z.from !== null && p >= z.from && p <= z.to) : null;
       const zoneTxt = zoneNow ? (zoneNow.level === 'NOGO' || zoneNow.level === 'HIGH' ? '⚠ ' + zoneNow.short + ' CONFLICT ZONE — ROUTE MUST AVOID' : zoneNow.level === 'CAUTION' ? '⚠ ' + zoneNow.short + ' CONFLICT ZONE — CAUTION' : 'ⓘ ' + zoneNow.short + ' — CONFLICT ZONE INFO') : '';
       const zoneCol = zoneNow ? 'rgb(' + zoneNow.rgb + ')' : null;
+      placeInfo(now);
       if (override) { showCard(null); setText(override.big, override.sub, override.small); }
       else if (phase === 'dep') { showCard(dep, s); setText(cityOf(dep), B ? airportLine(dep) + ' · ' + ete : airportLine(dep)); }
       else if (phase === 'finish') {
@@ -2977,7 +3008,7 @@ function updateHUD() {
         showCard(null);
         if (B) {
           const firTxt = curFir ? curFir.id + ' FIR (' + (firs.firs.indexOf(curFir) + 1) + '/' + firs.firs.length + ')' : '';
-          setText(fmt(totalNm * (1 - p)) + ' NM', zoneTxt || [dep.id + ' → ' + arr.id, firTxt, W < 520 ? '' : ete].filter(Boolean).join(' · '), false, zoneCol);
+          setText(fmt(totalNm * (1 - p)) + ' NM', [dep.id + ' → ' + arr.id, firTxt, W < 520 ? '' : ete].filter(Boolean).join(' · '), false, zoneTxt, zoneCol);
         } else setText(cityOf(dep), airportLine(dep) + ' · ' + String(dep.name || ''), true);
       }
       raf = requestAnimationFrame(frame);
@@ -2999,6 +3030,7 @@ function updateHUD() {
       finish(cb) {
         if (finishAt !== null) { onLanded = cb; return; }
         onLanded = cb; finishFrom = { p, cam: lastCam };
+        const dots = el('top').querySelector('.ra-dots'); if (dots) dots.remove();
         finishAt = t0 === null ? 0 : (performance.now() - t0) / 1000;
       },
       setText(big, sub, small) { override = big ? { big, sub: sub || '', small: !!small } : null; },
@@ -3009,8 +3041,11 @@ function updateHUD() {
         const list = data.firs.filter(f => f.from > 0.005 && f.to < 0.995);
         const big = rg => { let x0 = 999, x1 = -999, y0 = 999, y1 = -999; for (const [x, y] of rg.ring) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } return (x1 - x0) > 1.2 || (y1 - y0) > 1.2; };
         const ids = new Set(list.map(f => f.id));
-        firs = { firs: list, rings: data.rings.filter(rg => ids.has(rg.id) && big(rg)) };
-        zones = (data.zones || []).filter(z => ZONE[z.level]).map(z => ({
+        const area = rg => { let x0 = 999, x1 = -999, y0 = 999, y1 = -999; for (const [x, y] of rg.ring) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } return (x1 - x0) * (y1 - y0); };
+        const best = new Map();
+        for (const rg of data.rings) if (ids.has(rg.id) && big(rg) && (!best.has(rg.id) || area(rg) > area(best.get(rg.id)))) best.set(rg.id, rg);
+        firs = { firs: list, rings: [...best.values()] };
+        zones = (data.zones || []).filter(z => ZONE[z.level] && (z.crossing || z.atEnd)).map(z => ({
           ...z, rgb: ZONE[z.level], pattern: hatch(ctx, ZONE[z.level]),
           short: String(z.name || '').replace(/\s*\(.*$/, '').toUpperCase(),
           polys: (z.rings || []).map(rg => { const poly = { type: 'Polygon', coordinates: [rg] }; return d3.geoArea(poly) > 2 * Math.PI ? { type: 'Polygon', coordinates: [rg.slice().reverse()] } : poly; })
@@ -3037,12 +3072,12 @@ function preloadRouteAnim() {
 function resetLoadingMarkup() {
   const loading = document.getElementById('loadingState');
   if (!loading) return;
-  loading.classList.remove('anim-on');
+  loading.classList.remove('anim-on', 'desk-on');
   loading.innerHTML = '<div class="loading-ring"></div><div class="loading-text">ANALYZING NOTAM DATA</div><div class="loading-steps" id="loadSteps"><div class="active" id="ls1">▶ FETCHING LIVE DATA...</div><div id="ls2">  RUNNING AI ANALYSIS</div><div id="ls3">  GENERATING BRIEFING</div></div>';
 }
 function stopBriefingAnim() {
   if (briefingAnim) { briefingAnim.stop(); briefingAnim = null; }
-  const l = document.getElementById('loadingState'); if (l) l.classList.remove('anim-on');
+  const l = document.getElementById('loadingState'); if (l) l.classList.remove('anim-on', 'desk-on');
   const d = document.getElementById('briefDesk'); if (d) d.remove();
   const lv = document.getElementById('briefLive'); if (lv) lv.remove();
   const b = document.getElementById('routeAnimBox'); if (b) b.remove();
@@ -3078,7 +3113,7 @@ function renderBriefDesk(prog, label) {
   d.querySelector('.bd-now').textContent = (prog.pct >= 1 ? '✓ ' : '▶ ') + 'WRITING YOUR BRIEFING · ' + cur.toUpperCase() + ' · ' + Math.round(prog.pct * 100) + '%';
   briefingAnim.setProgress(prog.pct);   // v3.106: the aircraft flies with the briefing
   if (Date.now() >= briefingAnim.startedAt + 5000) {
-    d.classList.add('show');
+    d.classList.add('show'); loading.classList.add('desk-on');
     const live = document.getElementById('briefLive'); if (live) live.classList.add('show');
   }
 }

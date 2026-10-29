@@ -91,8 +91,12 @@ function routeFirTimeline(dep, arr) {
     firs.push(f);
   }
   const ids = new Set(firs.map(f => f.id));
-  const rings = [];
+  const rings = [], biggest = new Map();   // v3.107: largest ring per FIR only (no TMA/CTR-sized pieces)
   for (const f of load().list) if (ids.has(f.id)) {
+    const a = (f.x1 - f.x0) * (f.y1 - f.y0), b = biggest.get(f.id);
+    if (!b || a > b.a) biggest.set(f.id, { a, f });
+  }
+  for (const { f } of biggest.values()) {
     const pts = f.r.length / 2, step = Math.max(1, Math.ceil(pts / 300)), ring = [];
     for (let i = 0; i < f.r.length; i += 2 * step) ring.push([f.r[i], f.r[i + 1]]);
     ring.push([f.r[0], f.r[1]]);
@@ -110,8 +114,14 @@ function routeFirTimeline(dep, arr) {
       const isNear = zf.some(id => near.has(id));
       if (!zf.length || (!crossed.length && !isNear && !atEnd)) continue;
       const level = atEnd ? (z.endpoint || z.crossing || 'INFO') : crossed.length ? (z.crossing || 'INFO') : 'INFO';
-      const zr = [];
+      // v3.107: one outline per FIR — its largest ring only (VATSIM data also holds TMA/CTR-sized pieces under the same code)
+      const best = new Map();
       for (const f of load().list) if (zf.includes(f.id)) {
+        const a = (f.x1 - f.x0) * (f.y1 - f.y0), b = best.get(f.id);
+        if (!b || a > b.a) best.set(f.id, { a, f });
+      }
+      const zr = [];
+      for (const { f } of best.values()) {
         const pts = f.r.length / 2, step = Math.max(1, Math.ceil(pts / 150)), ring = [];
         for (let i = 0; i < f.r.length; i += 2 * step) ring.push([f.r[i], f.r[i + 1]]);
         ring.push([f.r[0], f.r[1]]);
