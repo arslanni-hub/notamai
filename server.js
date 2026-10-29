@@ -559,6 +559,7 @@ function planFromPriceId(priceId) {
   }
   return null;
 }
+let worldMapCache = null;   // v3.102: { raw, gz } for /world-50m.json
 const verifyMailState = new Map();   // v3.101: uid -> { last, day, n } for /api/send-verification
 
 // v3.97: one free trial per person, not per account. A deleted-and-recreated account (new uid) or a re-created users doc would
@@ -2437,6 +2438,24 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // v3.102: world map for the briefing route animation (Natural Earth 1:50m via world-atlas, TopoJSON). Gzipped once, cached 30 days.
+  if (req.method === 'GET' && req.url.split('?')[0] === '/world-50m.json') {
+    try {
+      if (!worldMapCache) { const raw = fs.readFileSync(path.join(__dirname, 'world-50m.json')); worldMapCache = { raw, gz: require('zlib').gzipSync(raw, { level: 9 }) }; }
+      const gz = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
+      res.writeHead(200, Object.assign({ 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=2592000', 'Vary': 'Accept-Encoding' }, gz ? { 'Content-Encoding': 'gzip' } : {}));
+      res.end(gz ? worldMapCache.gz : worldMapCache.raw);
+    } catch (e) { res.writeHead(404); res.end(); }
+    return;
+  }
+  // v3.102: coordinates + names for the route animation, from the local OurAirports index (no SkyLink call, no cost).
+  if (req.method === 'GET' && req.url.startsWith('/api/airport-points')) {
+    const codes = String(new URL(req.url, 'http://x').searchParams.get('codes') || '').toUpperCase().split(',').map(c => c.trim()).filter(c => /^[A-Z0-9]{3,4}$/.test(c)).slice(0, 4);
+    const points = codes.map(c => alternates.airportPoint(c)).filter(Boolean);
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' });
+    res.end(JSON.stringify({ points }));
+    return;
+  }
   if (req.method === 'GET' && req.url === '/favicon.png') {
     res.writeHead(200, { 'Content-Type': 'image/png' });
     res.end(fs.readFileSync(path.join(__dirname, 'favicon.png')));

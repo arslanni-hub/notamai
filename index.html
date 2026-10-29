@@ -946,6 +946,12 @@ canvas#sky {
   text-align: center;
 }
 .loading-steps .active { color: var(--blue); }
+/* v3.102: route animation on the loading screen */
+.loading-state { position: relative; }
+#routeAnimBox { position: absolute; inset: 0; overflow: hidden; }
+.loading-state.anim-on { justify-content: flex-end; align-items: flex-start; padding: 0 24px 22px; }
+.loading-state.anim-on .loading-ring, .loading-state.anim-on .loading-text { display: none; }
+.loading-state.anim-on .loading-steps { position: relative; z-index: 1; flex-direction: row; flex-wrap: wrap; gap: 6px 18px; text-align: left; }
 
 /* ═══ AUTH MODAL ═══ */
 #authModalBg {
@@ -2696,6 +2702,250 @@ function updateHUD() {
   document.getElementById('gsVal').textContent  = 491 + Math.round(Math.sin(Date.now() * 0.0004) * 5);
 }
 
+
+/* ═══ v3.102 BRIEFING ROUTE ANIMATION ═══ */
+/* v3.102 — briefing route animation (replaces the spinning ring on the briefing loading screen).
+   Orthographic globe on a canvas: departure close-up → zoom out → aircraft flies the great circle with a remaining-distance
+   counter → arrival close-up → slow hold. Needs d3-array, d3-geo and topojson-client (window.d3 / window.topojson) and the
+   world map /world-50m.json. Usage: const a = RouteAnim.start(containerEl, dep, arr); … a.stop();
+   dep / arr = { id, name, city, lat, lon } (arr may be null for a single-airport briefing). */
+(function () {
+  const C = {
+    bg: '#060a0f', ocean: '#060d15', oceanEdge: 'rgba(74,158,255,0.35)', land: '#14263a', landStroke: 'rgba(74,158,255,0.45)',
+    border: 'rgba(74,158,255,0.16)', grat: 'rgba(74,158,255,0.07)', route: '#4a9eff', routeAhead: 'rgba(74,158,255,0.35)',
+    text: '#e8f1fb', dim: '#4a5f72', mid: '#8a9bb0'
+  };
+  const NM = 3440.065;
+  let worldPromise = null;
+  function loadWorld() {
+    if (!worldPromise) worldPromise = fetch('/world-50m.json').then(r => { if (!r.ok) throw new Error('map ' + r.status); return r.json(); })
+      .then(t => ({ land: topojson.feature(t, t.objects.land), borders: topojson.mesh(t, t.objects.countries, (a, b) => a !== b) }))
+      .catch(e => { worldPromise = null; throw e; });
+    return worldPromise;
+  }
+  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  function dms(v, pos, neg) { const a = Math.abs(v), d = Math.floor(a), m = Math.round((a - d) * 60); return d + '°' + String(m).padStart(2, '0') + "'" + (v >= 0 ? pos : neg); }
+  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+  function bearing(a, b) {
+    const R = Math.PI / 180, p1 = a[1] * R, p2 = b[1] * R, dl = (b[0] - a[0]) * R;
+    return Math.atan2(Math.sin(dl) * Math.cos(p2), Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl));
+  }
+
+  function start(container, dep, arr) {
+    if (!container || !dep || !window.d3 || !d3.geoOrthographic || !window.topojson) return null;
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
+    const hud = document.createElement('div');
+    hud.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+    hud.innerHTML =
+      '<div data-k="top" style="position:absolute;top:22px;left:24px;font-family:\'Share Tech Mono\',monospace;font-size:10px;letter-spacing:3px;color:' + C.dim + ';"></div>' +
+      '<div data-k="big" style="position:absolute;left:24px;bottom:84px;right:24px;font-family:\'Orbitron\',sans-serif;font-weight:900;letter-spacing:2px;color:' + C.text + ';line-height:1;transition:opacity .35s;"></div>' +
+      '<div data-k="sub" style="position:absolute;left:24px;bottom:58px;right:24px;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;color:' + C.mid + ';transition:opacity .35s;"></div>';
+    container.appendChild(canvas); container.appendChild(hud);
+    const el = k => hud.querySelector('[data-k="' + k + '"]');
+    const ctx = canvas.getContext('2d');
+    let W = 0, H = 0, dpr = 1;
+    function resize() {
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = container.clientWidth || 800; H = container.clientHeight || 600;
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const big = el('big'); big.style.fontSize = Math.round(clamp(Math.min(W, H) * 0.11, 30, 72)) + 'px';
+      el('sub').style.fontSize = W < 520 ? '9.5px' : '11px';
+    }
+    resize();
+    const ro = window.ResizeObserver ? new ResizeObserver(resize) : null; if (ro) ro.observe(container);
+
+    const A = [dep.lon, dep.lat], B = arr ? [arr.lon, arr.lat] : null;
+    const dist = B ? d3.geoDistance(A, B) : 0;            // radians
+    const totalNm = dist * NM;
+    const interp = B ? d3.geoInterpolate(A, B) : null;
+    const mid = B ? interp(0.5) : A;
+    const proj = d3.geoOrthographic().clipAngle(90).precision(0.3);
+    const path = d3.geoPath(proj, ctx);
+    const grat = d3.geoGraticule10();
+    const today = new Date(); const dstr = String(today.getUTCDate()).padStart(2, '0') + '.' + String(today.getUTCMonth() + 1).padStart(2, '0') + '.' + today.getUTCFullYear();
+    el('top').textContent = dstr + ' · ' + (B ? dep.id + ' → ' + arr.id : dep.id) + ((container.clientWidth || 800) < 520 ? '' : (B ? ' · ROUTE BRIEFING' : ' · AIRPORT BRIEFING'));
+
+    // scales: close-up shows ~ 350 NM around the airport; route view fits the whole great circle (globe when it is long)
+    const R0 = () => Math.min(W, H) * 0.42;
+    const closeScale = () => R0() / Math.sin(350 / NM);
+    const routeScale = () => { const half = dist / 2 + 0.12; return half >= 1.2 ? R0() * 0.98 : R0() / Math.sin(half); };
+    const globeScale = () => R0() * 0.98;
+    // centre of the drawing: a little above the middle so the big text has room
+    const cy = () => H * 0.44;
+
+    const T = B ? { dep: 2.0, out: 4.0, fly: 10.5, inn: 12.5 } : { dep: 2.6, out: 5.0, fly: 5.0, inn: 5.0 };
+    let world = null, t0 = null, raf = 0, stopped = false, label = '';
+    loadWorld().then(w => { world = w; }).catch(() => {});
+
+    function setText(big, sub) {
+      if (label === big + '|' + sub) return; label = big + '|' + sub;
+      el('big').textContent = big; el('sub').textContent = sub;
+    }
+    function cityOf(p) { return String(p.city || p.name || p.id).toUpperCase(); }
+    function airportLine(p) { return p.id + ' · ' + dms(p.lat, 'N', 'S') + ' ' + dms(p.lon, 'E', 'W'); }
+
+    function frame(now) {
+      if (stopped) return;
+      if (!container.isConnected || container.offsetParent === null) { api.stop(); return; }
+      if (t0 === null) t0 = now;
+      const s = (now - t0) / 1000;
+      // camera: centre (lon/lat) and scale, by phase
+      let centre, scale, prog = 0;
+      const rot = c => proj.rotate([-c[0], -c[1]]);
+      if (s < T.dep) { centre = A; scale = closeScale() * (1 + 0.04 * (1 - s / T.dep)); }
+      else if (s < T.out) {
+        const k = ease((s - T.dep) / (T.out - T.dep));
+        centre = d3.geoInterpolate(A, mid)(k);
+        scale = Math.exp(lerp(Math.log(closeScale()), Math.log(B ? routeScale() : globeScale()), k));
+      } else if (B && s < T.fly) {
+        prog = ease((s - T.out) / (T.fly - T.out)); centre = mid; scale = routeScale();
+      } else if (B && s < T.inn) {
+        prog = 1; const k = ease((s - T.fly) / (T.inn - T.fly));
+        centre = d3.geoInterpolate(mid, B)(k);
+        scale = Math.exp(lerp(Math.log(routeScale()), Math.log(closeScale()), k));
+      } else {
+        prog = 1;
+        const h = s - T.inn;                                 // hold: route — drift back out from the arrival; single airport — globe turns slowly
+        if (B) {
+          const k = ease(clamp(h / 4, 0, 1));
+          centre = d3.geoInterpolate(B, mid)(k * 0.6);
+          scale = Math.exp(lerp(Math.log(closeScale()), Math.log(routeScale() * 1.15), k));
+        } else { centre = [A[0] - h * 4, A[1]]; scale = globeScale(); }
+      }
+      rot(centre); proj.scale(scale).translate([W / 2, cy()]);
+
+      // draw
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      // sphere + glow
+      const r = scale;
+      if (r < Math.max(W, H) * 1.5) {
+        const g = ctx.createRadialGradient(W / 2, cy(), r * 0.9, W / 2, cy(), r * 1.18);
+        g.addColorStop(0, 'rgba(74,158,255,0.10)'); g.addColorStop(1, 'rgba(74,158,255,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(W / 2, cy(), r * 1.18, 0, 2 * Math.PI); ctx.fill();
+      }
+      ctx.beginPath(); path({ type: 'Sphere' }); ctx.fillStyle = C.ocean; ctx.fill();
+      ctx.beginPath(); path(grat); ctx.strokeStyle = C.grat; ctx.lineWidth = 1; ctx.stroke();
+      if (world) {
+        ctx.beginPath(); path(world.land); ctx.fillStyle = C.land; ctx.fill(); ctx.strokeStyle = C.landStroke; ctx.lineWidth = 0.8; ctx.stroke();
+        ctx.beginPath(); path(world.borders); ctx.strokeStyle = C.border; ctx.lineWidth = 0.6; ctx.stroke();
+      }
+      ctx.beginPath(); path({ type: 'Sphere' }); ctx.strokeStyle = C.oceanEdge; ctx.lineWidth = 1; ctx.stroke();
+
+      // route
+      if (B) {
+        const routeShown = s >= T.dep;
+        if (routeShown) {
+          const line = { type: 'LineString', coordinates: d3.range(0, 1.0001, 1 / 96).map(interp) };
+          ctx.setLineDash([4, 5]); ctx.beginPath(); path(line); ctx.strokeStyle = C.routeAhead; ctx.lineWidth = 1.4; ctx.stroke(); ctx.setLineDash([]);
+          if (prog > 0) {
+            const n = Math.max(2, Math.ceil(96 * prog));
+            const done = { type: 'LineString', coordinates: d3.range(0, n + 1).map(i => interp(prog * i / n)) };
+            ctx.save(); ctx.shadowColor = 'rgba(74,158,255,0.8)'; ctx.shadowBlur = 8;
+            ctx.beginPath(); path(done); ctx.strokeStyle = C.route; ctx.lineWidth = 2.2; ctx.stroke(); ctx.restore();
+          }
+        }
+      }
+      // airports
+      const pts = B ? [[A, dep], [B, arr]] : [[A, dep]];
+      for (const [p, ap] of pts) {
+        if (d3.geoDistance(p, proj.invert([W / 2, cy()])) > Math.PI / 2 - 0.02) continue;
+        const [x, y] = proj(p);
+        const pulse = (s * 0.8) % 1;
+        ctx.beginPath(); ctx.arc(x, y, 4 + pulse * 14, 0, 2 * Math.PI); ctx.strokeStyle = 'rgba(74,158,255,' + (0.5 * (1 - pulse)) + ')'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.beginPath(); ctx.arc(x, y, 3.2, 0, 2 * Math.PI); ctx.fillStyle = C.route; ctx.fill();
+        ctx.font = '600 12px "Share Tech Mono", monospace'; ctx.fillStyle = C.text; ctx.letterSpacing = '1px';
+        ctx.fillText(ap.id, x + 10, y - 8);
+      }
+      // aircraft
+      if (B && s >= T.out - 0.2) {
+        const pp = interp(clamp(prog, 0, 1)), ahead = interp(clamp(prog + 0.002, 0, 1)), back = interp(clamp(prog - 0.002, 0, 1));
+        const visible = d3.geoDistance(pp, proj.invert([W / 2, cy()])) < Math.PI / 2 - 0.02;
+        if (visible) {
+          const [x, y] = proj(pp);
+          const [x1, y1] = proj(prog < 0.999 ? ahead : pp), [x0, y0] = proj(prog < 0.999 ? pp : back);
+          const ang = Math.atan2(y1 - y0, x1 - x0);
+          drawPlane(x, y, ang, 1 + 0.15 * Math.sin(Math.PI * prog));
+        }
+      } else if (B && s < T.out - 0.2) {
+        const [x, y] = proj(A); const [xb, yb] = proj(interp(0.01));
+        if (s >= T.dep * 0.3) drawPlane(x, y, Math.atan2(yb - y, xb - x), 1);
+      }
+
+      // texts
+      if (s < T.dep + 0.6 || !B) {
+        if (!B && s >= T.out) setText(cityOf(dep), airportLine(dep) + ' · ' + (dep.name || ''));
+        else setText(cityOf(dep), airportLine(dep));
+      } else if (s < T.fly + 0.4) {
+        const left = totalNm * (1 - prog);
+        setText(fmt(left) + ' NM', 'GREAT CIRCLE · ' + dep.id + ' → ' + arr.id + ' · ' + fmt(totalNm) + ' NM TOTAL');
+      } else setText(cityOf(arr), airportLine(arr) + ' · ' + fmt(totalNm) + ' NM FROM ' + dep.id);
+
+      raf = requestAnimationFrame(frame);
+    }
+    function drawPlane(x, y, ang, k) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ang + Math.PI / 2); ctx.scale(k * 1.15, k * 1.15);
+      ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(0, -11); ctx.bezierCurveTo(1.6, -10, 1.6, -6, 1.6, -4);
+      ctx.lineTo(11, 2); ctx.lineTo(11, 4); ctx.lineTo(1.6, 1.5); ctx.lineTo(1.4, 7); ctx.lineTo(4.5, 9.5); ctx.lineTo(4.5, 11);
+      ctx.lineTo(0, 9.8); ctx.lineTo(-4.5, 11); ctx.lineTo(-4.5, 9.5); ctx.lineTo(-1.4, 7); ctx.lineTo(-1.6, 1.5);
+      ctx.lineTo(-11, 4); ctx.lineTo(-11, 2); ctx.lineTo(-1.6, -4); ctx.bezierCurveTo(-1.6, -6, -1.6, -10, 0, -11); ctx.closePath();
+      ctx.fillStyle = '#e8f1fb'; ctx.fill();
+      ctx.restore();
+    }
+    const api = {
+      landAt: Date.now() + (B ? T.inn : T.out) * 1000,
+      stop() { if (stopped) return; stopped = true; cancelAnimationFrame(raf); if (ro) ro.disconnect(); canvas.remove(); hud.remove(); }
+    };
+    raf = requestAnimationFrame(frame);
+    return api;
+  }
+  window.RouteAnim = { start, preload: () => loadWorld().catch(() => {}) };
+})();
+
+const ROUTE_ANIM_LIBS = ['https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js', 'https://cdn.jsdelivr.net/npm/d3-geo@3.1.1/dist/d3-geo.min.js', 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js'];
+let routeAnimLibsPromise = null, briefingAnim = null;
+function loadScriptOnce(src) {
+  return new Promise((ok, fail) => { const s = document.createElement('script'); s.src = src; s.async = false; s.onload = ok; s.onerror = () => fail(new Error('load ' + src)); document.head.appendChild(s); });
+}
+function preloadRouteAnim() {
+  if (!routeAnimLibsPromise) routeAnimLibsPromise = (window.d3 && window.d3.geoOrthographic && window.topojson ? Promise.resolve() : ROUTE_ANIM_LIBS.reduce((p, src) => p.then(() => loadScriptOnce(src)), Promise.resolve()))
+    .then(() => window.RouteAnim.preload()).catch(e => { routeAnimLibsPromise = null; throw e; });
+  return routeAnimLibsPromise;
+}
+function resetLoadingMarkup() {
+  const loading = document.getElementById('loadingState');
+  if (!loading) return;
+  loading.classList.remove('anim-on');
+  loading.innerHTML = '<div class="loading-ring"></div><div class="loading-text">ANALYZING NOTAM DATA</div><div class="loading-steps" id="loadSteps"><div class="active" id="ls1">▶ FETCHING LIVE DATA...</div><div id="ls2">  RUNNING AI ANALYSIS</div><div id="ls3">  GENERATING BRIEFING</div></div>';
+}
+function stopBriefingAnim() { if (briefingAnim) { briefingAnim.stop(); briefingAnim = null; } }
+// Starts the animation for an ICAO route; resolves to the animation (or null → the classic ring stays).
+async function startBriefingAnim(dep, arr) {
+  stopBriefingAnim();
+  const codes = [dep, arr].filter(c => /^[A-Z]{4}$/.test(c || ''));
+  if (!codes.length || !/^[A-Z]{4}$/.test(dep || '')) return null;
+  try {
+    const timeout = new Promise((_, f) => setTimeout(() => f(new Error('timeout')), 3000));
+    const [, pts] = await Promise.race([Promise.all([preloadRouteAnim(), fetch('/api/airport-points?codes=' + codes.join(',')).then(r => r.json())]), timeout]);
+    const byId = {}; (pts.points || []).forEach(p => { byId[p.id] = p; });
+    const A = byId[dep] || (pts.points || []).find(p => p.id === dep), B = arr ? byId[arr] : null;
+    const loading = document.getElementById('loadingState');
+    if (!A || !loading || loading.style.display === 'none' || !document.getElementById('resultOverlay').classList.contains('open')) return null;
+    let box = document.getElementById('routeAnimBox');
+    if (!box) { box = document.createElement('div'); box.id = 'routeAnimBox'; loading.insertBefore(box, loading.firstChild); }
+    loading.classList.add('anim-on');
+    briefingAnim = window.RouteAnim.start(box, A, arr && B ? B : null);
+    if (!briefingAnim) { loading.classList.remove('anim-on'); box.remove(); }
+    return briefingAnim;
+  } catch (e) { return null; }
+}
+
 /* ═══ GREETING ═══ */
 let greetingName = 'Captain';
 // v3.99: the name shown in the greeting, sidebar and account popup follows Profile settings — display name (users.displayName,
@@ -3066,6 +3316,7 @@ async function handleSend(silent = false) {
     overlay.classList.add('open');
     document.getElementById('mainNavbar').style.display = 'none';
     document.getElementById('askNotamAiBtn').style.display = 'flex';
+    resetLoadingMarkup();   // v3.102: restores the steps after an earlier error replaced them
     loading.style.display = 'flex';
     content.style.display = 'none';
     closeAIChat();
@@ -3091,10 +3342,12 @@ async function handleSend(silent = false) {
       el.textContent = i <= idx ? msgs[i] : '  ' + msgs[i].slice(2);
     });
   }
+  const loadingShownAt = Date.now();
   if (!silent) {
     activateStep(0);
     setTimeout(() => activateStep(1), 3000);
     setTimeout(() => activateStep(2), 6000);
+    startBriefingAnim(dep, arr);   // v3.102: route animation (falls back to the ring)
   }
 
   try {
@@ -3169,12 +3422,19 @@ async function handleSend(silent = false) {
     let accumulated = '';
     let lastRenderLen = 0;
 
-    // After exactly 10s: hide loading and reveal content regardless of stream state
-    if (!silent) setTimeout(() => {
-      loading.style.display = 'none';
-      content.style.display = 'block';
-      status.textContent = label + ' — STREAMING...';
-    }, 10000);
+    // Reveal the streaming briefing when the route animation has landed (≈12.5 s after the screen opened, never later than 15 s);
+    // without the animation, after 10 s as before. A complete briefing that arrives earlier still shows at once (done event).
+    if (!silent) {
+      const sinceOpen = Date.now() - loadingShownAt;
+      const wait = briefingAnim ? Math.max(0, Math.min(briefingAnim.landAt + 500 - Date.now(), 15000 - sinceOpen)) : 10000;
+      setTimeout(() => {
+        if (loading.style.display === 'none') return;
+        loading.style.display = 'none';
+        stopBriefingAnim();
+        content.style.display = 'block';
+        status.textContent = label + ' — STREAMING...';
+      }, wait);
+    }
 
     while (true) {
       const { done, value } = await reader.read();
@@ -4624,6 +4884,7 @@ function showUpgradeBanner(contentAreaId, message) {
 }
 
 function closeResult() {
+  stopBriefingAnim();
   document.getElementById('resultOverlay').classList.remove('open');
   document.getElementById('askNotamAiBtn').style.display = 'none';
   closeAIChat();
@@ -4705,6 +4966,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeAuthModal();
 });
 
+document.getElementById('mainInput').addEventListener('focus', () => { setTimeout(() => preloadRouteAnim().catch(() => {}), 300); }, { once: true });   // v3.102
 document.getElementById('mainInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
 });

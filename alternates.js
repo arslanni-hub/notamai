@@ -249,7 +249,7 @@ function airportPoint(code, index) {
     const sc = a.codes.includes(q) ? 2000 + a.rank : (a.iata === q ? 1000 + a.rank : -1);
     if (sc > bestScore) { best = a; bestScore = sc; }
   }
-  return best ? { id: best.id, name: best.name, lat: best.lat, lon: best.lon } : null;
+  return best ? { id: best.id, name: best.name, city: best.city || '', country: best.country || '', lat: best.lat, lon: best.lon } : null;
 }
 
 // Great-circle distance (NM) and initial true bearing (deg) — exact maths, same answer as the provider's /distance.
