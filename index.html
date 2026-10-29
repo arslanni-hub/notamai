@@ -2783,8 +2783,8 @@ function updateHUD() {
     container.appendChild(canvas); container.appendChild(hud);
     const el = k => hud.querySelector('[data-k="' + k + '"]');
     const ctx = canvas.getContext('2d');
-    const zm = document.createElement('canvas'), ze = document.createElement('canvas');   // conflict-zone mask / outer-edge buffers
-    const zmc = zm.getContext('2d'), zec = ze.getContext('2d');
+    const zm = document.createElement('canvas'), ze = document.createElement('canvas'), zh = document.createElement('canvas');   // conflict-zone mask / outer edge / hatch buffers
+    const zmc = zm.getContext('2d'), zec = ze.getContext('2d'), zhc = zh.getContext('2d');
     let W = 0, H = 0, dpr = 1, label = '';
     function resize() {
       dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -2792,7 +2792,7 @@ function updateHUD() {
       canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       el('sub').style.fontSize = el('warn').style.fontSize = W < 520 ? '9.5px' : '11px';
-      for (const cv of [zm, ze]) { cv.width = canvas.width; cv.height = canvas.height; }
+      for (const cv of [zm, ze, zh]) { cv.width = canvas.width; cv.height = canvas.height; }
       el('card').style.fontSize = W < 520 ? '10px' : '11.5px';
       el('card').style.top = W < 600 ? '82px' : '46px';
       label = '';
@@ -2838,6 +2838,11 @@ function updateHUD() {
       const w = el('warn'); w.textContent = warn || ''; w.style.display = warn ? 'block' : 'none'; w.style.color = warnColor || C.mid;
     }
     // keep the text column just above whatever sits at the bottom of the loading screen (progress panel / step list)
+    let landAt = 0, landNow = false;
+    function overLand(now) {   // is the aircraft over land? (checked at most 4× a second)
+      if (now - landAt > 250 && world) { landAt = now; landNow = d3.geoContains(world.land, interp(clamp(p, 0, 1))); }
+      return landNow;
+    }
     let layoutAt = 0;
     function placeInfo(now) {
       if (now - layoutAt < 250) return; layoutAt = now;
@@ -2848,12 +2853,20 @@ function updateHUD() {
       }
       el('info').style.bottom = Math.max(22, H - top + 16) + 'px';
     }
-    // conflict zone: hatched fill + one outline around the whole zone (no inner FIR borders)
+    // conflict zone: hatched fill + one outline around the whole zone (no inner FIR borders);
+    // v3.108: a waters-only zone (Persian Gulf CZIB) is cut along the coastline — land inside those FIRs stays clear
     const NB = [[-1, 0], [1, 0], [0, -1], [0, 1], [-0.7, -0.7], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7]];
     function drawZone(z) {
       zmc.setTransform(1, 0, 0, 1, 0, 0); zmc.clearRect(0, 0, zm.width, zm.height); zmc.setTransform(dpr, 0, 0, dpr, 0, 0);
       zmc.beginPath(); for (const poly of z.polys) zpath(poly); zmc.fillStyle = '#fff'; zmc.fill();
-      ctx.beginPath(); for (const poly of z.polys) path(poly); ctx.fillStyle = z.pattern; ctx.fill();
+      if (z.waterOnly) {
+        if (!world) return;
+        zmc.globalCompositeOperation = 'destination-out'; zmc.beginPath(); zpath(world.land); zmc.fill(); zmc.globalCompositeOperation = 'source-over';
+      }
+      zhc.setTransform(1, 0, 0, 1, 0, 0); zhc.globalCompositeOperation = 'source-over'; zhc.clearRect(0, 0, zh.width, zh.height);
+      zhc.setTransform(dpr, 0, 0, dpr, 0, 0); zhc.fillStyle = z.pattern; zhc.fillRect(0, 0, W, H);
+      zhc.setTransform(1, 0, 0, 1, 0, 0); zhc.globalCompositeOperation = 'destination-in'; zhc.drawImage(zm, 0, 0); zhc.globalCompositeOperation = 'source-over';
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(zh, 0, 0); ctx.restore();
       zec.globalCompositeOperation = 'source-over'; zec.clearRect(0, 0, ze.width, ze.height);
       const k = 1.3 * dpr;
       for (const [dx, dy] of NB) zec.drawImage(zm, dx * k, dy * k);
@@ -2990,7 +3003,7 @@ function updateHUD() {
       }
 
       // texts
-      const zoneNow = B ? zones.find(z => z.crossing && z.from !== null && p >= z.from && p <= z.to) : null;
+      const zoneNow = B ? zones.find(z => z.crossing && z.from !== null && p >= z.from && p <= z.to && (!z.waterOnly || !overLand(now))) : null;
       const zoneTxt = zoneNow ? (zoneNow.level === 'NOGO' || zoneNow.level === 'HIGH' ? '⚠ ' + zoneNow.short + ' CONFLICT ZONE — ROUTE MUST AVOID' : zoneNow.level === 'CAUTION' ? '⚠ ' + zoneNow.short + ' CONFLICT ZONE — CAUTION' : 'ⓘ ' + zoneNow.short + ' — CONFLICT ZONE INFO') : '';
       const zoneCol = zoneNow ? 'rgb(' + zoneNow.rgb + ')' : null;
       placeInfo(now);
@@ -3046,7 +3059,7 @@ function updateHUD() {
         for (const rg of data.rings) if (ids.has(rg.id) && big(rg) && (!best.has(rg.id) || area(rg) > area(best.get(rg.id)))) best.set(rg.id, rg);
         firs = { firs: list, rings: [...best.values()] };
         zones = (data.zones || []).filter(z => ZONE[z.level] && (z.crossing || z.atEnd)).map(z => ({
-          ...z, rgb: ZONE[z.level], pattern: hatch(ctx, ZONE[z.level]),
+          ...z, rgb: ZONE[z.level], pattern: hatch(zhc, ZONE[z.level]),
           short: String(z.name || '').replace(/\s*\(.*$/, '').toUpperCase(),
           polys: (z.rings || []).map(rg => { const poly = { type: 'Polygon', coordinates: [rg] }; return d3.geoArea(poly) > 2 * Math.PI ? { type: 'Polygon', coordinates: [rg.slice().reverse()] } : poly; })
         }));

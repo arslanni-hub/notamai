@@ -70,6 +70,18 @@ function routeFirs(dep, arr, opts) {
   }
   return { track, near: [...near].filter(x => !track.includes(x)), asOf: load().asOf };
 }
+// keep the part of a [lon,lat] ring on one side of a meridian / parallel (Sutherland–Hodgman; axis 0 = lon, 1 = lat;
+// keepBelow: keep values <= v, else >= v; open ring in, open ring out)
+function clipAxis(ring, axis, v, keepBelow) {
+  const out = [], pts = ring.length > 1 && ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1] ? ring.slice(0, -1) : ring;
+  const inside = q => keepBelow ? q[axis] <= v : q[axis] >= v;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length], ina = inside(a), inb = inside(b);
+    if (ina) out.push(a);
+    if (ina !== inb) { const t = (v - a[axis]) / (b[axis] - a[axis]); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+  }
+  return out;
+}
 // v3.104: for the loading-screen animation — FIRs along the great circle with the fraction of the route where each is entered
 // and left, plus their (simplified) boundary rings as [lon,lat] pairs. Cached per route.
 const timelineCache = new Map();
@@ -110,7 +122,14 @@ function routeFirTimeline(dep, arr) {
     for (const z of cz) {
       const zf = z.firs || [];
       const atEnd = [dep.id, arr.id].some(ic => ic && (z.prefixes || []).some(p => String(ic).toUpperCase().startsWith(p)));
-      const crossed = zf.map(id => seen.get(id)).filter(Boolean);
+      const maxLon = (z.map && z.map.maxLon) || {}, minLat = (z.map && z.map.minLat) || {};
+      // v3.108: a FIR that only counts west of a longitude (Muscat FIR west of 58°E) is crossed only where the route is west of it
+      const crossed = zf.map(id => {
+        if (maxLon[id] == null) return seen.get(id);
+        let c = null;
+        for (let i = 0; i <= n; i++) { const f = i / n, q = interp(dep, arr, f); if (q.lon <= maxLon[id] && (minLat[id] == null || q.lat >= minLat[id]) && firsAt(q.lat, q.lon).has(id)) { if (c) c.to = f; else c = { from: f, to: f }; } }
+        return c;
+      }).filter(Boolean);
       const isNear = zf.some(id => near.has(id));
       if (!zf.length || (!crossed.length && !isNear && !atEnd)) continue;
       const level = atEnd ? (z.endpoint || z.crossing || 'INFO') : crossed.length ? (z.crossing || 'INFO') : 'INFO';
@@ -122,12 +141,16 @@ function routeFirTimeline(dep, arr) {
       }
       const zr = [];
       for (const { f } of best.values()) {
-        const pts = f.r.length / 2, step = Math.max(1, Math.ceil(pts / 150)), ring = [];
+        const pts = f.r.length / 2, step = Math.max(1, Math.ceil(pts / 150));
+        let ring = [];
         for (let i = 0; i < f.r.length; i += 2 * step) ring.push([f.r[i], f.r[i + 1]]);
-        ring.push([f.r[0], f.r[1]]);
+        if (maxLon[f.id] != null) ring = clipAxis(ring, 0, maxLon[f.id], true);
+        if (minLat[f.id] != null && ring.length >= 3) ring = clipAxis(ring, 1, minLat[f.id], false);
+        if (ring.length < 3) continue;
+        ring.push(ring[0].slice());
         zr.push(ring);
       }
-      zones.push({ name: z.name, level, crossing: crossed.length > 0, atEnd, from: crossed.length ? Math.min(...crossed.map(c => c.from)) : null, to: crossed.length ? Math.max(...crossed.map(c => c.to)) : null, src: String(z.src || '').split(';')[0], rings: zr });
+      zones.push({ name: z.name, level, waterOnly: !!(z.map && z.map.waterOnly), crossing: crossed.length > 0, atEnd, from: crossed.length ? Math.min(...crossed.map(c => c.from)) : null, to: crossed.length ? Math.max(...crossed.map(c => c.to)) : null, src: String(z.src || '').split(';')[0], rings: zr });
     }
   } catch (e) { /* zones optional */ }
   const out = { firs, rings, zones, totalNm: Math.round(total) };
