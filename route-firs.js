@@ -70,4 +70,37 @@ function routeFirs(dep, arr, opts) {
   }
   return { track, near: [...near].filter(x => !track.includes(x)), asOf: load().asOf };
 }
-module.exports = { routeFirs, firsAt };
+// v3.104: for the loading-screen animation — FIRs along the great circle with the fraction of the route where each is entered
+// and left, plus their (simplified) boundary rings as [lon,lat] pairs. Cached per route.
+const timelineCache = new Map();
+function routeFirTimeline(dep, arr) {
+  const key = [dep.lat, dep.lon, arr.lat, arr.lon].map(v => v.toFixed(3)).join(',');
+  if (timelineCache.has(key)) return timelineCache.get(key);
+  const total = interp(dep, arr, 0.5).d * 2 || 0;
+  const n = Math.min(600, Math.max(20, Math.ceil(total / 10)));
+  const seen = new Map();
+  for (let i = 0; i <= n; i++) {
+    const f = i / n, p = interp(dep, arr, f);
+    for (const id of firsAt(p.lat, p.lon)) { const s = seen.get(id); if (s) s.to = f; else seen.set(id, { id, from: f, to: f }); }
+  }
+  // drop VATSIM helper regions (…XX) and sub-sectors that span exactly the same stretch as an earlier FIR
+  const firs = [];
+  for (const f of [...seen.values()].sort((a, b) => a.from - b.from)) {
+    if (/XX$/.test(f.id)) continue;
+    if (firs.some(k => Math.abs(k.from - f.from) < 0.012 && Math.abs(k.to - f.to) < 0.012)) continue;
+    firs.push(f);
+  }
+  const ids = new Set(firs.map(f => f.id));
+  const rings = [];
+  for (const f of load().list) if (ids.has(f.id)) {
+    const pts = f.r.length / 2, step = Math.max(1, Math.ceil(pts / 300)), ring = [];
+    for (let i = 0; i < f.r.length; i += 2 * step) ring.push([f.r[i], f.r[i + 1]]);
+    ring.push([f.r[0], f.r[1]]);
+    rings.push({ id: f.id, ring });
+  }
+  const out = { firs, rings, totalNm: Math.round(total) };
+  if (timelineCache.size > 500) timelineCache.clear();
+  timelineCache.set(key, out);
+  return out;
+}
+module.exports = { routeFirs, firsAt, routeFirTimeline };

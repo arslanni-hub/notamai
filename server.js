@@ -2456,6 +2456,17 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ points }));
     return;
   }
+  // v3.104: FIRs crossed along the great circle (local boundaries file, no provider call) for the loading-screen animation.
+  if (req.method === 'GET' && req.url.startsWith('/api/route-firs')) {
+    try {
+      const q = new URL(req.url, 'http://x').searchParams;
+      const a = alternates.airportPoint(String(q.get('dep') || '').toUpperCase()), b = alternates.airportPoint(String(q.get('arr') || '').toUpperCase());
+      const out = a && b ? require('./route-firs').routeFirTimeline(a, b) : { firs: [], rings: [] };
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' });
+      res.end(JSON.stringify(out));
+    } catch (e) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"firs":[],"rings":[]}'); }
+    return;
+  }
   if (req.method === 'GET' && req.url === '/favicon.png') {
     res.writeHead(200, { 'Content-Type': 'image/png' });
     res.end(fs.readFileSync(path.join(__dirname, 'favicon.png')));

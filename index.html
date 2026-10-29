@@ -2715,11 +2715,13 @@ function updateHUD() {
 
 
 /* ═══ v3.102 BRIEFING ROUTE ANIMATION ═══ */
-/* v3.102 — briefing route animation (replaces the spinning ring on the briefing loading screen).
-   Orthographic globe on a canvas: departure close-up → zoom out → aircraft flies the great circle with a remaining-distance
-   counter → arrival close-up → slow hold. Needs d3-array, d3-geo and topojson-client (window.d3 / window.topojson) and the
-   world map /world-50m.json. Usage: const a = RouteAnim.start(containerEl, dep, arr); … a.stop();
-   dep / arr = { id, name, city, lat, lon } (arr may be null for a single-airport briefing). */
+/* v3.104 — briefing route animation (replaces the spinning ring on the briefing loading screen).
+   Orthographic globe on a canvas. Route: departure close-up → zoom out → aircraft flies the great circle (12–22 s, by distance)
+   through the FIRs it crosses → arrival close-up → then, until the briefing is complete, a loop: slowly turning globe with the
+   route · departure close-up with a typed airport card (runways, elevation, latest METAR) · arrival close-up with its card.
+   Single airport: close-up → turning globe ↔ airport card. Needs d3-array, d3-geo, topojson-client and /world-50m.json.
+   const a = RouteAnim.start(containerEl, dep, arr); a.setText(big, sub, small); a.setMetar(id, raw); a.setFirs(data); a.stop();
+   dep / arr = { id, name, city, country, lat, lon, elev, runways:[{id,len,surf}] } (arr null for a single-airport briefing). */
 (function () {
   const C = {
     bg: '#060a0f', ocean: '#060d15', oceanEdge: 'rgba(74,158,255,0.35)', land: '#14263a', landStroke: 'rgba(74,158,255,0.45)',
@@ -2739,10 +2741,7 @@ function updateHUD() {
   const lerp = (a, b, t) => a + (b - a) * t;
   function dms(v, pos, neg) { const a = Math.abs(v), d = Math.floor(a), m = Math.round((a - d) * 60); return d + '°' + String(m).padStart(2, '0') + "'" + (v >= 0 ? pos : neg); }
   function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
-  function bearing(a, b) {
-    const R = Math.PI / 180, p1 = a[1] * R, p2 = b[1] * R, dl = (b[0] - a[0]) * R;
-    return Math.atan2(Math.sin(dl) * Math.cos(p2), Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl));
-  }
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   function start(container, dep, arr) {
     if (!container || !dep || !window.d3 || !d3.geoOrthographic || !window.topojson) return null;
@@ -2752,8 +2751,9 @@ function updateHUD() {
     hud.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
     hud.innerHTML =
       '<div data-k="top" style="position:absolute;top:22px;left:24px;font-family:\'Share Tech Mono\',monospace;font-size:10px;letter-spacing:3px;color:' + C.dim + ';"></div>' +
-      '<div data-k="big" style="position:absolute;left:24px;bottom:84px;right:24px;font-family:\'Orbitron\',sans-serif;font-weight:900;letter-spacing:2px;color:' + C.text + ';line-height:1;transition:opacity .35s;"></div>' +
-      '<div data-k="sub" style="position:absolute;left:24px;bottom:58px;right:24px;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;color:' + C.mid + ';transition:opacity .35s;"></div>';
+      '<div data-k="card" style="position:absolute;top:46px;left:16px;width:fit-content;max-width:min(580px,calc(100% - 32px));box-sizing:border-box;padding:9px 13px;background:rgba(6,10,15,0.74);border-left:2px solid rgba(74,158,255,0.6);border-radius:4px;font-family:\'Share Tech Mono\',monospace;font-size:11.5px;line-height:1.75;letter-spacing:1px;color:' + C.mid + ';white-space:pre-wrap;word-break:break-word;transition:opacity .4s;opacity:0;"></div>' +
+      '<div data-k="big" style="position:absolute;left:24px;bottom:84px;right:24px;font-family:\'Orbitron\',sans-serif;font-weight:900;letter-spacing:2px;color:' + C.text + ';line-height:1.05;"></div>' +
+      '<div data-k="sub" style="position:absolute;left:24px;bottom:58px;right:24px;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;color:' + C.mid + ';"></div>';
     container.appendChild(canvas); container.appendChild(hud);
     const el = k => hud.querySelector('[data-k="' + k + '"]');
     const ctx = canvas.getContext('2d');
@@ -2763,14 +2763,17 @@ function updateHUD() {
       W = container.clientWidth || 800; H = container.clientHeight || 600;
       canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const big = el('big'); big.style.fontSize = Math.round(clamp(Math.min(W, H) * 0.11, 30, 72)) + 'px';
       el('sub').style.fontSize = W < 520 ? '9.5px' : '11px';
+      el('card').style.fontSize = W < 520 ? '10px' : '11.5px';
+      el('card').style.top = W < 600 ? '82px' : '46px';   // below the "view as it is written" button on phones
+      label = '';
     }
+    let label = '';
     resize();
     const ro = window.ResizeObserver ? new ResizeObserver(resize) : null; if (ro) ro.observe(container);
 
     const A = [dep.lon, dep.lat], B = arr ? [arr.lon, arr.lat] : null;
-    const dist = B ? d3.geoDistance(A, B) : 0;            // radians
+    const dist = B ? d3.geoDistance(A, B) : 0;
     const totalNm = dist * NM;
     const interp = B ? d3.geoInterpolate(A, B) : null;
     const mid = B ? interp(0.5) : A;
@@ -2780,65 +2783,99 @@ function updateHUD() {
     const today = new Date(); const dstr = String(today.getUTCDate()).padStart(2, '0') + '.' + String(today.getUTCMonth() + 1).padStart(2, '0') + '.' + today.getUTCFullYear();
     el('top').textContent = dstr + ' · ' + (B ? dep.id + ' → ' + arr.id : dep.id) + ((container.clientWidth || 800) < 520 ? '' : (B ? ' · ROUTE BRIEFING' : ' · AIRPORT BRIEFING'));
 
-    // scales: close-up shows ~ 350 NM around the airport; route view fits the whole great circle (globe when it is long)
     const R0 = () => Math.min(W, H) * 0.42;
-    const closeScale = () => R0() / Math.sin(350 / NM);
+    const closeScale = () => R0() / Math.sin(300 / NM);
     const routeScale = () => { const half = dist / 2 + 0.12; return half >= 1.2 ? R0() * 0.98 : R0() / Math.sin(half); };
     const globeScale = () => R0() * 0.98;
-    // centre of the drawing: a little above the middle so the big text has room
-    const cy = () => H * 0.44;
+    const cy = () => H * 0.46;
 
-    const T = B ? { dep: 2.0, out: 4.0, fly: 10.5, inn: 12.5 } : { dep: 2.6, out: 5.0, fly: 5.0, inn: 5.0 };
-    let world = null, t0 = null, raf = 0, stopped = false, label = '';
-    let override = null;          // v3.103: { big, sub, small } set by the page once the aircraft has landed (briefing progress)
-    const wx = {};                // v3.103: airport id -> { cat, text } METAR chip
+    // ── timeline ──
+    const fly = B ? clamp(10 + totalNm / 450, 12, 22) : 0;
+    const T = B ? { dep: 2.4, out: 4.6, fly: 4.6 + fly, inn: 4.6 + fly + 2.2 } : { dep: 2.6, out: 5.0, fly: 5.0, inn: 5.0 };
+    // waiting loop after touchdown: [globe turning][departure card][arrival card] — single airport: [globe][card]
+    const SEG = B ? [{ k: 'globe', d: 11 }, { k: 'dep', d: 10 }, { k: 'arr', d: 10 }] : [{ k: 'globe', d: 11 }, { k: 'dep', d: 11 }];
+    const LOOP = SEG.reduce((a, x) => a + x.d, 0), TRANS = 1.8;
+
+    let world = null, t0 = null, raf = 0, stopped = false;
+    let override = null, firs = null, metar = {};
     loadWorld().then(w => { world = w; }).catch(() => {});
 
     function setText(big, sub, small) {
-      if (label === big + '|' + sub + '|' + !!small) return; label = big + '|' + sub + '|' + !!small;
+      const key = big + '|' + sub + '|' + !!small + '|' + W;
+      if (label === key) return; label = key;
       const b = el('big');
-      b.style.fontSize = small ? Math.round(clamp(Math.min(W, H) * 0.06, 22, 44)) + 'px' : Math.round(clamp(Math.min(W, H) * 0.11, 30, 72)) + 'px';
+      b.style.fontSize = small ? Math.round(clamp(Math.min(W, H) * 0.06, 20, 42)) + 'px' : Math.round(clamp(Math.min(W, H) * 0.11, 30, 72)) + 'px';
       b.textContent = big; el('sub').textContent = sub;
-      b.style.bottom = small ? '150px' : '84px'; el('sub').style.bottom = small ? '126px' : '58px';   // above the progress panel
+      b.style.bottom = small ? '150px' : '84px'; el('sub').style.bottom = small ? '126px' : '58px';
     }
     function cityOf(p) { return String(p.city || p.name || p.id).toUpperCase(); }
     function airportLine(p) { return p.id + ' · ' + dms(p.lat, 'N', 'S') + ' ' + dms(p.lon, 'E', 'W'); }
+    function cardLines(p) {
+      const L = [p.id + ' · ' + String(p.name || '').toUpperCase()];
+      L.push([p.city ? String(p.city).toUpperCase() : '', p.country || '', p.elev != null ? 'ELEV ' + fmt(p.elev) + ' FT' : '', dms(p.lat, 'N', 'S') + ' ' + dms(p.lon, 'E', 'W')].filter(Boolean).join(' · '));
+      if (p.runways && p.runways.length) L.push('RWY ' + p.runways.slice(0, 4).map(r => r.id + (r.len ? ' ' + fmt(r.len) + ' FT' : '')).join(' · '));
+      if (metar[p.id]) L.push('METAR ' + metar[p.id]);
+      else L.push('METAR —');
+      return L;
+    }
+    let cardKey = '';
+    function showCard(p, since) {
+      const card = el('card');
+      if (!p) { if (card.style.opacity !== '0') card.style.opacity = '0'; cardKey = ''; return; }
+      const text = cardLines(p).join('\n');
+      const n = Math.max(0, Math.floor((since - 0.9) * 55));      // typed at ~55 characters per second
+      const shown = text.slice(0, n);
+      const key = p.id + '|' + shown.length;
+      if (key === cardKey) return; cardKey = key;
+      card.style.opacity = '1';
+      const lines = shown.split('\n');
+      card.innerHTML = lines.map((l, i) => i === 0 ? '<span style="color:' + C.text + ';">' + esc(l) + '</span>' : esc(l)).join('\n') + (shown.length < text.length ? '<span style="color:#4a9eff;">▌</span>' : '');
+    }
+
+    // camera target for a waiting segment at local time u
+    function segCam(k, u) {
+      if (k === 'globe') {
+        const base = B ? mid : A;
+        return { c: [base[0] - 5 * u, clamp(base[1], -35, 40)], s: globeScale() };
+      }
+      const p = k === 'dep' ? A : B;
+      return { c: [p[0] - 0.4 * u, p[1]], s: closeScale() * 1.15 };
+    }
+    function camBlend(from, to, k) { return { c: d3.geoInterpolate(from.c, to.c)(k), s: Math.exp(lerp(Math.log(from.s), Math.log(to.s), k)) }; }
 
     function frame(now) {
       if (stopped) return;
       if (!container.isConnected || container.offsetParent === null) { api.stop(); return; }
       if (t0 === null) t0 = now;
       const s = (now - t0) / 1000;
-      // camera: centre (lon/lat) and scale, by phase
-      let centre, scale, prog = 0;
-      const rot = c => proj.rotate([-c[0], -c[1]]);
-      if (s < T.dep) { centre = A; scale = closeScale() * (1 + 0.04 * (1 - s / T.dep)); }
+      let cam, prog = 0, seg = null, segU = 0;
+      if (s < T.dep) cam = { c: A, s: closeScale() * (1 + 0.05 * (1 - s / T.dep)) };
       else if (s < T.out) {
         const k = ease((s - T.dep) / (T.out - T.dep));
-        centre = d3.geoInterpolate(A, mid)(k);
-        scale = Math.exp(lerp(Math.log(closeScale()), Math.log(B ? routeScale() : globeScale()), k));
-      } else if (B && s < T.fly) {
-        prog = ease((s - T.out) / (T.fly - T.out)); centre = mid; scale = routeScale();
-      } else if (B && s < T.inn) {
-        prog = 1; const k = ease((s - T.fly) / (T.inn - T.fly));
-        centre = d3.geoInterpolate(mid, B)(k);
-        scale = Math.exp(lerp(Math.log(routeScale()), Math.log(closeScale()), k));
-      } else {
+        cam = camBlend({ c: A, s: closeScale() }, { c: mid, s: B ? routeScale() : globeScale() }, k);
+      } else if (B && s < T.fly) { prog = ease((s - T.out) / (T.fly - T.out)); cam = { c: mid, s: routeScale() }; }
+      else if (B && s < T.inn) { prog = 1; cam = camBlend({ c: mid, s: routeScale() }, { c: B, s: closeScale() }, ease((s - T.fly) / (T.inn - T.fly))); }
+      else {
         prog = 1;
-        const h = s - T.inn;                                 // hold: route — drift back out from the arrival; single airport — globe turns slowly
-        if (B) {
-          const k = ease(clamp(h / 4, 0, 1));
-          centre = d3.geoInterpolate(B, mid)(k * 0.6);
-          scale = Math.exp(lerp(Math.log(closeScale()), Math.log(routeScale() * 1.15), k));
-        } else { centre = [A[0] - h * 4, A[1]]; scale = globeScale(); }
+        const w = (s - T.inn) % LOOP;
+        let acc = 0, i = 0;
+        for (; i < SEG.length; i++) { if (w < acc + SEG[i].d) break; acc += SEG[i].d; }
+        seg = SEG[i]; segU = w - acc;
+        const target = segCam(seg.k, segU);
+        // where the camera was when this segment started: end of the previous segment (or the arrival close-up the first time)
+        const firstPass = s - T.inn < LOOP && i === 0;
+        const prevSeg = SEG[(i + SEG.length - 1) % SEG.length];
+        const from = firstPass ? { c: B || A, s: closeScale() } : segCam(prevSeg.k, prevSeg.d);
+        cam = segU < TRANS ? camBlend(from, segCam(seg.k, TRANS), ease(segU / TRANS)) : target;
       }
-      rot(centre); proj.scale(scale).translate([W / 2, cy()]);
+      proj.rotate([-cam.c[0], -cam.c[1]]).scale(cam.s).translate([W / 2, cy()]);
+      const centreLL = proj.invert([W / 2, cy()]);
+      const visible = p => d3.geoDistance(p, centreLL) < Math.PI / 2 - 0.02;
 
-      // draw
+      // ── draw ──
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
-      // sphere + glow
-      const r = scale;
+      const r = cam.s;
       if (r < Math.max(W, H) * 1.5) {
         const g = ctx.createRadialGradient(W / 2, cy(), r * 0.9, W / 2, cy(), r * 1.18);
         g.addColorStop(0, 'rgba(74,158,255,0.10)'); g.addColorStop(1, 'rgba(74,158,255,0)');
@@ -2852,73 +2889,78 @@ function updateHUD() {
       }
       ctx.beginPath(); path({ type: 'Sphere' }); ctx.strokeStyle = C.oceanEdge; ctx.lineWidth = 1; ctx.stroke();
 
+      // FIR boundaries along the route during the flight (the one the aircraft is in is highlighted)
+      let curFir = null;
+      if (B && firs && firs.firs.length && s >= T.dep && s < T.inn + 0.5) {
+        const fade = s < T.out ? (s - T.dep) / (T.out - T.dep) : s > T.fly ? clamp(1 - (s - T.fly) / 1.5, 0, 1) : 1;
+        curFir = firs.firs.filter(f => prog >= f.from - 0.001 && prog <= f.to + 0.001).pop() || null;
+        ctx.save(); ctx.globalAlpha = 0.9 * fade;
+        for (const rg of firs.rings) {
+          const on = curFir && rg.id === curFir.id;
+          ctx.beginPath(); path({ type: 'LineString', coordinates: rg.ring });
+          ctx.strokeStyle = on ? 'rgba(74,158,255,0.85)' : 'rgba(74,158,255,0.22)'; ctx.lineWidth = on ? 1.6 : 0.8;
+          ctx.setLineDash(on ? [] : [3, 4]); ctx.stroke();
+        }
+        ctx.setLineDash([]); ctx.restore();
+      }
+
       // route
-      if (B) {
-        const routeShown = s >= T.dep;
-        if (routeShown) {
-          const line = { type: 'LineString', coordinates: d3.range(0, 1.0001, 1 / 96).map(interp) };
-          ctx.setLineDash([4, 5]); ctx.beginPath(); path(line); ctx.strokeStyle = C.routeAhead; ctx.lineWidth = 1.4; ctx.stroke(); ctx.setLineDash([]);
-          if (prog > 0) {
-            const n = Math.max(2, Math.ceil(96 * prog));
-            const done = { type: 'LineString', coordinates: d3.range(0, n + 1).map(i => interp(prog * i / n)) };
-            ctx.save(); ctx.shadowColor = 'rgba(74,158,255,0.8)'; ctx.shadowBlur = 8;
-            ctx.beginPath(); path(done); ctx.strokeStyle = C.route; ctx.lineWidth = 2.2; ctx.stroke(); ctx.restore();
+      if (B && s >= T.dep) {
+        const line = { type: 'LineString', coordinates: d3.range(0, 1.0001, 1 / 96).map(interp) };
+        ctx.setLineDash([4, 5]); ctx.beginPath(); path(line); ctx.strokeStyle = C.routeAhead; ctx.lineWidth = 1.4; ctx.stroke(); ctx.setLineDash([]);
+        if (prog > 0) {
+          const n = Math.max(2, Math.ceil(96 * prog));
+          const done = { type: 'LineString', coordinates: d3.range(0, n + 1).map(i => interp(prog * i / n)) };
+          ctx.save(); ctx.shadowColor = 'rgba(74,158,255,0.8)'; ctx.shadowBlur = 8;
+          ctx.beginPath(); path(done); ctx.strokeStyle = C.route; ctx.lineWidth = 2.2; ctx.stroke(); ctx.restore();
+        }
+        if (s > T.inn + 1) {                                   // a light running along the route while the briefing is written
+          const lp = interp(((s - T.inn) % 3.2) / 3.2);
+          if (visible(lp)) {
+            const [lx, ly] = proj(lp);
+            ctx.save(); ctx.shadowColor = 'rgba(74,158,255,1)'; ctx.shadowBlur = 12;
+            ctx.beginPath(); ctx.arc(lx, ly, 2.6, 0, 2 * Math.PI); ctx.fillStyle = '#cfe5ff'; ctx.fill(); ctx.restore();
           }
         }
       }
       // airports
       const pts = B ? [[A, dep], [B, arr]] : [[A, dep]];
       for (const [p, ap] of pts) {
-        if (d3.geoDistance(p, proj.invert([W / 2, cy()])) > Math.PI / 2 - 0.02) continue;
+        if (!visible(p)) continue;
         const [x, y] = proj(p);
         const pulse = (s * 0.8) % 1;
         ctx.beginPath(); ctx.arc(x, y, 4 + pulse * 14, 0, 2 * Math.PI); ctx.strokeStyle = 'rgba(74,158,255,' + (0.5 * (1 - pulse)) + ')'; ctx.lineWidth = 1; ctx.stroke();
         ctx.beginPath(); ctx.arc(x, y, 3.2, 0, 2 * Math.PI); ctx.fillStyle = C.route; ctx.fill();
-        ctx.font = '600 12px "Share Tech Mono", monospace'; ctx.fillStyle = C.text; ctx.letterSpacing = '1px';
+        ctx.font = '600 12px "Share Tech Mono", monospace'; ctx.fillStyle = C.text;
         ctx.fillText(ap.id, x + 10, y - 8);
-        const w = wx[ap.id];
-        if (w) {                                              // v3.103: flight category chip under the ICAO label
-          ctx.font = '600 10px "Share Tech Mono", monospace';
-          const tw = ctx.measureText(w.text).width + 12;
-          ctx.fillStyle = 'rgba(6,10,15,0.85)'; ctx.strokeStyle = w.color; ctx.lineWidth = 1;
-          ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x + 9, y - 2, tw, 16, 3); else ctx.rect(x + 9, y - 2, tw, 16); ctx.fill(); ctx.stroke();
-          ctx.fillStyle = w.color; ctx.fillText(w.text, x + 15, y + 10);
-        }
-      }
-      // v3.103: while the briefing is being written, a light runs along the route
-      if (B && s > T.inn + 1) {
-        const k = ((s - T.inn) % 3.2) / 3.2, lp = interp(k);
-        if (d3.geoDistance(lp, proj.invert([W / 2, cy()])) < Math.PI / 2 - 0.02) {
-          const [lx, ly] = proj(lp);
-          ctx.save(); ctx.shadowColor = 'rgba(74,158,255,1)'; ctx.shadowBlur = 12;
-          ctx.beginPath(); ctx.arc(lx, ly, 2.6, 0, 2 * Math.PI); ctx.fillStyle = '#cfe5ff'; ctx.fill(); ctx.restore();
-        }
       }
       // aircraft
       if (B && s >= T.out - 0.2) {
-        const pp = interp(clamp(prog, 0, 1)), ahead = interp(clamp(prog + 0.002, 0, 1)), back = interp(clamp(prog - 0.002, 0, 1));
-        const visible = d3.geoDistance(pp, proj.invert([W / 2, cy()])) < Math.PI / 2 - 0.02;
-        if (visible) {
+        const pp = interp(clamp(prog, 0, 1));
+        if (visible(pp)) {
           const [x, y] = proj(pp);
-          const [x1, y1] = proj(prog < 0.999 ? ahead : pp), [x0, y0] = proj(prog < 0.999 ? pp : back);
-          const ang = Math.atan2(y1 - y0, x1 - x0);
-          drawPlane(x, y, ang, 1 + 0.15 * Math.sin(Math.PI * prog));
+          const [x1, y1] = proj(prog < 0.999 ? interp(clamp(prog + 0.002, 0, 1)) : pp), [x0, y0] = proj(prog < 0.999 ? pp : interp(clamp(prog - 0.002, 0, 1)));
+          drawPlane(x, y, Math.atan2(y1 - y0, x1 - x0), 1 + 0.15 * Math.sin(Math.PI * prog));
         }
-      } else if (B && s < T.out - 0.2) {
-        const [x, y] = proj(A); const [xb, yb] = proj(interp(0.01));
-        if (s >= T.dep * 0.3) drawPlane(x, y, Math.atan2(yb - y, xb - x), 1);
+      } else if (B && s >= T.dep * 0.3) {
+        const [x, y] = proj(A), [xb, yb] = proj(interp(0.01));
+        drawPlane(x, y, Math.atan2(yb - y, xb - x), 1);
       }
 
       // texts
-      if (override && s >= (B ? T.inn : T.out) + 1.2) setText(override.big, override.sub, override.small);
-      else if (s < T.dep + 0.6 || !B) {
-        if (!B && s >= T.out) setText(cityOf(dep), airportLine(dep) + ' · ' + (dep.name || ''));
-        else setText(cityOf(dep), airportLine(dep));
-      } else if (s < T.fly + 0.4) {
-        const left = totalNm * (1 - prog);
-        setText(fmt(left) + ' NM', 'GREAT CIRCLE · ' + dep.id + ' → ' + arr.id + ' · ' + fmt(totalNm) + ' NM TOTAL');
-      } else setText(cityOf(arr), airportLine(arr) + ' · ' + fmt(totalNm) + ' NM FROM ' + dep.id);
-
+      if (seg) {
+        showCard(seg.k === 'dep' ? dep : seg.k === 'arr' ? arr : null, segU);
+        if (override) setText(override.big, override.sub, override.small);
+        else setText(cityOf(seg.k === 'arr' ? arr : dep), seg.k === 'globe' && B ? dep.id + ' → ' + arr.id + ' · ' + fmt(totalNm) + ' NM' : airportLine(seg.k === 'arr' ? arr : dep), true);
+      } else {
+        showCard(null);
+        if (s < T.dep + 0.6 || !B) setText(cityOf(dep), airportLine(dep));
+        else if (s < T.fly + 0.4) {
+          const left = totalNm * (1 - prog);
+          const firTxt = curFir ? ' · ' + curFir.id + ' FIR' + (firs ? ' (' + (firs.firs.indexOf(curFir) + 1) + '/' + firs.firs.length + ')' : '') : '';
+          setText(fmt(left) + ' NM', (W < 520 ? '' : 'GREAT CIRCLE · ') + dep.id + ' → ' + arr.id + firTxt);
+        } else setText(cityOf(arr), airportLine(arr) + ' · ' + fmt(totalNm) + ' NM FROM ' + dep.id);
+      }
       raf = requestAnimationFrame(frame);
     }
     function drawPlane(x, y, ang, k) {
@@ -2935,7 +2977,8 @@ function updateHUD() {
     const api = {
       landAt: Date.now() + (B ? T.inn : T.out) * 1000,
       setText(big, sub, small) { override = big ? { big, sub: sub || '', small: !!small } : null; },
-      setWx(id, w) { if (id && w) wx[id] = w; },
+      setMetar(id, raw) { const l = String(raw || '').split('\n').map(x => x.trim()).find(x => /^(METAR |SPECI )?[A-Z]{4} \d{6}Z/.test(x)); if (id && l) metar[id] = l.replace(/^(METAR|SPECI) /, ''); },
+      setFirs(data) { if (data && Array.isArray(data.firs) && Array.isArray(data.rings)) firs = data; },
       stop() { if (stopped) return; stopped = true; cancelAnimationFrame(raf); if (ro) ro.disconnect(); canvas.remove(); hud.remove(); }
     };
     raf = requestAnimationFrame(frame);
@@ -2959,23 +3002,6 @@ function resetLoadingMarkup() {
   if (!loading) return;
   loading.classList.remove('anim-on');
   loading.innerHTML = '<div class="loading-ring"></div><div class="loading-text">ANALYZING NOTAM DATA</div><div class="loading-steps" id="loadSteps"><div class="active" id="ls1">▶ FETCHING LIVE DATA...</div><div id="ls2">  RUNNING AI ANALYSIS</div><div id="ls3">  GENERATING BRIEFING</div></div>';
-}
-// v3.103: flight category from a raw METAR (FAA thresholds), for the chips on the loading map
-function metarCategory(raw) {
-  const m = String(raw || '').split('\n').map(l => l.trim()).find(l => /^(METAR |SPECI )?[A-Z]{4} \d{6}Z/.test(l));
-  if (!m) return null;
-  let visSm = null, ceil = null;
-  if (/\bCAVOK\b/.test(m)) visSm = 10;
-  const sm = m.match(/\s(M?)(\d+ \d\/\d|\d+\/\d|\d+)SM\b/);
-  if (visSm === null && sm) { visSm = sm[2].split(' ').reduce((a, p) => a + (p.includes('/') ? (+p.split('/')[0] / +p.split('/')[1]) : +p), 0); }
-  if (visSm === null) { const mm = m.replace(/^(METAR |SPECI )?[A-Z]{4} \d{6}Z( AUTO| COR)?( (VRB|\d{3})\d{2,3}(G\d{2,3})?(KT|MPS))?( \d{3}V\d{3})?/, '').match(/^\s(\d{4})\b/); if (mm) visSm = +mm[1] / 1609; }
-  for (const c of m.matchAll(/\b(BKN|OVC|VV)(\d{3})\b/g)) { const ft = +c[2] * 100; if (ceil === null || ft < ceil) ceil = ft; }
-  const v = visSm === null ? 10 : visSm, c = ceil === null ? 99999 : ceil;
-  const cat = (c < 500 || v < 1) ? 'LIFR' : (c < 1000 || v < 3) ? 'IFR' : (c <= 3000 || v <= 5) ? 'MVFR' : 'VFR';
-  const wind = (m.match(/\b(VRB|\d{3})(\d{2,3})(G\d{2,3})?(KT|MPS)\b/) || []);
-  const windTxt = wind[0] ? (wind[1] === 'VRB' ? 'VRB' : wind[1]) + '/' + (+wind[2]) + (wind[3] || '') + (wind[4] === 'MPS' ? 'MPS' : 'KT') : '';
-  const color = { VFR: '#2ec4b6', MVFR: '#4a9eff', IFR: '#f4841a', LIFR: '#e63946' }[cat];
-  return { cat, color, text: cat + (windTxt ? ' · ' + windTxt : '') };
 }
 function stopBriefingAnim() {
   if (briefingAnim) { briefingAnim.stop(); briefingAnim = null; }
@@ -3037,8 +3063,9 @@ async function startBriefingAnim(dep, arr) {
     briefingAnim = window.RouteAnim.start(box, A, arr && B ? B : null);
     if (!briefingAnim) { loading.classList.remove('anim-on'); box.remove(); }
     else {
-      const anim = briefingAnim;
-      [A, arr && B ? B : null].filter(Boolean).forEach(p => fetch('/api/raw/metar/' + p.id).then(r => r.text()).then(t => { const w = metarCategory(t); if (w) anim.setWx(p.id, w); }).catch(() => {}));
+      const anim = briefingAnim;   // v3.104: latest METARs for the airport cards, FIRs crossed for the flight
+      [A, arr && B ? B : null].filter(Boolean).forEach(p => fetch('/api/raw/metar/' + p.id).then(r => r.text()).then(t => anim.setMetar(p.id, t)).catch(() => {}));
+      if (arr && B) fetch('/api/route-firs?dep=' + encodeURIComponent(dep) + '&arr=' + encodeURIComponent(arr)).then(r => r.json()).then(d => anim.setFirs(d)).catch(() => {});
     }
     return briefingAnim;
   } catch (e) { return null; }

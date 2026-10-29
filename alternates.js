@@ -22,6 +22,7 @@ const isBlocked = icao => blockedPrefixes.some(p => icao.startsWith(p));
 
 let airports = null;              // Map<ICAO, { icao, name, city, country, lat, lon, cand:boolean }>
 let rwyMaxFt = null;              // Map<ICAO, longest open runway in ft>
+let rwyList = null;               // v3.104: ident -> runways (airport card)
 let searchIndex = null;           // [{ id, iata, codes:[...], name, city, country, type, n, c, rank }] for the airport search box
 let loadedAt = 0, lastAttempt = 0, loading = null;
 
@@ -99,7 +100,7 @@ function buildSearchIndex(csv) {
   const ix = n => head.indexOf(n);
   const iIdent = ix('ident'), iType = ix('type'), iName = ix('name'), iCountry = ix('iso_country'), iCity = ix('municipality');
   const iIcao = ix('icao_code'), iGps = ix('gps_code'), iIata = ix('iata_code'), iSched = ix('scheduled_service');
-  const iLat = ix('latitude_deg'), iLon = ix('longitude_deg');
+  const iLat = ix('latitude_deg'), iLon = ix('longitude_deg'), iElev = ix('elevation_ft');
   if (iIdent < 0 || iName < 0) throw new Error('unexpected airports.csv header');
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
@@ -115,7 +116,8 @@ function buildSearchIndex(csv) {
     const codes = [...new Set([id, ident, icao, gps].filter(Boolean))];   // ICAO-style codes; IATA kept apart
     const rank = TYPE_RANK[type] + (iSched >= 0 && (row[iSched] || '').trim() === 'yes' ? 10 : 0);
     const lat = iLat >= 0 ? parseFloat(row[iLat]) : NaN, lon = iLon >= 0 ? parseFloat(row[iLon]) : NaN;
-    out.push({ id, iata, codes, name, city, country: iCountry >= 0 ? (row[iCountry] || '').trim() : '', type, n: norm(name), c: norm(city), rank, lat: isFinite(lat) ? lat : null, lon: isFinite(lon) ? lon : null });
+    const elev = iElev >= 0 ? parseFloat(row[iElev]) : NaN;
+    out.push({ id, iata, codes, name, city, country: iCountry >= 0 ? (row[iCountry] || '').trim() : '', type, n: norm(name), c: norm(city), rank, lat: isFinite(lat) ? lat : null, lon: isFinite(lon) ? lon : null, elev: isFinite(elev) ? Math.round(elev) : null });
   }
   return out;
 }
@@ -160,6 +162,29 @@ function buildRunwayLengths(csv) {
     if (!id || !isFinite(len)) continue;
     if (!map.has(id) || map.get(id) < len) map.set(id, len);
   }
+  return map;
+}
+
+// v3.104: open runways per aerodrome for the loading-screen airport card: ident -> [{ id: '16L/34R', len: ft, surf }], longest first.
+function buildRunwayList(csv) {
+  const rows = Array.isArray(csv) ? csv : parseCsv(csv);
+  const map = new Map();
+  if (!rows.length) return map;
+  const head = rows[0].map(h => h.trim());
+  const ix = n => head.indexOf(n);
+  const iIdent = ix('airport_ident'), iLen = ix('length_ft'), iClosed = ix('closed'), iLe = ix('le_ident'), iHe = ix('he_ident'), iSurf = ix('surface');
+  if (iIdent < 0 || iLe < 0) return map;
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (iClosed >= 0 && (row[iClosed] || '').trim() === '1') continue;
+    const le = (row[iLe] || '').trim().toUpperCase(), he = iHe >= 0 ? (row[iHe] || '').trim().toUpperCase() : '';
+    if (!/^\d{2}[LRC]?$/.test(le)) continue;
+    const id = (row[iIdent] || '').trim().toUpperCase();
+    const len = parseFloat(row[iLen]);
+    if (!map.has(id)) map.set(id, []);
+    map.get(id).push({ id: he ? le + '/' + he : le, len: isFinite(len) ? Math.round(len) : null, surf: iSurf >= 0 ? (row[iSurf] || '').trim().toUpperCase().slice(0, 12) : '' });
+  }
+  for (const list of map.values()) list.sort((x, y) => (y.len || 0) - (x.len || 0));
   return map;
 }
 
@@ -215,6 +240,7 @@ function load(force) {
       airports = buildAirports(rows);
       try { searchIndex = buildSearchIndex(rows); } catch (e) { console.log('[AIRPORT SEARCH] index build failed:', e.message); }
       rwyMaxFt = r ? buildRunwayLengths(r) : null;
+      try { rwyList = r ? buildRunwayList(r) : null; } catch (e) { rwyList = null; }
       loadedAt = Date.now();
       console.log('[ALTERNATES] loaded:', airports.size, 'aerodromes,', searchIndex ? searchIndex.length + ' in search index,' : 'no search index,', rwyMaxFt ? rwyMaxFt.size + ' with runway lengths' : 'no runway lengths');
     })
@@ -249,7 +275,9 @@ function airportPoint(code, index) {
     const sc = a.codes.includes(q) ? 2000 + a.rank : (a.iata === q ? 1000 + a.rank : -1);
     if (sc > bestScore) { best = a; bestScore = sc; }
   }
-  return best ? { id: best.id, name: best.name, city: best.city || '', country: best.country || '', lat: best.lat, lon: best.lon } : null;
+  if (!best) return null;
+  const rw = (index === searchIndex && rwyList) ? (rwyList.get(best.id) || best.codes.map(c => rwyList.get(c)).find(Boolean) || []) : [];
+  return { id: best.id, name: best.name, city: best.city || '', country: best.country || '', lat: best.lat, lon: best.lon, elev: best.elev ?? null, runways: rw.slice(0, 4) };
 }
 
 // Great-circle distance (NM) and initial true bearing (deg) — exact maths, same answer as the provider's /distance.
@@ -277,4 +305,4 @@ function searchAirports(query, limit) {
   try { return searchIn(searchIndex, query, limit); } catch (e) { return null; }
 }
 
-module.exports = { init, setBlockedPrefixes, candidateBlock, searchAirports, airportPoint, distanceBearing, localDistance, buildSearchIndex, searchIn, norm, buildAirports, buildRunwayLengths, nearestCandidates, buildBlock, distNm };
+module.exports = { buildRunwayList, init, setBlockedPrefixes, candidateBlock, searchAirports, airportPoint, distanceBearing, localDistance, buildSearchIndex, searchIn, norm, buildAirports, buildRunwayLengths, nearestCandidates, buildBlock, distNm };
