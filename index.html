@@ -951,6 +951,17 @@ canvas#sky {
 #routeAnimBox { position: absolute; inset: 0; overflow: hidden; }
 .loading-state.anim-on { justify-content: flex-end; align-items: flex-start; padding: 0 24px 22px; }
 .loading-state.anim-on .loading-ring, .loading-state.anim-on .loading-text { display: none; }
+#briefDesk { position: relative; z-index: 1; width: 100%; margin-bottom: 10px; opacity: 0; transition: opacity .5s; pointer-events: none; }
+#briefDesk.show { opacity: 1; pointer-events: auto; }
+#briefDesk .bd-bar { height: 2px; background: rgba(74,158,255,0.12); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+#briefDesk .bd-fill { height: 100%; width: 0; background: var(--blue); box-shadow: 0 0 8px rgba(74,158,255,0.8); transition: width .8s ease; }
+#briefDesk .bd-list { display: flex; flex-wrap: wrap; gap: 4px 16px; font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; color: rgba(74,158,255,0.3); }
+#briefDesk .bd-list .ok { color: rgba(46,196,182,0.85); }
+#briefDesk .bd-list .now { color: var(--blue); }
+#briefLive { position: absolute; top: 14px; right: 16px; z-index: 2; display: none; background: rgba(6,10,15,0.6); border: 1px solid rgba(74,158,255,0.25); color: #8a9bb0; font-family: var(--mono); font-size: 9.5px; letter-spacing: 1.5px; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+#briefLive.show { display: block; }
+#briefLive:hover { color: #c8daf0; border-color: rgba(74,158,255,0.6); }
+@media (max-width: 600px) { #briefDesk .bd-list span:not(.now) { display: none; } #briefLive { top: 44px; } }
 .loading-state.anim-on .loading-steps { position: relative; z-index: 1; flex-direction: row; flex-wrap: wrap; gap: 6px 18px; text-align: left; }
 
 /* ═══ AUTH MODAL ═══ */
@@ -2779,11 +2790,16 @@ function updateHUD() {
 
     const T = B ? { dep: 2.0, out: 4.0, fly: 10.5, inn: 12.5 } : { dep: 2.6, out: 5.0, fly: 5.0, inn: 5.0 };
     let world = null, t0 = null, raf = 0, stopped = false, label = '';
+    let override = null;          // v3.103: { big, sub, small } set by the page once the aircraft has landed (briefing progress)
+    const wx = {};                // v3.103: airport id -> { cat, text } METAR chip
     loadWorld().then(w => { world = w; }).catch(() => {});
 
-    function setText(big, sub) {
-      if (label === big + '|' + sub) return; label = big + '|' + sub;
-      el('big').textContent = big; el('sub').textContent = sub;
+    function setText(big, sub, small) {
+      if (label === big + '|' + sub + '|' + !!small) return; label = big + '|' + sub + '|' + !!small;
+      const b = el('big');
+      b.style.fontSize = small ? Math.round(clamp(Math.min(W, H) * 0.06, 22, 44)) + 'px' : Math.round(clamp(Math.min(W, H) * 0.11, 30, 72)) + 'px';
+      b.textContent = big; el('sub').textContent = sub;
+      b.style.bottom = small ? '150px' : '84px'; el('sub').style.bottom = small ? '126px' : '58px';   // above the progress panel
     }
     function cityOf(p) { return String(p.city || p.name || p.id).toUpperCase(); }
     function airportLine(p) { return p.id + ' · ' + dms(p.lat, 'N', 'S') + ' ' + dms(p.lon, 'E', 'W'); }
@@ -2860,6 +2876,23 @@ function updateHUD() {
         ctx.beginPath(); ctx.arc(x, y, 3.2, 0, 2 * Math.PI); ctx.fillStyle = C.route; ctx.fill();
         ctx.font = '600 12px "Share Tech Mono", monospace'; ctx.fillStyle = C.text; ctx.letterSpacing = '1px';
         ctx.fillText(ap.id, x + 10, y - 8);
+        const w = wx[ap.id];
+        if (w) {                                              // v3.103: flight category chip under the ICAO label
+          ctx.font = '600 10px "Share Tech Mono", monospace';
+          const tw = ctx.measureText(w.text).width + 12;
+          ctx.fillStyle = 'rgba(6,10,15,0.85)'; ctx.strokeStyle = w.color; ctx.lineWidth = 1;
+          ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x + 9, y - 2, tw, 16, 3); else ctx.rect(x + 9, y - 2, tw, 16); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = w.color; ctx.fillText(w.text, x + 15, y + 10);
+        }
+      }
+      // v3.103: while the briefing is being written, a light runs along the route
+      if (B && s > T.inn + 1) {
+        const k = ((s - T.inn) % 3.2) / 3.2, lp = interp(k);
+        if (d3.geoDistance(lp, proj.invert([W / 2, cy()])) < Math.PI / 2 - 0.02) {
+          const [lx, ly] = proj(lp);
+          ctx.save(); ctx.shadowColor = 'rgba(74,158,255,1)'; ctx.shadowBlur = 12;
+          ctx.beginPath(); ctx.arc(lx, ly, 2.6, 0, 2 * Math.PI); ctx.fillStyle = '#cfe5ff'; ctx.fill(); ctx.restore();
+        }
       }
       // aircraft
       if (B && s >= T.out - 0.2) {
@@ -2877,7 +2910,8 @@ function updateHUD() {
       }
 
       // texts
-      if (s < T.dep + 0.6 || !B) {
+      if (override && s >= (B ? T.inn : T.out) + 1.2) setText(override.big, override.sub, override.small);
+      else if (s < T.dep + 0.6 || !B) {
         if (!B && s >= T.out) setText(cityOf(dep), airportLine(dep) + ' · ' + (dep.name || ''));
         else setText(cityOf(dep), airportLine(dep));
       } else if (s < T.fly + 0.4) {
@@ -2900,6 +2934,8 @@ function updateHUD() {
     }
     const api = {
       landAt: Date.now() + (B ? T.inn : T.out) * 1000,
+      setText(big, sub, small) { override = big ? { big, sub: sub || '', small: !!small } : null; },
+      setWx(id, w) { if (id && w) wx[id] = w; },
       stop() { if (stopped) return; stopped = true; cancelAnimationFrame(raf); if (ro) ro.disconnect(); canvas.remove(); hud.remove(); }
     };
     raf = requestAnimationFrame(frame);
@@ -2909,7 +2945,7 @@ function updateHUD() {
 })();
 
 const ROUTE_ANIM_LIBS = ['https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js', 'https://cdn.jsdelivr.net/npm/d3-geo@3.1.1/dist/d3-geo.min.js', 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js'];
-let routeAnimLibsPromise = null, briefingAnim = null;
+let routeAnimLibsPromise = null, briefingAnim = null, briefRunSeq = 0;
 function loadScriptOnce(src) {
   return new Promise((ok, fail) => { const s = document.createElement('script'); s.src = src; s.async = false; s.onload = ok; s.onerror = () => fail(new Error('load ' + src)); document.head.appendChild(s); });
 }
@@ -2924,7 +2960,65 @@ function resetLoadingMarkup() {
   loading.classList.remove('anim-on');
   loading.innerHTML = '<div class="loading-ring"></div><div class="loading-text">ANALYZING NOTAM DATA</div><div class="loading-steps" id="loadSteps"><div class="active" id="ls1">▶ FETCHING LIVE DATA...</div><div id="ls2">  RUNNING AI ANALYSIS</div><div id="ls3">  GENERATING BRIEFING</div></div>';
 }
-function stopBriefingAnim() { if (briefingAnim) { briefingAnim.stop(); briefingAnim = null; } }
+// v3.103: flight category from a raw METAR (FAA thresholds), for the chips on the loading map
+function metarCategory(raw) {
+  const m = String(raw || '').split('\n').map(l => l.trim()).find(l => /^(METAR |SPECI )?[A-Z]{4} \d{6}Z/.test(l));
+  if (!m) return null;
+  let visSm = null, ceil = null;
+  if (/\bCAVOK\b/.test(m)) visSm = 10;
+  const sm = m.match(/\s(M?)(\d+ \d\/\d|\d+\/\d|\d+)SM\b/);
+  if (visSm === null && sm) { visSm = sm[2].split(' ').reduce((a, p) => a + (p.includes('/') ? (+p.split('/')[0] / +p.split('/')[1]) : +p), 0); }
+  if (visSm === null) { const mm = m.replace(/^(METAR |SPECI )?[A-Z]{4} \d{6}Z( AUTO| COR)?( (VRB|\d{3})\d{2,3}(G\d{2,3})?(KT|MPS))?( \d{3}V\d{3})?/, '').match(/^\s(\d{4})\b/); if (mm) visSm = +mm[1] / 1609; }
+  for (const c of m.matchAll(/\b(BKN|OVC|VV)(\d{3})\b/g)) { const ft = +c[2] * 100; if (ceil === null || ft < ceil) ceil = ft; }
+  const v = visSm === null ? 10 : visSm, c = ceil === null ? 99999 : ceil;
+  const cat = (c < 500 || v < 1) ? 'LIFR' : (c < 1000 || v < 3) ? 'IFR' : (c <= 3000 || v <= 5) ? 'MVFR' : 'VFR';
+  const wind = (m.match(/\b(VRB|\d{3})(\d{2,3})(G\d{2,3})?(KT|MPS)\b/) || []);
+  const windTxt = wind[0] ? (wind[1] === 'VRB' ? 'VRB' : wind[1]) + '/' + (+wind[2]) + (wind[3] || '') + (wind[4] === 'MPS' ? 'MPS' : 'KT') : '';
+  const color = { VFR: '#2ec4b6', MVFR: '#4a9eff', IFR: '#f4841a', LIFR: '#e63946' }[cat];
+  return { cat, color, text: cat + (windTxt ? ' · ' + windTxt : '') };
+}
+function stopBriefingAnim() {
+  if (briefingAnim) { briefingAnim.stop(); briefingAnim = null; }
+  const l = document.getElementById('loadingState'); if (l) l.classList.remove('anim-on');
+  const d = document.getElementById('briefDesk'); if (d) d.remove();
+  const lv = document.getElementById('briefLive'); if (lv) lv.remove();
+  const b = document.getElementById('routeAnimBox'); if (b) b.remove();
+}
+// v3.103: progress shown on the map while the briefing is written (the page shows the briefing only when it is complete).
+const BRIEF_SECTIONS_ROUTE = ['Executive Summary', 'NOTAM Analysis', 'Airspace and Restrictions', 'Aerodrome Status', 'Navigation Aids Status', 'Weather Assessment', 'Pilot Action Items', 'Dispatch Notes'];
+const BRIEF_SECTIONS_AIRPORT = ['Executive Summary', 'NOTAM Analysis', 'Airspace and Restrictions', 'Aerodrome Status', 'Navigation Aids Status', 'Weather Assessment', 'Airport Operational Considerations', 'Ground & ATC Notes'];
+function briefingProgress(text, isRoute) {
+  const list = isRoute ? BRIEF_SECTIONS_ROUTE : BRIEF_SECTIONS_AIRPORT;
+  const titles = [...String(text).matchAll(/<span class="title">([^<]+)<\/span>/g)].map(m => m[1].replace(/&amp;/g, '&'));
+  let idx = /exec-summary/.test(text) || text.length > 400 ? 0 : -1, startAt = 0;
+  titles.forEach(t => { const i = list.findIndex(n => t.toLowerCase().startsWith(n.toLowerCase())); if (i > idx) idx = i; });
+  const lastTitle = text.lastIndexOf('<span class="title">'); if (lastTitle > 0) startAt = lastTitle;
+  const within = Math.min(0.9, (text.length - startAt) / 3500);
+  const pct = idx < 0 ? 0.02 : Math.min(0.97, (idx + within) / list.length);
+  return { list, idx, pct };
+}
+function renderBriefDesk(prog, label) {
+  const loading = document.getElementById('loadingState');
+  if (!loading || !loading.classList.contains('anim-on') || !briefingAnim || !document.getElementById('routeAnimBox')) return;
+  let d = document.getElementById('briefDesk');
+  if (!d) {
+    d = document.createElement('div'); d.id = 'briefDesk';
+    d.innerHTML = '<div class="bd-bar"><div class="bd-fill"></div></div><div class="bd-list"></div>';
+    loading.insertBefore(d, document.getElementById('loadSteps'));
+    const live = document.createElement('button'); live.type = 'button'; live.id = 'briefLive'; live.textContent = 'VIEW AS IT IS WRITTEN →';
+    live.onclick = () => { if (window._briefRevealNow) window._briefRevealNow(); };
+    loading.appendChild(live);
+  }
+  d.querySelector('.bd-fill').style.width = Math.round(prog.pct * 100) + '%';
+  d.querySelector('.bd-list').innerHTML = prog.list.map((n, i) => '<span class="' + (i < prog.idx ? 'ok' : i === prog.idx ? 'now' : '') + '">' + (i < prog.idx ? '✓ ' : i === prog.idx ? '▶ ' : '· ') + n.toUpperCase() + '</span>').join('');
+  if (briefingAnim && Date.now() >= briefingAnim.landAt + 1200) {
+    d.classList.add('show');
+    const live = document.getElementById('briefLive'); if (live) live.classList.add('show');
+    const cur = prog.idx >= 0 ? (prog.list[prog.idx] || 'Briefing ready') : 'Reading NOTAMs & weather';
+    briefingAnim.setText(cur.toUpperCase(), 'WRITING YOUR BRIEFING · ' + label + ' · ' + Math.round(prog.pct * 100) + '%', true);
+  }
+}
+
 // Starts the animation for an ICAO route; resolves to the animation (or null → the classic ring stays).
 async function startBriefingAnim(dep, arr) {
   stopBriefingAnim();
@@ -2942,6 +3036,10 @@ async function startBriefingAnim(dep, arr) {
     loading.classList.add('anim-on');
     briefingAnim = window.RouteAnim.start(box, A, arr && B ? B : null);
     if (!briefingAnim) { loading.classList.remove('anim-on'); box.remove(); }
+    else {
+      const anim = briefingAnim;
+      [A, arr && B ? B : null].filter(Boolean).forEach(p => fetch('/api/raw/metar/' + p.id).then(r => r.text()).then(t => { const w = metarCategory(t); if (w) anim.setWx(p.id, w); }).catch(() => {}));
+    }
     return briefingAnim;
   } catch (e) { return null; }
 }
@@ -3424,16 +3522,27 @@ async function handleSend(silent = false) {
 
     // Reveal the streaming briefing when the route animation has landed (≈12.5 s after the screen opened, never later than 15 s);
     // without the animation, after 10 s as before. A complete briefing that arrives earlier still shows at once (done event).
+    // v3.103: with the route animation the briefing is shown in one go when it is complete (the map shows the writing progress);
+    // "VIEW AS IT IS WRITTEN" or a 4-minute safety switch reveal the streaming text. Without the animation: after 10 s as before.
+    const myRun = silent ? -1 : ++briefRunSeq;   // a later briefing must never be revealed by this one's timers
+    const revealStreaming = () => {
+      if (myRun !== briefRunSeq || loading.style.display === 'none') return;
+      loading.style.display = 'none';
+      stopBriefingAnim();
+      content.style.display = 'block';
+      status.textContent = label + ' — STREAMING...';
+    };
+    let deskTimer = null, lastProg = null;
+    const routeLabel = arr ? dep + ' → ' + arr : dep;
     if (!silent) {
-      const sinceOpen = Date.now() - loadingShownAt;
-      const wait = briefingAnim ? Math.max(0, Math.min(briefingAnim.landAt + 500 - Date.now(), 15000 - sinceOpen)) : 10000;
-      setTimeout(() => {
-        if (loading.style.display === 'none') return;
-        loading.style.display = 'none';
-        stopBriefingAnim();
-        content.style.display = 'block';
-        status.textContent = label + ' — STREAMING...';
-      }, wait);
+      if (briefingAnim) {
+        window._briefRevealNow = () => { clearInterval(deskTimer); revealStreaming(); };
+        deskTimer = setInterval(() => {
+          if (myRun !== briefRunSeq || loading.style.display === 'none' || !briefingAnim) { clearInterval(deskTimer); return; }
+          renderBriefDesk(lastProg || briefingProgress('', !!arr), routeLabel);
+        }, 1000);
+        setTimeout(() => { clearInterval(deskTimer); revealStreaming(); }, 240000);
+      } else setTimeout(revealStreaming, 10000);
     }
 
     while (true) {
@@ -3455,6 +3564,10 @@ async function handleSend(silent = false) {
             notamRaw = evt.notamRaw || {};
           } else if (evt.type === 'chunk') {
             accumulated += evt.text;
+            if (!silent && myRun === briefRunSeq && briefingAnim && loading.style.display !== 'none' && (!lastProg || accumulated.length - (lastProg.len || 0) > 300)) {
+              lastProg = Object.assign(briefingProgress(accumulated, !!arr), { len: accumulated.length });
+              renderBriefDesk(lastProg, routeLabel);
+            }
             // Re-render every ~1500 chars to show content building up
             if (accumulated.length - lastRenderLen > 1500) {
               lastRenderLen = accumulated.length;
@@ -3505,8 +3618,24 @@ async function handleSend(silent = false) {
               saveBriefingToFirestore(route, detectedRisk, fullHtml).then(id => { window.currentBriefingId = id; loadBriefingHistory(); });
             } else {
               content.innerHTML = htmlHead + final + htmlFoot;
-              loading.style.display = 'none';
-              content.style.display = 'block';
+              clearInterval(deskTimer);
+              if (briefingAnim && myRun === briefRunSeq && loading.style.display !== 'none') {
+                // v3.103: short "ready" beat on the map, then the whole briefing appears at once
+                renderBriefDesk({ list: (lastProg || briefingProgress('', !!arr)).list, idx: 99, pct: 1 }, routeLabel);
+                briefingAnim.setText('BRIEFING READY', routeLabel + ' · ' + new Date().toISOString().slice(11, 16) + 'Z', true);
+                setTimeout(() => {
+                  loading.style.transition = 'opacity .35s'; loading.style.opacity = '0';
+                  setTimeout(() => {
+                    loading.style.display = 'none'; loading.style.opacity = ''; loading.style.transition = '';
+                    stopBriefingAnim();
+                    content.style.opacity = '0'; content.style.display = 'block';
+                    requestAnimationFrame(() => { content.style.transition = 'opacity .45s'; content.style.opacity = '1'; setTimeout(() => { content.style.transition = ''; }, 500); });
+                  }, 350);
+                }, 900);
+              } else {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+              }
               status.textContent = label + ' — COMPLETE';
               appendBriefingActions(content);
               appendRatingFeedback(content, evt.riskFix, route);
@@ -3514,6 +3643,7 @@ async function handleSend(silent = false) {
               saveBriefingToFirestore(route, detectedRisk, fullHtml).then(id => { window.currentBriefingId = id; loadBriefingHistory(); });
             }
           } else if (evt.type === 'error') {
+            stopBriefingAnim();
             loading.style.display = 'block';
             content.style.display = 'none';
             loading.innerHTML = '<div class="loading-ring"></div><div class="loading-text" style="color:#e63946">ERROR: ' + evt.message + '</div>';
@@ -3524,6 +3654,7 @@ async function handleSend(silent = false) {
   } catch(err) {
     clearInterval(stepInt);
     if (!silent) {
+      stopBriefingAnim();
       loading.innerHTML = '<div class="loading-ring"></div><div class="loading-text" style="color:#e63946">CONNECTION ERROR</div><div class="loading-text" style="font-size:10px;margin-top:8px;color:rgba(74,158,255,0.4)">' + err.message + '</div>';
     }
   }
