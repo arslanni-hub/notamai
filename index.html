@@ -2894,14 +2894,16 @@ function updateHUD() {
       if (B && firs && firs.firs.length && s >= T.dep && s < T.inn + 0.5) {
         const fade = s < T.out ? (s - T.dep) / (T.out - T.dep) : s > T.fly ? clamp(1 - (s - T.fly) / 1.5, 0, 1) : 1;
         curFir = firs.firs.filter(f => prog >= f.from - 0.001 && prog <= f.to + 0.001).pop() || null;
-        ctx.save(); ctx.globalAlpha = 0.9 * fade;
-        for (const rg of firs.rings) {
-          const on = curFir && rg.id === curFir.id;
-          ctx.beginPath(); path({ type: 'LineString', coordinates: rg.ring });
-          ctx.strokeStyle = on ? 'rgba(74,158,255,0.85)' : 'rgba(74,158,255,0.22)'; ctx.lineWidth = on ? 1.6 : 0.8;
-          ctx.setLineDash(on ? [] : [3, 4]); ctx.stroke();
+        // v3.105: only the FIR the aircraft is in is outlined (no web of neighbouring sectors)
+        if (curFir) {
+          ctx.save(); ctx.globalAlpha = 0.9 * fade;
+          ctx.shadowColor = 'rgba(74,158,255,0.6)'; ctx.shadowBlur = 6;
+          for (const rg of firs.rings) if (rg.id === curFir.id) {
+            ctx.beginPath(); path({ type: 'LineString', coordinates: rg.ring });
+            ctx.strokeStyle = 'rgba(74,158,255,0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+          }
+          ctx.restore();
         }
-        ctx.setLineDash([]); ctx.restore();
       }
 
       // route
@@ -2951,7 +2953,8 @@ function updateHUD() {
       if (seg) {
         showCard(seg.k === 'dep' ? dep : seg.k === 'arr' ? arr : null, segU);
         if (override) setText(override.big, override.sub, override.small);
-        else setText(cityOf(seg.k === 'arr' ? arr : dep), seg.k === 'globe' && B ? dep.id + ' → ' + arr.id + ' · ' + fmt(totalNm) + ' NM' : airportLine(seg.k === 'arr' ? arr : dep), true);
+        else if (seg.k === 'globe' && B) setText(dep.id + ' → ' + arr.id, fmt(totalNm) + ' NM · GREAT CIRCLE', true);
+        else setText(cityOf(seg.k === 'arr' ? arr : dep), airportLine(seg.k === 'arr' ? arr : dep), true);
       } else {
         showCard(null);
         if (s < T.dep + 0.6 || !B) setText(cityOf(dep), airportLine(dep));
@@ -2978,7 +2981,15 @@ function updateHUD() {
       landAt: Date.now() + (B ? T.inn : T.out) * 1000,
       setText(big, sub, small) { override = big ? { big, sub: sub || '', small: !!small } : null; },
       setMetar(id, raw) { const l = String(raw || '').split('\n').map(x => x.trim()).find(x => /^(METAR |SPECI )?[A-Z]{4} \d{6}Z/.test(x)); if (id && l) metar[id] = l.replace(/^(METAR|SPECI) /, ''); },
-      setFirs(data) { if (data && Array.isArray(data.firs) && Array.isArray(data.rings)) firs = data; },
+      setFirs(data) {
+        if (!data || !Array.isArray(data.firs) || !Array.isArray(data.rings)) return;
+        // v3.105: en-route FIRs only — not the departure FIR (entered at 0) nor the arrival FIR (left at 1) — and no small
+        // rings (VATSIM splits some FIRs into TMA/CTR-sized pieces); nothing is shown for a route inside its own FIRs
+        const list = data.firs.filter(f => f.from > 0.005 && f.to < 0.995);
+        const big = r => { let x0 = 999, x1 = -999, y0 = 999, y1 = -999; for (const [x, y] of r.ring) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } return (x1 - x0) > 1.2 || (y1 - y0) > 1.2; };
+        const ids = new Set(list.map(f => f.id));
+        firs = { firs: list, rings: data.rings.filter(r => ids.has(r.id) && big(r)) };
+      },
       stop() { if (stopped) return; stopped = true; cancelAnimationFrame(raf); if (ro) ro.disconnect(); canvas.remove(); hud.remove(); }
     };
     raf = requestAnimationFrame(frame);
