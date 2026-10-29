@@ -953,6 +953,7 @@ canvas#sky {
 .loading-state.anim-on .loading-ring, .loading-state.anim-on .loading-text { display: none; }
 #briefDesk { position: relative; z-index: 1; width: 100%; margin-bottom: 10px; opacity: 0; transition: opacity .5s; pointer-events: none; }
 #briefDesk.show { opacity: 1; pointer-events: auto; }
+#briefDesk .bd-now { font-family: var(--mono); font-size: 10.5px; letter-spacing: 2px; color: var(--blue); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #briefDesk .bd-bar { height: 2px; background: rgba(74,158,255,0.12); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
 #briefDesk .bd-fill { height: 100%; width: 0; background: var(--blue); box-shadow: 0 0 8px rgba(74,158,255,0.8); transition: width .8s ease; }
 #briefDesk .bd-list { display: flex; flex-wrap: wrap; gap: 4px 16px; font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; color: rgba(74,158,255,0.3); }
@@ -2715,20 +2716,22 @@ function updateHUD() {
 
 
 /* ═══ v3.102 BRIEFING ROUTE ANIMATION ═══ */
-/* v3.104 — briefing route animation (replaces the spinning ring on the briefing loading screen).
-   Orthographic globe on a canvas. Route: departure close-up → zoom out → aircraft flies the great circle (12–22 s, by distance)
-   through the FIRs it crosses → arrival close-up → then, until the briefing is complete, a loop: slowly turning globe with the
-   route · departure close-up with a typed airport card (runways, elevation, latest METAR) · arrival close-up with its card.
-   Single airport: close-up → turning globe ↔ airport card. Needs d3-array, d3-geo, topojson-client and /world-50m.json.
-   const a = RouteAnim.start(containerEl, dep, arr); a.setText(big, sub, small); a.setMetar(id, raw); a.setFirs(data); a.stop();
-   dep / arr = { id, name, city, country, lat, lon, elev, runways:[{id,len,surf}] } (arr null for a single-airport briefing). */
+/* v3.106 — briefing route animation (replaces the spinning ring on the briefing loading screen).
+   The flight is the briefing: take-off when the briefing starts, the aircraft's progress follows the briefing's writing progress,
+   touchdown when the briefing is complete. Departure close-up with a typed airport card → climb-out → cruise, during which the
+   camera cycles: route view (en-route FIR outlined, conflict zones hatched) · turning globe with the day/night terminator ·
+   destination preview with its airport card → finish(): the aircraft lands at the arrival aerodrome → callback.
+   Single airport: close-up + card → turning globe ↔ card → finish().
+   API: a = RouteAnim.start(el, dep, arr); a.setProgress(0..1); a.finish(cb); a.setText(big, sub, small); a.setMetar(id, raw);
+        a.setFirs({ firs, rings, zones }); a.stop();  dep / arr = { id, name, city, country, lat, lon, elev, runways } */
 (function () {
   const C = {
     bg: '#060a0f', ocean: '#060d15', oceanEdge: 'rgba(74,158,255,0.35)', land: '#14263a', landStroke: 'rgba(74,158,255,0.45)',
     border: 'rgba(74,158,255,0.16)', grat: 'rgba(74,158,255,0.07)', route: '#4a9eff', routeAhead: 'rgba(74,158,255,0.35)',
     text: '#e8f1fb', dim: '#4a5f72', mid: '#8a9bb0'
   };
-  const NM = 3440.065;
+  const ZONE = { NOGO: '230,57,70', HIGH: '230,57,70', CAUTION: '244,132,26', INFO: '242,198,65' };
+  const NM = 3440.065, CRUISE_KT = 460;
   let worldPromise = null;
   function loadWorld() {
     if (!worldPromise) worldPromise = fetch('/world-50m.json').then(r => { if (!r.ok) throw new Error('map ' + r.status); return r.json(); })
@@ -2742,6 +2745,21 @@ function updateHUD() {
   function dms(v, pos, neg) { const a = Math.abs(v), d = Math.floor(a), m = Math.round((a - d) * 60); return d + '°' + String(m).padStart(2, '0') + "'" + (v >= 0 ? pos : neg); }
   function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
   const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  // the point on Earth where the sun is overhead now (declination + equation of time, ~1° accuracy)
+  function subsolar(d) {
+    const start = Date.UTC(d.getUTCFullYear(), 0, 0), doy = (d - start) / 86400000;
+    const decl = -23.44 * Math.cos(2 * Math.PI / 365 * (doy + 10));
+    const B = 2 * Math.PI * (doy - 81) / 365, eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+    const utcMin = d.getUTCHours() * 60 + d.getUTCMinutes() + d.getUTCSeconds() / 60;
+    let lon = (720 - utcMin - eot) / 4; lon = ((lon + 540) % 360) - 180;
+    return [lon, decl];
+  }
+  function hatch(ctx, rgb) {
+    const c = document.createElement('canvas'); c.width = c.height = 10;
+    const g = c.getContext('2d'); g.strokeStyle = 'rgba(' + rgb + ',0.55)'; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(0, 10); g.lineTo(10, 0); g.moveTo(-5, 5); g.lineTo(5, -5); g.moveTo(5, 15); g.lineTo(15, 5); g.stroke();
+    return ctx.createPattern(c, 'repeat');
+  }
 
   function start(container, dep, arr) {
     if (!container || !dep || !window.d3 || !d3.geoOrthographic || !window.topojson) return null;
@@ -2752,12 +2770,12 @@ function updateHUD() {
     hud.innerHTML =
       '<div data-k="top" style="position:absolute;top:22px;left:24px;font-family:\'Share Tech Mono\',monospace;font-size:10px;letter-spacing:3px;color:' + C.dim + ';"></div>' +
       '<div data-k="card" style="position:absolute;top:46px;left:16px;width:fit-content;max-width:min(580px,calc(100% - 32px));box-sizing:border-box;padding:9px 13px;background:rgba(6,10,15,0.74);border-left:2px solid rgba(74,158,255,0.6);border-radius:4px;font-family:\'Share Tech Mono\',monospace;font-size:11.5px;line-height:1.75;letter-spacing:1px;color:' + C.mid + ';white-space:pre-wrap;word-break:break-word;transition:opacity .4s;opacity:0;"></div>' +
-      '<div data-k="big" style="position:absolute;left:24px;bottom:84px;right:24px;font-family:\'Orbitron\',sans-serif;font-weight:900;letter-spacing:2px;color:' + C.text + ';line-height:1.05;"></div>' +
-      '<div data-k="sub" style="position:absolute;left:24px;bottom:58px;right:24px;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;color:' + C.mid + ';"></div>';
+      '<div data-k="big" style="position:absolute;left:24px;bottom:150px;right:24px;font-family:\'Orbitron\',sans-serif;font-weight:900;letter-spacing:2px;color:' + C.text + ';line-height:1.05;"></div>' +
+      '<div data-k="sub" style="position:absolute;left:24px;bottom:126px;right:24px;font-family:\'Share Tech Mono\',monospace;font-size:11px;letter-spacing:2px;color:' + C.mid + ';"></div>';
     container.appendChild(canvas); container.appendChild(hud);
     const el = k => hud.querySelector('[data-k="' + k + '"]');
     const ctx = canvas.getContext('2d');
-    let W = 0, H = 0, dpr = 1;
+    let W = 0, H = 0, dpr = 1, label = '';
     function resize() {
       dpr = Math.min(2, window.devicePixelRatio || 1);
       W = container.clientWidth || 800; H = container.clientHeight || 600;
@@ -2765,112 +2783,113 @@ function updateHUD() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       el('sub').style.fontSize = W < 520 ? '9.5px' : '11px';
       el('card').style.fontSize = W < 520 ? '10px' : '11.5px';
-      el('card').style.top = W < 600 ? '82px' : '46px';   // below the "view as it is written" button on phones
+      el('card').style.top = W < 600 ? '82px' : '46px';
       label = '';
     }
-    let label = '';
     resize();
     const ro = window.ResizeObserver ? new ResizeObserver(resize) : null; if (ro) ro.observe(container);
 
     const A = [dep.lon, dep.lat], B = arr ? [arr.lon, arr.lat] : null;
-    const dist = B ? d3.geoDistance(A, B) : 0;
-    const totalNm = dist * NM;
+    const dist = B ? d3.geoDistance(A, B) : 0, totalNm = dist * NM;
     const interp = B ? d3.geoInterpolate(A, B) : null;
     const mid = B ? interp(0.5) : A;
     const proj = d3.geoOrthographic().clipAngle(90).precision(0.3);
     const path = d3.geoPath(proj, ctx);
     const grat = d3.geoGraticule10();
-    const today = new Date(); const dstr = String(today.getUTCDate()).padStart(2, '0') + '.' + String(today.getUTCMonth() + 1).padStart(2, '0') + '.' + today.getUTCFullYear();
+    const now0 = new Date();
+    const dstr = String(now0.getUTCDate()).padStart(2, '0') + '.' + String(now0.getUTCMonth() + 1).padStart(2, '0') + '.' + now0.getUTCFullYear();
     el('top').textContent = dstr + ' · ' + (B ? dep.id + ' → ' + arr.id : dep.id) + ((container.clientWidth || 800) < 520 ? '' : (B ? ' · ROUTE BRIEFING' : ' · AIRPORT BRIEFING'));
+    const eteH = B ? totalNm / CRUISE_KT + 0.3 : 0;   // + climb / descent allowance
+    const ete = B ? 'ETE ≈ ' + Math.floor(eteH) + 'H' + String(Math.round((eteH % 1) * 60)).padStart(2, '0') : '';
+    const sun = subsolar(now0), night = d3.geoCircle().center([sun[0] + 180, -sun[1]]).radius(90)(), dusk = d3.geoCircle().center([sun[0] + 180, -sun[1]]).radius(96)();
 
-    const R0 = () => Math.min(W, H) * 0.42;
+    const R0 = () => Math.min(W, H) * 0.40;
     const closeScale = () => R0() / Math.sin(300 / NM);
     const routeScale = () => { const half = dist / 2 + 0.12; return half >= 1.2 ? R0() * 0.98 : R0() / Math.sin(half); };
     const globeScale = () => R0() * 0.98;
-    const cy = () => H * 0.46;
+    const cy = () => H * 0.42;
 
     // ── timeline ──
-    const fly = B ? clamp(10 + totalNm / 450, 12, 22) : 0;
-    const T = B ? { dep: 2.4, out: 4.6, fly: 4.6 + fly, inn: 4.6 + fly + 2.2 } : { dep: 2.6, out: 5.0, fly: 5.0, inn: 5.0 };
-    // waiting loop after touchdown: [globe turning][departure card][arrival card] — single airport: [globe][card]
-    const SEG = B ? [{ k: 'globe', d: 11 }, { k: 'dep', d: 10 }, { k: 'arr', d: 10 }] : [{ k: 'globe', d: 11 }, { k: 'dep', d: 11 }];
-    const LOOP = SEG.reduce((a, x) => a + x.d, 0), TRANS = 1.8;
-
-    let world = null, t0 = null, raf = 0, stopped = false;
-    let override = null, firs = null, metar = {};
+    const T_DEP = B ? 4.0 : 6.0, T_OUT = 2.0, TRANS = 1.8, FIN = B ? 2.4 : 1.4;
+    const SEG = B ? [{ k: 'route', d: 12 }, { k: 'globe', d: 9 }, { k: 'arr', d: 8 }] : [{ k: 'globe', d: 11 }, { k: 'dep', d: 10 }];
+    const LOOP = SEG.reduce((a, x) => a + x.d, 0);
+    let world = null, t0 = null, tPrev = null, raf = 0, stopped = false;
+    let override = null, firs = null, zones = [], metar = {};
+    let p = 0, briefP = 0, finishAt = null, finishFrom = null, onLanded = null, landedFired = false;
     loadWorld().then(w => { world = w; }).catch(() => {});
 
-    function setText(big, sub, small) {
-      const key = big + '|' + sub + '|' + !!small + '|' + W;
+    function setText(big, sub, small, color) {
+      const key = big + '|' + sub + '|' + !!small + '|' + W + '|' + (color || '');
       if (label === key) return; label = key;
       const b = el('big');
-      b.style.fontSize = small ? Math.round(clamp(Math.min(W, H) * 0.06, 20, 42)) + 'px' : Math.round(clamp(Math.min(W, H) * 0.11, 30, 72)) + 'px';
-      b.textContent = big; el('sub').textContent = sub;
-      b.style.bottom = small ? '150px' : '84px'; el('sub').style.bottom = small ? '126px' : '58px';
+      b.style.fontSize = small ? Math.round(clamp(Math.min(W, H) * 0.06, 20, 42)) + 'px' : Math.round(clamp(Math.min(W, H) * 0.095, 28, 64)) + 'px';
+      b.textContent = big; el('sub').textContent = sub; el('sub').style.color = color || C.mid;
     }
-    function cityOf(p) { return String(p.city || p.name || p.id).toUpperCase(); }
-    function airportLine(p) { return p.id + ' · ' + dms(p.lat, 'N', 'S') + ' ' + dms(p.lon, 'E', 'W'); }
-    function cardLines(p) {
-      const L = [p.id + ' · ' + String(p.name || '').toUpperCase()];
-      L.push([p.city ? String(p.city).toUpperCase() : '', p.country || '', p.elev != null ? 'ELEV ' + fmt(p.elev) + ' FT' : '', dms(p.lat, 'N', 'S') + ' ' + dms(p.lon, 'E', 'W')].filter(Boolean).join(' · '));
-      if (p.runways && p.runways.length) L.push('RWY ' + p.runways.slice(0, 4).map(r => r.id + (r.len ? ' ' + fmt(r.len) + ' FT' : '')).join(' · '));
-      if (metar[p.id]) L.push('METAR ' + metar[p.id]);
-      else L.push('METAR —');
+    function cityOf(q) { return String(q.city || q.name || q.id).toUpperCase(); }
+    function airportLine(q) { return q.id + ' · ' + dms(q.lat, 'N', 'S') + ' ' + dms(q.lon, 'E', 'W'); }
+    function cardLines(q) {
+      const L = [q.id + ' · ' + String(q.name || '').toUpperCase()];
+      L.push([q.city ? String(q.city).toUpperCase() : '', q.country || '', q.elev != null ? 'ELEV ' + fmt(q.elev) + ' FT' : '', dms(q.lat, 'N', 'S') + ' ' + dms(q.lon, 'E', 'W')].filter(Boolean).join(' · '));
+      if (q.runways && q.runways.length) L.push('RWY ' + q.runways.slice(0, 4).map(r => r.id + (r.len ? ' ' + fmt(r.len) + ' FT' : '')).join(' · '));
+      L.push('METAR ' + (metar[q.id] || '—'));
       return L;
     }
     let cardKey = '';
-    function showCard(p, since) {
+    function showCard(q, since) {
       const card = el('card');
-      if (!p) { if (card.style.opacity !== '0') card.style.opacity = '0'; cardKey = ''; return; }
-      const text = cardLines(p).join('\n');
-      const n = Math.max(0, Math.floor((since - 0.9) * 55));      // typed at ~55 characters per second
-      const shown = text.slice(0, n);
-      const key = p.id + '|' + shown.length;
+      if (!q) { if (card.style.opacity !== '0') card.style.opacity = '0'; cardKey = ''; return; }
+      const text = cardLines(q).join('\n');
+      const shown = text.slice(0, Math.max(0, Math.floor((since - 0.6) * 55)));   // typed at ~55 characters per second
+      const key = q.id + '|' + shown.length;
       if (key === cardKey) return; cardKey = key;
       card.style.opacity = '1';
-      const lines = shown.split('\n');
-      card.innerHTML = lines.map((l, i) => i === 0 ? '<span style="color:' + C.text + ';">' + esc(l) + '</span>' : esc(l)).join('\n') + (shown.length < text.length ? '<span style="color:#4a9eff;">▌</span>' : '');
+      card.innerHTML = shown.split('\n').map((l, i) => i === 0 ? '<span style="color:' + C.text + ';">' + esc(l) + '</span>' : esc(l)).join('\n') + (shown.length < text.length ? '<span style="color:#4a9eff;">▌</span>' : '');
     }
-
-    // camera target for a waiting segment at local time u
     function segCam(k, u) {
-      if (k === 'globe') {
-        const base = B ? mid : A;
-        return { c: [base[0] - 5 * u, clamp(base[1], -35, 40)], s: globeScale() };
-      }
-      const p = k === 'dep' ? A : B;
-      return { c: [p[0] - 0.4 * u, p[1]], s: closeScale() * 1.15 };
+      if (k === 'route') return { c: mid, s: routeScale() };
+      if (k === 'globe') return { c: [(B ? mid : A)[0] - 5 * u, clamp((B ? mid : A)[1], -35, 40)], s: globeScale() };
+      const q = k === 'dep' ? A : B;
+      return { c: [q[0] - 0.4 * u, q[1]], s: closeScale() * 1.15 };
     }
-    function camBlend(from, to, k) { return { c: d3.geoInterpolate(from.c, to.c)(k), s: Math.exp(lerp(Math.log(from.s), Math.log(to.s), k)) }; }
+    const camBlend = (f, t, k) => ({ c: d3.geoInterpolate(f.c, t.c)(k), s: Math.exp(lerp(Math.log(f.s), Math.log(t.s), k)) });
+    let lastCam = { c: A, s: closeScale() };
+    const visibleFrom = ll => q => d3.geoDistance(q, ll) < Math.PI / 2 - 0.02;
 
     function frame(now) {
       if (stopped) return;
       if (!container.isConnected || container.offsetParent === null) { api.stop(); return; }
-      if (t0 === null) t0 = now;
-      const s = (now - t0) / 1000;
-      let cam, prog = 0, seg = null, segU = 0;
-      if (s < T.dep) cam = { c: A, s: closeScale() * (1 + 0.05 * (1 - s / T.dep)) };
-      else if (s < T.out) {
-        const k = ease((s - T.dep) / (T.out - T.dep));
-        cam = camBlend({ c: A, s: closeScale() }, { c: mid, s: B ? routeScale() : globeScale() }, k);
-      } else if (B && s < T.fly) { prog = ease((s - T.out) / (T.fly - T.out)); cam = { c: mid, s: routeScale() }; }
-      else if (B && s < T.inn) { prog = 1; cam = camBlend({ c: mid, s: routeScale() }, { c: B, s: closeScale() }, ease((s - T.fly) / (T.inn - T.fly))); }
-      else {
-        prog = 1;
-        const w = (s - T.inn) % LOOP;
+      if (t0 === null) { t0 = now; tPrev = now; }
+      const s = (now - t0) / 1000, dt = Math.min(0.1, (now - tPrev) / 1000); tPrev = now;
+      let cam, seg = null, segU = 0, phase;
+
+      if (finishAt !== null) {
+        phase = 'finish';
+        const k = clamp((s - finishAt) / FIN, 0, 1);
+        if (B) p = lerp(finishFrom.p, 1, ease(k));
+        cam = camBlend(finishFrom.cam, { c: B || A, s: closeScale() }, ease(k));
+        if (k >= 1 && !landedFired) { landedFired = true; const cb = onLanded; setTimeout(() => { if (cb) cb(); }, 250); }
+      } else if (s < T_DEP) {
+        phase = 'dep';
+        cam = { c: A, s: closeScale() * (1 + 0.05 * (1 - s / T_DEP)) };
+      } else {
+        phase = 'cruise';
+        if (B) {   // the aircraft follows the briefing: writing progress, or a slow time-based estimate if that is ahead; never all the way
+          const tc = s - T_DEP, target = 0.94 * Math.max(briefP, 1 - Math.exp(-tc / 55));
+          if (target > p) p = Math.min(target, p + 0.05 * dt);
+        }
+        const w = (s - T_DEP) % LOOP;
         let acc = 0, i = 0;
         for (; i < SEG.length; i++) { if (w < acc + SEG[i].d) break; acc += SEG[i].d; }
         seg = SEG[i]; segU = w - acc;
-        const target = segCam(seg.k, segU);
-        // where the camera was when this segment started: end of the previous segment (or the arrival close-up the first time)
-        const firstPass = s - T.inn < LOOP && i === 0;
-        const prevSeg = SEG[(i + SEG.length - 1) % SEG.length];
-        const from = firstPass ? { c: B || A, s: closeScale() } : segCam(prevSeg.k, prevSeg.d);
-        cam = segU < TRANS ? camBlend(from, segCam(seg.k, TRANS), ease(segU / TRANS)) : target;
+        const first = s - T_DEP < LOOP && i === 0;
+        const prev = SEG[(i + SEG.length - 1) % SEG.length];
+        const from = first ? { c: A, s: closeScale() } : segCam(prev.k, prev.d);
+        const tr = first ? T_OUT : TRANS;
+        cam = segU < tr ? camBlend(from, segCam(seg.k, tr), ease(segU / tr)) : segCam(seg.k, segU);
       }
+      lastCam = cam;
       proj.rotate([-cam.c[0], -cam.c[1]]).scale(cam.s).translate([W / 2, cy()]);
-      const centreLL = proj.invert([W / 2, cy()]);
-      const visible = p => d3.geoDistance(p, centreLL) < Math.PI / 2 - 0.02;
+      const centreLL = proj.invert([W / 2, cy()]), visible = visibleFrom(centreLL);
 
       // ── draw ──
       ctx.clearRect(0, 0, W, H);
@@ -2887,82 +2906,79 @@ function updateHUD() {
         ctx.beginPath(); path(world.land); ctx.fillStyle = C.land; ctx.fill(); ctx.strokeStyle = C.landStroke; ctx.lineWidth = 0.8; ctx.stroke();
         ctx.beginPath(); path(world.borders); ctx.strokeStyle = C.border; ctx.lineWidth = 0.6; ctx.stroke();
       }
+      // night side (current sun position) with a soft twilight edge
+      ctx.beginPath(); path(dusk); ctx.fillStyle = 'rgba(0,0,0,0.14)'; ctx.fill();
+      ctx.beginPath(); path(night); ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.fill();
       ctx.beginPath(); path({ type: 'Sphere' }); ctx.strokeStyle = C.oceanEdge; ctx.lineWidth = 1; ctx.stroke();
 
-      // FIR boundaries along the route during the flight (the one the aircraft is in is highlighted)
+      // conflict zones near the route (hatched, coloured by severity)
+      for (const z of zones) {
+        ctx.save();
+        for (const poly of z.polys) {
+          ctx.beginPath(); path(poly); ctx.fillStyle = z.pattern; ctx.fill();
+          ctx.strokeStyle = 'rgba(' + z.rgb + ',0.75)'; ctx.lineWidth = 1.1; ctx.stroke();
+        }
+        ctx.restore();
+      }
+      // the en-route FIR the aircraft is in
       let curFir = null;
-      if (B && firs && firs.firs.length && s >= T.dep && s < T.inn + 0.5) {
-        const fade = s < T.out ? (s - T.dep) / (T.out - T.dep) : s > T.fly ? clamp(1 - (s - T.fly) / 1.5, 0, 1) : 1;
-        curFir = firs.firs.filter(f => prog >= f.from - 0.001 && prog <= f.to + 0.001).pop() || null;
-        // v3.105: only the FIR the aircraft is in is outlined (no web of neighbouring sectors)
-        if (curFir) {
-          ctx.save(); ctx.globalAlpha = 0.9 * fade;
-          ctx.shadowColor = 'rgba(74,158,255,0.6)'; ctx.shadowBlur = 6;
-          for (const rg of firs.rings) if (rg.id === curFir.id) {
-            ctx.beginPath(); path({ type: 'LineString', coordinates: rg.ring });
-            ctx.strokeStyle = 'rgba(74,158,255,0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
-          }
+      if (B && firs && phase !== 'dep') {
+        curFir = firs.firs.filter(f => p >= f.from - 0.001 && p <= f.to + 0.001).pop() || null;
+        if (curFir && (!seg || seg.k !== 'arr')) {
+          ctx.save(); ctx.shadowColor = 'rgba(74,158,255,0.6)'; ctx.shadowBlur = 6;
+          for (const rg of firs.rings) if (rg.id === curFir.id) { ctx.beginPath(); path({ type: 'LineString', coordinates: rg.ring }); ctx.strokeStyle = 'rgba(74,158,255,0.8)'; ctx.lineWidth = 1.5; ctx.stroke(); }
           ctx.restore();
         }
       }
-
       // route
-      if (B && s >= T.dep) {
+      if (B) {
         const line = { type: 'LineString', coordinates: d3.range(0, 1.0001, 1 / 96).map(interp) };
         ctx.setLineDash([4, 5]); ctx.beginPath(); path(line); ctx.strokeStyle = C.routeAhead; ctx.lineWidth = 1.4; ctx.stroke(); ctx.setLineDash([]);
-        if (prog > 0) {
-          const n = Math.max(2, Math.ceil(96 * prog));
-          const done = { type: 'LineString', coordinates: d3.range(0, n + 1).map(i => interp(prog * i / n)) };
+        if (p > 0.0005) {
+          const n = Math.max(2, Math.ceil(96 * p));
           ctx.save(); ctx.shadowColor = 'rgba(74,158,255,0.8)'; ctx.shadowBlur = 8;
-          ctx.beginPath(); path(done); ctx.strokeStyle = C.route; ctx.lineWidth = 2.2; ctx.stroke(); ctx.restore();
-        }
-        if (s > T.inn + 1) {                                   // a light running along the route while the briefing is written
-          const lp = interp(((s - T.inn) % 3.2) / 3.2);
-          if (visible(lp)) {
-            const [lx, ly] = proj(lp);
-            ctx.save(); ctx.shadowColor = 'rgba(74,158,255,1)'; ctx.shadowBlur = 12;
-            ctx.beginPath(); ctx.arc(lx, ly, 2.6, 0, 2 * Math.PI); ctx.fillStyle = '#cfe5ff'; ctx.fill(); ctx.restore();
-          }
+          ctx.beginPath(); path({ type: 'LineString', coordinates: d3.range(0, n + 1).map(i => interp(p * i / n)) }); ctx.strokeStyle = C.route; ctx.lineWidth = 2.2; ctx.stroke(); ctx.restore();
         }
       }
       // airports
-      const pts = B ? [[A, dep], [B, arr]] : [[A, dep]];
-      for (const [p, ap] of pts) {
-        if (!visible(p)) continue;
-        const [x, y] = proj(p);
-        const pulse = (s * 0.8) % 1;
+      for (const [q, ap] of (B ? [[A, dep], [B, arr]] : [[A, dep]])) {
+        if (!visible(q)) continue;
+        const [x, y] = proj(q), pulse = (s * 0.8) % 1;
         ctx.beginPath(); ctx.arc(x, y, 4 + pulse * 14, 0, 2 * Math.PI); ctx.strokeStyle = 'rgba(74,158,255,' + (0.5 * (1 - pulse)) + ')'; ctx.lineWidth = 1; ctx.stroke();
         ctx.beginPath(); ctx.arc(x, y, 3.2, 0, 2 * Math.PI); ctx.fillStyle = C.route; ctx.fill();
-        ctx.font = '600 12px "Share Tech Mono", monospace'; ctx.fillStyle = C.text;
-        ctx.fillText(ap.id, x + 10, y - 8);
+        ctx.font = '600 12px "Share Tech Mono", monospace'; ctx.fillStyle = C.text; ctx.fillText(ap.id, x + 10, y - 8);
       }
       // aircraft
-      if (B && s >= T.out - 0.2) {
-        const pp = interp(clamp(prog, 0, 1));
+      if (B) {
+        const pp = interp(clamp(p, 0, 1));
         if (visible(pp)) {
           const [x, y] = proj(pp);
-          const [x1, y1] = proj(prog < 0.999 ? interp(clamp(prog + 0.002, 0, 1)) : pp), [x0, y0] = proj(prog < 0.999 ? pp : interp(clamp(prog - 0.002, 0, 1)));
-          drawPlane(x, y, Math.atan2(y1 - y0, x1 - x0), 1 + 0.15 * Math.sin(Math.PI * prog));
+          const a1 = interp(clamp(p + 0.003, 0, 1)), a0 = interp(clamp(p - 0.003, 0, 1));
+          const [x1, y1] = proj(p < 0.997 ? a1 : pp), [x0, y0] = proj(p < 0.997 ? pp : a0);
+          drawPlane(x, y, Math.atan2(y1 - y0, x1 - x0), 1 + 0.15 * Math.sin(Math.PI * p));
         }
-      } else if (B && s >= T.dep * 0.3) {
-        const [x, y] = proj(A), [xb, yb] = proj(interp(0.01));
-        drawPlane(x, y, Math.atan2(yb - y, xb - x), 1);
       }
 
       // texts
-      if (seg) {
-        showCard(seg.k === 'dep' ? dep : seg.k === 'arr' ? arr : null, segU);
-        if (override) setText(override.big, override.sub, override.small);
-        else if (seg.k === 'globe' && B) setText(dep.id + ' → ' + arr.id, fmt(totalNm) + ' NM · GREAT CIRCLE', true);
-        else setText(cityOf(seg.k === 'arr' ? arr : dep), airportLine(seg.k === 'arr' ? arr : dep), true);
+      const zoneNow = B ? zones.find(z => z.crossing && z.from !== null && p >= z.from && p <= z.to) : null;
+      const zoneTxt = zoneNow ? (zoneNow.level === 'NOGO' || zoneNow.level === 'HIGH' ? '⚠ ' + zoneNow.short + ' CONFLICT ZONE — ROUTE MUST AVOID' : zoneNow.level === 'CAUTION' ? '⚠ ' + zoneNow.short + ' CONFLICT ZONE — CAUTION' : 'ⓘ ' + zoneNow.short + ' — CONFLICT ZONE INFO') : '';
+      const zoneCol = zoneNow ? 'rgb(' + zoneNow.rgb + ')' : null;
+      if (override) { showCard(null); setText(override.big, override.sub, override.small); }
+      else if (phase === 'dep') { showCard(dep, s); setText(cityOf(dep), B ? airportLine(dep) + ' · ' + ete : airportLine(dep)); }
+      else if (phase === 'finish') {
+        showCard(null);
+        if (B && p < 0.985) setText(fmt(totalNm * (1 - p)) + ' NM', dep.id + ' → ' + arr.id + ' · ON APPROACH');
+        else setText(cityOf(B ? arr : dep), airportLine(B ? arr : dep));
+      } else if (seg && (seg.k === 'arr' || seg.k === 'dep')) {
+        const q = seg.k === 'arr' ? arr : dep;
+        showCard(q, segU - (segU < TRANS ? 99 : TRANS));
+        setText(cityOf(q), B ? 'DESTINATION · ' + fmt(totalNm * (1 - p)) + ' NM TO GO' : airportLine(q), true);
       } else {
         showCard(null);
-        if (s < T.dep + 0.6 || !B) setText(cityOf(dep), airportLine(dep));
-        else if (s < T.fly + 0.4) {
-          const left = totalNm * (1 - prog);
-          const firTxt = curFir ? ' · ' + curFir.id + ' FIR' + (firs ? ' (' + (firs.firs.indexOf(curFir) + 1) + '/' + firs.firs.length + ')' : '') : '';
-          setText(fmt(left) + ' NM', (W < 520 ? '' : 'GREAT CIRCLE · ') + dep.id + ' → ' + arr.id + firTxt);
-        } else setText(cityOf(arr), airportLine(arr) + ' · ' + fmt(totalNm) + ' NM FROM ' + dep.id);
+        if (B) {
+          const firTxt = curFir ? curFir.id + ' FIR (' + (firs.firs.indexOf(curFir) + 1) + '/' + firs.firs.length + ')' : '';
+          setText(fmt(totalNm * (1 - p)) + ' NM', zoneTxt || [dep.id + ' → ' + arr.id, firTxt, W < 520 ? '' : ete].filter(Boolean).join(' · '), false, zoneCol);
+        } else setText(cityOf(dep), airportLine(dep) + ' · ' + String(dep.name || ''), true);
       }
       raf = requestAnimationFrame(frame);
     }
@@ -2978,17 +2994,27 @@ function updateHUD() {
       ctx.restore();
     }
     const api = {
-      landAt: Date.now() + (B ? T.inn : T.out) * 1000,
+      startedAt: Date.now(),
+      setProgress(v) { if (isFinite(v)) briefP = clamp(v, 0, 1); },
+      finish(cb) {
+        if (finishAt !== null) { onLanded = cb; return; }
+        onLanded = cb; finishFrom = { p, cam: lastCam };
+        finishAt = t0 === null ? 0 : (performance.now() - t0) / 1000;
+      },
       setText(big, sub, small) { override = big ? { big, sub: sub || '', small: !!small } : null; },
       setMetar(id, raw) { const l = String(raw || '').split('\n').map(x => x.trim()).find(x => /^(METAR |SPECI )?[A-Z]{4} \d{6}Z/.test(x)); if (id && l) metar[id] = l.replace(/^(METAR|SPECI) /, ''); },
       setFirs(data) {
         if (!data || !Array.isArray(data.firs) || !Array.isArray(data.rings)) return;
-        // v3.105: en-route FIRs only — not the departure FIR (entered at 0) nor the arrival FIR (left at 1) — and no small
-        // rings (VATSIM splits some FIRs into TMA/CTR-sized pieces); nothing is shown for a route inside its own FIRs
+        // en-route FIRs only (not the departure FIR entered at 0 nor the arrival FIR left at 1), no small TMA/CTR-sized rings
         const list = data.firs.filter(f => f.from > 0.005 && f.to < 0.995);
-        const big = r => { let x0 = 999, x1 = -999, y0 = 999, y1 = -999; for (const [x, y] of r.ring) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } return (x1 - x0) > 1.2 || (y1 - y0) > 1.2; };
+        const big = rg => { let x0 = 999, x1 = -999, y0 = 999, y1 = -999; for (const [x, y] of rg.ring) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } return (x1 - x0) > 1.2 || (y1 - y0) > 1.2; };
         const ids = new Set(list.map(f => f.id));
-        firs = { firs: list, rings: data.rings.filter(r => ids.has(r.id) && big(r)) };
+        firs = { firs: list, rings: data.rings.filter(rg => ids.has(rg.id) && big(rg)) };
+        zones = (data.zones || []).filter(z => ZONE[z.level]).map(z => ({
+          ...z, rgb: ZONE[z.level], pattern: hatch(ctx, ZONE[z.level]),
+          short: String(z.name || '').replace(/\s*\(.*$/, '').toUpperCase(),
+          polys: (z.rings || []).map(rg => { const poly = { type: 'Polygon', coordinates: [rg] }; return d3.geoArea(poly) > 2 * Math.PI ? { type: 'Polygon', coordinates: [rg.slice().reverse()] } : poly; })
+        }));
       },
       stop() { if (stopped) return; stopped = true; cancelAnimationFrame(raf); if (ro) ro.disconnect(); canvas.remove(); hud.remove(); }
     };
@@ -3040,7 +3066,7 @@ function renderBriefDesk(prog, label) {
   let d = document.getElementById('briefDesk');
   if (!d) {
     d = document.createElement('div'); d.id = 'briefDesk';
-    d.innerHTML = '<div class="bd-bar"><div class="bd-fill"></div></div><div class="bd-list"></div>';
+    d.innerHTML = '<div class="bd-now"></div><div class="bd-bar"><div class="bd-fill"></div></div><div class="bd-list"></div>';
     loading.insertBefore(d, document.getElementById('loadSteps'));
     const live = document.createElement('button'); live.type = 'button'; live.id = 'briefLive'; live.textContent = 'VIEW AS IT IS WRITTEN →';
     live.onclick = () => { if (window._briefRevealNow) window._briefRevealNow(); };
@@ -3048,11 +3074,12 @@ function renderBriefDesk(prog, label) {
   }
   d.querySelector('.bd-fill').style.width = Math.round(prog.pct * 100) + '%';
   d.querySelector('.bd-list').innerHTML = prog.list.map((n, i) => '<span class="' + (i < prog.idx ? 'ok' : i === prog.idx ? 'now' : '') + '">' + (i < prog.idx ? '✓ ' : i === prog.idx ? '▶ ' : '· ') + n.toUpperCase() + '</span>').join('');
-  if (briefingAnim && Date.now() >= briefingAnim.landAt + 1200) {
+  const cur = prog.idx >= 0 ? (prog.list[prog.idx] || 'Briefing ready') : 'Reading NOTAMs & weather';
+  d.querySelector('.bd-now').textContent = (prog.pct >= 1 ? '✓ ' : '▶ ') + 'WRITING YOUR BRIEFING · ' + cur.toUpperCase() + ' · ' + Math.round(prog.pct * 100) + '%';
+  briefingAnim.setProgress(prog.pct);   // v3.106: the aircraft flies with the briefing
+  if (Date.now() >= briefingAnim.startedAt + 5000) {
     d.classList.add('show');
     const live = document.getElementById('briefLive'); if (live) live.classList.add('show');
-    const cur = prog.idx >= 0 ? (prog.list[prog.idx] || 'Briefing ready') : 'Reading NOTAMs & weather';
-    briefingAnim.setText(cur.toUpperCase(), 'WRITING YOUR BRIEFING · ' + label + ' · ' + Math.round(prog.pct * 100) + '%', true);
   }
 }
 
@@ -3660,7 +3687,10 @@ async function handleSend(silent = false) {
               if (briefingAnim && myRun === briefRunSeq && loading.style.display !== 'none') {
                 // v3.103: short "ready" beat on the map, then the whole briefing appears at once
                 renderBriefDesk({ list: (lastProg || briefingProgress('', !!arr)).list, idx: 99, pct: 1 }, routeLabel);
-                briefingAnim.setText('BRIEFING READY', routeLabel + ' · ' + new Date().toISOString().slice(11, 16) + 'Z', true);
+                const anim = briefingAnim;
+                anim.finish(() => {   // v3.106: touchdown when the briefing is complete
+                if (myRun !== briefRunSeq || briefingAnim !== anim) return;
+                anim.setText('BRIEFING READY', routeLabel + ' · ' + new Date().toISOString().slice(11, 16) + 'Z', true);
                 setTimeout(() => {
                   loading.style.transition = 'opacity .35s'; loading.style.opacity = '0';
                   setTimeout(() => {
@@ -3670,6 +3700,7 @@ async function handleSend(silent = false) {
                     requestAnimationFrame(() => { content.style.transition = 'opacity .45s'; content.style.opacity = '1'; setTimeout(() => { content.style.transition = ''; }, 500); });
                   }, 350);
                 }, 900);
+                });
               } else {
                 loading.style.display = 'none';
                 content.style.display = 'block';

@@ -98,7 +98,29 @@ function routeFirTimeline(dep, arr) {
     ring.push([f.r[0], f.r[1]]);
     rings.push({ id: f.id, ring });
   }
-  const out = { firs, rings, totalNm: Math.round(total) };
+  // v3.106: conflict zones (risk.js CONFIG.conflictZones, defined by FIR codes) the route crosses, comes within ~120 NM of, or starts/ends in
+  const zones = [];
+  try {
+    const cz = require('./risk').CONFIG.conflictZones || [];
+    const near = new Set(routeFirs(dep, arr, { corridorNm: 120, stepNm: 25 }).near);
+    for (const z of cz) {
+      const zf = z.firs || [];
+      const atEnd = [dep.id, arr.id].some(ic => ic && (z.prefixes || []).some(p => String(ic).toUpperCase().startsWith(p)));
+      const crossed = zf.map(id => seen.get(id)).filter(Boolean);
+      const isNear = zf.some(id => near.has(id));
+      if (!zf.length || (!crossed.length && !isNear && !atEnd)) continue;
+      const level = atEnd ? (z.endpoint || z.crossing || 'INFO') : crossed.length ? (z.crossing || 'INFO') : 'INFO';
+      const zr = [];
+      for (const f of load().list) if (zf.includes(f.id)) {
+        const pts = f.r.length / 2, step = Math.max(1, Math.ceil(pts / 150)), ring = [];
+        for (let i = 0; i < f.r.length; i += 2 * step) ring.push([f.r[i], f.r[i + 1]]);
+        ring.push([f.r[0], f.r[1]]);
+        zr.push(ring);
+      }
+      zones.push({ name: z.name, level, crossing: crossed.length > 0, atEnd, from: crossed.length ? Math.min(...crossed.map(c => c.from)) : null, to: crossed.length ? Math.max(...crossed.map(c => c.to)) : null, src: String(z.src || '').split(';')[0], rings: zr });
+    }
+  } catch (e) { /* zones optional */ }
+  const out = { firs, rings, zones, totalNm: Math.round(total) };
   if (timelineCache.size > 500) timelineCache.clear();
   timelineCache.set(key, out);
   return out;

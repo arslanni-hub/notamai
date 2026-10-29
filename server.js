@@ -2461,7 +2461,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const q = new URL(req.url, 'http://x').searchParams;
       const a = alternates.airportPoint(String(q.get('dep') || '').toUpperCase()), b = alternates.airportPoint(String(q.get('arr') || '').toUpperCase());
-      const out = a && b ? require('./route-firs').routeFirTimeline(a, b) : { firs: [], rings: [] };
+      const out = a && b ? require('./route-firs').routeFirTimeline(a, b) : { firs: [], rings: [], zones: [] };
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' });
       res.end(JSON.stringify(out));
     } catch (e) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"firs":[],"rings":[]}'); }
