@@ -2570,6 +2570,25 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"firs":[],"rings":[]}'); }
     return;
   }
+  // v3.114: landing-page media (route animation recording + poster). Range requests are needed for <video> on Safari/iOS.
+  if (req.method === 'GET' && /^\/media\/[a-z0-9-]+\.(mp4|jpg)$/.test(urlPath)) {
+    const f = path.join(__dirname, urlPath);
+    let st; try { st = fs.statSync(f); } catch (e) { res.writeHead(404); res.end(); return; }
+    const type = urlPath.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg';
+    const head = { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=604800' };
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    if (m && (m[1] || m[2])) {
+      let start = m[1] ? parseInt(m[1], 10) : st.size - parseInt(m[2], 10), end = m[1] && m[2] ? parseInt(m[2], 10) : st.size - 1;
+      if (start < 0) start = 0; if (end >= st.size) end = st.size - 1;
+      if (start > end) { res.writeHead(416, { 'Content-Range': 'bytes */' + st.size }); res.end(); return; }
+      res.writeHead(206, Object.assign(head, { 'Content-Range': 'bytes ' + start + '-' + end + '/' + st.size, 'Content-Length': end - start + 1 }));
+      fs.createReadStream(f, { start, end }).pipe(res);
+    } else {
+      res.writeHead(200, Object.assign(head, { 'Content-Length': st.size }));
+      fs.createReadStream(f).pipe(res);
+    }
+    return;
+  }
   // v3.109: DOMPurify 3.4.17 (self-hosted, used to sanitise every briefing HTML on the page and on shared /b/ links)
   if (req.method === 'GET' && urlPath === '/purify.min.js') {
     try { res.writeHead(200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'public, max-age=604800' }); res.end(fs.readFileSync(path.join(__dirname, 'purify.min.js'))); }

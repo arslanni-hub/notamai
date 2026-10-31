@@ -350,6 +350,16 @@ canvas#sky {
   margin-bottom: 8px;
   pointer-events: auto;
 }
+/* v3.114: signed-out hero — value proposition instead of the greeting, plus a sign-up button */
+.visitor-cta { display: none; }
+#mainContent.chat-active .visitor-cta { display: none !important; }
+body.visitor .visitor-cta { display: flex; justify-content: center; align-items: center; gap: 22px; flex-wrap: wrap; margin-top: 26px; }
+body.visitor .greeting { font-size: clamp(19px, 2.6vw, 30px); line-height: 1.35; max-width: 760px; margin-left: auto; margin-right: auto; padding: 0 16px; }
+body.visitor .greeting-sub { visibility: visible !important; max-width: 640px; margin-left: auto; margin-right: auto; padding: 0 16px; line-height: 1.6; color: rgba(180,210,255,0.72); }
+.visitor-cta-main { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #060a0f; background: #4a9eff; border: 1px solid #4a9eff; border-radius: 6px; padding: 11px 26px; cursor: pointer; transition: background .2s; }
+.visitor-cta-main:hover { background: #6ab4ff; border-color: #6ab4ff; }
+.visitor-cta-link { font-family: 'Rajdhani', sans-serif; font-size: 13px; letter-spacing: 1.5px; color: #8a9bb0; text-decoration: none; }
+.visitor-cta-link:hover { color: #c8daf0; }
 .greeting-sub {
   font-size: 15px;
   font-weight: 300;
@@ -1543,6 +1553,12 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
       </svg>
       Chat
     </button>
+  </div>
+
+  <!-- v3.114: signed-out visitors only (body.visitor) — what it is, that it is free, and where to see a real result -->
+  <div class="visitor-cta" id="visitorCta">
+    <button class="visitor-cta-main" onclick="gtag('event','hero_signup_click');openSignupModal()">Get Started Free</button>
+    <a class="visitor-cta-link" href="#sample-briefing">See a real briefing ↓</a>
   </div>
 
 </div>
@@ -3195,7 +3211,17 @@ function applyProfileName(user, data) {
   greetingName = full;
   setGreeting();
 }
+const VISITOR_HEADLINE = 'Turn hundreds of NOTAMs into one clear pre\u2011flight briefing.';
+const VISITOR_SUB = 'Live NOTAMs, METAR and TAF for any airport or route — risk score, Go/No\u2011Go, alternates and crew actions. Free plan, no credit card.';
+const MEMBER_SUB = 'Enter an ICAO code, a route, or paste your aviation data';
+function setVisitorHero(on) {   // v3.114
+  document.body.classList.toggle('visitor', !!on);
+  const sub = document.querySelector('.greeting-sub');
+  if (sub) sub.textContent = on ? VISITOR_SUB : MEMBER_SUB;
+  if (on) { const g = document.getElementById('greeting'); if (g) g.textContent = VISITOR_HEADLINE; }
+}
 function setGreeting() {
+  if (document.body.classList.contains('visitor')) return;
   const h = new Date().getHours();
   const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
   const suffix = greetingName === 'Captain' ? '!' : '';
@@ -5978,6 +6004,7 @@ function deleteBriefing(e, id) {
 
 firebase.auth().onAuthStateChanged(async user => {
   console.log('onAuthStateChanged fired, user:', user ? user.email : 'null');
+  if (user) setVisitorHero(false);
   if (user && needsEmailVerification(user)) showEmailVerifyBanner(); else hideEmailVerifyBanner();
   const sidebar = document.getElementById('appSidebar');
   const navbar  = document.getElementById('mainNavbar');
@@ -6068,7 +6095,7 @@ firebase.auth().onAuthStateChanged(async user => {
     document.body.classList.remove('sidebar-open');
     document.body.classList.remove('sidebar-collapsed');
     greetingName = 'Captain';
-    setGreeting();
+    setVisitorHero(true);
     document.querySelector('.ui').style.position = 'absolute';
     document.querySelector('.ui').style.left = '0';
     document.querySelector('.ui').style.width = '100vw';
@@ -7109,14 +7136,10 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
         <div class="step-number">03</div>
         <div class="step-content">
           <div class="step-title">AI Analyzes Everything</div>
-          <p class="step-desc">Our AI cross-references all active NOTAMs, identifies compounding risks, and applies ICAO Annex 15 operational standards to assess your specific route.</p>
-          <div class="step-visual">
-            <div class="risk-bars">
-              <div class="risk-bar-row"><span class="risk-bar-label" style="color:#e63946;">CRITICAL</span><div class="risk-bar-track"><div class="risk-bar-fill" style="width:85%;background:#e63946;"></div></div></div>
-              <div class="risk-bar-row"><span class="risk-bar-label" style="color:#f4841a;">HIGH</span><div class="risk-bar-track"><div class="risk-bar-fill" style="width:60%;background:#f4841a;"></div></div></div>
-              <div class="risk-bar-row"><span class="risk-bar-label" style="color:#f2c641;">MEDIUM</span><div class="risk-bar-track"><div class="risk-bar-fill" style="width:40%;background:#f2c641;"></div></div></div>
-              <div class="risk-bar-row"><span class="risk-bar-label" style="color:#2ec4b6;">LOW</span><div class="risk-bar-track"><div class="risk-bar-fill" style="width:20%;background:#2ec4b6;"></div></div></div>
-            </div>
+          <p class="step-desc">Our AI cross-references all active NOTAMs, identifies compounding risks, and applies ICAO Annex 15 operational standards to assess your specific route. While it writes, you follow your flight on the map — the FIRs you cross, any conflict zones on the way, and the day/night line.</p>
+          <div class="step-visual" style="padding:0;overflow:hidden;">
+            <video id="hiwRouteDemo" src="/media/route-demo.mp4" poster="/media/route-demo.jpg" muted loop playsinline preload="none" style="width:100%;display:block;aspect-ratio:16/9;background:#060a0f;"></video>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1.5px;color:#4a5f72;padding:8px 12px;border-top:1px solid #1a2a3a;">SCREEN RECORDING · KJFK → EGLL · SPEEDED UP</div>
           </div>
         </div>
       </div>
@@ -7144,7 +7167,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
     </div>
 
     <!-- PREVIEW SECTION -->
-    <div class="preview-section">
+    <div class="preview-section" id="sample-briefing" style="scroll-margin-top:70px;">
       <h2 class="section-title">What a full AI briefing looks like</h2>
       <p class="section-subtitle">Real KJFK → EGLL briefing · generated 31 Oct 2026, 18:51Z · shortened excerpt</p>
       <!-- v3.113: real briefing (shared link /b/3FctPT3nxhYg4DEBGEjp), text shortened, nothing added. Replace with a newer one when the format changes. -->
@@ -7458,6 +7481,12 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
 </footer>
 
 <script>
+/* v3.114: route-animation recording in How It Works — loads and plays only while on screen */
+(function () {
+  const v = document.getElementById('hiwRouteDemo');
+  if (!v || !('IntersectionObserver' in window)) { if (v) { v.preload = 'auto'; v.autoplay = true; } return; }
+  new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } else v.pause(); }), { threshold: 0.35 }).observe(v);
+})();
 /* ═══ HOW IT WORKS TYPING ANIMATION ═══ */
 (function() {
   const hiw_text = "KJFK EGLL";
