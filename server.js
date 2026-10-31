@@ -55,7 +55,8 @@ const adminStorage = admin.storage().bucket();
 
 const PILOT_IMAGE_PATH = './pilot_image.jpg';
 let heygenTestLock = false;
-let videoBriefingLock = false;
+const videoBriefingLocks = new Set();   // v3.109: users with a video start in progress (was one global lock)
+const VIDEO_MAX_CONCURRENT = parseInt(process.env.VIDEO_MAX_CONCURRENT || '3', 10);   // video starts in progress at the same time, all users
 
 // Download pilot image on startup if not already present
 if (!fs.existsSync(PILOT_IMAGE_PATH)) {
@@ -598,6 +599,11 @@ async function syncStripeSubscription(sub, fallbackUid) {
   const ref = adminDb.collection('users').doc(uid);
   const snap = await ref.get();
   const cur = snap.exists ? snap.data() : {};
+  // v3.109: a late event for an OLD subscription (cancelled, then the user subscribed again) must not downgrade the new one
+  if (!active && cur.stripeSubscriptionId && cur.stripeSubscriptionId !== sub.id) {
+    console.log('[STRIPE] Ignored', sub.status, 'event for an old subscription', sub.id, '(current', cur.stripeSubscriptionId + ')');
+    return;
+  }
   const update = {
     stripeCustomerId: customerId,
     stripeSubscriptionId: sub.id,
@@ -635,6 +641,27 @@ async function incrementUsage(userId, field) {
     const ref = adminDb.collection('usage').doc(userId + '_' + monthKey);
     await ref.set({ [field]: admin.firestore.FieldValue.increment(1), userId, month: monthKey }, { merge: true });
   } catch(e) {}
+}
+
+// v3.109: check-and-take in one transaction. The old read-then-increment let parallel requests all pass the limit
+// (30 requests sent at once from a Free account all got through). Returns { ok, used } — used = the count after this request
+// when ok, the current count when refused. Fails open on a Firestore error, like getUserUsage did.
+async function tryConsumeUsage(userId, field, limit) {
+  const now = new Date();
+  const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const ref = adminDb.collection('usage').doc(userId + '_' + monthKey);
+  try {
+    return await adminDb.runTransaction(async tx => {
+      const snap = await tx.get(ref);
+      const cur = snap.exists ? (snap.data()[field] || 0) : 0;
+      if (cur >= limit) return { ok: false, used: cur };
+      tx.set(ref, { [field]: cur + 1, userId, month: monthKey }, { merge: true });
+      return { ok: true, used: cur + 1 };
+    });
+  } catch (e) {
+    console.log('[USAGE] consume error, allowing request:', e.message);
+    return { ok: true, used: 0 };
+  }
 }
 
 // Give back one unit (e.g. a video briefing that failed before or while rendering). Never goes below zero.
@@ -2370,9 +2397,48 @@ function ipRateLimited(req) {
 }
 setInterval(() => { const cutoff = Date.now() - 120000; for (const [ip, e] of ipHits) if (e.windowStart < cutoff) ipHits.delete(ip); }, 60000);
 
+// v3.109: request body caps. Every POST handler used to buffer the whole body before looking at the sign-in, so one huge
+// unauthenticated request could exhaust the server's memory. Routes that take files (base64 images / PDFs) get 30 MB, the rest less.
+const BODY_LIMITS = {
+  '/briefing': 30 * 1024 * 1024, '/api/chat': 30 * 1024 * 1024, '/api/general-chat': 30 * 1024 * 1024,
+  '/api/stripe-webhook': 1024 * 1024, '/api/analyze-notam': 256 * 1024,
+  '/api/extract-route': 8 * 1024, '/api/rating-feedback': 4 * 1024,
+};
+const BODY_LIMIT_DEFAULT = 64 * 1024;
+function enforceBodyLimit(req, res, urlPath) {
+  const limit = BODY_LIMITS[urlPath] || BODY_LIMIT_DEFAULT;
+  const tooBig = () => {
+    if (req._bodyTooBig) return; req._bodyTooBig = true;
+    console.log('[BODY LIMIT] rejected', urlPath, 'limit', limit);
+    if (!res.headersSent) { res.writeHead(413, { 'Content-Type': 'application/json', 'Connection': 'close' }); res.end(JSON.stringify({ error: 'payload_too_large' })); }
+    setImmediate(() => req.destroy());
+  };
+  if (parseInt(req.headers['content-length'] || '0', 10) > limit) { tooBig(); return false; }
+  let seen = 0;
+  req.on('data', c => { seen += c.length; if (seen > limit) tooBig(); });
+  return true;
+}
+// v3.109: natural-language route extraction (a Haiku call) is reachable without an account (voice input before sign-in): per-IP cap.
+const extractHits = new Map();
+function extractRateLimited(req) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const now = Date.now(); let e = extractHits.get(ip);
+  if (!e || now - e.t > 60000) { e = { t: now, n: 0 }; extractHits.set(ip, e); }
+  return ++e.n > 20;
+}
+setInterval(() => { const cut = Date.now() - 120000; for (const [k, e] of extractHits) if (e.t < cut) extractHits.delete(k); }, 60000);
+
 const server = http.createServer(async (req, res) => {
   try {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+
+  if (req.method === 'POST' && !enforceBodyLimit(req, res, req.url.split('?')[0])) return;
+  // v3.109: the per-IP limit now covers POST /api/* too (not the Stripe webhook: Stripe's own IPs, signature-checked)
+  if (req.method === 'POST' && req.url.startsWith('/api/') && req.url !== '/api/stripe-webhook' && ipRateLimited(req)) {
+    res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '60' });
+    res.end(JSON.stringify({ error: 'rate_limited' }));
+    return;
+  }
 
   if (req.method === 'GET' && req.url.startsWith('/api/') && !req.url.startsWith('/api/health') && ipRateLimited(req)) {
     res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '60' });
@@ -2467,6 +2533,12 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"firs":[],"rings":[]}'); }
     return;
   }
+  // v3.109: DOMPurify 3.4.17 (self-hosted, used to sanitise every briefing HTML on the page and on shared /b/ links)
+  if (req.method === 'GET' && urlPath === '/purify.min.js') {
+    try { res.writeHead(200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'public, max-age=604800' }); res.end(fs.readFileSync(path.join(__dirname, 'purify.min.js'))); }
+    catch (e) { res.writeHead(404); res.end(); }
+    return;
+  }
   if (req.method === 'GET' && req.url === '/favicon.png') {
     res.writeHead(200, { 'Content-Type': 'image/png' });
     res.end(fs.readFileSync(path.join(__dirname, 'favicon.png')));
@@ -2539,7 +2611,6 @@ const server = http.createServer(async (req, res) => {
     req.on('data', chunk => { body += chunk; if (body.length > 4000) req.destroy(); });
     req.on('end', async () => {
       try {
-        if (ipRateLimited(req)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'rate_limited' })); return; }
         const b = JSON.parse(body || '{}');
         const vote = String(b.vote || '');
         const route = String(b.route || '').toUpperCase().replace(/[^A-Z0-9 →>-]/g, '').slice(0, 24);
@@ -2805,6 +2876,7 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
 <div id="loadingScreen">
   <div id="loadingText">LOADING BRIEFING...</div>
 </div>
+<script src="/purify.min.js"></script>
 <div id="briefingContent" style="display:none;">
   <div style="position:sticky;top:0;z-index:100;background:rgba(6,10,15,0.95);border-bottom:1px solid #1a2a3a;padding:0 24px;height:48px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(8px);">
     <div style="display:flex;align-items:center;gap:12px;">
@@ -2844,7 +2916,11 @@ db.collection('briefings').doc('${briefingId}').get().then(doc => {
   if (doc.exists) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('briefingContent').style.display = 'block';
-    document.getElementById('briefingBody').innerHTML = doc.data().html;
+    // v3.109: a stored briefing is user-writable — never put it on the page unsanitised (no handlers at all on the shared page)
+    const html = String(doc.data().html || '');
+    const body = document.getElementById('briefingBody');
+    if (window.DOMPurify && DOMPurify.sanitize) body.innerHTML = DOMPurify.sanitize(html, { WHOLE_DOCUMENT: true, FORBID_TAGS: ['form', 'input', 'textarea', 'select', 'button', 'iframe', 'object', 'embed'] });
+    else body.textContent = new DOMParser().parseFromString(html, 'text/html').body.textContent;
     const route = doc.data().route || 'NOTAM Briefing';
     document.title = 'NOTAM Intelligence — ' + route;
   } else {
@@ -2997,13 +3073,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
   // ELEVENLABS_KEY must be set in Render environment variables
   if (req.method === 'POST' && req.url === '/api/generate-video-briefing') {
     console.log('[VIDEO BRIEFING] Request received');
-    if (videoBriefingLock) {
-      res.writeHead(429, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Already processing, please wait' }));
-      return;
-    }
-    videoBriefingLock = true;
-    let body = '';
+    let body = '', lockedUser = null;   // v3.109: per-user lock, taken only after sign-in (an unfinished anonymous request used to hold a global lock)
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       let chargedUser = null, started = false;   // a video that fails before it starts gives the credit back
@@ -3012,6 +3082,12 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         const { route, briefingId, risk: clientRisk, localHour } = JSON.parse(body);
         const userId = await getVerifiedUserId(req);
         if (!userId) { sendUnauthorized(res, req); return; }
+        if (videoBriefingLocks.has(userId) || videoBriefingLocks.size >= VIDEO_MAX_CONCURRENT) {
+          res.writeHead(429, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Already processing, please wait' }));
+          return;
+        }
+        videoBriefingLocks.add(userId); lockedUser = userId;
 
         const vPlan = await getUserPlan(userId);
         costCtx.enterWith({ userId, plan: vPlan });
@@ -3020,9 +3096,12 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
           res.end(JSON.stringify({ error: 'limit_reached', plan: vPlan, feature: 'video' }));
           return;
         }
+        let monthlyTaken = false;
         if (limitPlanOf(vPlan) === 'max') {
-          const vUsed = await getUserUsage(userId, 'video');
-          if (vUsed >= VIDEO_MONTHLY_MAX) {
+          const vSlot = await tryConsumeUsage(userId, 'video', VIDEO_MONTHLY_MAX);   // v3.109: atomic check + take
+          monthlyTaken = vSlot.ok;
+          const vUsed = vSlot.used;
+          if (!vSlot.ok) {
             // monthly videos used up: take one from a purchased pack, otherwise offer the pack
             if (await takeVideoCredit(userId).catch(() => false)) chargedFrom = 'pack';
             else {
@@ -3032,7 +3111,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             }
           }
         }
-        if (chargedFrom !== 'pack') await incrementUsage(userId, 'video');
+        if (chargedFrom !== 'pack' && !monthlyTaken) await incrementUsage(userId, 'video');   // admin
         chargedUser = userId;
 
         // Parse ICAO codes from route
@@ -3211,7 +3290,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: e.message }));
       } finally {
-        videoBriefingLock = false;
+        if (lockedUser) videoBriefingLocks.delete(lockedUser);
       }
     });
     return;
@@ -4106,8 +4185,8 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
 
   if (req.method === 'GET' && req.url === '/api/usage') {
     const authHeader = req.headers['authorization'] || '';
-    let usageUserId = req.headers['x-user-id'];
-    if (!usageUserId && authHeader.startsWith('Bearer ')) {
+    let usageUserId = null;   // v3.109: the x-user-id header was trusted (anyone could read any user's plan and usage)
+    if (authHeader.startsWith('Bearer ')) {
       try {
         const decoded = await admin.auth().verifyIdToken(authHeader.slice(7));
         usageUserId = decoded.uid;
@@ -4154,7 +4233,9 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { text } = JSON.parse(body);
+        if (extractRateLimited(req)) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ route: null, error: 'rate_limited' })); return; }
+        const text = String((JSON.parse(body || '{}') || {}).text || '').slice(0, 300).trim();   // v3.109: a route sentence, never a document
+        if (!text) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ route: null })); return; }
         const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -4202,14 +4283,12 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             return;
           }
           const effectivePlan = plan === 'admin' ? 'max' : limitPlanOf(plan);
-          const usage = await getUserUsage(userId, 'analysis');
           const limit = PLAN_LIMITS[effectivePlan]?.analysis || 0;
-          if (usage >= limit) {
+          if (!(await tryConsumeUsage(userId, 'analysis', limit)).ok) {   // v3.109: atomic check + take
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'limit_reached', plan, feature: 'analysis' }));
             return;
           }
-          await incrementUsage(userId, 'analysis');
         }
 
         const { notam, type } = JSON.parse(body);
@@ -4392,14 +4471,12 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             return;
           }
           const effectivePlan = plan === 'admin' ? 'max' : limitPlanOf(plan);
-          const usage = await getUserUsage(userId, 'chat');
           const limit = PLAN_LIMITS[effectivePlan]?.chat || 0;
-          if (usage >= limit) {
+          if (!(await tryConsumeUsage(userId, 'chat', limit)).ok) {   // v3.109: atomic check + take
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'limit_reached', plan, feature: 'chat' }));
             return;
           }
-          await incrementUsage(userId, 'chat');
         }
 
         const { question, briefingContext, currentRoute, history, image_base64, image_type, pdf_base64, images } = JSON.parse(body);
@@ -4933,21 +5010,23 @@ For everything else — explaining concepts, regulations, procedures, aircraft s
         let reqUsage = 0;
         {
           const plan = await getUserPlan(userId);
-          const usage = await getUserUsage(userId, 'briefings');
-          reqPlan = plan; reqUsage = usage;
+          reqPlan = plan;
           costCtx.enterWith({ userId, plan });
           const limit = PLAN_LIMITS[limitPlanOf(plan)]?.briefings || (plan === 'admin' ? 9999 : 3);
-          if (usage >= limit) {
+          const slot = await tryConsumeUsage(userId, 'briefings', limit);   // v3.109: atomic check + take
+          if (!slot.ok) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'limit_reached', plan, usage, limit }));
+            res.end(JSON.stringify({ error: 'limit_reached', plan, usage: slot.used, limit }));
             return;
           }
+          const usage = Math.max(0, slot.used - 1);   // count before this briefing (Max hybrid model choice)
+          reqUsage = usage;
           if (plan === 'free' && (!(await reserveFreeSkylink(2)) || !(await reserveFreeBriefingSlot()))) {
+            await decrementUsage(userId, 'briefings');   // not served: give the briefing back
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'free_capacity', plan }));
             return;
           }
-          await incrementUsage(userId, 'briefings');
           const newUsage = usage + 1;
           const remaining = limit - newUsage;
           if (remaining <= Math.floor(limit * 0.2) && remaining > 0) {

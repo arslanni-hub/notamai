@@ -51,6 +51,7 @@
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="/purify.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -3684,7 +3685,7 @@ async function handleSend(silent = false) {
             // Re-render every ~1500 chars to show content building up
             if (accumulated.length - lastRenderLen > 1500) {
               lastRenderLen = accumulated.length;
-              content.innerHTML = htmlHead + expandNotamTags(accumulated, notamRaw) + htmlFoot;
+              content.innerHTML = safeBriefingHtml(htmlHead + expandNotamTags(accumulated, notamRaw) + htmlFoot);
             }
           } else if (evt.type === 'done') {
             accumulated = expandNotamTags(accumulated, notamRaw);
@@ -3719,7 +3720,7 @@ async function handleSend(silent = false) {
             const detectedRisk = riskMatch ? riskMatch[1] : 'MEDIUM';
             const route = arr ? `${dep} → ${arr}` : dep;
             window.currentRiskSummary = evt.riskSummary ? Object.assign({ routeKey: routeKeyOf(route) }, evt.riskSummary) : null;   // handed to the video briefing so it agrees with this rating
-            const fullHtml = htmlHead + final + htmlFoot;
+            const fullHtml = safeBriefingHtml(htmlHead + final + htmlFoot);   // v3.109
             if (silent) {
               // Background mode: save but don't show overlay
               window.backgroundBriefingHtml = fullHtml;
@@ -3730,7 +3731,7 @@ async function handleSend(silent = false) {
               window.backgroundBriefingReady = true;
               saveBriefingToFirestore(route, detectedRisk, fullHtml).then(id => { window.currentBriefingId = id; loadBriefingHistory(); });
             } else {
-              content.innerHTML = htmlHead + final + htmlFoot;
+              content.innerHTML = fullHtml;
               clearInterval(deskTimer);
               if (briefingAnim && myRun === briefRunSeq && loading.style.display !== 'none') {
                 // v3.103: short "ready" beat on the map, then the whole briefing appears at once
@@ -4170,6 +4171,7 @@ function closeAIChat() {
 }
 
 function processClickableText(text, knownIcaos) {
+  text = String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');   // v3.109: model text is plain text
   // Only highlight codes that are in the knownIcaos set for this briefing
   if (knownIcaos && knownIcaos.size > 0) {
     text = text.replace(/\b([A-Z]{4})\b/g, (match, code) => {
@@ -4181,7 +4183,7 @@ function processClickableText(text, knownIcaos) {
   }
 
   // NOTAMs & MET panel references
-  text = text.replace(/NOTAMs\s*&\s*MET\s*panel/gi,
+  text = text.replace(/NOTAMs\s*&(?:amp;)?\s*MET\s*panel/gi,
     '<span onclick="closeAIChat();openRawDataPanel();" style="color:#2ec4b6;cursor:pointer;font-weight:700;">NOTAMs &amp; MET panel</span>');
 
   return text;
@@ -4871,6 +4873,36 @@ function hideEmailVerifyBanner() {
 function _escRaw(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function _tagAttr(attrs, name) { const m = new RegExp('\\b' + name + '\\s*=\\s*"([^"]*)"', 'i').exec(attrs || ''); return m ? m[1] : ''; }
 function _tagPart(body, tag) { const m = new RegExp('<' + tag + '>([\\s\\S]*?)</' + tag + '>', 'i').exec(body || ''); return m ? m[1].trim() : ''; }
+// v3.109: every briefing HTML string (streamed model output, the final briefing, archive copies) goes through DOMPurify
+// (self-hosted /purify.min.js) before it reaches the page — the model's output can be steered by NOTAM text and by uploaded
+// documents, and a stored briefing is user-writable. Only our own inline handlers survive (SAFE_ONCLICK).
+const SAFE_ONCLICK = /^(openRawDataForIcao\('[A-Z0-9]{3,4}'\)|openRawDataPanel\(\)|closeAIChat\(\);openRawDataPanel\(\);?)$/;
+let _purifyReady = false;
+function safeBriefingHtml(html) {
+  const P = window.DOMPurify;
+  if (!P || typeof P.sanitize !== 'function') return _fallbackSanitize(html);
+  if (!_purifyReady) {
+    P.addHook('uponSanitizeAttribute', (node, data) => { if (data.attrName === 'onclick' && SAFE_ONCLICK.test(String(data.attrValue || '').trim())) data.forceKeepAttr = true; });
+    P.addHook('afterSanitizeAttributes', node => { if (node.tagName === 'A' && node.getAttribute('target') === '_blank') node.setAttribute('rel', 'noopener noreferrer'); });
+    _purifyReady = true;
+  }
+  return P.sanitize(String(html || ''), { WHOLE_DOCUMENT: true, ADD_ATTR: ['target'], FORBID_TAGS: ['form', 'input', 'textarea', 'select', 'iframe', 'object', 'embed'] });
+}
+// used only if /purify.min.js failed to load: parse in an inert document, drop active elements, on* handlers and script URLs
+function _fallbackSanitize(html) {
+  const doc = document.implementation.createHTMLDocument('');
+  doc.documentElement.innerHTML = String(html || '');
+  doc.querySelectorAll('script,iframe,object,embed,frame,frameset,base,meta,link,form,input,textarea,select,noscript,template').forEach(n => n.remove());
+  doc.querySelectorAll('*').forEach(el => {
+    [...el.attributes].forEach(a => {
+      const n = a.name.toLowerCase(), v = String(a.value || '').replace(/[\s\u0000-\u001f]/g, '').toLowerCase();
+      if (n.startsWith('on') && !(n === 'onclick' && SAFE_ONCLICK.test(String(a.value).trim()))) el.removeAttribute(a.name);
+      else if (/^(href|src|action|formaction|xlink:href|srcdoc|data)$/.test(n) && (n === 'srcdoc' || /^(javascript|vbscript|data:text)/.test(v))) el.removeAttribute(a.name);
+    });
+  });
+  return doc.documentElement.outerHTML;
+}
+
 function expandNotamTags(html, rawMap) {
   if (!html || html.indexOf('<n') < 0) return html;
   const SEV = { crit: ['🔴', '🔴 CRITICAL'], high: ['🟠', '🟠 HIGH'], med: ['🟡', '🟡 MEDIUM'], low: ['🟢', '🟢 LOW'] };
@@ -5835,7 +5867,7 @@ function renderSidebarItem(item, isStarred) {
       overlay.classList.add('open');
       loading.style.display = 'none';
       content.style.display = 'block';
-      content.innerHTML = cachedHtml;
+      content.innerHTML = safeBriefingHtml(cachedHtml);
       status.textContent = 'ROUTE BRIEFING: ' + item.route + ' — COMPLETE';
       appendBriefingActions(content);
       extractBriefingIcaos();
@@ -6352,7 +6384,7 @@ async function pmOpenBriefing(id, route) {
     window.currentBriefingId = id;
     overlay.classList.add('open');
     if (loading) loading.style.display = 'none';
-    if (content) { content.style.display = 'block'; content.innerHTML = briefingCache[id]; }
+    if (content) { content.style.display = 'block'; content.innerHTML = safeBriefingHtml(briefingCache[id]); }
     if (status) status.textContent = 'ROUTE BRIEFING: ' + route + ' — COMPLETE';
     document.getElementById('mainNavbar').style.display = 'none';
     document.getElementById('askNotamAiBtn').style.display = 'flex';
@@ -6373,7 +6405,7 @@ async function pmOpenBriefing(id, route) {
       briefingCache[id] = html;
       window.currentBriefingId = id;
       if (loading) loading.style.display = 'none';
-      if (content) { content.style.display = 'block'; content.innerHTML = html; }
+      if (content) { content.style.display = 'block'; content.innerHTML = safeBriefingHtml(html); }
       if (status) status.textContent = 'ROUTE BRIEFING: ' + route + ' — COMPLETE';
       extractBriefingIcaos();
       appendBriefingActions(content);
@@ -10269,7 +10301,7 @@ function renderArchive(briefings) {
           const status = document.getElementById('resultStatus');
           overlay.classList.add('open');
           if (loading) loading.style.display = 'none';
-          if (content) { content.style.display = 'block'; content.innerHTML = briefingCache[briefing.id]; }
+          if (content) { content.style.display = 'block'; content.innerHTML = safeBriefingHtml(briefingCache[briefing.id]); }
           if (status) status.textContent = 'ROUTE BRIEFING: ' + briefing.route + ' — COMPLETE';
           extractBriefingIcaos();
           document.getElementById('askNotamAiBtn').style.display = 'flex';
