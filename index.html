@@ -5827,6 +5827,31 @@ async function loadBriefingHistory() {
       console.error('Chat history load error:', chatErr);
     }
 
+    // v3.111: finished video briefings in Recents too (same query as the Archive's video tab; Max/admin only create them)
+    try {
+      const vidSnapshot = await db.collection('videos')
+        .where('userId', '==', user.uid)
+        .where('status', '==', 'completed')
+        .orderBy('createdAt', 'desc')
+        .limit(20)
+        .get();
+      vidSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (!data.videoUrl) return;
+        recents.push({
+          id: doc.id,
+          type: 'video',
+          route: (data.route || 'Video Briefing'),
+          riskLevel: null,
+          videoUrl: data.videoUrl,
+          script: String(data.script || '').slice(0, 1200),
+          timestamp: data.createdAt?.toDate()?.toISOString() || new Date().toISOString()
+        });
+      });
+    } catch(vidErr) {
+      console.error('Video history load error:', vidErr);
+    }
+
     recents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     localStorage.setItem('notamai_recents', JSON.stringify(recents));
     console.log('Recents saved:', recents.length);
@@ -5842,11 +5867,15 @@ function renderSidebarItem(item, isStarred) {
   div.onmouseover = function() { this.style.background = 'rgba(255,255,255,0.06)'; this.querySelector('.item-menu-btn').style.opacity = '1'; };
   div.onmouseout  = function() { this.style.background = 'none'; this.querySelector('.item-menu-btn').style.opacity = '0'; };
   const isChat = item.type === 'chat';
+  const isVideo = item.type === 'video';
   const colors = { CRITICAL: '#e63946', HIGH: '#f4841a', MEDIUM: '#f2c641', LOW: '#2ec4b6' };
-  const dot = isChat
+  const dot = isVideo
+    ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z" fill="#4a9eff"/></svg>`
+    : isChat
     ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M8 9h8" /><path d="M8 13h4.5" /><path d="M10.325 19.605l-2.325 1.395v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v4.5" /><path d="M19 22.5a4.75 4.75 0 0 1 3.5 -3.5a4.75 4.75 0 0 1 -3.5 -3.5a4.75 4.75 0 0 1 -3.5 3.5a4.75 4.75 0 0 1 3.5 3.5" /></svg>`
     : `<div style="width:6px;height:6px;border-radius:50%;background:${colors[item.riskLevel] || '#4a5f72'};flex-shrink:0;"></div>`;
-  const text = `<span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.route}</span>`;
+  const label = String(item.route == null ? '' : item.route).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');   // v3.111: chat labels are user text
+  const text = `<span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${label}</span>`;
   const menuBtn = `<button class="item-menu-btn" onclick="event.stopPropagation(); toggleItemMenu(event,'${item.id}',${isStarred})" style="background:none;border:none;cursor:pointer;color:#4a5f72;padding:2px 4px;opacity:0;transition:opacity 0.15s;font-size:16px;line-height:1;border-radius:4px;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">···</button>`;
   div.innerHTML = dot + text + menuBtn;
   div.addEventListener('click', function(e) {
@@ -5854,6 +5883,10 @@ function renderSidebarItem(item, isStarred) {
 
     if (isChat) {
       resumeChatSession(item.id);
+      return;
+    }
+    if (isVideo) {
+      if (/^https:\/\//i.test(item.videoUrl || '')) playArchivedVideo(String(item.videoUrl).replace(/'/g, '%27'), String(item.script || '').replace(/'/g, '\u2019').replace(/\n/g, ' ').replace(/`/g, ''));
       return;
     }
 
@@ -11718,6 +11751,7 @@ async function pollVideoStatus(predictionId) {
         document.getElementById('vbPercent').textContent = '100%';
         document.getElementById('vbStatus').textContent = 'Your briefing is ready!';
         setTimeout(() => showResultVideo(data.videoUrl), 1000);
+        setTimeout(() => { try { loadBriefingHistory(); } catch (e) {} }, 4000);   // v3.111: the new video appears in Recents
       }
     } catch(e) {}
   }, 5000);
