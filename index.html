@@ -11729,7 +11729,7 @@ async function generateVideoBriefing(route, userId) {
         'Content-Type': 'application/json',
         ...(await getAuthHeader())
       },
-      body: JSON.stringify({ route, briefingId: window.currentBriefingId, risk: vbRisk, localHour: new Date().getHours() })
+      body: JSON.stringify({ route, briefingId: window.currentBriefingId, risk: vbRisk, localHour: new Date().getHours(), ...(window.currentUserPlan === 'admin' && /[?&]hdvideo=1\b/.test(location.search) ? { hd: true } : {}) })
     });
     if (response.status === 401) { handleAuthError(401); return; }
     if (response.status === 403) {

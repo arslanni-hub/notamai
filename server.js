@@ -698,12 +698,12 @@ function wavespeedResult(predId) {
 
 // v3.87: video cost = WaveSpeed seconds x VIDEO_USD_PER_SEC + ElevenLabs characters x ELEVENLABS_USD_PER_CHAR + script AI (~$0.02).
 // Spoken length from the script (~2.1 words/s at speed 1.0, divided by VIDEO_TTS_SPEED).
-function videoCostEstimate(script) {
+function videoCostEstimate(script, usdPerSec) {
   const t = String(script || '');
   const words = (t.match(/\S+/g) || []).length;
   const speed = Math.min(1.2, Math.max(0.9, parseFloat(process.env.VIDEO_TTS_SPEED || '1.1') || 1.1));
   const secs = words / 2.1 / speed;
-  return Math.round((secs * parseFloat(process.env.VIDEO_USD_PER_SEC || '0.015') + t.length * parseFloat(process.env.ELEVENLABS_USD_PER_CHAR || '0.0002') + 0.02) * 10000) / 10000;
+  return Math.round((secs * (usdPerSec || parseFloat(process.env.VIDEO_USD_PER_SEC || '0.015')) + t.length * parseFloat(process.env.ELEVENLABS_USD_PER_CHAR || '0.0002') + 0.02) * 10000) / 10000;
 }
 
 async function finalizeVideo(predId) {
@@ -3135,7 +3135,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
       let chargedUser = null, started = false;   // a video that fails before it starts gives the credit back
       let chargedFrom = 'monthly';               // v3.86: 'monthly' (one of the 5) or 'pack' (a purchased extra video)
       try {
-        const { route, briefingId, risk: clientRisk, localHour } = JSON.parse(body);
+        const { route, briefingId, risk: clientRisk, localHour, hd: hdReq } = JSON.parse(body);
         const userId = await getVerifiedUserId(req);
         if (!userId) { sendUnauthorized(res, req); return; }
         if (videoBriefingLocks.has(userId) || videoBriefingLocks.size >= VIDEO_MAX_CONCURRENT) {
@@ -3147,6 +3147,8 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
 
         const vPlan = await getUserPlan(userId);
         costCtx.enterWith({ userId, plan: vPlan });
+        // v3.116: admin-only one-off HD render (InfiniteTalk 720p, ~4x the Fast 480p price) for the landing-page sample; never for customers.
+        const hd = !!hdReq && vPlan === 'admin';
         if (limitPlanOf(vPlan) !== 'max' && vPlan !== 'admin') {
           res.writeHead(403, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'limit_reached', plan: vPlan, feature: 'video' }));
@@ -3302,9 +3304,10 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         const payload = JSON.stringify({
           image: 'data:image/jpeg;base64,' + imageBase64,
           audio: 'data:audio/mpeg;base64,' + audioBase64,
-          resolution: '480p'
+          resolution: hd ? '720p' : '480p'
         });
-        const wsRes = await fetch('https://api.wavespeed.ai/api/v3/wavespeed-ai/infinitetalk-fast', {
+        if (hd) console.log('[VIDEO BRIEFING] admin HD render (infinitetalk 720p)');
+        const wsRes = await fetch('https://api.wavespeed.ai/api/v3/wavespeed-ai/' + (hd ? 'infinitetalk' : 'infinitetalk-fast'), {
           method: 'POST',
           headers: {
             'Authorization': 'Bearer ' + process.env.WAVESPEED_KEY,
@@ -3333,7 +3336,8 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
           status: 'processing',
           chargedFrom,
           plan: vPlan,
-          costEst: videoCostEstimate(script),
+          hd,
+          costEst: videoCostEstimate(script, hd ? parseFloat(process.env.VIDEO_HD_USD_PER_SEC || '0.06') : 0),
           createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
         started = true;
