@@ -619,7 +619,7 @@ async function syncStripeSubscription(sub, fallbackUid) {
     update.updatedAt = admin.firestore.FieldValue.serverTimestamp();
   }
   await ref.set(update, { merge: true });
-  try { await recordTrialUsed(uid, cur.email || (await admin.auth().getUser(uid)).email); } catch (e) {}   // v3.97
+  try { await recordTrialUsed(uid, (await admin.auth().getUser(uid)).email || cur.email); } catch (e) {}   // v3.97; v3.110: Auth e-mail first (the doc field is browser-written)
   console.log('[STRIPE] Synced', uid, sub.status, '->', newPlan || '(unchanged)');
 }
 
@@ -891,13 +891,33 @@ async function callAI({ model = HAIKU_MODEL, maxTokens = 1000, messages, system 
 const NOTAMIFY_KEY = process.env.NOTAMIFY_KEY;
 const PORT = process.env.PORT || 3000;
 
-// Airport name cache — populated via SkyLink exact-ICAO lookup
+const ASK_ENROUTE_DAILY = parseInt(process.env.ASK_ENROUTE_DAILY || '10', 10);
+const askEnrouteUse = new Map();   // userId -> { day, n } (in memory: resets on deploy, which only makes it more generous)
+function takeAskEnrouteSlot(userId) {
+  const day = new Date().toISOString().slice(0, 10), e = askEnrouteUse.get(userId);
+  const cur = e && e.day === day ? e : { day, n: 0 };
+  if (cur.n >= ASK_ENROUTE_DAILY) { console.log('[CHAT ENROUTE] daily cap reached', userId); return false; }
+  cur.n++; askEnrouteUse.set(userId, cur);
+  if (askEnrouteUse.size > 5000) for (const [k, v] of askEnrouteUse) if (v.day !== day) askEnrouteUse.delete(k);
+  return true;
+}
+
+// Airport name cache — v3.110: local OurAirports index first (the same records SkyLink's search returns, no call, no cost),
+// SkyLink only for codes the index does not know. A failed lookup is remembered for 1 h only (it used to stick until a restart).
 const airportNameCache = {};
+const airportNameMiss = new Map();   // code -> retry-after ms
 
 async function fetchAndCacheAirportName(icao) {
   if (!icao) return icao;
   const code = icao.toUpperCase();
   if (airportNameCache[code]) return airportNameCache[code];
+  const local = /^[A-Z0-9]{4}$/.test(code) ? alternates.airportPoint(code) : null;
+  if (local && local.id === code && local.name) {
+    const name = [local.name, local.city, local.country].filter(Boolean).join(', ');
+    airportNameCache[code] = name;
+    return name;
+  }
+  if ((airportNameMiss.get(code) || 0) > Date.now()) return code;
   try {
     // Use SkyLink text search — same source as Tools panel, reliable for all regions
     const data = await fetchURL('https://skylink-api.p.rapidapi.com/airports/search/text?q=' + encodeURIComponent(code) + '&limit=5', {
@@ -919,7 +939,8 @@ async function fetchAndCacheAirportName(icao) {
     console.log('[AIRPORT CACHE] SkyLink lookup failed for', code, e.message);
   }
   // Fallback — return ICAO code only, never guess
-  airportNameCache[code] = code;
+  if (airportNameMiss.size > 2000) airportNameMiss.clear();
+  airportNameMiss.set(code, Date.now() + 3600 * 1000);
   return code;
 }
 
@@ -2385,10 +2406,26 @@ const AIRCRAFT_PERF_FALLBACK = {
   'TBM9': { icao_type:'TBM9', name:'DAHER TBM 900', engine_type:'Turboprop', engine_code:'T1', wake_category:'L', cruise_speed_ktas:330, service_ceiling_ft:31000, max_range_nm:1730, wing_span_m:12.85, length_m:10.68, mtow_t:3.354, max_passengers:6 },
 };
 
+// v3.110: one place for the client IP. Render's proxy appends to X-Forwarded-For but (per community reports) does not drop a value the
+// client sent itself, so the first entry may be forged. Until that is confirmed from real traffic, the source is configurable:
+// Render env CLIENT_IP_SOURCE = 'xff-first' (default, previous behaviour) | 'xff-last' (entry added by Render's proxy) | 'cf' (CF-Connecting-IP).
+// The first IP_HEADER_SAMPLES (default 5) /api/ requests after a start log the raw headers ([IP HEADERS]) so the right source can be chosen.
+const CLIENT_IP_SOURCE = process.env.CLIENT_IP_SOURCE || 'xff-first';
+let ipHeaderSamples = parseInt(process.env.IP_HEADER_SAMPLES || '5', 10);
+function clientIp(req) {
+  const xff = String(req.headers['x-forwarded-for'] || '').split(',').map(x => x.trim()).filter(Boolean);
+  if (ipHeaderSamples > 0 && req.url.startsWith('/api/')) {
+    ipHeaderSamples--;
+    console.log('[IP HEADERS]', JSON.stringify({ xff: req.headers['x-forwarded-for'] || null, cf: req.headers['cf-connecting-ip'] || null, tci: req.headers['true-client-ip'] || null, xri: req.headers['x-real-ip'] || null, remote: req.socket.remoteAddress || null }));
+  }
+  if (CLIENT_IP_SOURCE === 'cf' && req.headers['cf-connecting-ip']) return String(req.headers['cf-connecting-ip']).trim();
+  if (CLIENT_IP_SOURCE === 'xff-last' && xff.length) return xff[xff.length - 1];
+  return xff[0] || req.socket.remoteAddress || 'unknown';
+}
 const ipHits = new Map();
 const IP_LIMIT_PER_MIN = 240;
 function ipRateLimited(req) {
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ip = clientIp(req);
   const now = Date.now();
   let e = ipHits.get(ip);
   if (!e || now - e.windowStart > 60000) { e = { count: 0, windowStart: now }; ipHits.set(ip, e); }
@@ -2421,7 +2458,7 @@ function enforceBodyLimit(req, res, urlPath) {
 // v3.109: natural-language route extraction (a Haiku call) is reachable without an account (voice input before sign-in): per-IP cap.
 const extractHits = new Map();
 function extractRateLimited(req) {
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ip = clientIp(req);
   const now = Date.now(); let e = extractHits.get(ip);
   if (!e || now - e.t > 60000) { e = { t: now, n: 0 }; extractHits.set(ip, e); }
   return ++e.n > 20;
@@ -2563,7 +2600,7 @@ const server = http.createServer(async (req, res) => {
     // v3.88: public callers only get status (it used to expose users/MRR and read the whole users collection on every hit);
     // the business numbers need the admin token.
     let isAdminCaller = false;
-    try { const dec = await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', '')); isAdminCaller = dec.email === 'arslanni@gmail.com'; } catch (e) { isAdminCaller = false; }
+    try { const dec = await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', '')); isAdminCaller = (dec.email === 'arslanni@gmail.com' && dec.email_verified === true); } catch (e) { isAdminCaller = false; }
     if (!isAdminCaller) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() })); return; }
     try {
       const usersSnap = await adminDb.collection('users').get();
@@ -2640,7 +2677,7 @@ const server = http.createServer(async (req, res) => {
     const given = q.get('key') || '';
     let okKey = keyEnv.length >= 16 && given.length === keyEnv.length && require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(keyEnv));
     if (!okKey) {   // the admin page calls this with the signed-in admin's Firebase token
-      try { const dec = await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', '')); okKey = dec.email === 'arslanni@gmail.com'; } catch (e) { okKey = false; }
+      try { const dec = await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', '')); okKey = (dec.email === 'arslanni@gmail.com' && dec.email_verified === true); } catch (e) { okKey = false; }
     }
     if (!okKey) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
     try {
@@ -2712,7 +2749,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url.startsWith('/api/admin/costs')) {
     try {
       const dec = await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', ''));
-      if (dec.email !== 'arslanni@gmail.com') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Forbidden' })); return; }
+      if ((dec.email !== 'arslanni@gmail.com' || dec.email_verified !== true)) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Forbidden' })); return; }
       await flushCosts();
       const m = (new URL(req.url, 'http://x').searchParams.get('month') || new Date().toISOString().slice(0, 7)).slice(0, 7);
       const sysDoc = await adminDb.collection('system').doc('costs_' + m).get();
@@ -2738,7 +2775,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url.startsWith('/api/admin/funnel')) {
     try {
       const dec = await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', ''));
-      if (dec.email !== 'arslanni@gmail.com') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Forbidden' })); return; }
+      if ((dec.email !== 'arslanni@gmail.com' || dec.email_verified !== true)) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Forbidden' })); return; }
       const days = Math.max(0, Math.min(3650, parseInt(new URL(req.url, 'http://x').searchParams.get('days') || '30', 10) || 0));
       const since = days ? Date.now() - days * 86400000 : 0;
       const ADMIN_MAILS = ['arslanni@gmail.com', 'admin@notamai.com'];
@@ -2797,7 +2834,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/api/admin/briefing-costs') {
     try {
       const dec = await admin.auth().verifyIdToken((req.headers.authorization || '').replace('Bearer ', ''));
-      if (dec.email !== 'arslanni@gmail.com') { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Forbidden' })); return; }
+      if ((dec.email !== 'arslanni@gmail.com' || dec.email_verified !== true)) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Forbidden' })); return; }
       const now = new Date();
       const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
       const snap = await adminDb.collection('briefingCosts').where('createdAt', '>=', monthStart).limit(20000).get();
@@ -2821,7 +2858,7 @@ const server = http.createServer(async (req, res) => {
     const idToken = authHeader.replace('Bearer ', '');
     try {
       const decoded = await admin.auth().verifyIdToken(idToken);
-      if (decoded.email !== 'arslanni@gmail.com') {
+      if ((decoded.email !== 'arslanni@gmail.com' || decoded.email_verified !== true)) {
         res.writeHead(403);
         res.end(JSON.stringify({ error: 'Forbidden' }));
         return;
@@ -3728,8 +3765,6 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
             'x-rapidapi-host': 'skylink-api.p.rapidapi.com'
           }
         });
-        console.log('[NOTAM RAW RESPONSE TYPE]', typeof data);
-        console.log('[NOTAM RAW RESPONSE SAMPLE]', JSON.stringify(data).slice(0, 500));
         if (!skylinkNotamsOk(data)) {
           notifySkylinkFailure(icao);
           res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -4583,7 +4618,9 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
 
         // Fetch live en-route FIR NOTAMs if user asks about airspace/FIRs/route
         const needsEnroute = /en.?route|fir|airspace|hava saha|güzergah|rota boyunca|military|askeri|tfr|restricted|yasak/i.test(question);
-        if (needsEnroute && icaoCodes.length >= 2) {
+        // v3.110: the route comes from the page, so any route could be asked for; FIR fetches for routes that were not just briefed
+        // cost SkyLink calls -> at most ASK_ENROUTE_DAILY (default 10) per user per day (a just-briefed route is served from the FIR cache).
+        if (needsEnroute && icaoCodes.length >= 2 && takeAskEnrouteSlot(userId)) {
           try {
             const dep = icaoCodes[0];
             const arr = icaoCodes[icaoCodes.length - 1];
