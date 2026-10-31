@@ -7127,15 +7127,15 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
           <div class="step-title">Get Your Full AI Briefing</div>
           <p class="step-desc">Receive a complete operational intelligence briefing — risk score, decoded NOTAMs, Go/No-Go recommendation, pilot action items, and dispatch notes. Got a follow-up question about this specific briefing? <strong>Ask NOTAM AI</strong> right from the result screen.</p>
           <div class="step-visual">
-            <div class="brief-header">
+            <div class="brief-header" style="border-top-color:#f2c641;">
               <div class="brief-route">KJFK → EGLL</div>
               <div class="brief-sub">PRE-FLIGHT OPERATIONAL INTELLIGENCE BRIEFING</div>
               <div class="brief-risk-row">
-                <span class="brief-risk-label">CRITICAL</span>
+                <span class="brief-risk-label" style="color:#f2c641;">MEDIUM</span>
                 <div class="brief-pips">
-                  <div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip on"></div><div class="brief-pip"></div><div class="brief-pip"></div>
+                  <div class="brief-pip on" style="background:#f2c641;"></div><div class="brief-pip on" style="background:#f2c641;"></div><div class="brief-pip on" style="background:#f2c641;"></div><div class="brief-pip on" style="background:#f2c641;"></div><div class="brief-pip on" style="background:#f2c641;"></div><div class="brief-pip"></div><div class="brief-pip"></div><div class="brief-pip"></div><div class="brief-pip"></div><div class="brief-pip"></div>
                 </div>
-                <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#f4841a;">8.5 / 10</span>
+                <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#f2c641;">5 / 10</span>
               </div>
             </div>
           </div>
@@ -7146,56 +7146,62 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
     <!-- PREVIEW SECTION -->
     <div class="preview-section">
       <h2 class="section-title">What a full AI briefing looks like</h2>
-      <p class="section-subtitle">Real KJFK → EGLL briefing excerpt</p>
+      <p class="section-subtitle">Real KJFK → EGLL briefing · generated 31 Oct 2026, 18:51Z · shortened excerpt</p>
+      <!-- v3.113: real briefing (shared link /b/3FctPT3nxhYg4DEBGEjp), text shortened, nothing added. Replace with a newer one when the format changes. -->
       <div class="prev-card" style="border:1px solid #1a2a3a;text-align:center;margin-bottom:16px;">
           <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#8a9bb0;letter-spacing:2px;margin-bottom:8px;">RISK SCORE</div>
-          <div style="font-family:'Orbitron',sans-serif;font-size:36px;font-weight:900;color:#e63946;">8.5 / 10</div>
-          <div style="display:flex;justify-content:center;gap:3px;margin:10px auto;">
-            <div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#e63946;"></div><div style="width:16px;height:6px;border-radius:2px;background:#1a2a3a;"></div><div style="width:16px;height:6px;border-radius:2px;background:#1a2a3a;"></div>
-          </div>
-          <span style="display:inline-block;background:rgba(230,57,70,0.15);color:#e63946;border:1px solid #7a1a20;padding:3px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;margin-top:10px;">CRITICAL</span>
+          <div style="font-family:'Orbitron',sans-serif;font-size:36px;font-weight:900;color:#f2c641;">5 / 10</div>
+          <div style="display:flex;justify-content:center;gap:3px;margin:10px auto;"><div style="width:16px;height:6px;border-radius:2px;background:#f2c641;"></div><div style="width:16px;height:6px;border-radius:2px;background:#f2c641;"></div><div style="width:16px;height:6px;border-radius:2px;background:#f2c641;"></div><div style="width:16px;height:6px;border-radius:2px;background:#f2c641;"></div><div style="width:16px;height:6px;border-radius:2px;background:#f2c641;"></div><div style="width:16px;height:6px;border-radius:2px;background:#1a2a3a;"></div><div style="width:16px;height:6px;border-radius:2px;background:#1a2a3a;"></div><div style="width:16px;height:6px;border-radius:2px;background:#1a2a3a;"></div><div style="width:16px;height:6px;border-radius:2px;background:#1a2a3a;"></div><div style="width:16px;height:6px;border-radius:2px;background:#1a2a3a;"></div></div>
+          <span style="display:inline-block;background:rgba(242,198,65,0.12);color:#f2c641;border:1px solid #6b5a1c;padding:3px 12px;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;margin-top:10px;">MEDIUM</span>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;line-height:1.6;margin-top:14px;text-align:left;border-top:1px solid #1a2a3a;padding-top:12px;"><span style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#4a5f72;">RISK BASIS</span> — rule-based floor MEDIUM 5/10 from 8 Tier-2 factors: KJFK 1 of 4 runways closed · KJFK ILS/LOC/glide path unserviceable (4 NOTAMs) · EGLL forecast BECMG 0103/0106Z: visibility 300 m · en-route: restricted/danger area activity (47 NOTAMs) · en-route: navaid unserviceable (6 NOTAMs)</div>
         </div>
       <div style="display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:16px;">
-        <div class="prev-card" style="border-left:4px solid #f4841a;">
-          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#f4841a;margin-bottom:10px;">✈️ EXECUTIVE SUMMARY</div>
-          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;line-height:1.6;">KJFK-EGLL rotation faces HIGH operational risk driven by three simultaneous active hazards. ILS CAT III unserviceable at arrival, active UAS swarm operations near final approach, and moderate turbulence SIGMET FL180-FL280 over London FIR create compounding risk during arrival phase.</div>
+        <div class="prev-card" style="border-left:4px solid #f2c641;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#f2c641;margin-bottom:10px;">✈️ EXECUTIVE SUMMARY</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;line-height:1.6;">KJFK has one of four runways closed with three remaining, while ILS/LOC/glide path outages and the runway 31L PAPI outage reduce approach and visual-guidance capability on the departure side. At EGLL the most significant factor is the TAF: BECMG 0103/0106Z brings 300 m visibility in fog, which directly affects arrival planning for a flight arriving in the early hours of 01 NOV. En route, a large volume of danger area, TDA and laser/UAS activity in EGTT (47 route-relevant NOTAMs) and six unserviceable VOR radials in KZNY require RNAV/GPS reliance and careful route checking.</div>
         </div>
         <div class="prev-card" style="background:rgba(230,57,70,0.06);border:1px solid #7a1a20;">
           <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#e63946;margin-bottom:10px;">🔴 COMPOUNDING RISK MATRIX</div>
-          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#ff8a8a;border-bottom:1px solid rgba(230,57,70,0.15);padding:6px 0;">⚡ ILS CAT III U/S + Low Visibility TEMPO — approach minima severely degraded</div>
-          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#ff8a8a;border-bottom:1px solid rgba(230,57,70,0.15);padding:6px 0;">⚡ UAS Swarm + Degraded ILS — crew attention split at critical phase</div>
-          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#ff8a8a;padding:6px 0;">⚡ Turbulence SIGMET + Obstacle Activity — compound arrival workload</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#ff8a8a;border-bottom:1px solid rgba(230,57,70,0.15);padding:6px 0;">⚡ EGLL fog × London-area alternates — the forecast fog will likely affect the whole London basin, so nearby alternates (EGKK, EGGW, EGSS) may be similarly affected; consider a more distant aerodrome such as EGHH (66 NM)</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#ff8a8a;padding:6px 0;">⚡ KJFK ILS outages × runway closure — departure-side flexibility is reduced if surface winds or visibility change; today's weather (10 SM) keeps the impact limited</div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:16px;">
-        <div class="prev-card" style="border-left:4px solid #e63946;">
-          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;margin-bottom:6px;">🔴 A1286/2026 | TYPE: NAVIGATION</div>
-          <div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ffffff;margin-bottom:10px;">LON VOR/DME Partially Unserviceable</div>
-          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a2a3a;font-size:12px;"><span style="font-family:'Rajdhani',sans-serif;color:#4a5f72;">📍 Location</span><span style="font-family:'Rajdhani',sans-serif;color:#cdd9e5;">EGLL — LON VOR 113.60MHz</span></div>
-          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;margin-bottom:10px;"><span style="font-family:'Rajdhani',sans-serif;color:#4a5f72;">⏰ Time Window</span><span style="font-family:'Rajdhani',sans-serif;color:#cdd9e5;">09 APR 0800Z — 09 JUL 1900Z</span></div>
-          <div style="background:rgba(0,0,0,0.3);border:1px solid #1a2a3a;padding:8px;"><div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#f2c641;margin-bottom:4px;">⚠️ REQUIRED ACTION</div><div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;">Use RNAV/GPS backup. Brief alternative approach procedures.</div></div>
+        <div class="prev-card" style="border-left:4px solid #f4841a;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;margin-bottom:6px;">🟠 KJFK A8720/2026 | TYPE: LIGHTING</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ffffff;margin-bottom:10px;">RWY 31L PAPI Unserviceable</div>
+          <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #1a2a3a;font-size:12px;"><span style="font-family:'Rajdhani',sans-serif;color:#4a5f72;white-space:nowrap;">📍 Location</span><span style="font-family:'Rajdhani',sans-serif;color:#cdd9e5;text-align:right;">KJFK — Runway 31L</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #1a2a3a;font-size:12px;"><span style="font-family:'Rajdhani',sans-serif;color:#4a5f72;white-space:nowrap;">⏰ Time Window UTC</span><span style="font-family:'Rajdhani',sans-serif;color:#cdd9e5;text-align:right;">29 OCT 2026 1302Z — 04 DEC 2026 2359Z</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:12px;"><span style="font-family:'Rajdhani',sans-serif;color:#4a5f72;white-space:nowrap;">📐 Operational Impact</span><span style="font-family:'Rajdhani',sans-serif;color:#cdd9e5;text-align:right;">No PAPI glide path guidance on 31L — relevant if a return to KJFK is needed</span></div>
+          <div style="background:rgba(0,0,0,0.3);border:1px solid #1a2a3a;padding:8px;margin:10px 0 8px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a9bb0;word-break:break-word;">A8720/26 NOTAMN Q) KZNY/QLPAS////000/999/4038N07346W005 A) KJFK B) 2610291302 C) 2612042359 E) RWY 31L PAPI U/S</div>
+          <div style="background:rgba(0,0,0,0.3);border:1px solid #1a2a3a;padding:8px;"><div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#f2c641;margin-bottom:4px;">⚠️ REQUIRED CREW ACTION</div><div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#8a9bb0;">Brief runway 31L as having no PAPI if a return is possible. Prefer an ILS-supported runway for any return and confirm status with the current ATIS before departure.</div></div>
         </div>
 
         <div class="prev-card" style="border:1px solid #1a2a3a;">
-          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#4a9eff;margin-bottom:12px;">✅ PILOT ACTION ITEMS</div>
-          <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #1a2a3a;"><span style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;min-width:24px;">01</span><span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;"><em style="color:#f2c641;font-style:normal;">ILS APPROACH BRIEF</em> — Review CAT I minima (DH 200ft / RVR 550m), missed approach procedure fully reviewed</span></div>
-          <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #1a2a3a;"><span style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;min-width:24px;">02</span><span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;"><em style="color:#f2c641;font-style:normal;">GPS BACKUP</em> — Verify RNAV capability, LON VOR unreliable, cross-check with ILS DME</span></div>
-          <div style="display:flex;gap:10px;padding:8px 0;"><span style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;min-width:24px;">03</span><span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;"><em style="color:#f2c641;font-style:normal;">TURBULENCE BRIEF</em> — Seatbelt sign ON before London FIR, cabin secured FL180-FL280</span></div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#4a9eff;margin-bottom:12px;">✅ PILOT ACTION ITEMS <span style="color:#4a5f72;">(3 of 6)</span></div>
+          <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #1a2a3a;"><span style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;min-width:24px;">01</span><span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.5;">Confirm the closed runway at KJFK (A8789/2026) and verify the runway in use against departure performance and the SID.</span></div>
+          <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #1a2a3a;"><span style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;min-width:24px;">04</span><span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.5;">Plan for 300 m fog at EGLL from 0103Z: verify CAT II/III crew and aircraft currency and the low-visibility arrival rate with ATC.</span></div>
+          <div style="display:flex;gap:10px;padding:8px 0;"><span style="font-family:'Orbitron',sans-serif;font-size:14px;color:#4a9eff;min-width:24px;">05</span><span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.5;">Compute arrival time against the TAF change groups: arrival before 0100Z avoids the worst conditions, while arrival after 0103Z requires full low-visibility planning.</span></div>
+        </div>
+        <div class="prev-card" style="border:1px solid #1a2a3a;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#4a9eff;margin-bottom:12px;">🛫 ALTERNATE AERODROMES</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;">Candidates (verify weather and NOTAMs): EGKK London Gatwick (22 NM), EGGW London Luton (24 NM), EGSS London Stansted (36 NM), EGHH Bournemouth (66 NM). KJFK take-off alternates: KLGA LaGuardia (9 NM), KEWR Newark (18 NM).</div>
         </div>
       </div>
       <div style="max-width:100%;margin:0 auto;">
         <div class="prev-card" style="background:rgba(244,132,26,0.07);border:1px solid #7a3a08;border-top:3px solid #f4841a;">
           <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#f4841a;margin-bottom:12px;">🎯 GO / NO-GO RECOMMENDATION</div>
           <div style="font-family:'Orbitron',sans-serif;font-size:18px;font-weight:700;color:#f4841a;margin-bottom:12px;">GO WITH CONDITIONS ⚠️</div>
-          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;margin-bottom:12px;">Flight viable with enhanced crew awareness. ILS degradation and UAS activity require strict procedural adherence during arrival phase.</div>
-          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;margin-bottom:6px;">✓ <span style="color:#2ec4b6;">CAT I approach briefed</span> — DH 200ft / RVR 550m for arrival runway</div>
-          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;margin-bottom:6px;">✓ <span style="color:#2ec4b6;">GPS/RNAV backup verified</span> — LON VOR unreliable, alternative nav confirmed</div>
-          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;margin-bottom:12px;">✓ <span style="color:#2ec4b6;">Additional fuel loaded</span> — missed approach + holding contingency included</div>
-          <div style="background:rgba(230,57,70,0.08);border:1px solid #7a1a20;padding:10px;"><span style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;color:#e63946;">✕ NO-GO IF: Visibility drops below CAT I minimums or GPS systems unserviceable</span></div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;margin-bottom:12px;">The departure is workable with three KJFK runways available and benign weather, but the forecast 300 m fog at EGLL from 0103Z, combined with probable regional fog affecting nearby alternates, makes arrival planning the critical factor.</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;margin-bottom:6px;">✓ <span style="color:#2ec4b6;">Destination alternate verified</span> — weather at or above minima at ETA; consider EGHH if London-area alternates are fog-affected</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;margin-bottom:6px;">✓ <span style="color:#2ec4b6;">CAT II/III capability confirmed</span> — crew and aircraft, for a Heathrow arrival after 0103Z</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#cdd9e5;margin-bottom:12px;">✓ <span style="color:#2ec4b6;">Fuel</span> — low-visibility holding contingency plus diversion to the chosen alternate</div>
+          <div style="background:rgba(230,57,70,0.08);border:1px solid #7a1a20;padding:10px;"><span style="font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;color:#e63946;">✕ NO-GO IF: no alternate with forecast weather above minima is available while Heathrow is forecast at 300 m from 0103Z, or CAT II/III capability cannot be confirmed for an arrival after 0103Z</span></div>
         </div>
       </div>
+      <div style="text-align:center;margin-top:14px;font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;">Data as of the generation time above — run your own briefing for current conditions.</div>
       <div style="text-align:center;margin-top:24px;">
-        <a href="#pricing-section" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a9eff;text-decoration:none;letter-spacing:1px;">This is what you get with Pro →</a>
+        <a href="#pricing-section" style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a9eff;text-decoration:none;letter-spacing:1px;">Full route briefings with en-route FIR analysis start at Pro →</a>
       </div>
     </div>
 
