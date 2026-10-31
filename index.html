@@ -350,16 +350,6 @@ canvas#sky {
   margin-bottom: 8px;
   pointer-events: auto;
 }
-/* v3.114: signed-out hero — value proposition instead of the greeting, plus a sign-up button */
-.visitor-cta { display: none; }
-#mainContent.chat-active .visitor-cta { display: none !important; }
-body.visitor .visitor-cta { display: flex; justify-content: center; align-items: center; gap: 22px; flex-wrap: wrap; margin-top: 26px; }
-body.visitor .greeting { font-size: clamp(19px, 2.6vw, 30px); line-height: 1.35; max-width: 760px; margin-left: auto; margin-right: auto; padding: 0 16px; }
-body.visitor .greeting-sub { visibility: visible !important; max-width: 640px; margin-left: auto; margin-right: auto; padding: 0 16px; line-height: 1.6; color: rgba(180,210,255,0.72); }
-.visitor-cta-main { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #060a0f; background: #4a9eff; border: 1px solid #4a9eff; border-radius: 6px; padding: 11px 26px; cursor: pointer; transition: background .2s; }
-.visitor-cta-main:hover { background: #6ab4ff; border-color: #6ab4ff; }
-.visitor-cta-link { font-family: 'Rajdhani', sans-serif; font-size: 13px; letter-spacing: 1.5px; color: #8a9bb0; text-decoration: none; }
-.visitor-cta-link:hover { color: #c8daf0; }
 .greeting-sub {
   font-size: 15px;
   font-weight: 300;
@@ -1555,11 +1545,6 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     </button>
   </div>
 
-  <!-- v3.114: signed-out visitors only (body.visitor) — what it is, that it is free, and where to see a real result -->
-  <div class="visitor-cta" id="visitorCta">
-    <button class="visitor-cta-main" onclick="gtag('event','hero_signup_click');openSignupModal()">Get Started Free</button>
-    <a class="visitor-cta-link" href="#sample-briefing">See a real briefing ↓</a>
-  </div>
 
 </div>
 
@@ -3211,17 +3196,7 @@ function applyProfileName(user, data) {
   greetingName = full;
   setGreeting();
 }
-const VISITOR_HEADLINE = 'Turn hundreds of NOTAMs into one clear pre\u2011flight briefing.';
-const VISITOR_SUB = 'Live NOTAMs, METAR and TAF for any airport or route — risk score, Go/No\u2011Go, alternates and crew actions. Free plan, no credit card.';
-const MEMBER_SUB = 'Enter an ICAO code, a route, or paste your aviation data';
-function setVisitorHero(on) {   // v3.114
-  document.body.classList.toggle('visitor', !!on);
-  const sub = document.querySelector('.greeting-sub');
-  if (sub) sub.textContent = on ? VISITOR_SUB : MEMBER_SUB;
-  if (on) { const g = document.getElementById('greeting'); if (g) g.textContent = VISITOR_HEADLINE; }
-}
 function setGreeting() {
-  if (document.body.classList.contains('visitor')) return;
   const h = new Date().getHours();
   const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
   const suffix = greetingName === 'Captain' ? '!' : '';
@@ -6004,7 +5979,6 @@ function deleteBriefing(e, id) {
 
 firebase.auth().onAuthStateChanged(async user => {
   console.log('onAuthStateChanged fired, user:', user ? user.email : 'null');
-  if (user) setVisitorHero(false);
   if (user && needsEmailVerification(user)) showEmailVerifyBanner(); else hideEmailVerifyBanner();
   const sidebar = document.getElementById('appSidebar');
   const navbar  = document.getElementById('mainNavbar');
@@ -6095,7 +6069,7 @@ firebase.auth().onAuthStateChanged(async user => {
     document.body.classList.remove('sidebar-open');
     document.body.classList.remove('sidebar-collapsed');
     greetingName = 'Captain';
-    setVisitorHero(true);
+    setGreeting();
     document.querySelector('.ui').style.position = 'absolute';
     document.querySelector('.ui').style.left = '0';
     document.querySelector('.ui').style.width = '100vw';
