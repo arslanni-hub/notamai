@@ -28,10 +28,10 @@
 
 <!-- Open Graph / Social Media -->
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://notamai.onrender.com">
+<meta property="og:url" content="https://notamai.com">
 <meta property="og:title" content="NOTAM Intelligence — AI-Powered Pre-Flight Briefing System">
 <meta property="og:description" content="AI pre-flight briefings for pilots. NOTAMs, METAR, TAF, SIGMETs — risk score and Go/No-Go in seconds.">
-<meta property="og:image" content="https://notamai.onrender.com/og-image.jpg">
+<meta property="og:image" content="https://notamai.com/og-image.jpg">
 <meta property="og:site_name" content="NOTAM Intelligence">
 <meta property="og:locale" content="en_US">
 
@@ -164,6 +164,20 @@ body { overflow-x: hidden; }
   transition: background 0.2s;
 }
 .nav-btn-start:hover { background: #6ab4ff; border-color: #6ab4ff; }
+/* v3.112: phones — the bar was ~650 px wide and pushed the logo and Log In / Get Started off screen (sideways scroll).
+   Below 900 px: section links hidden (the sections follow on scroll), bar spans the screen, logo + both buttons stay visible. */
+@media (max-width: 900px) {
+  #navInner { left: 10px; right: 10px; transform: none; display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; }
+  #navInner .nav-link { display: none; }
+  #navInner .nav-logo > span { display: none; }
+  #navAuthButtons { display: flex; gap: 8px; }
+  .nav-btn-login, .nav-btn-start { padding: 7px 12px; letter-spacing: 1.5px; }
+}
+@media (max-width: 600px) { .hud .alt-tape { display: none; } }
+/* v3.112: slide-in (reveal) animations start off to the side — keep them from widening the page on phones */
+#about-section, #how-it-works-section, #pricing-section { overflow-x: clip; }
+@media (max-width: 900px) { .um-grid { grid-template-columns: repeat(2,1fr) !important; } }
+@media (max-width: 560px) { .um-grid { grid-template-columns: 1fr !important; } }
 
 /* ═══ COCKPIT FRAME ═══ */
 #scene {
@@ -1658,7 +1672,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     </div>
 
     <!-- PRICING CARDS -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding-top:14px;">
+    <div class="um-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding-top:14px;">
 
       <!-- FREE -->
       <div style="background:#0d1520;border:1px solid #1a2a3a;border-radius:8px;padding:28px 20px;">
@@ -6208,13 +6222,13 @@ function copyInviteLink() {
 }
 
 function inviteViaWhatsApp() {
-  const text = '🛫 Check out NOTAM Intelligence - AI-powered pre-flight briefing tool. Use my referral link to get 10% off: ' + window.currentInviteUrl;
+  const text = '🛫 Check out NOTAM Intelligence - AI-powered pre-flight briefing tool. Try it here: ' + window.currentInviteUrl;
   window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
 function inviteViaEmail() {
   const subject = 'Join me on NOTAM Intelligence';
-  const body = 'Hi,\n\nI\'ve been using NOTAM Intelligence for AI-powered pre-flight briefings and thought you\'d find it useful.\n\nUse my referral link to sign up and get 10% off your first month:\n' + window.currentInviteUrl + '\n\nBest regards';
+  const body = 'Hi,\n\nI\'ve been using NOTAM Intelligence for AI-powered pre-flight briefings and thought you\'d find it useful.\n\nYou can start on the free plan here:\n' + window.currentInviteUrl + '\n\nBest regards';
   window.location.href = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
 }
 
@@ -7032,8 +7046,8 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
     </section>
     <div class="stats">
       <div><div class="stat-number">Seconds</div><div class="stat-label">From Query to Full Briefing</div></div>
-      <div><div class="stat-number">100%</div><div class="stat-label">Live NOTAM Coverage</div></div>
-      <div><div class="stat-number">ICAO</div><div class="stat-label">Annex 15 Compliant</div></div>
+      <div><div class="stat-number">LIVE</div><div class="stat-label">NOTAM · METAR · TAF</div></div>
+      <div><div class="stat-number">ICAO</div><div class="stat-label">Annex 15 / PANS-AIM Based</div></div>
     </div>
     <hr class="divider">
     <div class="mission">
@@ -7045,7 +7059,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
       <div class="mission-right">
         <div class="feature-card"><div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M16.616 13.924a5 5 0 1 0 -9.23 0" /><path d="M20.307 15.469a9 9 0 1 0 -16.615 0" /><path d="M9 21l3 -9l3 9" /><path d="M10 19h4" /></svg></div><div class="feature-title">Live Data</div><div class="feature-desc">Real-time NOTAMs, METAR and TAF from official sources</div></div>
         <div class="feature-card"><div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg></div><div class="feature-title">AI Analysis</div><div class="feature-desc">Advanced AI cross-references all data to identify compounding risks</div></div>
-        <div class="feature-card"><div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M13 17.5v4.5l2 -1.5l2 1.5v-4.5" /><path d="M10 19h-5a2 2 0 0 1 -2 -2v-10c0 -1.1 .9 -2 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -1 1.73" /><path d="M6 9l12 0" /><path d="M6 12l3 0" /><path d="M6 15l2 0" /></svg></div><div class="feature-title">ICAO Compliant</div><div class="feature-desc">Built on ICAO Annex 15, PANS-AIM Doc 10066 standards</div></div>
+        <div class="feature-card"><div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M13 17.5v4.5l2 -1.5l2 1.5v-4.5" /><path d="M10 19h-5a2 2 0 0 1 -2 -2v-10c0 -1.1 .9 -2 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -1 1.73" /><path d="M6 9l12 0" /><path d="M6 12l3 0" /><path d="M6 15l2 0" /></svg></div><div class="feature-title">ICAO-Based</div><div class="feature-desc">Reads NOTAMs the way ICAO Annex 15 and PANS-AIM (Doc 10066) define them</div></div>
         <div class="feature-card"><div class="feature-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h5.697" /><path d="M18 14v4h4" /><path d="M18 11v-4a2 2 0 0 0 -2 -2h-2" /><path d="M8 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2" /><path d="M14 18a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M8 11h4" /><path d="M8 15h3" /></svg></div><div class="feature-title">Complete Picture</div><div class="feature-desc">Risk score, decoded NOTAMs, Go/No-Go recommendation, pilot actions and dispatch notes — one document, nothing left out</div></div>
       </div>
     </div>
@@ -7188,9 +7202,9 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
     <!-- VIDEO BRIEFING FEATURE -->
     <div id="video-feature-section">
       <div class="video-feature-left">
-        <div class="video-feature-badge">Industry First</div>
+        <div class="video-feature-badge">AI Video Briefing</div>
         <h2 class="video-feature-title">Don't read your briefing. Watch it.</h2>
-        <p class="video-feature-body">NOTAM Intelligence is the first platform to turn a full pre-flight briefing into a short, AI-narrated video — every active hazard, weather concern, and operational note, explained out loud in plain language. Nothing else in aviation tech does this today.</p>
+        <p class="video-feature-body">NOTAM Intelligence turns your route's live data into a short, AI-narrated video briefing — the key hazards, the weather and the overall risk, explained out loud in plain language.</p>
         <div class="video-feature-points">
           <div class="video-feature-point"><span class="vp-icon">●</span>Generated from the same live NOTAM, METAR and TAF data as your full briefing</div>
           <div class="video-feature-point"><span class="vp-icon">●</span>Perfect for a quick pre-pushback review, or sharing with crew who'd rather watch than read</div>
@@ -7217,8 +7231,8 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
         <p class="chat-feature-body">Skip the manuals. NOTAM Intelligence Chat answers real operational questions — regulations, procedures, aircraft systems, navigation — with the depth of a senior dispatcher, backed by live web search whenever something might have changed recently.</p>
         <div class="chat-feature-points">
           <div class="chat-feature-point"><span class="cp-icon">●</span>Ask in your own language, by typing or speaking — it responds the same way</div>
-          <div class="chat-feature-point"><span class="cp-icon">●</span>Live web search for current regulations, recent changes, and anything time-sensitive</div>
-          <div class="chat-feature-point"><span class="cp-icon">●</span>Included on every plan, with higher usage on Pro and Max</div>
+          <div class="chat-feature-point"><span class="cp-icon">●</span>Live web search for current regulations, recent changes, and anything time-sensitive (Pro and Max)</div>
+          <div class="chat-feature-point"><span class="cp-icon">●</span>Try it free; Pro and Max add live web search and much higher limits</div>
         </div>
       </div>
       <div class="chat-feature-right">
@@ -7284,7 +7298,7 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
       <span id="pricing_saveBadge" style="display:none;background:rgba(46,196,182,0.15);color:#2ec4b6;border:1px solid #0e5a54;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:3px 10px;border-radius:2px;">SAVE 15%</span>
     </div>
     <!-- PRICING CARDS -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;max-width:1200px;margin:60px auto 0;align-items:stretch;">
+    <div class="pricing-grid" style="max-width:1200px;margin:60px auto 0;align-items:stretch;">
 
       <!-- FREE -->
       <div style="background:#0a0f18;border:1px solid #1a2a3a;border-radius:8px;padding:32px 24px 28px;display:flex;flex-direction:column;">
@@ -7394,8 +7408,8 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
       </div>
 
     </div>
-    <!-- REFERRAL SECTION -->
-    <div style="max-width:700px;margin:60px auto;text-align:center;">
+    <!-- REFERRAL SECTION — v3.112: hidden; no discount is applied anywhere yet (referredBy is still recorded at sign-up). Re-enable with a real programme. -->
+    <div style="display:none;max-width:700px;margin:60px auto;text-align:center;">
       <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#4a9eff;letter-spacing:3px;margin-bottom:16px;">REFERRAL PROGRAM</div>
       <div style="font-family:'Orbitron',sans-serif;font-size:28px;color:#ffffff;margin-bottom:12px;">Fly together, save together.</div>
       <div style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#8a9bb0;line-height:1.8;margin-bottom:32px;">Every member gets a unique referral code. Share it with your crew — they get 10% off their first month, and you get 10% off your next bill.</div>
@@ -7409,11 +7423,11 @@ document.getElementById('supportModal').addEventListener('click', function(e) {
     <div class="faq-section">
       <h2 class="faq-title">Frequently Asked Questions</h2>
       <div class="faq-item"><div class="faq-q">What counts as one briefing?</div><div class="faq-a">Each route or airport query generates one briefing. KJFK EGLL and KJFK alone each count as one. Free accounts include 3 briefings per month, Pro 100 and Max 150 (Max includes 40 premium AI briefings per month with deeper analysis). Team plans share 60 briefings per seat across the team.</div></div>
-      <div class="faq-item"><div class="faq-q">What is NOTAM Intelligence Chat?</div><div class="faq-a">NOTAM Intelligence Chat is a general aviation AI assistant — separate from your briefing. Ask it anything: regulations, procedures, aircraft systems, airspace, navigation. It draws on live web search when information may have changed recently. Available on Pro and Max plans.</div></div>
+      <div class="faq-item"><div class="faq-q">What is NOTAM Intelligence Chat?</div><div class="faq-a">NOTAM Intelligence Chat is a general aviation AI assistant — separate from your briefing. Ask it anything: regulations, procedures, aircraft systems, airspace, navigation. On Pro and Max it also uses live web search when information may have changed recently. Free accounts get a short taster (a few questions every 5 hours); Pro and Max have much higher limits.</div></div>
       <div class="faq-item"><div class="faq-q">How does AI Video Briefing work?</div><div class="faq-a">Enter a two-airport route and NOTAM Intelligence generates a fully narrated video briefing — risk assessment, decoded NOTAMs, weather summary and Go/No-Go recommendation, delivered as a short video you can watch before departure. Available on Max (5 videos/month), with additional video packs available for purchase.</div></div>
       <div class="faq-item"><div class="faq-q">How do NOTAM Alerts work?</div><div class="faq-a">Add any airport or FIR to your watch list and you'll receive an email notification within about 30–60 minutes (depending on your plan) of a new NOTAM being issued for that location. Pro: up to 3 airports, checked about every 60 minutes. Max: up to 5 airports, checked about every 30 minutes.</div></div>
       <div class="faq-item"><div class="faq-q">Can I cancel anytime?</div><div class="faq-a">Yes. Cancel your subscription anytime with no cancellation fees.</div></div>
-      <div class="faq-item"><div class="faq-q">Is my data secure?</div><div class="faq-a">Yes. All data is encrypted in transit and at rest. We never share your flight data with third parties.</div></div>
+      <div class="faq-item"><div class="faq-q">Is my data secure?</div><div class="faq-a">Yes. All data is encrypted in transit and at rest. We never sell your data. It is processed only by the service providers needed to produce your briefing (AI analysis, aviation data, e-mail), as listed in our <a href="/privacy" style="color:#4a9eff;">Privacy Policy</a>.</div></div>
       <div class="faq-item"><div class="faq-q">How does the 7-day free trial work?</div><div class="faq-a">Enter your credit card to start. You won't be charged for 7 days. Cancel anytime before the trial ends and pay nothing.</div></div>
       <div class="faq-item"><div class="faq-q">What does the Team plan include?</div><div class="faq-a">Team is for operators, flight schools and dispatch teams of 3 to 50 people, at $69 per seat per month ($59 billed annually). Every member gets everything in Pro, and each seat adds 60 AI briefings, 2 NOTAM alert airports and 1 AI video briefing per month to a shared team pool, so busy members can use more and occasional users less. It includes team administration, central billing and priority support. For 50+ seats or special requirements (custom onboarding, invoicing, integrations) ask about Enterprise at <a href="mailto:support@notamai.com" style="color:#4a9eff;">support@notamai.com</a>.</div></div>
     </div>
@@ -7919,8 +7933,8 @@ document.addEventListener('mouseout', function(e) {
     <div style="padding:24px 28px 20px;border-bottom:1px solid #1a2a3a;display:flex;align-items:flex-start;justify-content:space-between;">
       <div>
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;">INVITE A COLLEAGUE</div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:#cdd9e5;margin-bottom:4px;">Share & Save Together</div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;line-height:1.5;">Your colleague gets <span style="color:#4a9eff;">10% off</span> their first plan. You get <span style="color:#4a9eff;">10% off</span> your next bill.</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:#cdd9e5;margin-bottom:4px;">Share NOTAM Intelligence</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;line-height:1.5;">Know a pilot or dispatcher who would find it useful? Send them your personal link — they can start on the Free plan or a 7-day trial.</div>
       </div>
       <button onclick="closeInviteModal()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;flex-shrink:0;margin-left:16px;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -7952,7 +7966,7 @@ document.addEventListener('mouseout', function(e) {
       </div>
       <!-- Info note -->
       <div style="padding:12px 16px;background:rgba(74,158,255,0.04);border:1px solid rgba(74,158,255,0.12);border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;line-height:1.6;">
-        Referral discounts apply automatically at checkout. No code needed — your link does the work.
+        Your link fills in your referral code at sign-up, so we know you sent them.
       </div>
     </div>
   </div>
