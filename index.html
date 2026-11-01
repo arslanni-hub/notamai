@@ -757,6 +757,13 @@ canvas#sky {
 }
 .chat-share-btn:hover { color: #c8daf0; }
 .chat-share-btn.visible { display: flex; }
+/* v3.122b: slim chat top bar — title (first question) left, share + close right; same 900 px column as the messages */
+.chat-topbar { display: none; align-items: center; gap: 10px; width: 100%; max-width: 900px; flex-shrink: 0; padding: 14px 4px 12px;
+  border-bottom: 1px solid rgba(74,158,255,0.12); pointer-events: auto; }
+.ui.chat-active .chat-topbar { display: flex; }
+.chat-topbar-title { flex: 1; min-width: 0; font-family: 'Share Tech Mono', monospace; font-size: 11.5px; letter-spacing: 1.5px; color: #8a9bb0;
+  text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-topbar .chat-share-btn, .chat-topbar .chat-close-btn { position: static; top: auto; right: auto; padding: 5px; flex-shrink: 0; }
 
 /* ═══ CHAT BUBBLE ACTIONS ═══ */
 .chat-msg-row.ai { flex-direction: column; }
@@ -1440,12 +1447,16 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
 
 <!-- MAIN UI -->
 <div class="ui" id="mainContent">
+  <div class="chat-topbar" id="chatTopbar">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M8 9h8" /><path d="M8 13h4.5" /><path d="M10.325 19.605l-2.325 1.395v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v4.5" /><path d="M19 22.5a4.75 4.75 0 0 1 3.5 -3.5a4.75 4.75 0 0 1 -3.5 -3.5a4.75 4.75 0 0 1 -3.5 3.5a4.75 4.75 0 0 1 3.5 3.5" /></svg>
+    <span class="chat-topbar-title" id="chatTopbarTitle">NEW CHAT</span>
   <button class="chat-share-btn" id="chatShareBtn" onclick="openChatShareModal()" data-tooltip="Share chat">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
   </button>
   <button class="chat-close-btn" id="chatCloseBtn" onclick="exitChatMode()" data-tooltip="Exit chat">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
   </button>
+  </div>
   <div class="chat-messages-area" id="chatMessagesArea"></div>
   <div class="chat-usage-banner" id="chatUsageBanner">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -2162,6 +2173,17 @@ function restartAnimation() {
 
 let chatModeActive = false;
 
+// v3.122b: chat top bar title = the chat's first question (same text as its Recents label); 'New chat' until one is asked.
+function chatTitleFrom(messages) {
+  const m = (messages || []).find(x => x.role === 'user' && ((x.text && x.text.trim()) || x.meta));
+  if (!m) return '';
+  return (m.text && m.text.trim()) ? m.text.trim().replace(/\s+/g, ' ').slice(0, 120) : ((m.meta && m.meta.name) || 'NOTAM Document Analysis');
+}
+function setChatTitle(t) {
+  const el = document.getElementById('chatTopbarTitle');
+  if (el) { el.textContent = t || 'New chat'; el.title = t || ''; }
+}
+
 let currentChatSessionId = null;
 let currentChatMessages = [];
 
@@ -2196,6 +2218,7 @@ async function appendChatMessageToFirestore(role, text, meta) {
   const entry = { role, text, ts: Date.now() };
   if (meta) entry.meta = meta;
   currentChatMessages.push(entry);
+  if (role === 'user') setChatTitle(chatTitleFrom(currentChatMessages));
   if (!currentChatSessionId) return entry; // not persisting (free plan or save failed)
   try {
     await db.collection('general_chats').doc(currentChatSessionId).update({
@@ -2220,6 +2243,7 @@ async function resumeChatSession(sessionId) {
     enterChatMode(true);
     currentChatSessionId = sessionId;
     currentChatMessages = (data.messages || []).slice();
+    setChatTitle(chatTitleFrom(currentChatMessages));
 
     document.getElementById('chatMessagesArea').innerHTML = '';
     currentChatMessages.forEach(m => {
@@ -2288,6 +2312,7 @@ function enterChatMode(skipNewSession) {
   document.querySelector('.greeting-sub').style.display = 'none';
   document.getElementById('modePillsRow').style.display = 'none';
   document.getElementById('chatMessagesArea').classList.add('visible');
+  if (!skipNewSession) setChatTitle('');
   document.getElementById('chatCloseBtn').classList.add('visible');
   document.getElementById('chatShareBtn').classList.add('visible');
   document.getElementById('chatAiDisclaimer').classList.add('show');
@@ -2305,6 +2330,7 @@ function exitChatMode() {
   document.getElementById('modePillsRow').style.display = '';
   document.getElementById('chatMessagesArea').classList.remove('visible');
   document.getElementById('chatMessagesArea').innerHTML = '';
+  setChatTitle('');
   document.getElementById('chatCloseBtn').classList.remove('visible');
   document.getElementById('chatShareBtn').classList.remove('visible');
   document.getElementById('chatAiDisclaimer').classList.remove('show');
