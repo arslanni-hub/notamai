@@ -375,7 +375,7 @@ canvas#sky {
   transition: border-color 0.3s, max-width 0.3s ease;
 }
 .ui.chat-active .input-card {
-  max-width: 720px;
+  max-width: 900px;
 }
 .input-card:focus-within {
   border-color: var(--border-bright);
@@ -538,7 +538,7 @@ canvas#sky {
 .chat-messages-area {
   display: none;
   width: 100%;
-  max-width: 720px;
+  max-width: 900px;
   flex: 1;
   overflow-y: auto;
   padding: 24px 4px 16px;
@@ -578,7 +578,7 @@ canvas#sky {
   align-items: center;
   gap: 8px;
   width: 100%;
-  max-width: 720px;
+  max-width: 900px;
   margin: 10px auto 0;
   padding: 9px 14px;
   border-radius: 10px;
@@ -692,7 +692,7 @@ canvas#sky {
 .chat-ai-disclaimer {
   display: none;
   width: 100%;
-  max-width: 720px;
+  max-width: 900px;
   margin: 10px auto 0;
   text-align: center;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
@@ -761,6 +761,10 @@ canvas#sky {
 /* ═══ CHAT BUBBLE ACTIONS ═══ */
 .chat-msg-row.ai { flex-direction: column; }
 .chat-msg-row.ai .chat-msg-content { display: flex; gap: 10px; align-items: flex-start; }
+/* v3.121: same reading width as the shared pages — answers use the full 900 px column, the question stays a right-aligned bubble */
+.chat-msg-row.ai .chat-msg-content > .chat-msg-bubble { flex: 1; min-width: 0; }
+.chat-msg-row.user .chat-msg-bubble { max-width: 75%; }
+@media (max-width: 600px) { .chat-msg-row.user .chat-msg-bubble { max-width: 85%; } }
 .chat-bubble-actions {
   display: flex;
   gap: 4px;
@@ -2486,7 +2490,7 @@ function renderChatMarkdown(text) {
   });
 
   // Tables (simple GFM-style)
-  html = html.replace(/((?:^\|.*\|\s*\n)+)/gm, (tableBlock) => {
+  html = html.replace(/((?:^\|.*\|[ \t]*(?:\n|$))+)/gm, (tableBlock) => {
     const rows = tableBlock.trim().split('\n').filter(r => r.trim());
     if (rows.length < 2) return tableBlock;
     const isSeparator = /^\|?[\s:|-]+\|?$/.test(rows[1]);
@@ -5876,6 +5880,20 @@ async function loadBriefingHistory() {
   }
 }
 
+// v3.121: opening something from Recents/Starred first closes whatever is on screen (side panels, Ask NOTAM AI,
+// briefing overlay, video overlay, expert chat), so only the clicked briefing / chat / video is shown.
+function resetMainView(keep) {
+  try { closeAllPanels(); } catch (e) {}
+  try {
+    const vo = document.getElementById('videoBriefingOverlay');
+    if (vo && vo.style.display === 'flex') closeVideoBriefing();
+  } catch (e) {}
+  try {
+    if (keep !== 'briefing' && document.getElementById('resultOverlay').classList.contains('open')) closeResult();
+  } catch (e) {}
+  try { if (typeof chatModeActive !== 'undefined' && chatModeActive) exitChatMode(); } catch (e) {}
+}
+
 function renderSidebarItem(item, isStarred) {
   const div = document.createElement('div');
   div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;position:relative;';
@@ -5897,16 +5915,19 @@ function renderSidebarItem(item, isStarred) {
     if (e.target.closest('button') || e.target.closest('.item-menu-btn')) return;
 
     if (isChat) {
+      resetMainView('chat');
       resumeChatSession(item.id);
       return;
     }
     if (isVideo) {
+      resetMainView('video');
       if (/^https:\/\//i.test(item.videoUrl || '')) playArchivedVideo(String(item.videoUrl).replace(/'/g, '%27'), String(item.script || '').replace(/'/g, '\u2019').replace(/\n/g, ' ').replace(/`/g, ''));
       return;
     }
 
     const cachedHtml = briefingCache[item.id];
     if (cachedHtml) {
+      resetMainView('briefing');
       window.currentBriefingId = item.id;
       const overlay = document.getElementById('resultOverlay');
       const content = document.getElementById('resultContent');
