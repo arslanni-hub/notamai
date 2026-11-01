@@ -901,6 +901,14 @@ canvas#sky {
   color: #ffffff;
 }
 .result-topbar-logo em { font-style: normal; color: var(--blue); }
+/* v3.125: briefing top bar on phones — logo icon only, status on one line with ellipsis, icon-only Upgrade / Share */
+@media (max-width: 768px) {
+  .result-topbar { padding: 10px 12px !important; gap: 10px !important; }
+  .result-topbar-logo span { display: none; }
+  .result-status { min-width: 0; font-size: 9.5px; letter-spacing: 1px; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .result-topbar-btn { padding: 7px 9px !important; gap: 0 !important; }
+  .result-topbar-btn .rtb-label { display: none; }
+}
 
 .live-dot {
   width: 7px; height: 7px;
@@ -1582,11 +1590,11 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
       <button class="result-topbar-btn" onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'" style="display:flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;padding:7px 18px;border-radius:6px;cursor:pointer;transition:color 0.2s,border-color 0.2s,transform 0.15s ease;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)';this.querySelector('svg').style.stroke='#c8daf0'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)';this.querySelector('svg').style.stroke='#8a9bb0'">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg>
-        Upgrade
+        <span class="rtb-label">Upgrade</span>
       </button>
       <button class="result-topbar-btn" onclick="openShareModal()" style="display:flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;padding:7px 18px;border-radius:6px;cursor:pointer;transition:color 0.2s,border-color 0.2s,transform 0.15s ease;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)';this.querySelector('svg').style.stroke='#c8daf0'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)';this.querySelector('svg').style.stroke='#8a9bb0'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-        Share
+        <span class="rtb-label">Share</span>
       </button>
     </div>
   </div>
@@ -2184,7 +2192,8 @@ let chatModeActive = false;
 function chatTitleFrom(messages) {
   const m = (messages || []).find(x => x.role === 'user' && ((x.text && x.text.trim()) || x.meta));
   if (!m) return '';
-  return (m.text && m.text.trim()) ? m.text.trim().replace(/\s+/g, ' ').slice(0, 120) : ((m.meta && m.meta.name) || 'NOTAM Document Analysis');
+  if (m.text && m.text.trim()) { const t = m.text.trim().replace(/\s+/g, ' '); return t.length > 120 ? t.slice(0, 117).replace(/\s+\S*$/, '') + '…' : t; }
+  return (m.meta && m.meta.name) || 'NOTAM Document Analysis';
 }
 function setChatTitle(t) {
   const el = document.getElementById('chatTopbarTitle');
@@ -4061,7 +4070,7 @@ function setShareModalKind(kind) {
   set('shareModalTitle', chat ? 'SHARE CHAT' : 'SHARE BRIEFING');
   set('shareModalHeading', chat ? 'Share This Chat' : 'Share This Briefing');
   set('shareModalHint', chat ? 'Anyone with this link can view the chat' : 'Anyone with this link can view the briefing');
-  ['shareModalExport', 'shareModalExportSep'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = chat ? 'none' : ''; });
+  // v3.125: chats keep the EXPORT block (same modal size as for a briefing); the button exports the chat instead of the briefing
 }
 function shareSubject() {
   if (window.shareModalKind === 'chat') {
@@ -4145,8 +4154,54 @@ async function downloadPDF() {
   pdfHeader.remove();
   content.style.backgroundColor = prevContentBg;
   content.style.padding = prevContentPadding;
-  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Pdf';
+  btn.innerHTML = PDF_BTN_LABEL;   // v3.125: the label used to come back as "Pdf"
   btn.disabled = false;
+}
+
+const PDF_BTN_LABEL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> EXPORT AS PDF';
+
+// v3.125: expert chat as PDF — same html2pdf setup and NOTAM INTELLIGENCE header as the briefing PDF; the chat is laid out
+// off screen at A4 width (question bubble right, answer full width with its sources), then captured.
+async function downloadChatPDF() {
+  const msgs = (currentChatMessages || []).filter(m => m && (m.text || m.meta));
+  if (!msgs.length) { showToast('Nothing to export yet'); return; }
+  const btn = document.getElementById('pdfBtn');
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const title = chatTitleFrom(currentChatMessages) || 'Aviation Expert Chat';
+  const wrap = document.createElement('div');
+  const holder = document.createElement('div');   // off-screen holder; the captured node itself has no positioning (html2pdf clones it)
+  holder.style.cssText = 'position:fixed;left:-10000px;top:0;';
+  wrap.style.cssText = 'box-sizing:border-box;width:794px;padding:22px 28px;background:#060a0f;color:#c8daf0;font-family:Rajdhani,sans-serif;';   // 794 px = A4 width at 96 dpi
+  let html = '<div style="display:flex;align-items:center;gap:8px;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid #1a2a3a;"><img src="/favicon.png" style="width:30px;height:30px;border-radius:7px;"><span style="font-family:Orbitron,sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#ffffff;">NOTAM <span style="color:#4a9eff;">INTELLIGENCE</span></span>'
+    + '<span style="margin-left:auto;font-family:\'Share Tech Mono\',monospace;font-size:10px;letter-spacing:2px;color:#4a5f72;">AVIATION EXPERT CHAT · ' + new Date().toISOString().slice(0, 10) + '</span></div>'
+    + '<div style="font-family:\'Share Tech Mono\',monospace;font-size:12px;letter-spacing:1.5px;color:#8a9bb0;text-transform:uppercase;margin-bottom:18px;">' + esc(title) + '</div>';
+  msgs.forEach(m => {
+    if (m.role === 'user') {
+      const body = m.text ? esc(m.text).replace(/\n/g, '<br>') : esc((m.meta && m.meta.name) || 'Attachment');
+      html += '<div class="pdf-msg" style="display:flex;justify-content:flex-end;margin:0 0 16px;"><div style="max-width:75%;background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.18);border-radius:14px 14px 2px 14px;padding:10px 14px;font-size:15px;line-height:1.55;color:rgba(255,255,255,0.9);">' + body + '</div></div>';
+    } else {
+      html += '<div class="pdf-msg chat-msg-bubble" style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#c8daf0;white-space:normal;">' + renderChatMarkdown(m.text || '') + (typeof renderChatSources === 'function' ? renderChatSources(m.sources) : '') + '</div>';
+    }
+  });
+  html += '<div style="margin-top:8px;padding-top:10px;border-top:1px solid #1a2a3a;font-size:11px;color:#4a5f72;">AI-generated answers can contain mistakes. Verify important information before relying on it operationally.</div>';
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('button').forEach(b => b.remove());   // panel buttons have no meaning on paper
+  holder.appendChild(wrap);
+  document.body.appendChild(holder);
+  const pageH = Math.round(794 * 297 / 210);   // pad to whole A4 pages so no page ends in white
+  wrap.style.minHeight = Math.max(1, Math.ceil(wrap.offsetHeight / pageH)) * pageH + 'px';
+  const name = 'NOTAM_Chat_' + title.replace(/[^A-Za-z0-9]+/g, '_').slice(0, 40).replace(/_+$/, '') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
+  if (btn) { btn.innerHTML = 'GENERATING...'; btn.disabled = true; }
+  try {
+    await html2pdf().set({
+      margin: 0, filename: name, image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#060a0f' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css'], avoid: ['.pdf-msg > div', 'table', 'tr', 'h3', 'h4', 'li'] }
+    }).from(wrap).save();
+  } catch (e) { console.error('Chat PDF error:', e); showToast('Could not create the PDF — please try again'); }
+  holder.remove();
+  if (btn) { btn.innerHTML = PDF_BTN_LABEL; btn.disabled = false; }
 }
 
 // ── AI Assistant — Ask NOTAM AI ──────────────────────────────
@@ -5753,6 +5808,20 @@ let sidebarOpen = true;
 // after the 52 px rail (an open 260 px sidebar used to leave a 130 px wide main area on a 390 px phone).
 function isNarrowScreen() { return window.innerWidth <= 768; }
 function mainLeftFor(open) { return (open && !isNarrowScreen()) ? 260 : 52; }
+// v3.125: on phones the open sidebar is a drawer — 85 % of the screen (max 320 px) over a dimmed backdrop; tap the backdrop to close
+function sidebarOpenWidth() { return isNarrowScreen() ? Math.min(320, Math.round(window.innerWidth * 0.85)) + 'px' : '260px'; }
+function setSidebarBackdrop(on) {
+  let bd = document.getElementById('sidebarBackdrop');
+  if (!bd) {
+    bd = document.createElement('div');
+    bd.id = 'sidebarBackdrop';
+    bd.style.cssText = 'position:fixed;inset:0;background:rgba(3,6,10,0.6);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:49;opacity:0;transition:opacity .25s;display:none;';
+    bd.addEventListener('click', () => { if (sidebarOpen) toggleSidebar(); });
+    document.body.appendChild(bd);
+  }
+  if (on && isNarrowScreen()) { bd.style.display = 'block'; requestAnimationFrame(() => { bd.style.opacity = '1'; }); }
+  else { bd.style.opacity = '0'; setTimeout(() => { if (!sidebarOpen || !isNarrowScreen()) bd.style.display = 'none'; }, 260); }
+}
 function collapseSidebarIfNarrow() { if (isNarrowScreen() && sidebarOpen && typeof toggleSidebar === 'function') toggleSidebar(); }
 
 function toggleSidebar() {
@@ -5762,7 +5831,8 @@ function toggleSidebar() {
   sidebarOpen = !sidebarOpen;
   if (sidebarOpen) {
     localStorage.setItem('sidebarOpen', 'true');
-    sidebar.style.width = '260px';
+    sidebar.style.width = sidebarOpenWidth();
+    setSidebarBackdrop(true);
     sidebar.style.overflow = 'hidden';
     sidebar.classList.remove('collapsed');
     document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = '');
@@ -5796,6 +5866,7 @@ function toggleSidebar() {
   } else {
     localStorage.setItem('sidebarOpen', 'false');
     sidebar.style.width = '52px';
+    setSidebarBackdrop(false);
     sidebar.style.overflow = 'visible';
     sidebar.classList.add('collapsed');
     document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = 'none');
@@ -5815,11 +5886,6 @@ function toggleSidebar() {
   }
 }
 
-document.addEventListener('click', function (e) {
-  if (!isNarrowScreen() || !sidebarOpen || !document.body.classList.contains('sidebar-open')) return;
-  const sb = document.getElementById('appSidebar');
-  if (sb && !sb.contains(e.target) && !e.target.closest('#userPopup, #itemMenu, .modal, [id$="Modal"]')) toggleSidebar();
-}, true);
 let _narrowWas = null;
 window.addEventListener('resize', function () {
   const n = isNarrowScreen();
@@ -5827,6 +5893,7 @@ window.addEventListener('resize', function () {
   _narrowWas = n;
   if (document.body.classList.contains('sidebar-open') || document.body.classList.contains('sidebar-collapsed')) {
     if (!document.body.classList.contains('panel-open')) applyPanelClose();
+    if (sidebarOpen) { const sb = document.getElementById('appSidebar'); if (sb) sb.style.width = sidebarOpenWidth(); setSidebarBackdrop(true); }
   }
 });
 
@@ -6116,6 +6183,7 @@ firebase.auth().onAuthStateChanged(async user => {
       document.querySelector('.ui').style.marginLeft = '0';
     }
     if (navbar) navbar.style.display = 'none';
+    try { applyPanelClose(); } catch (e) {}   // v3.125: also place the briefing overlay for the starting sidebar state
 
     scrollSections.forEach(id => {
       const el = document.getElementById(id);
@@ -8014,7 +8082,7 @@ document.addEventListener('mouseout', function(e) {
       <div id="shareModalExportSep" style="border-top:1px solid #1a2a3a;margin-bottom:20px;"></div>
       <div id="shareModalExport">
         <label style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#8a9bb0;letter-spacing:1px;display:block;margin-bottom:8px;">EXPORT</label>
-        <button onclick="downloadPDF()" id="pdfBtn" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">
+        <button onclick="window.shareModalKind === 'chat' ? downloadChatPDF() : downloadPDF()" id="pdfBtn" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           EXPORT AS PDF
         </button>
