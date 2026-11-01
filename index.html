@@ -763,6 +763,13 @@ canvas#sky {
 .ui.chat-active .chat-topbar { display: flex; }
 .chat-topbar-title { flex: 1; min-width: 0; font-family: 'Share Tech Mono', monospace; font-size: 11.5px; letter-spacing: 1.5px; color: #8a9bb0;
   text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* v3.124: phones — the decorative HUD corners would sit on top of the chat bar / disclaimer; mode pills fit the narrow column */
+@media (max-width: 768px) {
+  body.chat-mode .hud { display: none; }
+  .mode-pills-row { gap: 6px; flex-wrap: wrap; max-width: 100%; }
+  .mode-pill { padding: 7px 12px; letter-spacing: 1.5px; }
+  .chat-topbar { padding: 12px 2px 10px; }
+}
 .chat-topbar .chat-share-btn, .chat-topbar .chat-close-btn { position: static; top: auto; right: auto; padding: 5px; flex-shrink: 0; }
 
 /* ═══ CHAT BUBBLE ACTIONS ═══ */
@@ -2306,6 +2313,7 @@ function enterChatMode(skipNewSession) {
   if (chatModeActive) return;
   chatModeActive = true;
   document.getElementById('mainContent').classList.add('chat-active');
+  document.body.classList.add('chat-mode');
   document.querySelector('.logo').style.display = 'none';
   document.querySelector('.logo-line').style.display = 'none';
   document.getElementById('greeting').style.display = 'none';
@@ -2323,6 +2331,7 @@ function exitChatMode() {
   currentChatSessionId = null;
   currentChatMessages = [];
   document.getElementById('mainContent').classList.remove('chat-active');
+  document.body.classList.remove('chat-mode');
   document.querySelector('.logo').style.display = '';
   document.querySelector('.logo-line').style.display = '';
   document.getElementById('greeting').style.display = '';
@@ -4021,7 +4030,7 @@ function openChatShareModal() {
     return;
   }
   const modal = document.getElementById('shareModal');
-  document.getElementById('shareModalTitle').textContent = 'SHARE CHAT';
+  setShareModalKind('chat');
   modal.style.display = 'flex';
   const shareUrl = window.location.origin + '/c/' + currentChatSessionId;
   document.getElementById('shareLinkInput').value = shareUrl;
@@ -4032,7 +4041,7 @@ function openShareModal() {
   gtag('event', 'share_briefing');
   console.log('currentBriefingId:', window.currentBriefingId);
   const modal = document.getElementById('shareModal');
-  document.getElementById('shareModalTitle').textContent = 'SHARE BRIEFING';
+  setShareModalKind('briefing');
   modal.style.display = 'flex';
   const briefingId = window.currentBriefingId || '';
   console.log('briefingId used:', briefingId);
@@ -4044,22 +4053,41 @@ function openShareModal() {
   window.currentShareUrl = shareUrl;
 }
 
+// v3.124: one share modal for briefings and expert chats — the texts follow what is being shared; a chat has no PDF export.
+function setShareModalKind(kind) {
+  window.shareModalKind = kind;
+  const chat = kind === 'chat';
+  const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+  set('shareModalTitle', chat ? 'SHARE CHAT' : 'SHARE BRIEFING');
+  set('shareModalHeading', chat ? 'Share This Chat' : 'Share This Briefing');
+  set('shareModalHint', chat ? 'Anyone with this link can view the chat' : 'Anyone with this link can view the briefing');
+  ['shareModalExport', 'shareModalExportSep'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = chat ? 'none' : ''; });
+}
+function shareSubject() {
+  if (window.shareModalKind === 'chat') {
+    const t = (document.getElementById('chatTopbarTitle')?.textContent || '').trim();
+    return { title: 'NOTAM Intelligence — Aviation Expert Chat' + (t && t.toLowerCase() !== 'new chat' ? ': ' + t : ''), tweet: 'Aviation Expert Chat on NOTAM Intelligence via @NOTAMIntel', body: 'Aviation Expert Chat on NOTAM Intelligence:\n\n' };
+  }
+  const route = document.querySelector('.route-id')?.textContent || 'NOTAM Briefing';
+  return { title: 'NOTAM Intelligence Briefing — ' + route, tweet: 'Pre-flight AI briefing for ' + route + ' via @NOTAMIntel', body: 'Pre-flight operational intelligence briefing:\n\n' };
+}
+
 function shareViaWhatsApp() {
   const url = window.currentShareUrl || document.getElementById('shareLinkInput').value;
-  const route = document.querySelector('.route-id')?.textContent || 'NOTAM Briefing';
-  window.open('https://wa.me/?text=' + encodeURIComponent('NOTAM Intelligence Briefing — ' + route + '\n' + url), '_blank');
+  const s = shareSubject();
+  window.open('https://wa.me/?text=' + encodeURIComponent(s.title + '\n' + url), '_blank');
 }
 
 function shareViaX() {
   const url = window.currentShareUrl || document.getElementById('shareLinkInput').value;
-  const route = document.querySelector('.route-id')?.textContent || 'NOTAM Briefing';
-  window.open('https://x.com/intent/tweet?text=' + encodeURIComponent('Pre-flight AI briefing for ' + route + ' via @NOTAMIntel') + '&url=' + encodeURIComponent(url), '_blank');
+  const s = shareSubject();
+  window.open('https://x.com/intent/tweet?text=' + encodeURIComponent(s.tweet) + '&url=' + encodeURIComponent(url), '_blank');
 }
 
 function shareViaEmail() {
   const url = window.currentShareUrl || document.getElementById('shareLinkInput').value;
-  const route = document.querySelector('.route-id')?.textContent || 'NOTAM Briefing';
-  window.open('mailto:?subject=' + encodeURIComponent('NOTAM Intelligence Briefing — ' + route) + '&body=' + encodeURIComponent('Pre-flight operational intelligence briefing:\n\n' + url), '_blank');
+  const s = shareSubject();
+  window.open('mailto:?subject=' + encodeURIComponent(s.title) + '&body=' + encodeURIComponent(s.body + url), '_blank');
 }
 
 function closeShareModal() {
@@ -5721,6 +5749,11 @@ function signInWithEmail() {
 }
 
 let sidebarOpen = true;
+// v3.124: on phones / narrow screens the open sidebar overlays the page instead of pushing it — the main area always starts
+// after the 52 px rail (an open 260 px sidebar used to leave a 130 px wide main area on a 390 px phone).
+function isNarrowScreen() { return window.innerWidth <= 768; }
+function mainLeftFor(open) { return (open && !isNarrowScreen()) ? 260 : 52; }
+function collapseSidebarIfNarrow() { if (isNarrowScreen() && sidebarOpen && typeof toggleSidebar === 'function') toggleSidebar(); }
 
 function toggleSidebar() {
   const sidebar = document.getElementById('appSidebar');
@@ -5734,15 +5767,16 @@ function toggleSidebar() {
     sidebar.classList.remove('collapsed');
     document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = '');
     closeAllPanels();
-    if (scene) scene.style.left = '260px';
-    if (mainContent) mainContent.style.left = '260px';
+    const ml = mainLeftFor(true);
+    if (scene) scene.style.left = ml + 'px';
+    if (mainContent) mainContent.style.left = ml + 'px';
     document.body.classList.add('sidebar-open');
     document.body.classList.remove('sidebar-collapsed');
-    document.querySelector('.ui').style.left = '260px';
-    document.querySelector('.ui').style.width = 'calc(100vw - 260px)';
+    document.querySelector('.ui').style.left = ml + 'px';
+    document.querySelector('.ui').style.width = 'calc(100vw - ' + ml + 'px)';
     document.querySelector('.ui').style.marginLeft = '0';
     const roOpen = document.getElementById('resultOverlay');
-    if (roOpen) { roOpen.style.left = '260px'; roOpen.style.width = 'calc(100vw - 260px)'; }
+    if (roOpen) { roOpen.style.left = ml + 'px'; roOpen.style.width = 'calc(100vw - ' + ml + 'px)'; }
     const scrollSection = document.getElementById('sidebarScrollSection');
     if (scrollSection) scrollSection.style.overflowY = 'auto';
     const planeEl = document.getElementById('sidebarLogoCollapsed');
@@ -5780,6 +5814,21 @@ function toggleSidebar() {
     if (scrollSection) scrollSection.style.overflowY = 'hidden';
   }
 }
+
+document.addEventListener('click', function (e) {
+  if (!isNarrowScreen() || !sidebarOpen || !document.body.classList.contains('sidebar-open')) return;
+  const sb = document.getElementById('appSidebar');
+  if (sb && !sb.contains(e.target) && !e.target.closest('#userPopup, #itemMenu, .modal, [id$="Modal"]')) toggleSidebar();
+}, true);
+let _narrowWas = null;
+window.addEventListener('resize', function () {
+  const n = isNarrowScreen();
+  if (n === _narrowWas) return;
+  _narrowWas = n;
+  if (document.body.classList.contains('sidebar-open') || document.body.classList.contains('sidebar-collapsed')) {
+    if (!document.body.classList.contains('panel-open')) applyPanelClose();
+  }
+});
 
 function toggleUserPopup() {
   const popup = document.getElementById('userPopup');
@@ -5909,6 +5958,7 @@ async function loadBriefingHistory() {
 // v3.121: opening something from Recents/Starred first closes whatever is on screen (side panels, Ask NOTAM AI,
 // briefing overlay, video overlay, expert chat), so only the clicked briefing / chat / video is shown.
 function resetMainView(keep) {
+  try { collapseSidebarIfNarrow(); } catch (e) {}
   try { closeAllPanels(); } catch (e) {}
   try {
     const vo = document.getElementById('videoBriefingOverlay');
@@ -6035,7 +6085,7 @@ firebase.auth().onAuthStateChanged(async user => {
 
   if (user) {
     const savedState = localStorage.getItem('sidebarOpen');
-    sidebarOpen = savedState !== 'false';
+    sidebarOpen = savedState !== 'false' && !isNarrowScreen();   // v3.124: phones start with the rail only
     sidebar.style.display = 'flex';
     if (!sidebarOpen) {
       sidebar.style.width = '52px';
@@ -6055,13 +6105,14 @@ firebase.auth().onAuthStateChanged(async user => {
     } else {
       sidebar.style.width = '260px';
       sidebar.style.overflow = 'hidden';
-      if (scene) scene.style.left = '260px';
-      if (mainContent) mainContent.style.left = '260px';
+      const ml0 = mainLeftFor(true);
+      if (scene) scene.style.left = ml0 + 'px';
+      if (mainContent) mainContent.style.left = ml0 + 'px';
       document.body.classList.add('sidebar-open');
       document.body.classList.remove('sidebar-collapsed');
       document.querySelector('.ui').style.position = 'fixed';
-      document.querySelector('.ui').style.left = '260px';
-      document.querySelector('.ui').style.width = 'calc(100vw - 260px)';
+      document.querySelector('.ui').style.left = ml0 + 'px';
+      document.querySelector('.ui').style.width = 'calc(100vw - ' + ml0 + 'px)';
       document.querySelector('.ui').style.marginLeft = '0';
     }
     if (navbar) navbar.style.display = 'none';
@@ -7928,7 +7979,7 @@ document.addEventListener('mouseout', function(e) {
     <div style="padding:24px 28px 20px;border-bottom:1px solid #1a2a3a;display:flex;align-items:flex-start;justify-content:space-between;">
       <div>
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:8px;" id="shareModalTitle">SHARE BRIEFING</div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:#cdd9e5;">Share This Briefing</div>
+        <div id="shareModalHeading" style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:#cdd9e5;">Share This Briefing</div>
       </div>
       <button onclick="closeShareModal()" style="background:none;border:none;color:#4a5f72;cursor:pointer;padding:4px;flex-shrink:0;margin-left:16px;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -7941,7 +7992,7 @@ document.addEventListener('mouseout', function(e) {
           <input id="shareLinkInput" readonly style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#8a9bb0;padding:10px 14px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:11px;outline:none;" value="">
           <button onclick="copyShareLink()" id="copyLinkBtn" style="white-space:nowrap;padding:10px 16px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">COPY</button>
         </div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;">Anyone with this link can view the briefing</div>
+        <div id="shareModalHint" style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;">Anyone with this link can view the briefing</div>
       </div>
       <div style="margin-bottom:20px;">
         <label style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#8a9bb0;letter-spacing:1px;display:block;margin-bottom:8px;">SHARE VIA</label>
@@ -7960,8 +8011,8 @@ document.addEventListener('mouseout', function(e) {
           </button>
         </div>
       </div>
-      <div style="border-top:1px solid #1a2a3a;margin-bottom:20px;"></div>
-      <div>
+      <div id="shareModalExportSep" style="border-top:1px solid #1a2a3a;margin-bottom:20px;"></div>
+      <div id="shareModalExport">
         <label style="font-family:'Rajdhani',sans-serif;font-size:11px;color:#8a9bb0;letter-spacing:1px;display:block;margin-bottom:8px;">EXPORT</label>
         <button onclick="downloadPDF()" id="pdfBtn" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -8702,7 +8753,7 @@ function applyPanelClose() {
   const overlay = document.getElementById('resultOverlay');
   if (scene) scene.style.width = '';
   const sidebarOpen = document.body.classList.contains('sidebar-open');
-  const sidebarW = sidebarOpen ? 260 : 52;
+  const sidebarW = mainLeftFor(sidebarOpen);
   // v3.122: #mainContent (.ui) is 100vw wide by CSS; with the sidebar shown it must be (100vw - sidebar) at left = sidebar,
   // exactly as toggleSidebar sets it — clearing the width here used to push the expert chat right until the sidebar was toggled.
   const hasSidebar = document.body.classList.contains('sidebar-open') || document.body.classList.contains('sidebar-collapsed');

@@ -3063,7 +3063,7 @@ if (getAccessBtn) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NOTAM Intelligence — Aviation Chat</title>
+<title>NOTAM Intelligence — Aviation Expert Chat</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -3114,7 +3114,7 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
       <span class="sh-label" style="color:#1a2a3a;">|</span>
       <div class="sh-label" style="display:flex;align-items:center;gap:8px;">
         <span style="width:8px;height:8px;border-radius:50%;background:#2ec4b6;display:inline-block;animation:blinkDot 1.5s ease-in-out infinite;flex-shrink:0;"></span>
-        <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">SHARED AVIATION CHAT</span>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">SHARED AVIATION EXPERT CHAT</span>
       </div>
     </div>
     <a id="getAccessBtn" href="https://notamai.onrender.com/?signup=true" style="display:flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;padding:6px 14px;border-radius:6px;cursor:pointer;text-decoration:none;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">
@@ -3175,7 +3175,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
       }
       body.appendChild(row);
     });
-    document.title = 'NOTAM Intelligence — Aviation Chat';
+    document.title = 'NOTAM Intelligence — Aviation Expert Chat';
   } else {
     document.getElementById('loadingText').textContent = 'CHAT NOT FOUND';
   }
