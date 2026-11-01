@@ -8674,11 +8674,15 @@ function applyPanelClose() {
   const scene = document.getElementById('scene');
   const ui = document.querySelector('.ui');
   const overlay = document.getElementById('resultOverlay');
-  if (mc) mc.style.width = '';
   if (scene) scene.style.width = '';
-  if (ui) ui.style.width = '';
   const sidebarOpen = document.body.classList.contains('sidebar-open');
   const sidebarW = sidebarOpen ? 260 : 52;
+  // v3.122: #mainContent (.ui) is 100vw wide by CSS; with the sidebar shown it must be (100vw - sidebar) at left = sidebar,
+  // exactly as toggleSidebar sets it — clearing the width here used to push the expert chat right until the sidebar was toggled.
+  const hasSidebar = document.body.classList.contains('sidebar-open') || document.body.classList.contains('sidebar-collapsed');
+  if (mc) { mc.style.width = hasSidebar ? 'calc(100vw - ' + sidebarW + 'px)' : ''; if (hasSidebar) mc.style.left = sidebarW + 'px'; }
+  if (ui && ui !== mc) { ui.style.width = hasSidebar ? 'calc(100vw - ' + sidebarW + 'px)' : ''; if (hasSidebar) ui.style.left = sidebarW + 'px'; }
+  if (scene && hasSidebar) scene.style.left = sidebarW + 'px';
   const ro = document.getElementById('resultOverlay');
   if (ro) { ro.style.left = sidebarW + 'px'; ro.style.width = (window.innerWidth - sidebarW) + 'px'; }
 }
