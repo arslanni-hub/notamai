@@ -5815,12 +5815,14 @@ function setSidebarBackdrop(on) {
   if (!bd) {
     bd = document.createElement('div');
     bd.id = 'sidebarBackdrop';
-    bd.style.cssText = 'position:fixed;inset:0;background:rgba(3,6,10,0.6);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:49;opacity:0;transition:opacity .25s;display:none;';
+    bd.style.cssText = 'position:fixed;inset:0;background:rgba(3,6,10,0.6);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:2090;opacity:0;transition:opacity .25s;display:none;';
     bd.addEventListener('click', () => { if (sidebarOpen) toggleSidebar(); });
     document.body.appendChild(bd);
   }
-  if (on && isNarrowScreen()) { bd.style.display = 'block'; requestAnimationFrame(() => { bd.style.opacity = '1'; }); }
-  else { bd.style.opacity = '0'; setTimeout(() => { if (!sidebarOpen || !isNarrowScreen()) bd.style.display = 'none'; }, 260); }
+  // v3.126: the drawer and its backdrop sit above everything on the page (briefing result, video, chat), below modals (3000)
+  const sb = document.getElementById('appSidebar');
+  if (on && isNarrowScreen()) { if (sb) sb.style.zIndex = '2100'; bd.style.display = 'block'; requestAnimationFrame(() => { bd.style.opacity = '1'; }); }
+  else { bd.style.opacity = '0'; setTimeout(() => { if (!sidebarOpen || !isNarrowScreen()) { bd.style.display = 'none'; if (sb) sb.style.zIndex = '50'; } }, 260); }
 }
 function collapseSidebarIfNarrow() { if (isNarrowScreen() && sidebarOpen && typeof toggleSidebar === 'function') toggleSidebar(); }
 
