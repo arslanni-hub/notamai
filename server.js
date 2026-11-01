@@ -696,6 +696,54 @@ function wavespeedResult(predId) {
   });
 }
 
+// v3.119: shared chat page (/c/:id) renders the AI answer's markdown like the app (renderChatMarkdown in index.html) — it used to show raw "##" and "|" text.
+// Escapes first, so the output can only contain the tags added here. Injected into the page with .toString(); no template literals inside.
+function shareChatMarkdown(text) {
+  const esc = function (x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  const inline = function (x) {
+    return esc(x)
+      .replace(/\[\[panel:([a-zA-Z]+)\|([^\]]+)\]\]/g, '<a class="chat-panel-link" href="/" rel="noopener">$2 →</a>')
+      .replace(/`([^`]+)`/g, '<code class="chat-md-code">$1</code>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
+  };
+  const cells = function (r) { const c = r.split('|').map(function (x) { return x.trim(); }); if (c[0] === '') c.shift(); if (c.length && c[c.length - 1] === '') c.pop(); return c; };
+  const lines = String(text || '').replace(/\r/g, '').split('\n');
+  const out = []; let para = []; const stack = [];   // stack of open lists: { tag, indent }
+  const flushPara = function () { if (para.length) { out.push('<p>' + para.join('<br>') + '</p>'); para = []; } };
+  const closeLists = function (toIndent) { while (stack.length && stack[stack.length - 1].indent > toIndent) { out.push('</li></' + stack.pop().tag + '>'); } };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    let m;
+    if (/^\s*\|.*\|\s*$/.test(line) && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1]) && lines[i + 1].indexOf('-') >= 0) {
+      flushPara(); closeLists(-1);
+      let t = '<div class="chat-md-wrap"><table class="chat-md-table"><thead><tr>' + cells(line).map(function (c) { return '<th>' + inline(c) + '</th>'; }).join('') + '</tr></thead><tbody>';
+      i += 2;
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) { t += '<tr>' + cells(lines[i]).map(function (c) { return '<td>' + inline(c) + '</td>'; }).join('') + '</tr>'; i++; }
+      i--; out.push(t + '</tbody></table></div>'); continue;
+    }
+    if ((m = line.match(/^(#{1,3}) (.*)$/))) { flushPara(); closeLists(-1); const lv = m[1].length; out.push('<h' + (lv + 1) + ' class="chat-md-h' + (lv + 1) + '">' + inline(m[2]) + '</h' + (lv + 1) + '>'); continue; }
+    if (/^\s*---\s*$/.test(line)) { flushPara(); closeLists(-1); out.push('<hr class="chat-md-hr">'); continue; }
+    if ((m = line.match(/^(\s*)(?:([-*])|(\d+)\.) (.*)$/))) {
+      flushPara();
+      const ind = m[1].length, tag = m[2] ? 'ul' : 'ol';
+      closeLists(ind);
+      const top = stack[stack.length - 1];
+      if (top && top.indent === ind && top.tag !== tag) { out.push('</li></' + stack.pop().tag + '>'); }
+      const cur = stack[stack.length - 1];
+      if (cur && cur.indent === ind) out.push('</li><li>');
+      else { stack.push({ tag: tag, indent: ind }); out.push('<' + tag + ' class="chat-md-list"' + (tag === 'ol' && m[3] ? ' start="' + m[3] + '"' : '') + '><li>'); }
+      out.push(inline(m[4])); continue;
+    }
+    if ((m = line.match(/^> ?(.*)$/))) { flushPara(); closeLists(-1); out.push('<blockquote class="chat-md-quote">' + inline(m[1]) + '</blockquote>'); continue; }
+    if (!line.trim()) { flushPara(); continue; }   // a blank line inside a list keeps the list open
+    if (stack.length && /^\s+/.test(line)) { out.push(' ' + inline(line.trim())); continue; }
+    closeLists(-1); para.push(inline(line));
+  }
+  flushPara(); closeLists(-1);
+  return out.join('');
+}
+
 // v3.87: video cost = WaveSpeed seconds x VIDEO_USD_PER_SEC + ElevenLabs characters x ELEVENLABS_USD_PER_CHAR + script AI (~$0.02).
 // Spoken length from the script (~2.1 words/s at speed 1.0, divided by VIDEO_TTS_SPEED).
 function videoCostEstimate(script, usdPerSec) {
@@ -3032,6 +3080,20 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
 .msg-row.user .msg-icon { background: rgba(255,255,255,0.06); }
 .msg-bubble { font-size: 15px; line-height: 1.55; color: #c8daf0; white-space: pre-wrap; max-width: 540px; padding-top: 2px; }
 .msg-row.user .msg-bubble { color: rgba(255,255,255,0.82); text-align: right; }
+.msg-row.ai .msg-bubble { white-space: normal; min-width: 0; }
+.msg-bubble p { margin: 0 0 10px; } .msg-bubble p:last-child { margin-bottom: 0; }
+.chat-md-h2, .chat-md-h3, .chat-md-h4 { font-family: 'Orbitron', sans-serif; color: #ffffff; margin: 16px 0 8px; letter-spacing: 0.5px; }
+.chat-md-h2 { font-size: 17px; } .chat-md-h3 { font-size: 15px; color: #4a9eff; } .chat-md-h4 { font-size: 14px; color: #8a9bb0; }
+.chat-md-hr { border: none; border-top: 1px solid rgba(74,158,255,0.15); margin: 14px 0; }
+.chat-md-wrap { overflow-x: auto; margin: 10px 0; }
+.chat-md-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.chat-md-table th, .chat-md-table td { border: 1px solid rgba(74,158,255,0.15); padding: 6px 10px; text-align: left; vertical-align: top; }
+.chat-md-table th { background: rgba(74,158,255,0.08); color: #4a9eff; font-weight: 600; }
+.chat-md-list { margin: 6px 0 10px 20px; } .chat-md-list li { margin: 3px 0; }
+.chat-md-quote { border-left: 2px solid rgba(74,158,255,0.4); padding-left: 12px; margin: 8px 0; color: #8a9bb0; font-style: italic; }
+.chat-md-code { background: rgba(74,158,255,0.1); padding: 1px 6px; border-radius: 4px; font-family: 'Share Tech Mono', monospace; font-size: 12.5px; }
+.chat-panel-link { color: #4a9eff; text-decoration: none; font-weight: 600; }
+@media (max-width: 560px) { .sh-label { display: none !important; } #chatContent { padding: 0 16px 60px; } }
 </style>
 </head>
 <body>
@@ -3048,8 +3110,8 @@ body { background: #060a0f; color: #cdd9e5; font-family: 'Rajdhani', sans-serif;
           <span style="font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:4px;color:#4a9eff;">INTELLIGENCE</span>
         </span>
       </a>
-      <span style="color:#1a2a3a;">|</span>
-      <div style="display:flex;align-items:center;gap:8px;">
+      <span class="sh-label" style="color:#1a2a3a;">|</span>
+      <div class="sh-label" style="display:flex;align-items:center;gap:8px;">
         <span style="width:8px;height:8px;border-radius:50%;background:#2ec4b6;display:inline-block;animation:blinkDot 1.5s ease-in-out infinite;flex-shrink:0;"></span>
         <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;">SHARED AVIATION CHAT</span>
       </div>
@@ -3083,6 +3145,7 @@ function escapeHtml(str) {
   d.textContent = str;
   return d.innerHTML;
 }
+${shareChatMarkdown.toString()}
 
 db.collection('general_chats').doc('${chatId}').get().then(doc => {
   if (doc.exists) {
@@ -3097,7 +3160,7 @@ db.collection('general_chats').doc('${chatId}').get().then(doc => {
         ? '<svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 h16 a4 4 0 0 1 4 4 v9 a4 4 0 0 1 -4 4 h-9 l-4.5 4.5 v-4.5 h-2.5 a4 4 0 0 1 -4 -4 v-9 a4 4 0 0 1 4 -4 z" transform="scale(0.72)"/><path d="M14 9 L15 11.5 L17.5 12.5 L15 13.5 L14 16 L13 13.5 L10.5 12.5 L13 11.5 Z" fill="#4a9eff" stroke="none" transform="scale(0.72)"/></svg>'
         : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>';
       row.innerHTML = '<div class="msg-icon">' + iconSvg + '</div><div class="msg-bubble"></div>';
-      row.querySelector('.msg-bubble').textContent = m.text;
+      if (m.role === 'ai') row.querySelector('.msg-bubble').innerHTML = shareChatMarkdown(m.text); else row.querySelector('.msg-bubble').textContent = m.text;
       if (m.role === 'ai' && Array.isArray(m.sources) && m.sources.length) {
         const src = document.createElement('div');
         src.style.cssText = 'margin-top:10px;padding-top:8px;border-top:1px solid #1a2a3a;font-size:13px;white-space:normal;';
