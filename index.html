@@ -5911,9 +5911,17 @@ function toggleUserPopup() {
 }
 
 function startNewBriefing() {
-  try { collapseSidebarIfNarrow(); } catch (e) {}   // v3.128
+  // v3.129: New Briefing = clean start screen in Briefing mode — closes panels, the result / video overlays,
+  // expert chat and (phones) the drawer, clears the input and any attached file, selects the Briefing pill.
+  try { resetMainView(); } catch (e) {}
+  try { selectModePill('pillBriefing'); } catch (e) {}
+  try { removeFile(); } catch (e) {}
   const input = document.getElementById('mainInput');
-  if (input) { input.value = ''; input.focus(); }
+  if (input) {
+    input.value = '';
+    try { autoResize(input); } catch (e) {}
+    if (!isNarrowScreen()) input.focus();   // phones: don't pop the keyboard up
+  }
 }
 
 function copyReferralCode() {
