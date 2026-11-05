@@ -1416,7 +1416,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
 <!-- NAVBAR -->
 <nav id="mainNavbar">
   <div id="navInner">
-    <a class="nav-logo" href="/" style="display:flex;align-items:center;gap:8px;"><img src="/favicon.png" alt="" style="width:32px;height:32px;border-radius:7px;"><span><span style="color:#ffffff;">NOTAM</span> <span style="color:#4a9eff;">INTELLIGENCE</span></span></a>
+    <a class="nav-logo" href="/" onclick="return goHome(event)" style="display:flex;align-items:center;gap:8px;"><img src="/favicon.png" alt="" style="width:32px;height:32px;border-radius:7px;"><span><span style="color:#ffffff;">NOTAM</span> <span style="color:#4a9eff;">INTELLIGENCE</span></span></a>
     <a class="nav-link" href="#about-section">About</a>
     <a class="nav-link" href="#how-it-works-section">How It Works</a>
     <a class="nav-link" href="#pricing-section">Pricing</a>
@@ -1485,7 +1485,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     <span id="chatUsageBannerText"></span>
     <button class="upgrade-pill" id="chatUpgradePill" style="display:none;" onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'">Get more usage</button>
   </div>
-  <div class="logo" onclick="window.location.reload()" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;">
+  <div class="logo" onclick="goHome(event)" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;">
     <img src="/favicon.png" alt="" style="width:41px;height:41px;border-radius:9px;flex-shrink:0;">
     <span>NOTAM <em>INTELLIGENCE</em></span>
   </div>
@@ -1588,7 +1588,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
 <!-- RESULT OVERLAY -->
 <div class="result-overlay" id="resultOverlay">
   <div class="result-topbar">
-    <div class="result-topbar-logo" onclick="closeResult()" style="cursor:pointer;display:flex;align-items:center;gap:8px;">
+    <div class="result-topbar-logo" onclick="goHome(event)" style="cursor:pointer;display:flex;align-items:center;gap:8px;">
       <img src="/favicon.png" alt="" style="width:30px;height:30px;border-radius:7px;">
       <span>NOTAM <em>INTELLIGENCE</em></span>
     </div>
@@ -5911,6 +5911,22 @@ function toggleUserPopup() {
   popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
 }
 
+// v3.131: every NOTAM INTELLIGENCE logo does the same thing, without reloading the page (like the Claude / ChatGPT logo):
+// signed in → New Briefing (clean start screen); signed out → back to the top of the landing page.
+// Ctrl/Cmd/middle click on the link logos still opens the site in a new tab.
+function goHome(e) {
+  if (e && (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1)) return true;
+  if (e && e.preventDefault) e.preventDefault();
+  let signedIn = false;
+  try { signedIn = !!firebase.auth().currentUser; } catch (err) {}
+  if (signedIn) startNewBriefing();
+  else {
+    try { resetMainView(); } catch (err) {}
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  return false;
+}
+
 function startNewBriefing() {
   // v3.129: New Briefing = clean start screen in Briefing mode — closes panels, the result / video overlays,
   // expert chat and (phones) the drawer, clears the input and any attached file, selects the Briefing pill.
@@ -5957,87 +5973,71 @@ async function saveBriefingToFirestore(route, riskLevel, htmlContent) {
   }
 }
 
-async function loadBriefingHistory() {
+// v3.131: Recents load faster and more reliably — the list cached on this device (same account only) is shown at once,
+// the three Firestore queries run in parallel instead of one after another, and a failed briefings query is retried
+// (it used to leave Recents empty until the page was reloaded, sometimes several times).
+let recentsLoadSeq = 0;
+async function loadBriefingHistory(attempt) {
+  attempt = attempt || 0;
   const user = firebase.auth().currentUser;
-  if (!user) { console.log('No user logged in'); return; }
-  try {
-    console.log('Loading briefing history for user:', user.uid);
-    const snapshot = await db.collection('briefings')
-      .where('userId', '==', user.uid)
-      .orderBy('createdAt', 'desc')
-      .limit(50)
-      .get();
-    console.log('Firestore returned', snapshot.size, 'documents');
-    const recents = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      briefingCache[doc.id] = data.html;
-      recents.push({
-        id: doc.id,
-        type: 'briefing',
-        route: data.route,
-        riskLevel: data.riskLevel,
-        timestamp: data.createdAt?.toDate()?.toISOString() || new Date().toISOString()
-      });
-    });
-
-    // Also load General Aviation Expert Chat sessions (Pro/Max only — Free never creates these documents)
+  if (!user) return;
+  if (attempt === 0) {
     try {
-      const chatSnapshot = await db.collection('general_chats')
-        .where('userId', '==', user.uid)
-        .orderBy('createdAt', 'desc')
-        .limit(50)
-        .get();
-      chatSnapshot.forEach(doc => {
-        const data = doc.data();
-        const firstUserMsg = (data.messages || []).find(m => m.role === 'user' && ((m.text && m.text.trim()) || m.meta));
-        const label = firstUserMsg
-          ? (firstUserMsg.text && firstUserMsg.text.trim() ? firstUserMsg.text.slice(0, 60) : (firstUserMsg.meta?.name || 'NOTAM Document Analysis'))
-          : 'Aviation Chat';
-        recents.push({
-          id: doc.id,
-          type: 'chat',
-          route: label,
-          riskLevel: null,
-          timestamp: data.createdAt?.toDate()?.toISOString() || new Date().toISOString()
-        });
-      });
-    } catch(chatErr) {
-      console.error('Chat history load error:', chatErr);
-    }
-
-    // v3.111: finished video briefings in Recents too (same query as the Archive's video tab; Max/admin only create them)
-    try {
-      const vidSnapshot = await db.collection('videos')
-        .where('userId', '==', user.uid)
-        .where('status', '==', 'completed')
-        .orderBy('createdAt', 'desc')
-        .limit(20)
-        .get();
-      vidSnapshot.forEach(doc => {
-        const data = doc.data();
-        if (!data.videoUrl) return;
-        recents.push({
-          id: doc.id,
-          type: 'video',
-          route: (data.route || 'Video Briefing'),
-          riskLevel: null,
-          videoUrl: data.videoUrl,
-          script: String(data.script || '').slice(0, 1200),
-          timestamp: data.createdAt?.toDate()?.toISOString() || new Date().toISOString()
-        });
-      });
-    } catch(vidErr) {
-      console.error('Video history load error:', vidErr);
-    }
-
-    recents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    localStorage.setItem('notamai_recents', JSON.stringify(recents));
-    console.log('Recents saved:', recents.length);
-    renderSidebarHistory();
-  } catch(e) {
-    console.error('Firestore load error:', e);
+      if (localStorage.getItem('notamai_recents_uid') === user.uid) renderSidebarHistory();
+      else { localStorage.removeItem('notamai_recents'); localStorage.setItem('notamai_recents_uid', user.uid); renderSidebarHistory(); }
+    } catch (e) {}
   }
+  const seq = ++recentsLoadSeq;
+  const briefQ = db.collection('briefings').where('userId', '==', user.uid).orderBy('createdAt', 'desc').limit(50).get();
+  const chatQ  = db.collection('general_chats').where('userId', '==', user.uid).orderBy('createdAt', 'desc').limit(50).get();
+  const vidQ   = db.collection('videos').where('userId', '==', user.uid).where('status', '==', 'completed').orderBy('createdAt', 'desc').limit(20).get();
+  const [bRes, cRes, vRes] = await Promise.allSettled([briefQ, chatQ, vidQ]);
+  if (seq !== recentsLoadSeq) return;                                   // a newer load has started
+  if (!firebase.auth().currentUser || firebase.auth().currentUser.uid !== user.uid) return;   // signed out / switched meanwhile
+  if (bRes.status === 'rejected') {
+    console.error('Firestore load error:', bRes.reason);
+    if (attempt < 3) setTimeout(() => { try { loadBriefingHistory(attempt + 1); } catch (e) {} }, 2000 * (attempt + 1));
+    return;                                                             // keep the cached list on screen meanwhile
+  }
+  const recents = [];
+  bRes.value.forEach(doc => {
+    const data = doc.data();
+    briefingCache[doc.id] = data.html;
+    recents.push({
+      id: doc.id,
+      type: 'briefing',
+      route: data.route,
+      riskLevel: data.riskLevel,
+      timestamp: data.createdAt?.toDate()?.toISOString() || new Date().toISOString()
+    });
+  });
+  // General Aviation Expert Chat sessions (Pro/Max only — Free never creates these documents)
+  if (cRes.status === 'fulfilled') {
+    cRes.value.forEach(doc => {
+      const data = doc.data();
+      const firstUserMsg = (data.messages || []).find(m => m.role === 'user' && ((m.text && m.text.trim()) || m.meta));
+      const label = firstUserMsg
+        ? (firstUserMsg.text && firstUserMsg.text.trim() ? firstUserMsg.text.slice(0, 60) : (firstUserMsg.meta?.name || 'NOTAM Document Analysis'))
+        : 'Aviation Chat';
+      recents.push({ id: doc.id, type: 'chat', route: label, riskLevel: null,
+        timestamp: data.createdAt?.toDate()?.toISOString() || new Date().toISOString() });
+    });
+  } else console.error('Chat history load error:', cRes.reason);
+  // v3.111: finished video briefings (same query as the Archive's video tab; Max/admin only create them)
+  if (vRes.status === 'fulfilled') {
+    vRes.value.forEach(doc => {
+      const data = doc.data();
+      if (!data.videoUrl) return;
+      recents.push({ id: doc.id, type: 'video', route: (data.route || 'Video Briefing'), riskLevel: null,
+        videoUrl: data.videoUrl, script: String(data.script || '').slice(0, 1200),
+        timestamp: data.createdAt?.toDate()?.toISOString() || new Date().toISOString() });
+    });
+  } else console.error('Video history load error:', vRes.reason);
+
+  recents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  try { localStorage.setItem('notamai_recents', JSON.stringify(recents)); localStorage.setItem('notamai_recents_uid', user.uid); } catch (e) {}
+  renderSidebarHistory();
+
 }
 
 // v3.121: opening something from Recents/Starred first closes whatever is on screen (side panels, Ask NOTAM AI,
@@ -6108,6 +6108,12 @@ function renderSidebarItem(item, isStarred) {
       aiChatHistory = [];
       aiChatOpen = false;
       currentChatBriefingId = null;
+    } else {
+      // v3.131: shown from the device cache before Firestore answered — load this one briefing on demand
+      resetMainView('briefing');
+      try { closeAIChat(); } catch (e) {}
+      aiChatHistory = []; aiChatOpen = false; currentChatBriefingId = null;
+      pmOpenBriefing(item.id, item.route);
     }
   });
   return div;
@@ -7870,7 +7876,7 @@ function pricing_toggleBilling() {
 
   <!-- FULL HEADER (visible when open) -->
   <div id="sidebarLogoFull" style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 12px;flex-shrink:0;">
-    <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:8px;">
+    <a href="/" onclick="return goHome(event)" style="text-decoration:none;display:flex;align-items:center;gap:8px;">
       <img src="/favicon.png" alt="" style="width:24px;height:24px;border-radius:6px;flex-shrink:0;">
       <div style="line-height:1.2;">
         <div style="font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;color:#ffffff;letter-spacing:1px;">NOTAM</div>
