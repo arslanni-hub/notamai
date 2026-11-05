@@ -1051,6 +1051,15 @@ canvas#sky {
   justify-content: center;
 }
 #authModalBg.open { display: flex; }
+/* v3.136: phones — sign-up / log-in and Support open full screen with just the form (the decorative half squeezed the form into ~170 px) */
+@media (max-width: 600px) {
+  #authModal, #signupModalInner { width: 100vw !important; max-width: 100vw !important; height: 100dvh !important; border-radius: 0 !important; border: none !important; }
+  #authModal .auth-left, #signupModalInner .auth-left { width: 100% !important; overflow-y: auto; padding: 52px 24px 28px !important; }
+  #authModal .auth-right, #signupModalInner .auth-right { display: none !important; }
+  #supportBox { width: 100vw !important; max-width: 100vw !important; height: 100dvh !important; border-radius: 0 !important; border: none !important; }
+  #supportBox .support-form { width: 100% !important; overflow-y: auto; padding: 52px 24px 28px !important; }
+  #supportBox .support-art { display: none !important; }
+}
 #authModal {
   display: flex;
   width: 800px;
@@ -1508,7 +1517,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     <span id="chatUsageBannerText"></span>
     <button class="upgrade-pill" id="chatUpgradePill" style="display:none;" onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'">Get more usage</button>
   </div>
-  <div class="logo" onclick="if (firebase.auth().currentUser) goHome(event); else window.location.reload();" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;">
+  <div class="logo" onclick="window.location.reload()" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;">
     <img src="/favicon.png" alt="" style="width:41px;height:41px;border-radius:9px;flex-shrink:0;">
     <span>NOTAM <em>INTELLIGENCE</em></span>
   </div>
@@ -5367,9 +5376,7 @@ function openLoginModal() { openAuthModal(); }
 function closeLoginModal() {
   const modal = document.getElementById('loginModal');
   if (modal) modal.style.display = 'none';
-  const authModal = document.getElementById('authModal');
-  if (authModal) authModal.style.display = 'none';
-  closeAuthModal();
+  closeAuthModal();   // v3.136: no longer sets #authModal display:none (the log-in window then opened as an empty dark overlay)
 }
 function closeAuthModal() {
   document.getElementById('authModalBg').classList.remove('open');
@@ -6412,8 +6419,6 @@ function openSignupModal() {
 function closeSignupModal() {
   const modal = document.getElementById('signupModal');
   if (modal) modal.style.display = 'none';
-  const authModal = document.getElementById('authModal');
-  if (authModal) authModal.style.display = 'none';
 }
 function handleSignupBgClick(e) {
   if (e.target === document.getElementById('signupModal')) closeSignupModal();
@@ -6846,10 +6851,13 @@ window.addEventListener('load', function() {
 }
 </style>
 <div id="supportModal" style="display:none;position:fixed;inset:0;background:rgba(6,10,15,0.75);backdrop-filter:blur(10px);z-index:10000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeSupportModal()">
-  <div style="display:flex;width:800px;max-width:92vw;height:560px;border-radius:14px;overflow:hidden;position:relative;border:1px solid #1a2a3a;">
+  <div id="supportBox" style="display:flex;width:800px;max-width:92vw;height:560px;border-radius:14px;overflow:hidden;position:relative;border:1px solid #1a2a3a;">
+      <button onclick="closeSupportModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:rgba(74,158,255,0.35);cursor:pointer;padding:4px;display:flex;align-items:center;z-index:2;" onmouseover="this.style.color='rgba(74,158,255,0.8)'" onmouseout="this.style.color='rgba(74,158,255,0.35)'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
 
     <!-- LEFT: form -->
-    <div style="width:50%;background:#0a0f18;padding:36px 32px;position:relative;flex-shrink:0;">
+    <div class="support-form" style="width:50%;background:#0a0f18;padding:36px 32px;position:relative;flex-shrink:0;">
       <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:10px;">SUPPORT</div>
       <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:#cdd9e5;margin-bottom:6px;">How can we help?</div>
       <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;margin-bottom:24px;line-height:1.6;">Send us a message and we'll get back to you as soon as possible.</div>
@@ -6863,10 +6871,7 @@ window.addEventListener('load', function() {
     </div>
 
     <!-- RIGHT: animated panel -->
-    <div style="width:50%;background:linear-gradient(135deg,#000510,#000d1a,#001428,#000510);background-size:400% 400%;animation:navyFlow 8s ease infinite;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-      <button onclick="closeSupportModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:rgba(74,158,255,0.35);cursor:pointer;padding:4px;display:flex;align-items:center;z-index:2;" onmouseover="this.style.color='rgba(74,158,255,0.8)'" onmouseout="this.style.color='rgba(74,158,255,0.35)'">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+    <div class="support-art" style="width:50%;background:linear-gradient(135deg,#000510,#000d1a,#001428,#000510);background-size:400% 400%;animation:navyFlow 8s ease infinite;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
       <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.18) 2px,rgba(0,0,0,0.18) 4px);pointer-events:none;"></div>
       <div style="position:absolute;top:14px;left:14px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(74,158,255,0.2);line-height:1.7;">ALT 35000 FT<br>SPD 480 KTS</div>
       <div style="position:absolute;top:14px;right:14px;font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(74,158,255,0.2);line-height:1.7;text-align:right;">HDG 270°<br>FL350</div>
@@ -6875,7 +6880,7 @@ window.addEventListener('load', function() {
       <div style="position:relative;z-index:1;text-align:center;padding:0 24px;">
         <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:900;letter-spacing:3px;margin-bottom:12px;"><span style="color:#ffffff;">NOTAM</span><br><span style="color:#4a9eff;">INTELLIGENCE</span></div>
         <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#cdd9e5;margin-bottom:16px;"><a href="mailto:support@notamai.com" style="color:#4a9eff;text-decoration:none;">support@notamai.com</a></div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;letter-spacing:1px;">24/7 Aviation Support</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;letter-spacing:1px;">Aviation support by e-mail</div>
       </div>
     </div>
 
