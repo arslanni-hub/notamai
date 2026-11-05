@@ -902,6 +902,16 @@ canvas#sky {
   transition: left 0.3s ease, width 0.3s ease;
 }
 .result-overlay.open { display: flex; }
+/* v3.139: the briefing top bar goes compact whenever the briefing itself is narrow (e.g. a phone held sideways with a side
+   panel open: ~370 px left for the briefing) — same rules as the phone layout, but keyed to the overlay's own width */
+.result-overlay { container-type: inline-size; }
+@container (max-width: 640px) {
+  .result-topbar { padding: 10px 12px !important; gap: 10px !important; }
+  .result-topbar-logo span { display: none; }
+  .result-status { min-width: 0; font-size: 9.5px; letter-spacing: 1px; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .result-topbar-btn { padding: 7px 9px !important; gap: 0 !important; }
+  .result-topbar-btn .rtb-label { display: none; }
+}
 .ui {
   transition: width 0.3s ease, left 0.3s ease;
 }
@@ -1403,6 +1413,12 @@ canvas#sky {
 /* v3.134: controls that only appeared on mouse hover (delete ×, item ⋯ menus) stay visible on touch screens */
 @media (hover: none) { .delete-btn, .delete-alert-btn, .archive-menu, .item-menu-btn { opacity: 0.75 !important; } }   /* v3.135: Analyze ✨ back to appearing with the frame on tap */
 #appSidebar.collapsed #sidebarUserCard { justify-content: center; padding: 8px 0; }
+/* v3.139: short screens (a phone held sideways, ~390 px tall) — the menu items filled the open sidebar and Starred / Recents
+   got no height at all; the whole open sidebar scrolls instead */
+@media (max-height: 560px) {
+  #appSidebar:not(.collapsed) { overflow-y: auto !important; overflow-x: hidden !important; }
+  #appSidebar:not(.collapsed) #sidebarScrollSection { flex: none !important; overflow: visible !important; }
+}
 #sidebarScrollSection::-webkit-scrollbar { width: 3px; }
 #sidebarScrollSection::-webkit-scrollbar-track { background: transparent; }
 #sidebarScrollSection::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 2px; }
