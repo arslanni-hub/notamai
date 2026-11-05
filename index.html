@@ -366,18 +366,6 @@ canvas#sky {
   pointer-events: auto;
 }
 
-/* v3.137: phone in landscape (~390 px tall) — the start screen did not fit: the HUD corners, altitude tape and crosshair
-   ran into the input box and hid the send button. Keep only logo, greeting, input and mode pills, all compact. */
-@media (max-height: 500px) and (pointer: coarse) {
-  .hud { display: none !important; }
-  .ui { padding: 10px 24px !important; }
-  .logo { font-size: 13px !important; letter-spacing: 4px !important; gap: 8px !important; margin-bottom: 2px !important; }
-  .logo img { width: 26px !important; height: 26px !important; border-radius: 6px !important; }
-  .logo-line { display: none !important; }
-  .greeting { font-size: 19px !important; margin: 6px 0 10px !important; }
-  .greeting-sub { display: none !important; }
-  .mode-pills-row { margin-top: 10px !important; }
-}
 /* ═══ INPUT CARD ═══ */
 .input-card {
   width: 100%;
@@ -783,7 +771,7 @@ canvas#sky {
 .chat-topbar-title { flex: 1; min-width: 0; font-family: 'Share Tech Mono', monospace; font-size: 11.5px; letter-spacing: 1.5px; color: #8a9bb0;
   text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* v3.124: phones — the decorative HUD corners would sit on top of the chat bar / disclaimer; mode pills fit the narrow column */
-@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {   /* v3.137: phones in landscape too */
+@media (max-width: 768px) {
   body.chat-mode .hud { display: none; }
   .mode-pills-row { gap: 6px; flex-wrap: wrap; max-width: 100%; }
   .mode-pill { padding: 7px 12px; letter-spacing: 1.5px; }
@@ -883,7 +871,7 @@ canvas#sky {
 .pm-tab { display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;letter-spacing:1px;color:#4a5f72;transition:color 0.15s,background 0.15s;margin-bottom:2px; }
 .pm-tab svg { flex-shrink:0;stroke:#4a5f72;transition:stroke 0.15s; }
 /* v3.134: profile window on phones — tabs become a scrollable row on top instead of a 180 px column beside a ~170 px content area */
-@media (max-width: 600px), (max-height: 500px) and (pointer: coarse) {
+@media (max-width: 600px) {
   #profileModal .pm-box { flex-direction: column; width: 100vw !important; max-width: 100vw !important; height: 100dvh !important; max-height: 100dvh !important; border-radius: 0 !important; border: none !important; }
   #profileModal .pm-side { width: 100% !important; border-right: none !important; border-bottom: 1px solid #1a2a3a; padding: 14px 0 0 !important; }
   #profileModal .pm-head { display: flex; align-items: center; gap: 10px; padding: 0 52px 12px 16px !important; margin-bottom: 0 !important; }
@@ -935,13 +923,13 @@ canvas#sky {
 }
 .result-topbar-logo em { font-style: normal; color: var(--blue); }
 /* v3.128: side panels on phones — full screen, above the floating Ask button and the sidebar rail */
-@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {   /* v3.137: phones in landscape too */
+@media (max-width: 768px) {
   #rawDataPanel, #savedRoutesPanel, #alertsPanel, #settingsPanel, #archivePanel, #toolsPanel, #aiChatContainer {
     width: 100vw !important; max-width: 100vw !important; height: 100dvh !important; border-left: none !important; z-index: 2200 !important;
   }
 }
 /* v3.125: briefing top bar on phones — logo icon only, status on one line with ellipsis, icon-only Upgrade / Share */
-@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {   /* v3.137: phones in landscape too */
+@media (max-width: 768px) {
   .result-topbar { padding: 10px 12px !important; gap: 10px !important; }
   .result-topbar-logo span { display: none; }
   .result-status { min-width: 0; font-size: 9.5px; letter-spacing: 1px; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -1063,8 +1051,8 @@ canvas#sky {
   justify-content: center;
 }
 #authModalBg.open { display: flex; }
-/* v3.136: phones — sign-up / log-in and Support open full screen with just the form (the decorative half squeezed the form into ~170 px); v3.137: also in landscape */
-@media (max-width: 600px), (max-height: 500px) and (pointer: coarse) {
+/* v3.136: phones — sign-up / log-in and Support open full screen with just the form (the decorative half squeezed the form into ~170 px) */
+@media (max-width: 600px) {
   #authModal, #signupModalInner { width: 100vw !important; max-width: 100vw !important; height: 100dvh !important; border-radius: 0 !important; border: none !important; }
   #authModal .auth-left, #signupModalInner .auth-left { width: 100% !important; overflow-y: auto; padding: 52px 24px 28px !important; }
   #authModal .auth-right, #signupModalInner .auth-right { display: none !important; }
@@ -1386,10 +1374,6 @@ canvas#sky {
 }
 .sidebar-nav-item:hover { background: rgba(255,255,255,0.06); color: #cdd9e5; }
 #appSidebar.collapsed .sidebar-nav-item { justify-content: center; padding: 10px 0; margin: 1px 4px; }
-@media (max-height: 500px) and (pointer: coarse) {   /* v3.137: landscape phone — the rail's account button was cut off at the bottom */
-  #appSidebar.collapsed .sidebar-nav-item { padding: 6px 0 !important; }
-  #sidebarLogoCollapsed { padding: 8px 0 !important; }
-}
 #appSidebar.collapsed .sidebar-nav-item svg { transition: transform 0.15s ease; }
 #appSidebar.collapsed .sidebar-nav-item:hover svg { transform: scale(1.15); }
 .sidebar-tooltip {
@@ -5880,12 +5864,7 @@ function signInWithEmail() {
 let sidebarOpen = true;
 // v3.124: on phones / narrow screens the open sidebar overlays the page instead of pushing it — the main area always starts
 // after the 52 px rail (an open 260 px sidebar used to leave a 130 px wide main area on a 390 px phone).
-// v3.137: a phone turned sideways (~844 × 390) is still a phone — it used to get the desktop layout
-// (sidebar pushing the page, 420 px panels squeezing it). Touch screens up to 500 px tall count as narrow.
-function isNarrowScreen() {
-  if (window.innerWidth <= 768) return true;
-  try { return window.innerHeight <= 500 && window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; }
-}
+function isNarrowScreen() { return window.innerWidth <= 768; }
 function mainLeftFor(open) { return (open && !isNarrowScreen()) ? 260 : 52; }
 // v3.125: on phones the open sidebar is a drawer — 85 % of the screen (max 320 px) over a dimmed backdrop; tap the backdrop to close
 function sidebarOpenWidth() { return isNarrowScreen() ? Math.min(320, Math.round(window.innerWidth * 0.85)) + 'px' : '260px'; }
@@ -5974,7 +5953,6 @@ window.addEventListener('resize', function () {
   _narrowWas = n;
   if (document.body.classList.contains('sidebar-open') || document.body.classList.contains('sidebar-collapsed')) {
     if (!document.body.classList.contains('panel-open')) applyPanelClose();
-    else { try { applyPanelOpen(); } catch (e) {} }   // v3.137: rotating with a panel open re-fits the page too
     if (sidebarOpen) { const sb = document.getElementById('appSidebar'); if (sb) sb.style.width = sidebarOpenWidth(); setSidebarBackdrop(true); }
   }
 });
