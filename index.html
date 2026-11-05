@@ -901,6 +901,12 @@ canvas#sky {
   color: #ffffff;
 }
 .result-topbar-logo em { font-style: normal; color: var(--blue); }
+/* v3.128: side panels on phones — full screen, above the floating Ask button and the sidebar rail */
+@media (max-width: 768px) {
+  #rawDataPanel, #savedRoutesPanel, #alertsPanel, #settingsPanel, #archivePanel, #toolsPanel, #aiChatContainer {
+    width: 100vw !important; max-width: 100vw !important; height: 100dvh !important; border-left: none !important; z-index: 2200 !important;
+  }
+}
 /* v3.125: briefing top bar on phones — logo icon only, status on one line with ellipsis, icon-only Upgrade / Share */
 @media (max-width: 768px) {
   .result-topbar { padding: 10px 12px !important; gap: 10px !important; }
@@ -5905,6 +5911,7 @@ function toggleUserPopup() {
 }
 
 function startNewBriefing() {
+  try { collapseSidebarIfNarrow(); } catch (e) {}   // v3.128
   const input = document.getElementById('mainInput');
   if (input) { input.value = ''; input.focus(); }
 }
@@ -8800,14 +8807,16 @@ function applyPanelOpen() {
     document.body.classList.add('sidebar-collapsed');
     document.body.classList.remove('sidebar-open');
     sidebarOpen = false;
-    localStorage.setItem('sidebarOpen', 'false');
+    if (!isNarrowScreen()) localStorage.setItem('sidebarOpen', 'false');   // the phone drawer never changes the desktop preference
+    setSidebarBackdrop(false);   // v3.128: a panel opened from the phone drawer must not stay behind the backdrop
   }
   document.body.classList.add('panel-open');
   const mc = document.getElementById('mainContent');
   const scene = document.getElementById('scene');
   const ui = document.querySelector('.ui');
   const overlay = document.getElementById('resultOverlay');
-  const w = (window.innerWidth - 52 - 420) + 'px';
+  // v3.128: on phones the panel covers the whole screen, so the page behind keeps its normal size (was innerWidth − 472 → negative)
+  const w = isNarrowScreen() ? 'calc(100vw - 52px)' : (window.innerWidth - 52 - 420) + 'px';
   if (mc) { mc.style.left = '52px'; mc.style.width = w; }
   if (scene) { scene.style.left = '52px'; scene.style.width = w; }
   if (ui) { ui.style.left = '52px'; ui.style.width = w; }
