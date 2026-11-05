@@ -4355,6 +4355,7 @@ if (getAccessBtn) {
         analysis: { used: analysisUsed, limit: limits.analysis },
         video: { used: videoUsed, limit: plan === 'admin' ? 9999 : (limitPlanOf(plan) === 'max' ? VIDEO_MONTHLY_MAX : 0), packCredits: userData.videoCredits || 0, packAvailable: !!(stripe && STRIPE_PRICE_VIDEO_PACK) },
         chat: { tokens: chatTokens, limit: chatCfg.limit, resetInMinutes },
+        stripeBilling: !!userData.stripeCustomerId,   // v3.133: false = invoiced (Team/Enterprise) or complimentary — no Stripe portal
         monthlyResetDays: daysUntilReset,
         memberSince: userData.createdAt ? userData.createdAt.toDate().toISOString() : null
       }));

@@ -359,7 +359,7 @@ canvas#sky {
     <div class="hud-tl">ALT <span id="altVal">35000</span> FT<br>SPD <span id="spdVal">480</span> KTS<br>HDG <span id="hdgVal">270</span>°</div>
     <div class="hud-tr"><span id="hudTime">--:-- UTC</span><br><span id="hudDate">-- --- ----</span><br>AIRAC CURRENT</div>
     <div class="hud-bl">GS <span id="gsVal">491</span> KTS<br>OAT <span id="oatVal">-56</span>°C<br>FL350</div>
-    <div class="hud-br">NOTAM INTEL v1.0<br>ICAO ANNEX 15<br>PANS-AIM DOC 10066</div>
+    <div class="hud-br">NOTAM INTEL<br>ICAO ANNEX 15<br>PANS-AIM DOC 10066</div>
     <div class="horizon-line"></div>
     <div class="crosshair"></div>
     <div class="alt-tape"><span>360</span><span>355</span><span>350</span><span style="color:rgba(74,158,255,0.7);font-weight:bold">&#9658; 350</span><span>345</span><span>340</span><span>335</span></div>
@@ -573,7 +573,9 @@ async function openBillingPortal() {
     const token = await user.getIdToken();
     const r = await fetch('/api/billing-portal', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
     const d = await r.json();
-    if (d.url) window.open(d.url, '_blank'); else alert('No active subscription found.');
+    if (d.url) window.open(d.url, '_blank');
+    else if (d.error === 'no_subscription') window.location.href = 'mailto:support@notamai.com?subject=' + encodeURIComponent('Billing question');   // v3.133: invoiced / complimentary plans
+    else alert('Could not open the billing portal. Please try again.');
   } catch (e) { alert('Could not open the billing portal. Please try again.'); }
 }
 
