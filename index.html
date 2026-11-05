@@ -329,6 +329,12 @@ canvas#sky {
   font-style: normal;
   color: var(--blue);
 }
+@media (max-width: 600px) {   /* v3.135: phones — icon above a one-line wordmark (side by side it wrapped into two uneven lines) */
+  .logo { flex-direction: column !important; gap: 10px !important; font-size: 14px; letter-spacing: 4px; }
+  .logo img { width: 36px !important; height: 36px !important; }
+  .logo span { white-space: nowrap; }
+  .logo-line { font-size: 8px !important; letter-spacing: 2.5px !important; line-height: 1.6; padding: 0 8px; }
+}
 .logo-line {
   font-family: var(--mono);
   font-size: 9px;
@@ -759,7 +765,8 @@ canvas#sky {
 .chat-share-btn.visible { display: flex; }
 /* v3.122b: slim chat top bar — title (first question) left, share + close right; same 900 px column as the messages */
 .chat-topbar { display: none; align-items: center; gap: 10px; width: 100%; max-width: 900px; flex-shrink: 0; padding: 14px 4px 12px;
-  border-bottom: 1px solid rgba(74,158,255,0.12); pointer-events: auto; }
+  border-bottom: 1px solid rgba(74,158,255,0.12); pointer-events: auto;
+  background: #060a0f; position: sticky; top: 0; z-index: 5; }   /* v3.135: was transparent — scrolled text showed through it */
 .ui.chat-active .chat-topbar { display: flex; }
 .chat-topbar-title { flex: 1; min-width: 0; font-family: 'Share Tech Mono', monospace; font-size: 11.5px; letter-spacing: 1.5px; color: #8a9bb0;
   text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1384,8 +1391,8 @@ canvas#sky {
 #appSidebar.collapsed #sidebarLogoCollapsed:hover .sidebar-tooltip { opacity: 1; }
 #appSidebar.collapsed #sidebarUserCard:hover .sidebar-tooltip { opacity: 1; }
 @media (hover: none) { .sidebar-tooltip { display: none !important; } }  /* v3.130: touch screens — tap would leave it stuck */
-/* v3.134: controls that only appeared on mouse hover (Analyze ✨, delete ×, item ⋯ menus) stay visible on touch screens */
-@media (hover: none) { .ai-spark, .delete-btn, .delete-alert-btn, .archive-menu, .item-menu-btn { opacity: 0.75 !important; } }
+/* v3.134: controls that only appeared on mouse hover (delete ×, item ⋯ menus) stay visible on touch screens */
+@media (hover: none) { .delete-btn, .delete-alert-btn, .archive-menu, .item-menu-btn { opacity: 0.75 !important; } }   /* v3.135: Analyze ✨ back to appearing with the frame on tap */
 #appSidebar.collapsed #sidebarUserCard { justify-content: center; padding: 8px 0; }
 #sidebarScrollSection::-webkit-scrollbar { width: 3px; }
 #sidebarScrollSection::-webkit-scrollbar-track { background: transparent; }
@@ -1501,7 +1508,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
     <span id="chatUsageBannerText"></span>
     <button class="upgrade-pill" id="chatUpgradePill" style="display:none;" onclick="gtag('event','upgrade_click');window.location.href='/pricing-upgrade'">Get more usage</button>
   </div>
-  <div class="logo" onclick="goHome(event)" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;">
+  <div class="logo" onclick="if (firebase.auth().currentUser) goHome(event); else window.location.reload();" style="cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;">
     <img src="/favicon.png" alt="" style="width:41px;height:41px;border-radius:9px;flex-shrink:0;">
     <span>NOTAM <em>INTELLIGENCE</em></span>
   </div>
@@ -5962,10 +5969,7 @@ function goHome(e) {
   let signedIn = false;
   try { signedIn = !!firebase.auth().currentUser; } catch (err) {}
   if (signedIn) startNewBriefing();
-  else {
-    try { resetMainView(); } catch (err) {}
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
+  else window.scrollTo({ top: 0, behavior: 'smooth' });   // v3.135: resetMainView here re-applied the signed-in layout (page shifted right)
   return false;
 }
 
