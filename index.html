@@ -1369,6 +1369,7 @@ canvas#sky {
 #appSidebar.collapsed .sidebar-nav-item:hover .sidebar-tooltip { opacity: 1; }
 #appSidebar.collapsed #sidebarLogoCollapsed:hover .sidebar-tooltip { opacity: 1; }
 #appSidebar.collapsed #sidebarUserCard:hover .sidebar-tooltip { opacity: 1; }
+@media (hover: none) { .sidebar-tooltip { display: none !important; } }  /* v3.130: touch screens — tap would leave it stuck */
 #appSidebar.collapsed #sidebarUserCard { justify-content: center; padding: 8px 0; }
 #sidebarScrollSection::-webkit-scrollbar { width: 3px; }
 #sidebarScrollSection::-webkit-scrollbar-track { background: transparent; }
@@ -8027,8 +8028,20 @@ function pricing_toggleBilling() {
 <div id="sidebarFloatingTooltip" style="display:none;position:fixed;background:#0d1520;border:1px solid #1a2a3a;color:#cdd9e5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;font-weight:400;padding:6px 12px;border-radius:6px;letter-spacing:0;box-shadow:0 4px 12px rgba(0,0,0,0.4);white-space:nowrap;z-index:9999;pointer-events:none;"></div>
 
 <script>
+// v3.130: no hover tooltips on touch — a tap fires mouseenter/mouseover but never the matching leave,
+// so the tip stayed on screen (Open sidebar, panel items, mode pills). Mouse / pen keep their tooltips.
+let lastPointerTouch = false;
+document.addEventListener('pointerdown', function(e) {
+  lastPointerTouch = e.pointerType === 'touch';
+  try { hideSidebarTooltip(); } catch (err) {}
+}, true);
+document.addEventListener('touchstart', function() { lastPointerTouch = true; }, { capture: true, passive: true });
+function tooltipsSuppressed() {
+  return lastPointerTouch || (window.matchMedia && window.matchMedia('(hover: none)').matches);
+}
+
 function showSidebarTooltip(text, element) {
-  if (sidebarOpen) return;
+  if (sidebarOpen || tooltipsSuppressed()) return;
   const tooltip = document.getElementById('sidebarFloatingTooltip');
   const rect = element.getBoundingClientRect();
   tooltip.textContent = text;
@@ -8043,7 +8056,7 @@ function hideSidebarTooltip() {
 
 document.addEventListener('mouseover', function(e) {
   const el = e.target.closest('[data-tooltip]');
-  if (!el) return;
+  if (!el || tooltipsSuppressed()) return;
   const tooltip = document.getElementById('sidebarFloatingTooltip');
   tooltip.textContent = el.dataset.tooltip;
   tooltip.style.display = 'block';
