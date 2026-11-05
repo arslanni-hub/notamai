@@ -1964,7 +1964,7 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
         </div>
 
         <div style="margin-bottom:12px;width:100%;">
-          <input id="referralInput" type="text" placeholder="Referral code (optional)" style="width:100%;height:44px;padding:0 16px;border:1px solid #1a2a3a;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;background:#060a0f;outline:none;box-sizing:border-box;letter-spacing:1px;display:block;" onfocus="this.style.borderColor='rgba(74,158,255,0.4)'" onblur="this.style.borderColor='#1a2a3a'">
+          <input id="referralInput" type="text" placeholder="Invite code (optional)" style="width:100%;height:44px;padding:0 16px;border:1px solid #1a2a3a;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:14px;color:#cdd9e5;background:#060a0f;outline:none;box-sizing:border-box;letter-spacing:1px;display:block;" onfocus="this.style.borderColor='rgba(74,158,255,0.4)'" onblur="this.style.borderColor='#1a2a3a'">
         </div> 
         <button style="width:100%;padding:12px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;text-transform:uppercase;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'" onclick="createAccount()">Create Account</button>
       </div>
@@ -6236,6 +6236,16 @@ firebase.auth().onAuthStateChanged(async user => {
       const userDoc = await db.collection('users').doc(user.uid).get();
       const data = userDoc.exists ? userDoc.data() : {};
       applyProfileName(user, data);   // v3.99: saved display name + role title
+      // v3.132: invite code for accounts created with Google (createAccount only covers e-mail sign-ups) — new accounts only
+      try {
+        const pref = localStorage.getItem('notamai_pending_ref');
+        const ageMs = Date.now() - new Date(user.metadata && user.metadata.creationTime || 0).getTime();
+        const own = 'NI-' + user.uid.substring(0, 6).toUpperCase();
+        if (pref && !data.referredBy && ageMs < 60 * 60 * 1000 && pref !== own) {
+          await db.collection('users').doc(user.uid).set({ referredBy: pref }, { merge: true });
+        }
+        if (pref && (data.referredBy || ageMs >= 60 * 60 * 1000)) localStorage.removeItem('notamai_pending_ref');
+      } catch (e) {}
       if (!data.onboardingComplete) {
         setTimeout(() => showOnboarding(), 1500);
       }
@@ -6380,7 +6390,7 @@ async function createAccount() {
     await db.collection('users').doc(result.user.uid).set({
       email: email,
       plan: 'free',
-      referredBy: referralCode || null,
+      referredBy: referralCode || (function(){ try { return localStorage.getItem('notamai_pending_ref'); } catch (e) { return null; } })() || null,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     sendVerificationEmail(result.user).catch(() => {});
@@ -6397,7 +6407,9 @@ function openInviteModal() {
   document.getElementById('inviteLinkInput').value = inviteUrl;
   window.currentInviteUrl = inviteUrl;
   document.getElementById('inviteModal').style.display = 'flex';
-  toggleUserPopup();
+  // v3.132: always just close the account menu (a toggle here opened it when invoked from Settings, and the menu's own
+  // onclick toggled it back open)
+  try { const pop = document.getElementById('userPopup'); if (pop) pop.style.display = 'none'; } catch (e) {}
 }
 
 function closeInviteModal() {
@@ -6521,7 +6533,7 @@ async function pmLoadUsage() {
     const cc = barColor(cp);
     html += `<div style="margin-bottom:22px;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">
-        <span style="font-family:Rajdhani,sans-serif;font-size:14px;font-weight:600;color:#cdd9e5;">NOTAM Intelligence Chat</span>
+        <span style="font-family:Rajdhani,sans-serif;font-size:14px;font-weight:600;color:#cdd9e5;">Aviation Expert Chat</span>
         <span style="font-family:Share Tech Mono,monospace;font-size:11px;color:${cc};">${cp}%</span>
       </div>
       <div class="pm-usage-bar"><div class="pm-usage-fill" style="width:${cp}%;background:${cc};"></div></div>
@@ -6735,6 +6747,7 @@ window.addEventListener('load', function() {
     window.history.replaceState({}, '', '/');
   }
   const ref = params.get('ref');
+  if (ref && /^NI-[A-Z0-9]{6}$/i.test(ref)) { try { localStorage.setItem('notamai_pending_ref', ref.toUpperCase()); } catch (e) {} }
   if (ref) {
     setTimeout(() => {
       openSignupModal();
@@ -7978,13 +7991,13 @@ function pricing_toggleBilling() {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a8 8 0 0 1 16 0v1"/></svg>
         Profile & Settings
       </div>
-      <div class="popup-item" onclick="openInviteModal();toggleUserPopup()">
+      <div class="popup-item" onclick="openInviteModal()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
         Invite a Colleague
       </div>
       <div class="popup-item" onclick="copyReferralCode()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-        <span>Referral Code: <span id="refCode" style="color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:10px;"></span></span>
+        <span>Invite Code: <span id="refCode" style="color:#4a9eff;font-family:'Share Tech Mono',monospace;font-size:10px;"></span></span>
       </div>
       <div style="border-top:1px solid #1a2a3a;margin:4px 4px;"></div>
       <!-- Plan actions -->
@@ -8556,6 +8569,7 @@ document.addEventListener('mouseout', function(e) {
     <!-- NOTIFICATIONS -->
     <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
       <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">NOTIFICATIONS</div>
+      <div id="settingsNotifNote" style="display:none;font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;margin:-4px 0 6px;">NOTAM Alerts and the weekly summary are part of the Pro and Max plans.</div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #0d1520;">
         <div>
           <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;">Email Alerts</div>
@@ -8577,9 +8591,10 @@ document.addEventListener('mouseout', function(e) {
     </div>
     <!-- REFERRAL -->
     <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #1a2a3a;">
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:12px;">REFERRAL PROGRAM</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:6px;">INVITE COLLEAGUES</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:#4a5f72;margin-bottom:12px;">Share your invite link — colleagues start on the Free plan.</div>
       <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px 14px;margin-bottom:8px;">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;margin-bottom:6px;">YOUR REFERRAL CODE</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;margin-bottom:6px;">YOUR INVITE CODE</div>
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <div id="settingsRefCode" style="font-family:'Share Tech Mono',monospace;font-size:14px;color:#4a9eff;letter-spacing:3px;"></div>
           <button onclick="copySettingsRefCode()" id="copySettingsRefBtn" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:500;letter-spacing:1px;padding:4px 10px;border-radius:4px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">Copy</button>
@@ -10191,12 +10206,12 @@ async function loadSettingsData() {
       const fsSettings = doc.exists ? (doc.data().notifications || {}) : {};
       const merged = Object.assign({}, JSON.parse(localStorage.getItem('notamai_settings') || '{}'), fsSettings);
       localStorage.setItem('notamai_settings', JSON.stringify(merged));
-      updateToggle('emailAlerts', merged.emailAlerts !== false);
-      updateToggle('weeklySummary', merged.weeklySummary || false);
+      updateToggle('emailAlerts', settingOn(merged, 'emailAlerts'));
+      updateToggle('weeklySummary', settingOn(merged, 'weeklySummary'));
     } catch(e) {
       const settings = JSON.parse(localStorage.getItem('notamai_settings') || '{}');
-      updateToggle('emailAlerts', settings.emailAlerts !== false);
-      updateToggle('weeklySummary', settings.weeklySummary || false);
+      updateToggle('emailAlerts', settingOn(settings, 'emailAlerts'));
+      updateToggle('weeklySummary', settingOn(settings, 'weeklySummary'));
     }
   }
   try {
@@ -10208,6 +10223,12 @@ async function loadSettingsData() {
     const planLabels = { free: 'Free Plan', pro: 'Pro Plan', max: 'Max Plan', team: 'Team Plan', enterprise: 'Enterprise Plan', admin: 'Admin' };
     const planEl = document.getElementById('settingsPlan');
     if (planEl) { planEl.textContent = planLabels[plan] || plan; planEl.style.color = planColors[plan] || '#cdd9e5'; }
+    // v3.132: Free has no NOTAM Alerts and gets no weekly summary — show the toggles off and say why
+    window.__notifLocked = plan === 'free';
+    const nNote = document.getElementById('settingsNotifNote');
+    if (nNote) nNote.style.display = window.__notifLocked ? 'block' : 'none';
+    ['emailAlertsToggle', 'weeklySummaryToggle'].forEach(id => { const t = document.getElementById(id); if (t) t.style.opacity = window.__notifLocked ? '0.4' : ''; });
+    if (window.__notifLocked) { updateToggle('emailAlerts', false); updateToggle('weeklySummary', false); }
     const upgradeBtn = document.getElementById('settingsUpgradeBtn');
     const manageBtn = document.getElementById('settingsManageBtn');
     if (upgradeBtn && manageBtn) {
@@ -10233,7 +10254,7 @@ async function loadSettingsData() {
       let html = row('AI Briefings', resetStr, d.briefings.used, d.briefings.limit);
       html += row('AI Analysis', resetStr, d.analysis.used, d.analysis.limit);
       const cp = pct(d.chat.tokens, d.chat.limit); const cc = barColor(cp);
-      html += '<div style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">NOTAM Intelligence Chat</span><span style="font-family:Share Tech Mono,monospace;font-size:10px;color:' + cc + ';">' + cp + '%</span></div><div style="height:3px;background:#1a2a3a;border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + cp + '%;background:' + cc + ';border-radius:2px;"></div></div><div style="font-family:Share Tech Mono,monospace;font-size:9px;color:#4a5f72;margin-top:3px;">current session \xb7 ' + chatReset + '</div></div>';
+      html += '<div style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">Aviation Expert Chat</span><span style="font-family:Share Tech Mono,monospace;font-size:10px;color:' + cc + ';">' + cp + '%</span></div><div style="height:3px;background:#1a2a3a;border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + cp + '%;background:' + cc + ';border-radius:2px;"></div></div><div style="font-family:Share Tech Mono,monospace;font-size:9px;color:#4a5f72;margin-top:3px;">current session \xb7 ' + chatReset + '</div></div>';
       if (plan === 'max' || plan === 'admin') html += row('AI Video Briefings', resetStr, d.video.used, d.video.limit);
       if ((plan === 'max' || plan === 'admin') && d.video.packCredits > 0) html += '<div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin:-4px 0 10px;">+' + d.video.packCredits + ' extra video' + (d.video.packCredits === 1 ? '' : 's') + ' (pack, no expiry)</div>';
       usageEl.innerHTML = html;
@@ -10256,9 +10277,14 @@ function updateToggle(key, value) {
   }
 }
 
+// v3.132: both notifications default to ON, the same as the server (alert mails unless emailAlerts === false,
+// weekly summary unless weeklySummary === false). Before, Email Alerts needed two clicks to turn off and
+// Weekly Summary showed OFF while the mail was being sent.
+function settingOn(settings, key) { return settings[key] !== false; }
 async function toggleSetting(key) {
+  if (window.__notifLocked) { showToast('Notifications are part of the Pro and Max plans.'); return; }
   const settings = JSON.parse(localStorage.getItem('notamai_settings') || '{}');
-  settings[key] = !settings[key];
+  settings[key] = !settingOn(settings, key);
   localStorage.setItem('notamai_settings', JSON.stringify(settings));
   updateToggle(key, settings[key]);
   const user = firebase.auth().currentUser;
