@@ -863,6 +863,20 @@ canvas#sky {
 /* ═══ RESULT OVERLAY ═══ */
 .pm-tab { display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:500;letter-spacing:1px;color:#4a5f72;transition:color 0.15s,background 0.15s;margin-bottom:2px; }
 .pm-tab svg { flex-shrink:0;stroke:#4a5f72;transition:stroke 0.15s; }
+/* v3.134: profile window on phones — tabs become a scrollable row on top instead of a 180 px column beside a ~170 px content area */
+@media (max-width: 600px) {
+  #profileModal .pm-box { flex-direction: column; width: 100vw !important; max-width: 100vw !important; height: 100dvh !important; max-height: 100dvh !important; border-radius: 0 !important; border: none !important; }
+  #profileModal .pm-side { width: 100% !important; border-right: none !important; border-bottom: 1px solid #1a2a3a; padding: 14px 0 0 !important; }
+  #profileModal .pm-head { display: flex; align-items: center; gap: 10px; padding: 0 52px 12px 16px !important; margin-bottom: 0 !important; }
+  #profileModal .pm-head #pmAvatar { width: 34px !important; height: 34px !important; margin-bottom: 0 !important; font-size: 13px !important; }
+  #profileModal #pmTabs { display: flex; gap: 4px; overflow-x: auto; padding: 6px 10px !important; flex: none !important; scrollbar-width: none; }
+  #profileModal #pmTabs::-webkit-scrollbar { display: none; }
+  #profileModal .pm-tab { white-space: nowrap; margin-bottom: 0; flex-shrink: 0; }
+  #profileModal .pm-side > div:last-child { display: none; }
+  #profileModal .pm-content { padding: 18px 16px 24px !important; }
+  #profileModal .pm-box > div:last-child { position: static !important; }   /* the ✕ then sits in the header's top-right corner */
+  #profileModal #profileEmail { min-width: 0; }
+}
 .pm-tab:hover { color:#8a9bb0;background:rgba(255,255,255,0.03); }
 .pm-tab:hover svg { stroke:#8a9bb0; }
 .pm-tab.active { color:#cdd9e5;background:rgba(74,158,255,0.08); }
@@ -1370,6 +1384,8 @@ canvas#sky {
 #appSidebar.collapsed #sidebarLogoCollapsed:hover .sidebar-tooltip { opacity: 1; }
 #appSidebar.collapsed #sidebarUserCard:hover .sidebar-tooltip { opacity: 1; }
 @media (hover: none) { .sidebar-tooltip { display: none !important; } }  /* v3.130: touch screens — tap would leave it stuck */
+/* v3.134: controls that only appeared on mouse hover (Analyze ✨, delete ×, item ⋯ menus) stay visible on touch screens */
+@media (hover: none) { .ai-spark, .delete-btn, .delete-alert-btn, .archive-menu, .item-menu-btn { opacity: 0.75 !important; } }
 #appSidebar.collapsed #sidebarUserCard { justify-content: center; padding: 8px 0; }
 #sidebarScrollSection::-webkit-scrollbar { width: 3px; }
 #sidebarScrollSection::-webkit-scrollbar-track { background: transparent; }
@@ -3246,6 +3262,9 @@ function applyProfileName(user, data) {
   const av = document.getElementById('sidebarAvatar');
   const base = String((data && data.displayName) || (user && user.displayName) || (user && user.email) || '').replace(/^(cpt\.?|capt\.?|captain|f\/o|fo|first officer)\s+/i, '').trim();
   if (av && base) av.textContent = base.charAt(0).toUpperCase();
+  // v3.134: the profile window's header follows the saved profile too (it showed the Google/Auth name)
+  const pmN = document.getElementById('pmName'); if (pmN) pmN.textContent = full;
+  const pmA = document.getElementById('pmAvatar'); if (pmA && base) pmA.textContent = base.charAt(0).toUpperCase();
   greetingName = full;
   setGreeting();
 }
@@ -5924,6 +5943,11 @@ window.addEventListener('resize', function () {
   }
 });
 
+// v3.134: escape user / Firestore text before it goes into innerHTML (archive, chat archive, video archive)
+function escHtmlClient(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function toggleUserPopup() {
   const popup = document.getElementById('userPopup');
   popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
@@ -5959,13 +5983,19 @@ function startNewBriefing() {
   }
 }
 
+// v3.134: the menu shows the same 'NI-XXXXXX' as Settings (it showed the code without NI- but copied it with NI-);
+// the code lives in data-code so 'Copied!' can never end up in an invite link.
+function myInviteCode() {
+  const u = firebase.auth().currentUser;
+  return u ? 'NI-' + generateReferralCode(u.uid) : '';
+}
 function copyReferralCode() {
   const el = document.getElementById('refCode');
-  const code = el.textContent;
-  navigator.clipboard.writeText('NI-' + code);
-  const orig = el.textContent;
+  const code = myInviteCode();
+  if (!code) return;
+  try { navigator.clipboard.writeText(code); } catch (e) {}
   el.textContent = 'Copied!';
-  setTimeout(() => el.textContent = orig, 2000);
+  setTimeout(() => { el.textContent = code; }, 2000);
 }
 
 function generateReferralCode(uid) {
@@ -6242,7 +6272,7 @@ firebase.auth().onAuthStateChanged(async user => {
     document.getElementById('popupEmail').textContent = user.email;
     const pName = document.getElementById('popupName');
     if (pName) pName.textContent = 'Cpt. ' + name;
-    document.getElementById('refCode').textContent = generateReferralCode(user.uid);
+    document.getElementById('refCode').textContent = 'NI-' + generateReferralCode(user.uid);
 
     greetingName = 'Cpt. ' + name;
     setGreeting();
@@ -6420,8 +6450,8 @@ async function createAccount() {
 }
 
 function openInviteModal() {
-  const code = document.getElementById('refCode')?.textContent;
-  const inviteUrl = window.location.origin + '/?ref=NI-' + code;
+  const code = myInviteCode();
+  const inviteUrl = window.location.origin + '/?ref=' + code;
   document.getElementById('inviteLinkInput').value = inviteUrl;
   window.currentInviteUrl = inviteUrl;
   document.getElementById('inviteModal').style.display = 'flex';
@@ -6458,8 +6488,8 @@ function openProfileModal() {
   modal.style.display = 'flex';
   const user = firebase.auth().currentUser;
   if (!user) return;
-  document.getElementById('pmAvatar').textContent = (user.displayName || user.email || '?')[0].toUpperCase();
-  document.getElementById('pmName').textContent = user.displayName || user.email || 'User';
+  document.getElementById('pmAvatar').textContent = (document.getElementById('sidebarAvatar')?.textContent || user.displayName || user.email || '?')[0].toUpperCase();
+  document.getElementById('pmName').textContent = document.getElementById('sidebarName')?.textContent || user.displayName || user.email || 'User';
   document.getElementById('pmEmail').textContent = user.email || '';
   const emailInput = document.getElementById('profileEmail');
   if (emailInput) emailInput.value = user.email || '';
@@ -6499,8 +6529,22 @@ function openProfileModal() {
       adminNote.style.display = 'none';
       setManageBillingMode(manageBtn, d.stripeBilling);
     }
+    window.__pmPlan = plan;
     db.collection('users').doc(user.uid).get().then(doc => {
       const data = doc.exists ? doc.data() : {};
+      // v3.134: yearly subscribers saw the monthly price; trial / cancelling status was not shown
+      try {
+        const yearly = { pro: '$504 / year ($42 / month)', max: '$1,008 / year ($84 / month)', team: '$708 / seat / year' };
+        if (data.billingInterval === 'year' && yearly[plan]) document.getElementById('pmBillingPrice').textContent = yearly[plan];
+        const st = data.subscriptionStatus || '';
+        let extra = '';
+        if (st === 'trialing') extra = 'Free trial — billing starts when the trial ends.';
+        else if (st === 'past_due') extra = 'Payment failed — please update your card under Manage Subscription.';
+        if (data.cancelAtPeriodEnd && plan !== 'free') extra = 'Cancelled — the plan stays active until the end of the current billing period.';
+        if (!d.stripeBilling && (data.manualMrr || plan === 'team' || plan === 'enterprise')) extra = 'Invoiced plan — for billing questions contact support@notamai.com.';
+        const descEl = document.getElementById('pmBillingDesc');
+        if (descEl && extra) descEl.textContent = (planDescs[plan] || '') + ' · ' + extra;
+      } catch (e) {}
       document.getElementById('profileDisplayName').value = data.displayName || user.displayName || '';
       document.getElementById('profileRole').value = data.role || '';
       document.getElementById('profileOrg').value = data.org || '';
@@ -6582,6 +6626,11 @@ function pmLoadArchive(tab) {
   const el = document.getElementById('pmArchiveContent');
   const user = firebase.auth().currentUser;
   if (!user) return;
+  // v3.134: same rule as the Archive panel — Archive is a Pro / Max feature
+  if ((window.__pmPlan || window.currentUserPlan || 'free') === 'free') {
+    el.innerHTML = '<div style="font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;line-height:1.6;">Archive is part of the <a href="/pricing-upgrade" style="color:#4a9eff;text-decoration:none;font-weight:600;">Pro and Max plans</a>. Your latest briefings are in Recents in the sidebar.</div>';
+    return;
+  }
   if (tab === 'briefings') {
     el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Loading...</div>';
     db.collection('briefings').where('userId','==',user.uid).orderBy('createdAt','desc').limit(30).get().then(snap => {
@@ -6591,10 +6640,10 @@ function pmLoadArchive(tab) {
         const d = doc.data();
         const date = d.createdAt ? new Date(d.createdAt.toDate()).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '';
         const color = riskColors[d.riskLevel] || '#4a5f72';
-        return `<div onclick="pmOpenBriefing('${doc.id}','${(d.route||'').replace(/'/g,'')}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:6px;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.borderColor='#1a2a3a'">
+        return `<div onclick="pmOpenBriefing('${doc.id}','${String(d.route||'').replace(/[^A-Za-z0-9 \-→]/g,'')}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #1a2a3a;border-radius:6px;margin-bottom:6px;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='rgba(74,158,255,0.3)'" onmouseout="this.style.borderColor='#1a2a3a'">
           <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;"></div>
           <div style="flex:1;overflow:hidden;">
-            <div style="font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.route || 'Unknown'}</div>
+            <div style="font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtmlClient(d.route || 'Unknown')}</div>
             <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:2px;">${date} · ${d.riskLevel || ''}</div>
           </div>
         </div>`;
@@ -6615,7 +6664,7 @@ function pmLoadArchive(tab) {
         card.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;';
         card.onmouseover = function(){ this.style.borderColor='rgba(74,158,255,0.4)'; };
         card.onmouseout = function(){ this.style.borderColor='#1a2a3a'; };
-        card.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;"><div style="font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;">${d.route || 'Video Briefing'}</div><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;">${date}</div></div><div style="font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;line-height:1.4;margin-bottom:8px;">${scriptPreview}${scriptPreview.length>=70?'...':''}</div><button onclick="closeProfileModal();setTimeout(()=>playArchivedVideo('${safeUrl}',\`${safeScript}\`),200)" style="display:flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:500;letter-spacing:2px;padding:5px 12px;border-radius:4px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4v16l13-8z"/></svg> PLAY</button>`;
+        card.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;"><div style="font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;">${escHtmlClient(d.route || 'Video Briefing')}</div><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;">${date}</div></div><div style="font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;line-height:1.4;margin-bottom:8px;">${scriptPreview}${scriptPreview.length>=70?'...':''}</div><button onclick="closeProfileModal();setTimeout(()=>playArchivedVideo('${safeUrl}',\`${safeScript}\`),200)" style="display:flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:500;letter-spacing:2px;padding:5px 12px;border-radius:4px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4v16l13-8z"/></svg> PLAY</button>`;
         el.appendChild(card);
       });
     }).catch(e => { el.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Error: ' + e.message + '</div>'; });
@@ -6635,8 +6684,8 @@ function pmLoadArchive(tab) {
         div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:6px;cursor:pointer;margin-bottom:4px;transition:background 0.15s;';
         div.onmouseover = function(){ this.style.background='rgba(255,255,255,0.06)'; };
         div.onmouseout = function(){ this.style.background='none'; };
-        div.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M8 9h8"/><path d="M8 13h4.5"/><path d="M10.325 19.605l-2.325 1.395v-3h-2a3 3 0 0 1-3-3v-8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4.5"/><path d="M19 22.5a4.75 4.75 0 0 1 3.5-3.5a4.75 4.75 0 0 1-3.5-3.5a4.75 4.75 0 0 1-3.5 3.5a4.75 4.75 0 0 1 3.5 3.5"/></svg><div style="flex:1;overflow:hidden;"><div style="font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${label}</div><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:2px;">${date}</div></div>`;
-        div.onclick = function(){ closeProfileModal(); setTimeout(() => resumeChatSession(doc.id), 200); };
+        div.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M8 9h8"/><path d="M8 13h4.5"/><path d="M10.325 19.605l-2.325 1.395v-3h-2a3 3 0 0 1-3-3v-8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v4.5"/><path d="M19 22.5a4.75 4.75 0 0 1 3.5-3.5a4.75 4.75 0 0 1-3.5-3.5a4.75 4.75 0 0 1-3.5 3.5a4.75 4.75 0 0 1 3.5 3.5"/></svg><div style="flex:1;overflow:hidden;"><div style="font-family:Rajdhani,sans-serif;font-size:13px;color:#cdd9e5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtmlClient(label)}</div><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;margin-top:2px;">${date}</div></div>`;
+        div.onclick = function(){ closeProfileModal(); try { resetMainView('chat'); } catch (e) {} setTimeout(() => resumeChatSession(doc.id), 200); };
         el.appendChild(div);
       });
     }).catch(() => { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Could not load chats.</div>'; });
@@ -6645,6 +6694,7 @@ function pmLoadArchive(tab) {
 
 async function pmOpenBriefing(id, route) {
   closeProfileModal();
+  try { resetMainView('briefing'); } catch (e) {}   // v3.134: clean screen (chat / video / panels) before the briefing
   const overlay = document.getElementById('resultOverlay');
   const content = document.getElementById('resultContent');
   const loading = document.getElementById('loadingState');
@@ -6738,6 +6788,8 @@ async function deleteAccount() {
       return;
     }
     closeProfileModal();
+    // v3.134: also forget what this device kept for the account (Recents cache, starred items, saved routes, settings)
+    try { ['notamai_recents', 'notamai_recents_uid', 'notamai_starred', 'notamai_settings', 'notamai_saved_routes_' + user.uid].forEach(k => localStorage.removeItem(k)); } catch (e) {}
     await firebase.auth().signOut().catch(() => {});
     location.href = '/';
   } catch(e) {
@@ -8341,11 +8393,11 @@ document.addEventListener('mouseout', function(e) {
 </div>
 
 <div id="profileModal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(6,10,15,0.75);backdrop-filter:blur(10px);align-items:center;justify-content:center;" onclick="if(event.target===this)closeProfileModal()">
-  <div style="background:#0a0f18;border:1px solid #1a2a3a;border-radius:14px;width:720px;max-width:95vw;height:680px;max-height:92vh;display:flex;overflow:hidden;position:relative;">
+  <div class="pm-box" style="background:#0a0f18;border:1px solid #1a2a3a;border-radius:14px;width:720px;max-width:95vw;height:680px;max-height:92vh;display:flex;overflow:hidden;position:relative;">
 
     <!-- Left sidebar -->
-    <div style="width:180px;flex-shrink:0;border-right:1px solid #1a2a3a;padding:24px 0;display:flex;flex-direction:column;">
-      <div style="padding:0 20px 20px;border-bottom:1px solid #1a2a3a;margin-bottom:8px;">
+    <div class="pm-side" style="width:180px;flex-shrink:0;border-right:1px solid #1a2a3a;padding:24px 0;display:flex;flex-direction:column;">
+      <div class="pm-head" style="padding:0 20px 20px;border-bottom:1px solid #1a2a3a;margin-bottom:8px;">
         <div id="pmAvatar" style="width:44px;height:44px;border-radius:50%;background:#4a9eff;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#060a0f;margin-bottom:10px;"></div>
         <div id="pmName" style="font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
         <div id="pmPlanBadge" style="display:inline-block;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;padding:2px 7px;border-radius:3px;margin-top:4px;"></div>
@@ -8464,7 +8516,7 @@ document.addEventListener('mouseout', function(e) {
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:2px;margin-bottom:20px;">DANGER ZONE</div>
         <div style="background:rgba(230,57,70,0.05);border:1px solid rgba(230,57,70,0.2);border-radius:8px;padding:18px 20px;">
           <div style="font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;color:#e63946;margin-bottom:6px;">Delete Account</div>
-          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;line-height:1.5;">This will permanently delete your account, all briefings, and cancel any active subscription. This action cannot be undone.</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#8a9bb0;margin-bottom:16px;line-height:1.5;">This permanently deletes your account with its briefings, expert chats, video briefings and NOTAM alerts, and cancels any active subscription. This action cannot be undone.</div>
           <button onclick="deleteAccount()" style="padding:9px 20px;background:transparent;border:1px solid rgba(230,57,70,0.4);color:#e63946;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;border-radius:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(230,57,70,0.1)'" onmouseout="this.style.background='transparent'">DELETE ACCOUNT</button>
         </div>
       </div>
@@ -8667,6 +8719,7 @@ document.addEventListener('mouseout', function(e) {
       <button onclick="addAlert()" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">ADD</button>
     </div>
   </div>
+  <div id="alertsPlanNote" style="display:none;padding:8px 16px;border-bottom:1px solid #1a2a3a;font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;letter-spacing:0.5px;line-height:1.6;flex-shrink:0;"></div>
   <div id="alertsList" style="flex:1;overflow-y:auto;padding:8px;">
     <div id="alertsEmpty" style="text-align:center;padding:40px 0;font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;">No airports being watched</div>
   </div>
@@ -8923,6 +8976,19 @@ function closeRawDataPanel() {
   setTimeout(() => panel.style.display = 'none', 300);
 }
 
+// v3.134: a 403 from /api/analyze-notam is not always "upgrade": Pro/Max users who used their monthly analyses
+// got the "requires a Pro or Max plan" message too.
+async function analysisDeniedHtml(resp) {
+  let j = {};
+  try { j = await resp.clone().json(); } catch (e) {}
+  const box = (txt) => '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">' + txt + '</span></div>';
+  if (j.error === 'limit_reached') {
+    return box('You have used this month\'s AI analyses on your plan. They reset on the 1st (UTC).' + (j.plan === 'pro' ? ' <a href="/pricing-upgrade" style="color:#4a9eff;text-decoration:none;font-weight:600;">Max</a> includes more.' : ''));
+  }
+  if (j.error === 'email_not_verified') return box('Verify your e-mail address to use AI analysis.');
+  return box('AI Analysis requires a <a href="/pricing-upgrade" style="color:#4a9eff;text-decoration:none;font-weight:600;">Pro</a> or <a href="/pricing-upgrade" style="color:#f4841a;text-decoration:none;font-weight:600;">Max</a> plan.');
+}
+
 function streamAnalysisText(container, htmlText, color, closeBtnFn) {
   container.innerHTML = '';
   container.style.display = 'block';
@@ -8937,8 +9003,9 @@ function streamAnalysisText(container, htmlText, color, closeBtnFn) {
 
   // Parse bullet lines from the HTML
   const temp = document.createElement('div');
-  temp.innerHTML = htmlText;
-  const lines = Array.from(temp.querySelectorAll('div')).map(d => d.textContent).filter(t => t.trim());
+  temp.innerHTML = htmlText || '';
+  let lines = Array.from(temp.querySelectorAll('div')).map(d => d.textContent).filter(t => t.trim());
+  if (!lines.length) lines = [(temp.textContent || '').trim() || 'Unable to analyze. Please try again.'];   // v3.134: plain-text or empty answers showed an empty box
 
   const textDiv = document.createElement('div');
   container.appendChild(textDiv);
@@ -9034,7 +9101,16 @@ async function fetchRawData() {
       const numB = (b.match(/[A-Z](\d+)\//) || [0,0])[1];
       return parseInt(numB) - parseInt(numA);
     });
-    if (notamBlocks.length === 0 || notamText.includes('No active')) {
+    // v3.134: sign-in / verify / daily-limit / provider-unavailable replies are notices, not NOTAMs (they used to render
+    // as a NOTAM card with an Analyze button and count as "NOTAMs (1)")
+    const notamNotice = !notamRes.ok || /^NOTAM DATA UNAVAILABLE/.test(notamText.trim());
+    if (notamNotice) {
+      const note = document.createElement('div');
+      note.style.cssText = "background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid " + (notamRes.status === 429 || notamRes.ok ? '#f2c641' : '#4a9eff') + ";border-radius:4px;padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.5;";
+      note.textContent = notamText.trim() || 'NOTAMs could not be loaded. Please try again.';
+      notamSection.appendChild(note);
+      document.getElementById('rawTab-notam').textContent = 'NOTAMs';
+    } else if (notamBlocks.length === 0 || notamText.includes('No active')) {
       const empty = document.createElement('div');
       empty.style.cssText = "font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;";
       empty.textContent = 'No active NOTAMs for ' + icao;
@@ -9070,6 +9146,7 @@ async function fetchRawData() {
         // Corner icon
         const cornerIcon = document.createElement('div');
         cornerIcon.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+        cornerIcon.classList.add('ai-spark');
         cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(180deg) saturate(3) brightness(1.5);">✨</span>';
         cornerIcon.title = 'Analyze';
 
@@ -9130,7 +9207,7 @@ async function fetchRawData() {
             });
             if (response.status === 403) {
               clearInterval(dotsInterval);
-              analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#4a9eff;text-decoration:none;font-weight:600;">Pro</a> or <a href="/pricing-upgrade" style="color:#f4841a;text-decoration:none;font-weight:600;">Max</a> plan.</span></div>';
+              analysisDiv.innerHTML = await analysisDeniedHtml(response);
               cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(180deg) saturate(3) brightness(1.5);">✨</span>';
               cornerIcon.appendChild(tooltip);
               return;
@@ -9207,6 +9284,7 @@ async function fetchRawData() {
 
         const mCorner = document.createElement('div');
         mCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+        mCorner.classList.add('ai-spark');
         mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(45deg) saturate(2) brightness(1.1);">✨</span>';
         const mTooltip = document.createElement('div');
         mTooltip.textContent = 'Analyze';
@@ -9260,7 +9338,7 @@ async function fetchRawData() {
             });
             if (response.status === 403) {
               clearInterval(dotsInterval);
-              metarAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#4a9eff;text-decoration:none;font-weight:600;">Pro</a> or <a href="/pricing-upgrade" style="color:#f4841a;text-decoration:none;font-weight:600;">Max</a> plan.</span></div>';
+              metarAnalysisDiv.innerHTML = await analysisDeniedHtml(response);
               mCorner.innerHTML = '<span style="font-size:13px;filter:hue-rotate(45deg) saturate(2) brightness(1.1);">✨</span>';
               mCorner.appendChild(mTooltip);
               return;
@@ -9313,6 +9391,7 @@ async function fetchRawData() {
 
       const tCorner = document.createElement('div');
       tCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+      tCorner.classList.add('ai-spark');
       tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
       const tTooltip = document.createElement('div');
       tTooltip.textContent = 'Analyze';
@@ -9366,7 +9445,7 @@ async function fetchRawData() {
           });
           if (response.status === 403) {
             clearInterval(dotsInterval);
-            tafAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#4a9eff;text-decoration:none;font-weight:600;">Pro</a> or <a href="/pricing-upgrade" style="color:#f4841a;text-decoration:none;font-weight:600;">Max</a> plan.</span></div>';
+            tafAnalysisDiv.innerHTML = await analysisDeniedHtml(response);
             tCorner.innerHTML = '<span style="font-size:13px;">✨</span>';
             tCorner.appendChild(tTooltip);
             return;
@@ -9423,6 +9502,7 @@ async function fetchRawData() {
 
         const sCorner = document.createElement('div');
         sCorner.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+        sCorner.classList.add('ai-spark');
         sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;text-shadow:0 0 6px #f4841a;">✨</span>';
 
         const sTooltip = document.createElement('div');
@@ -9466,7 +9546,7 @@ async function fetchRawData() {
             });
             if (resp.status === 403) {
               clearInterval(dotsInterval);
-              sAnalysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#4a9eff;text-decoration:none;font-weight:600;">Pro</a> or <a href="/pricing-upgrade" style="color:#f4841a;text-decoration:none;font-weight:600;">Max</a> plan.</span></div>';
+              sAnalysisDiv.innerHTML = await analysisDeniedHtml(resp);
               sCorner.innerHTML = '<span style="font-size:13px;color:#f4841a;text-shadow:0 0 6px #f4841a;">✨</span>';
               sCorner.appendChild(sTooltip);
               return;
@@ -9543,6 +9623,7 @@ async function fetchRawData() {
           // cornerIcon — exact PIREP/NOTAM pattern, purple
           const cornerIcon = document.createElement('div');
           cornerIcon.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+          cornerIcon.classList.add('ai-spark');
           cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
           const tooltip = document.createElement('div');
           tooltip.textContent = 'Analyze';
@@ -9585,7 +9666,7 @@ async function fetchRawData() {
               });
               if (response.status === 403) {
                 clearInterval(dotsInterval);
-                analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#4a9eff;text-decoration:none;font-weight:600;">Pro</a> or <a href="/pricing-upgrade" style="color:#f4841a;text-decoration:none;font-weight:600;">Max</a> plan.</span></div>';
+                analysisDiv.innerHTML = await analysisDeniedHtml(response);
                 cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(270deg) saturate(3) brightness(1.3);">✨</span>';
                 cornerIcon.appendChild(tooltip);
                 return;
@@ -9672,6 +9753,7 @@ async function fetchRawData() {
             // cornerIcon — exact NOTAM pattern
             const cornerIcon = document.createElement('div');
             cornerIcon.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+            cornerIcon.classList.add('ai-spark');
             cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
             const tooltip = document.createElement('div');
             tooltip.textContent = 'Analyze';
@@ -9714,7 +9796,7 @@ async function fetchRawData() {
                 });
                 if (response.status === 403) {
                   clearInterval(dotsInterval);
-                  analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#4a9eff;text-decoration:none;font-weight:600;">Pro</a> or <a href="/pricing-upgrade" style="color:#f4841a;text-decoration:none;font-weight:600;">Max</a> plan.</span></div>';
+                  analysisDiv.innerHTML = await analysisDeniedHtml(response);
                   cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(30deg) saturate(3) brightness(1.2);">✨</span>';
                   cornerIcon.appendChild(tooltip);
                   return;
@@ -9799,6 +9881,7 @@ async function fetchRawData() {
 
           const cornerIcon = document.createElement('div');
           cornerIcon.style.cssText = 'position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:0;transition:opacity 0.2s;cursor:pointer;';
+          cornerIcon.classList.add('ai-spark');
           cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
           const tooltip = document.createElement('div');
           tooltip.textContent = 'Analyze';
@@ -9841,7 +9924,7 @@ async function fetchRawData() {
               });
               if (response.status === 403) {
                 clearInterval(dotsInterval);
-                analysisDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a9bb0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" /></svg><span style="font-family:Rajdhani,sans-serif;font-size:12px;color:#cdd9e5;">AI Analysis requires a <a href="/pricing-upgrade" style="color:#4a9eff;text-decoration:none;font-weight:600;">Pro</a> or <a href="/pricing-upgrade" style="color:#f4841a;text-decoration:none;font-weight:600;">Max</a> plan.</span></div>';
+                analysisDiv.innerHTML = await analysisDeniedHtml(response);
                 cornerIcon.innerHTML = '<span style="font-size:13px;filter:hue-rotate(320deg) saturate(3) brightness(1.3);">✨</span>';
                 cornerIcon.appendChild(tooltip);
                 return;
@@ -9908,40 +9991,71 @@ function closeSavedRoutesPanel() {
   setTimeout(() => panel.style.display = 'none', 300);
 }
 
+// v3.134: saved routes are kept per account on this device (the one shared key showed one pilot's routes to
+// another account signed in on the same browser; the old list moves to the first account that opens the panel),
+// routes are checked (1–4 four-letter ICAO codes), and a full list says so instead of silently dropping the oldest.
+const SAVED_ROUTE_CAPS = { pro: 3, team: 3, max: 20, enterprise: 20, admin: 20 };
+function savedRoutesKey() {
+  const u = firebase.auth().currentUser;
+  return u ? 'notamai_saved_routes_' + u.uid : 'notamai_saved_routes';
+}
+function getSavedRoutes() {
+  try {
+    const key = savedRoutesKey();
+    let raw = localStorage.getItem(key);
+    if (raw === null && key !== 'notamai_saved_routes') {
+      const legacy = localStorage.getItem('notamai_saved_routes');
+      if (legacy !== null) { localStorage.setItem(key, legacy); localStorage.removeItem('notamai_saved_routes'); raw = legacy; }
+    }
+    const list = JSON.parse(raw || '[]');
+    return Array.isArray(list) ? list.filter(r => typeof r === 'string') : [];
+  } catch (e) { return []; }
+}
+function setSavedRoutes(list) { try { localStorage.setItem(savedRoutesKey(), JSON.stringify(list)); } catch (e) {} }
+
 async function saveRoute() {
   const input = document.getElementById('savedRouteInput');
-  const route = input.value.trim().toUpperCase();
-  if (!route) return;
-  const user = firebase.auth().currentUser;
-  if (user) {
-    const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
-    const plan = userDoc.exists ? (userDoc.data().plan || 'free') : 'free';
-    const routes = JSON.parse(localStorage.getItem('notamai_saved_routes') || '[]');
-    if (plan === 'free') {
-      showUpgradeBanner('savedRoutesList', 'Saved Routes requires a Pro or Max plan.');
-      return;
-    }
-    if (plan === 'pro' && routes.length >= 3) {
-      showUpgradeBanner('savedRoutesList', 'You have reached your 3 route limit. Upgrade to Max for up to 20 saved routes.');
-      return;
-    }
+  const codes = input.value.trim().toUpperCase().split(/[\s,\-–>\/]+/).filter(Boolean);
+  if (!codes.length) return;
+  if (codes.length > 4 || !codes.every(c => /^[A-Z]{4}$/.test(c))) {
+    showUpgradeBanner('savedRoutesList', 'Enter 1 to 4 ICAO codes, e.g. KJFK EGLL.');
+    return;
   }
-  const routes = JSON.parse(localStorage.getItem('notamai_saved_routes') || '[]');
+  const route = codes.join(' ');
+  let plan = 'free';
+  try {
+    const user = firebase.auth().currentUser;
+    if (user) {
+      const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+      plan = userDoc.exists ? (userDoc.data().plan || 'free') : 'free';
+    }
+  } catch (e) { plan = window.currentUserPlan || 'free'; }
+  const cap = SAVED_ROUTE_CAPS[plan] || 0;
+  const routes = getSavedRoutes();
   if (routes.includes(route)) { input.value = ''; return; }
+  if (!cap) {
+    showUpgradeBanner('savedRoutesList', 'Saved Routes requires a Pro or Max plan.');
+    return;
+  }
+  if (routes.length >= cap) {
+    showUpgradeBanner('savedRoutesList', cap === 3
+      ? 'You have reached your 3 route limit. Upgrade to Max for up to 20 saved routes.'
+      : 'You have reached the ' + cap + ' route limit. Delete a route to save a new one.');
+    return;
+  }
   routes.unshift(route);
-  localStorage.setItem('notamai_saved_routes', JSON.stringify(routes.slice(0, 20)));
+  setSavedRoutes(routes);
   input.value = '';
   renderSavedRoutes();
 }
 
 function deleteRoute(route) {
-  const routes = JSON.parse(localStorage.getItem('notamai_saved_routes') || '[]');
-  localStorage.setItem('notamai_saved_routes', JSON.stringify(routes.filter(r => r !== route)));
+  setSavedRoutes(getSavedRoutes().filter(r => r !== route));
   renderSavedRoutes();
 }
 
 function renderSavedRoutes() {
-  const routes = JSON.parse(localStorage.getItem('notamai_saved_routes') || '[]');
+  const routes = getSavedRoutes();
   const list = document.getElementById('savedRoutesList');
   const empty = document.getElementById('savedRoutesEmpty');
   if (routes.length === 0) {
@@ -9965,12 +10079,15 @@ function renderSavedRoutes() {
     };
     div.innerHTML = `
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a5f72" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
-      <span style="flex:1;font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;letter-spacing:1px;">${route}</span>
-      <button class="delete-btn" onclick="event.stopPropagation();deleteRoute('${route}')" style="background:none;border:none;cursor:pointer;color:#4a5f72;opacity:0;transition:opacity 0.15s;padding:2px;display:flex;align-items:center;" onmouseover="this.style.color='#e63946'" onmouseout="this.style.color='#4a5f72'">
+      <span class="route-label" style="flex:1;font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;letter-spacing:1px;"></span>
+      <button class="delete-btn" style="background:none;border:none;cursor:pointer;color:#4a5f72;opacity:0;transition:opacity 0.15s;padding:2px;display:flex;align-items:center;" onmouseover="this.style.color='#e63946'" onmouseout="this.style.color='#4a5f72'">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     `;
+    div.querySelector('.route-label').textContent = route;
+    div.querySelector('.delete-btn').onclick = function(ev) { ev.stopPropagation(); deleteRoute(route); };
     div.addEventListener('click', function() {
+      try { resetMainView(); } catch (e) {}   // v3.134: clean screen first (an open chat / briefing / video overlay stayed on top)
       document.getElementById('mainInput').value = route;
       closeSavedRoutesPanel();
       handleSend();
@@ -10078,7 +10195,11 @@ async function addAlert() {
   const user = firebase.auth().currentUser;
   if (!user) return;
   const icao = document.getElementById('alertIcaoInput').value.trim().toUpperCase();
-  if (!icao || icao.length < 3) return;
+  if (!icao) return;
+  if (!/^[A-Z]{4}$/.test(icao)) {   // v3.134: 3-letter (IATA) codes were accepted and never matched any NOTAM
+    showUpgradeBanner('alertsList', 'Enter a 4-letter ICAO code (airport or FIR), e.g. KJFK.');
+    return;
+  }
   // Get user plan from Firestore
   const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
   const plan = userDoc.exists ? (userDoc.data().plan || 'free') : 'free';
@@ -10098,8 +10219,8 @@ async function addAlert() {
     showUpgradeBanner('alertsList', 'You have reached your 3 airport limit for Pro. Upgrade to Max for 5 airports and faster (~30 min) checks.');
     return;
   }
-  // Max plan - limit 5
-  if (plan === 'max' && count >= 5) {
+  // Max plan - limit 5 (enterprise follows Max until the team plan exists — the server only polls 5 anyway)
+  if ((plan === 'max' || plan === 'enterprise') && count >= 5) {
     showUpgradeBanner('alertsList', 'You have reached your 5 airport limit for Max. Need more? Ask us about the Team plan (support@notamai.com).');
     return;
   }
@@ -10135,6 +10256,18 @@ async function renderAlerts() {
       .where('active', '==', true)
       .get();
     list.querySelectorAll('.alert-item').forEach(el => el.remove());
+    // v3.134: what the plan includes, shown under the input (numbers = ALERT_CAPS / pricing table)
+    try {
+      const plan = window.currentUserPlan || 'free';
+      const caps = { pro: [3, 60], team: [3, 60], max: [5, 30], enterprise: [5, 30] };
+      const note = document.getElementById('alertsPlanNote');
+      if (note) {
+        note.style.display = 'block';
+        if (plan === 'admin') note.textContent = snapshot.size + ' AIRPORTS WATCHED · ADMIN';
+        else if (caps[plan]) note.textContent = snapshot.size + ' / ' + caps[plan][0] + ' AIRPORTS · CHECKED ABOUT EVERY ' + caps[plan][1] + ' MIN · E-MAIL ON NEW NOTAMs';
+        else note.textContent = 'NOTAM ALERTS ARE PART OF PRO (3 AIRPORTS) AND MAX (5 AIRPORTS)';
+      }
+    } catch (e) {}
     if (snapshot.empty) {
       if (empty) empty.style.display = 'block';
       return;
@@ -10146,7 +10279,6 @@ async function renderAlerts() {
       const lastSeen = window.lastAlertSeen || new Date(0);
       const lastChecked = data.lastChecked?.toDate?.();
       const isNew = lastChecked && lastChecked > lastSeen;
-      console.log('[ALERT NEW CHECK]', data.icao, 'lastChecked:', lastChecked, 'lastSeen:', lastSeen, 'isNew:', isNew);
       const div = document.createElement('div');
       div.className = 'alert-item';
       div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:6px;transition:background 0.15s;margin-bottom:2px;cursor:pointer;';
@@ -10160,26 +10292,13 @@ async function renderAlerts() {
       };
       div.onclick = function(e) {
         if (e.target.closest('.delete-alert-btn')) return;
-        const rawInput = document.getElementById('rawIcaoInput');
-        if (rawInput) rawInput.value = icao;
         markAlertSeen(doc.id, div);
-        closeAlertsPanel();
-        setTimeout(() => {
-          const rawPanel = document.getElementById('rawDataPanel');
-          if (rawPanel) {
-            rawPanel.style.display = 'flex';
-            rawPanel.style.flexDirection = 'column';
-            setTimeout(() => rawPanel.style.transform = 'translateX(0)', 10);
-            openPanel = 'rawData';
-          }
-          switchRawTab('notam');
-          fetchRawData();
-        }, 350);
+        openRawDataForIcao(icao);   // v3.134: opened the panel by hand (page width not adjusted on desktop)
       };
       div.innerHTML = `
         <div style="width:8px;height:8px;border-radius:50%;background:#2ec4b6;flex-shrink:0;"></div>
         <span style="flex:1;font-family:'Share Tech Mono',monospace;font-size:13px;color:#cdd9e5;letter-spacing:2px;">${icao}</span>
-        ${isNew ? '<span class="alert-new-badge" style="background:#e63946;color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;font-family:\'Rajdhani\',sans-serif;letter-spacing:1px;">NEW</span>' : '<div style="font-family:\'Rajdhani\',sans-serif;font-size:11px;color:#4a5f72;">watching</div>'}
+        ${isNew ? '<span class="alert-new-badge" style="background:#e63946;color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;font-family:\'Rajdhani\',sans-serif;letter-spacing:1px;">NEW</span>' : '<div style="font-family:\'Rajdhani\',sans-serif;font-size:11px;color:#4a5f72;">' + (lastChecked ? 'last new NOTAM ' + lastChecked.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) + ' ' + lastChecked.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + 'Z' : 'watching') + '</div>'}
         <button class="delete-alert-btn" onclick="event.stopPropagation();event.preventDefault();removeAlert('${icao}')" style="background:none;border:none;cursor:pointer;color:#4a5f72;opacity:0;transition:opacity 0.15s;padding:2px;display:flex;align-items:center;" onmouseover="this.style.color='#e63946'" onmouseout="this.style.color='#4a5f72'">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -10507,7 +10626,7 @@ async function loadVideoArchive() {
       card.onmouseout = function() { this.style.borderColor = '#1a2a3a'; };
       const header = document.createElement('div');
       header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
-      header.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;">' + (data.route || 'Video Briefing') + '</div><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;">' + date + '</div>';
+      header.innerHTML = '<div style="font-family:Share Tech Mono,monospace;font-size:12px;color:#cdd9e5;">' + escHtmlClient(data.route || 'Video Briefing') + '</div><div style="font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;">' + date + '</div>';
       const preview = document.createElement('div');
       preview.style.cssText = 'font-family:Rajdhani,sans-serif;font-size:12px;color:#4a5f72;line-height:1.4;margin-bottom:8px;';
       preview.textContent = scriptPreview + (scriptPreview.length >= 80 ? '...' : '');
@@ -10557,13 +10676,14 @@ async function loadChatArchive() {
       div.innerHTML = `
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a9eff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M8 9h8" /><path d="M8 13h4.5" /><path d="M10.325 19.605l-2.325 1.395v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v4.5" /><path d="M19 22.5a4.75 4.75 0 0 1 3.5 -3.5a4.75 4.75 0 0 1 -3.5 -3.5a4.75 4.75 0 0 1 -3.5 3.5a4.75 4.75 0 0 1 3.5 3.5" /></svg>
         <div style="flex:1;overflow:hidden;">
-          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${label}</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtmlClient(label)}</div>
           <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;margin-top:2px;">${date}</div>
         </div>
       `;
       div.dataset.label = label.toLowerCase();
       div.onclick = function() {
         closeArchivePanel();
+        try { resetMainView('chat'); } catch (e) {}   // v3.134: an open briefing / video stayed on top of the chat
         resumeChatSession(doc.id);
       };
       list.appendChild(div);
@@ -10696,7 +10816,7 @@ function renderArchive(briefings) {
   list.innerHTML = '';
   const groups = {};
   briefings.forEach(b => {
-    const dateKey = b.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const dateKey = b.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });   // v3.134: UTC like the time
     if (!groups[dateKey]) groups[dateKey] = [];
     groups[dateKey].push(b);
   });
@@ -10717,18 +10837,23 @@ function renderArchive(briefings) {
         this.querySelector('.archive-menu').style.opacity = '0';
       };
       const color = riskColors[briefing.riskLevel] || '#4a5f72';
-      const time = briefing.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' UTC';
+      const time = briefing.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }) + ' UTC';   // v3.134: was local time labelled UTC
       div.innerHTML = `
         <div style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;"></div>
         <div style="flex:1;overflow:hidden;">
-          <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${briefing.route}</div>
-          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;margin-top:2px;">${time} · ${briefing.riskLevel}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#cdd9e5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtmlClient(briefing.route)}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;margin-top:2px;">${time} · ${escHtmlClient(briefing.riskLevel)}</div>
         </div>
-        <button class="archive-menu" onclick="event.stopPropagation();toggleArchiveMenu(event,'${briefing.id}','${briefing.route}')" style="background:none;border:none;cursor:pointer;color:#4a5f72;opacity:0;transition:opacity 0.15s;padding:2px 4px;font-size:16px;line-height:1;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">···</button>
+        <button class="archive-menu" onclick="event.stopPropagation();toggleArchiveMenu(event,'${briefing.id}',this.closest('[data-route]').dataset.route)" style="background:none;border:none;cursor:pointer;color:#4a5f72;opacity:0;transition:opacity 0.15s;padding:2px 4px;font-size:16px;line-height:1;" onmouseover="this.style.color='#cdd9e5'" onmouseout="this.style.color='#4a5f72'">···</button>
       `;
+      div.dataset.route = briefing.route;
       div.addEventListener('click', function(e) {
         if (e.target.closest('.archive-menu')) return;
+        // v3.134: same as opening from Recents — clean screen, Share/PDF actions under the briefing, fetched on demand
+        closeArchivePanel();
+        if (!briefingCache[briefing.id]) { try { resetMainView('briefing'); } catch (err) {} pmOpenBriefing(briefing.id, briefing.route); return; }
         if (briefingCache[briefing.id]) {
+          try { resetMainView('briefing'); } catch (err) {}
           window.currentBriefingId = briefing.id;
           const overlay = document.getElementById('resultOverlay');
           const content = document.getElementById('resultContent');
@@ -10738,13 +10863,15 @@ function renderArchive(briefings) {
           if (loading) loading.style.display = 'none';
           if (content) { content.style.display = 'block'; content.innerHTML = safeBriefingHtml(briefingCache[briefing.id]); }
           if (status) status.textContent = 'ROUTE BRIEFING: ' + briefing.route + ' — COMPLETE';
+          if (content) appendBriefingActions(content);
           extractBriefingIcaos();
+          const navbar = document.getElementById('mainNavbar');
+          if (navbar) navbar.style.display = 'none';
           document.getElementById('askNotamAiBtn').style.display = 'flex';
           closeAIChat();
           aiChatHistory = [];
           aiChatOpen = false;
           currentChatBriefingId = null;
-          closeArchivePanel();
         }
       });
       list.appendChild(div);
@@ -10809,7 +10936,7 @@ document.addEventListener('click', function(e) {
     <button id="tab-navaids" onclick="switchToolTab('navaids')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">NAVAIDS</button>
     <button id="tab-distance" onclick="switchToolTab('distance')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">DIST/BRG</button>
     <button id="tab-flighttime" onclick="switchToolTab('flighttime')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">FLT TIME</button>
-    <button id="tab-sunmoon" onclick="switchToolTab('sunmoon')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">SUN/MOON</button>
+    <button id="tab-sunmoon" onclick="switchToolTab('sunmoon')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">DAY/NIGHT</button>
     <button id="tab-flightstatus" onclick="switchToolTab('flightstatus')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">FLT STATUS</button>
     <button id="tab-aircraft" onclick="switchToolTab('aircraft')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">AIRCRAFT</button>
     <button id="tab-aircraftperf" onclick="switchToolTab('aircraftperf')" style="flex:1 1 30%;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#4a5f72;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;min-width:0;">A/C PERF</button>
@@ -10838,7 +10965,7 @@ document.addEventListener('click', function(e) {
     <!-- SUN/MOON TAB -->
     <div id="toolTab-sunmoon" style="display:none;">
       <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <input id="sunIcaoInput" type="text" placeholder="ICAO code" maxlength="4" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+        <input id="sunIcaoInput" type="text" placeholder="ICAO code" maxlength="4" onkeydown="if(event.key==='Enter')fetchSunMoon()" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
         <input id="sunDateInput" type="date" style="flex:1;background:#060a0f;border:1px solid #1a2a3a;color:#cdd9e5;padding:8px 12px;border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:12px;outline:none;">
         <button onclick="fetchSunMoon()" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;padding:8px 14px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:500;letter-spacing:2px;cursor:pointer;transition:color 0.2s,border-color 0.2s;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">GO</button>
       </div>
@@ -10988,6 +11115,23 @@ function closeToolsPanel() {
   setTimeout(() => panel.style.display = 'none', 300);
 }
 
+// v3.134: sign-in / verify / daily-or-monthly limit / capacity replies from the tool gate are shown in the tool's own
+// result box (they used to end up as "Flight not found" / "Aircraft not found" next to the toast)
+async function toolGuard(res, resultEl) {
+  if (!res || res.ok || ![401, 403, 429, 503].includes(res.status)) return false;
+  let msg = '';
+  try { const j = await res.clone().json(); msg = j.message || ''; } catch (e) {}
+  if (!msg) msg = res.status === 401 ? 'Sign in to use Aviation Tools.' : 'Aviation Tools are not available right now. Please try again later.';
+  if (resultEl) {
+    resultEl.innerHTML = '';
+    const d = document.createElement('div');
+    d.style.cssText = "background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid " + (res.status === 429 || res.status === 503 ? '#f2c641' : '#4a9eff') + ";border-radius:4px;padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.5;text-align:left;";
+    d.textContent = msg;
+    resultEl.appendChild(d);
+  }
+  return true;
+}
+
 function switchToolTab(tab) {
   const colors = { airport: '#4a9eff', sunmoon: '#f2c641', winds: '#2ec4b6', charts: '#4a9eff', distance: '#b57bff', navaids: '#a3e635', flighttime: '#f4841a', flightstatus: '#4a9eff', aircraft: '#b57bff', aircraftperf: '#2ec4b6' };
   ['airport','sunmoon','winds','charts','distance','navaids','flighttime','flightstatus','aircraft','aircraftperf'].forEach(t => {
@@ -11005,6 +11149,7 @@ async function fetchFlightStatus() {
   result.innerHTML = '<div style="color:#4a9eff;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">TRACKING...</div>';
   try {
     const res = await fetch('/api/flight-status/' + flightNum);
+    if (await toolGuard(res, result)) return;
     const data = await res.json();
     if (data.error || data.detail) {
       result.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;text-align:center;padding:20px;">Flight not found</div>';
@@ -11047,6 +11192,7 @@ async function fetchAircraft() {
   result.innerHTML = '<div style="color:#b57bff;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">SEARCHING...</div>';
   try {
     const res = await fetch('/api/aircraft/' + reg);
+    if (await toolGuard(res, result)) return;
     const data = await res.json();
     if (!data.found || !data.aircraft) {
       result.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;text-align:center;padding:20px;">Aircraft not found</div>';
@@ -11079,6 +11225,7 @@ async function fetchAircraftPerf() {
   result.innerHTML = '<div style="color:#2ec4b6;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">LOADING...</div>';
   try {
     const res = await fetch('/api/aircraft-performance/' + icaoType);
+    if (await toolGuard(res, result)) return;
     const data = await res.json();
     if (data.error || data.detail || !data.icao_type) {
       result.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;text-align:center;padding:20px;">Aircraft type not found</div>';
@@ -11129,6 +11276,7 @@ async function fetchNavaids() {
   result.innerHTML = '<div style="color:#a3e635;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">SEARCHING...</div>';
   try {
     const res = await fetch('/api/navaids/' + icao);
+    if (await toolGuard(res, result)) return;
     const data = await res.json();
     const navaids = data?.navaids || [];
     if (navaids.length === 0) {
@@ -11163,6 +11311,7 @@ async function fetchFlightTime() {
   result.innerHTML = '<div style="color:#f4841a;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">CALCULATING...</div>';
   try {
     const res = await fetch('/api/ml-flighttime/' + from + '/' + to);
+    if (await toolGuard(res, result)) return;
     const data = await res.json();
     if (data.error || data.detail) {
       result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Could not estimate flight time</div>';
@@ -11195,6 +11344,7 @@ async function fetchDistance() {
   result.innerHTML = '<div style="color:#b57bff;font-family:Share Tech Mono,monospace;font-size:11px;letter-spacing:2px;">CALCULATING...</div>';
   try {
     const res = await fetch('/api/distance/' + from + '/' + to);
+    if (await toolGuard(res, result)) return;
     const data = await res.json();
     if (data.error || data.detail) {
       result.innerHTML = '<div style="color:#e63946;font-family:Rajdhani,sans-serif;font-size:13px;">Could not calculate distance</div>';
@@ -11251,6 +11401,7 @@ async function fetchCharts() {
   catBtns.style.display = 'none';
   try {
     const res = await fetch('/api/raw/charts/' + icao);
+    if (await toolGuard(res, result)) return;
     const data = await res.json();
     if (data.detail || data.error) {
       result.innerHTML = '<div style="color:#4a5f72;font-family:Share Tech Mono,monospace;font-size:11px;text-align:center;padding:20px;">No charts available for ' + icao + '</div>';
@@ -11720,13 +11871,8 @@ async function fetchFirInfo(directCode) {
   const firInfo = FIR_DATABASE[icao];
 
   if (firInfo) {
-    let notamCount = 0;
-    try {
-      const notamRes = await fetch('/api/raw/notam/' + icao, { headers: await getAuthHeader() });
-      const notamText = await notamRes.text();
-      const notamMatches = notamText.match(/![\w]/g);
-      notamCount = notamMatches ? notamMatches.length : 0;
-    } catch(e) {}
+    // v3.134: no NOTAM fetch here any more — it used one of the user's daily NOTAM lookups (and a SkyLink call)
+    // just to show a count, and the count never parsed ("Checking..." forever). The button opens the NOTAMs panel instead.
 
     result.innerHTML = `
       <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:14px;">
@@ -11742,8 +11888,8 @@ async function fetchFirInfo(directCode) {
             <div style="font-family:'Orbitron',sans-serif;font-size:13px;color:#4a9eff;">${firInfo.region}</div>
           </div>
           <div style="background:#0d1520;border:1px solid #1a2a3a;padding:8px;border-radius:4px;grid-column:1/-1;">
-            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:3px;">ACTIVE NOTAMs</div>
-            <div style="font-family:'Orbitron',sans-serif;font-size:13px;color:#cdd9e5;">${notamCount > 0 ? notamCount + ' NOTAMs' : 'Checking...'}</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a5f72;letter-spacing:1px;margin-bottom:6px;">NOTAMs</div>
+            <button onclick="openRawDataForIcao('${icao}')" style="background:transparent;border:1px solid rgba(74,158,255,0.3);color:#8a9bb0;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;letter-spacing:1px;padding:6px 12px;border-radius:5px;cursor:pointer;" onmouseover="this.style.color='#c8daf0';this.style.borderColor='rgba(74,158,255,0.6)'" onmouseout="this.style.color='#8a9bb0';this.style.borderColor='rgba(74,158,255,0.3)'">VIEW FIR NOTAMs →</button>
           </div>
         </div>
         <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a5f72;text-align:center;letter-spacing:1px;">Flight Information Region</div>
@@ -11851,7 +11997,7 @@ async function fetchSunMoon() {
       const d = new Date(iso);
       return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + 'Z';
     };
-    const displayDate = new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const displayDate = new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });   // v3.134: 'YYYY-MM-DD' is UTC midnight — local display showed the previous day west of UTC
 
     result.innerHTML = `
       <div style="background:#060a0f;border:1px solid #1a2a3a;border-radius:6px;padding:14px;">

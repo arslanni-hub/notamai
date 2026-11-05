@@ -4152,6 +4152,19 @@ if (getAccessBtn) {
       }
       if (u.trialUsed || u.stripeSubscriptionId) await recordTrialUsed(userId, email);
       try { const al = await adminDb.collection('alerts').where('userId', '==', userId).get(); await Promise.all(al.docs.map(d => d.ref.delete())); } catch (e) {}
+      // v3.134: the Danger tab promises the account's content is deleted — briefings, expert chats and video briefings
+      // (Firestore docs + the archived video files) go too. Usage counters / cost ledger stay (billing records).
+      for (const col of ['briefings', 'general_chats', 'videos']) {
+        try {
+          const snap = await adminDb.collection(col).where('userId', '==', userId).get();
+          for (let i = 0; i < snap.docs.length; i += 400) {
+            const batch = adminDb.batch();
+            snap.docs.slice(i, i + 400).forEach(d => batch.delete(d.ref));
+            await batch.commit();
+          }
+        } catch (e) { console.log('[DELETE ACCOUNT]', col, e.message); }
+      }
+      try { await adminStorage.deleteFiles({ prefix: 'videos/' + userId + '/' }); } catch (e) { console.log('[DELETE ACCOUNT] storage', e.message); }
       await ref.delete().catch(() => {});
       await admin.auth().deleteUser(userId);
       if (u.plan && u.plan !== 'free') sendAdminNotification('👋 Account deleted — ' + escHtml(email || userId), '<div style="font-size:13px;color:#1e293b;">A ' + escHtml(u.plan) + ' account was deleted by its owner' + (u.stripeSubscriptionId ? '; its Stripe subscription was cancelled' : '') + '.</div>').catch(() => {});
@@ -5728,7 +5741,8 @@ async function checkNotamAlerts() {
         const latestFreshId = freshNotams.length ? alertPoll.idOfNotam(freshNotams[0]) : '';
         for (const { doc: alertDoc, userId } of subs) {
           const info = await infoFor(userId);
-          if (!info) continue;
+          // v3.134: the in-app NEW badge (lastChecked) is updated even when the user turned e-mail alerts off
+          if (!info) { try { await alertDoc.ref.update({ lastChecked: admin.firestore.FieldValue.serverTimestamp() }); } catch (e) {} continue; }
           const patch = {};
           // v3.84: queued, not sent here — every user gets ONE mail per run with all of their airports (sent after the loop)
           const q = (mailQueue[userId] = mailQueue[userId] || { email: info.email, items: [] });
