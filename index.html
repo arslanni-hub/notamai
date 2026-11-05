@@ -193,6 +193,11 @@ canvas#sky {
   width: 100vw;
   height: 100vh;
 }
+/* v3.141: expert chat — the sky is blurred and dimmed and the HUD read-outs hidden, so the answers do not mix with the background */
+canvas#sky { transition: filter 0.4s ease; }
+body.chat-mode canvas#sky { filter: blur(7px) brightness(0.65); }
+body.chat-mode .hud { opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0s linear 0.3s; }
+.hud { transition: opacity 0.3s ease; }
 
 @keyframes flyRight {
   0%   { transform: translate(0, 0) scale(1); opacity: 1; }
