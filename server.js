@@ -2652,12 +2652,6 @@ const server = http.createServer(async (req, res) => {
     }
     return;
   }
-  // v3.149: runway-condition helpers shared with the server (rwy-cond.js) — NOTAMs & MET panel
-  if (req.method === 'GET' && urlPath === '/rwy-cond.js') {
-    try { res.writeHead(200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'public, max-age=3600' }); res.end(fs.readFileSync(path.join(__dirname, 'rwy-cond.js'))); }
-    catch (e) { res.writeHead(404); res.end(); }
-    return;
-  }
   // v3.109: DOMPurify 3.4.17 (self-hosted, used to sanitise every briefing HTML on the page and on shared /b/ links)
   if (req.method === 'GET' && urlPath === '/purify.min.js') {
     try { res.writeHead(200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'public, max-age=604800' }); res.end(fs.readFileSync(path.join(__dirname, 'purify.min.js'))); }

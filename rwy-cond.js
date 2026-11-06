@@ -1,5 +1,5 @@
-// Runway surface condition helpers (v3.149) — shared by the server (risk rubric, briefing prompt) and the page
-// (NOTAMs & MET panel, served as /rwy-cond.js). No dependencies.
+// Runway surface condition helpers (v3.149) — used by the server (risk rubric, briefing prompt). No dependencies.
+// (v3.151: no longer served to the page — the NOTAMs & MET panel is back to the plain list.)
 //
 // Sources we actually have:
 //   1. METAR runway state groups  R06L/450243, R24/CLRD62, R/SNOCLO (WMO FM-15 / ICAO Annex 3; reported in Europe/Russia/CIS)
