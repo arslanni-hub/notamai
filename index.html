@@ -3007,6 +3007,9 @@ function updateHUD() {
     function drawZone(z) {
       zmc.setTransform(1, 0, 0, 1, 0, 0); zmc.clearRect(0, 0, zm.width, zm.height); zmc.setTransform(dpr, 0, 0, dpr, 0, 0);
       zmc.beginPath(); for (const poly of z.polys) zpath(poly); zmc.fillStyle = '#fff'; zmc.fill();
+      if (z.clipPolys && z.clipPolys.length) {   // v3.145: only the CZIB portion of the FIR (FIR ∩ area)
+        zmc.globalCompositeOperation = 'destination-in'; zmc.beginPath(); for (const poly of z.clipPolys) zpath(poly); zmc.fill(); zmc.globalCompositeOperation = 'source-over';
+      }
       if (z.waterOnly) {
         if (!world) return;
         zmc.globalCompositeOperation = 'destination-out'; zmc.beginPath(); zpath(world.land); zmc.fill(); zmc.globalCompositeOperation = 'source-over';
@@ -3151,7 +3154,8 @@ function updateHUD() {
       }
 
       // texts
-      const zoneNow = B ? zones.find(z => z.crossing && z.from !== null && p >= z.from && p <= z.to && (!z.waterOnly || !overLand(now))) : null;
+      const ZRANK = { NOGO: 3, HIGH: 3, CAUTION: 2, INFO: 1 };   // v3.145: inside a no-go portion the warning beats the FIR's caution
+      const zoneNow = B ? zones.filter(z => z.crossing && z.from !== null && p >= z.from && p <= z.to && (!z.waterOnly || !overLand(now))).sort((a, b) => (ZRANK[b.level] || 0) - (ZRANK[a.level] || 0))[0] || null : null;
       const zoneTxt = zoneNow ? (zoneNow.level === 'NOGO' || zoneNow.level === 'HIGH' ? '⚠ ' + zoneNow.short + ' CONFLICT ZONE — ROUTE MUST AVOID' : zoneNow.level === 'CAUTION' ? '⚠ ' + zoneNow.short + ' CONFLICT ZONE — CAUTION' : 'ⓘ ' + zoneNow.short + ' — CONFLICT ZONE INFO') : '';
       const zoneCol = zoneNow ? 'rgb(' + zoneNow.rgb + ')' : null;
       placeInfo(now);
@@ -3209,7 +3213,8 @@ function updateHUD() {
         zones = (data.zones || []).filter(z => ZONE[z.level] && (z.crossing || z.atEnd)).map(z => ({
           ...z, rgb: ZONE[z.level], pattern: hatch(zhc, ZONE[z.level]),
           short: String(z.name || '').replace(/\s*\(.*$/, '').toUpperCase(),
-          polys: (z.rings || []).map(rg => { const poly = { type: 'Polygon', coordinates: [rg] }; return d3.geoArea(poly) > 2 * Math.PI ? { type: 'Polygon', coordinates: [rg.slice().reverse()] } : poly; })
+          polys: (z.rings || []).map(rg => { const poly = { type: 'Polygon', coordinates: [rg] }; return d3.geoArea(poly) > 2 * Math.PI ? { type: 'Polygon', coordinates: [rg.slice().reverse()] } : poly; }),
+          clipPolys: (z.clip || []).map(rg => { const poly = { type: 'Polygon', coordinates: [rg] }; return d3.geoArea(poly) > 2 * Math.PI ? { type: 'Polygon', coordinates: [rg.slice().reverse()] } : poly; })
         }));
       },
       stop() { if (stopped) return; stopped = true; cancelAnimationFrame(raf); if (ro) ro.disconnect(); canvas.remove(); hud.remove(); }

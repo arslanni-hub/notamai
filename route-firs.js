@@ -151,6 +151,18 @@ function routeFirTimeline(dep, arr) {
         zr.push(ring);
       }
       zones.push({ name: z.name, level, waterOnly: !!(z.map && z.map.waterOnly), crossing: crossed.length > 0, atEnd, from: crossed.length ? Math.min(...crossed.map(c => c.from)) : null, to: crossed.length ? Math.max(...crossed.map(c => c.to)) : null, src: String(z.src || '').split(';')[0], rings: zr });
+      // v3.145: CZIB portions of a FIR (z.map.areas: waypoint line + closing points outside the FIR). Sent as extra zones
+      // with the same FIR rings plus a `clip` ring; the page draws FIR ∩ clip on top of the FIR's own (lower) level.
+      for (const a of (z.map && z.map.areas) || []) {
+        const ring = a.line.concat(a.close || []), flat = [];
+        for (const [x, y] of ring) flat.push(x, y);
+        const inArea = q => inRing(flat, q.lon, q.lat) && zf.some(id => firsAt(q.lat, q.lon).has(id));
+        let c = null;
+        for (let i = 0; i <= n; i++) { const f = i / n, q = interp(dep, arr, f); if (inArea(q)) { if (c) c.to = f; else c = { from: f, to: f }; } }
+        const aEnd = [dep, arr].some(q => q && q.lat != null && inArea(q));
+        if (!c && !aEnd) continue;
+        zones.push({ name: a.name, level: a.level, waterOnly: false, crossing: !!c, atEnd: aEnd, from: c ? c.from : null, to: c ? c.to : null, src: String(z.src || '').split(';')[0], rings: zr, clip: [ring.concat([ring[0]])] });
+      }
     }
   } catch (e) { /* zones optional */ }
   const out = { firs, rings, zones, totalNm: Math.round(total) };
