@@ -1696,8 +1696,8 @@ body.sidebar-collapsed #askNotamAiBtn { right: 24px; }
       <button id="tabBtn1" onclick="switchTab(1)" style="font-family:monospace;font-size:11px;letter-spacing:1px;padding:6px 16px;background:#143060;color:#4a9eff;border:1px solid #4a9eff;cursor:pointer;">📋 NOTAM ANALYSIS</button>
       <button id="tabBtn2" onclick="switchTab(2)" style="font-family:monospace;font-size:11px;letter-spacing:1px;padding:6px 16px;background:transparent;color:#4a5f72;border:1px solid #1a2a3a;cursor:pointer;">🌤️ FULL BRIEFING</button>
     </div>
-    <div id="resultContent" style="display:none"></div>
-    <div id="resultContent2" style="display:none"></div>
+    <div id="resultContent" class="ni-brief" style="display:none"></div>
+    <div id="resultContent2" class="ni-brief" style="display:none"></div>
   </div>
 </div>
 
@@ -5147,6 +5147,93 @@ function _fallbackSanitize(html) {
   });
   return doc.documentElement.outerHTML;
 }
+
+// v3.142: a briefing carries its own <style> (server HTML_HEAD) written for a whole page — :root variables, *, body,
+// body::before. Put into the app page those rules used to apply to the WHOLE app (e.g. --panel / --border / --text
+// changed every panel after a briefing was opened, body line-height changed modals). Every <style> that lands in a
+// briefing container (.ni-brief) is rewritten so it only applies inside that container. The saved / shared copy is not
+// changed (the /b/:id page is a whole page and keeps the original rules).
+const BRIEF_SCOPE = '.ni-brief';
+const _briefCssCache = new Map();
+function _scopeSelector(sel) {
+  return sel.split(',').map(part => {
+    const p = part.trim();
+    if (!p) return p;
+    if (p === ':root' || p === 'html' || p === 'body' || p === 'html body') return BRIEF_SCOPE;
+    const m = p.match(/^(?::root|html|body)((?:::?[\w-]+(?:\([^)]*\))?)+)$/);   // body::before, :root:hover …
+    if (m) return BRIEF_SCOPE + m[1];
+    const r = p.replace(/^(?::root|html|body)\s+/, '');
+    return ':where(' + BRIEF_SCOPE + ') ' + r;   // :where() adds no specificity, so the rules compete with the app's as before
+  }).join(', ');
+}
+// small brace parser instead of the CSSOM: re-serialising declarations through the CSSOM loses values in shorthands that
+// use var() (e.g. "border:1px solid var(--border)" followed by "border-left:…" came back without a colour). Selectors are
+// rewritten, declaration text is copied unchanged; @media / @supports are scoped inside, @keyframes etc. copied as they are.
+function _matchBrace(css, open) {   // index of the '}' that closes the '{' at `open`
+  let depth = 0;
+  for (let k = open; k < css.length; k++) {
+    const ch = css[k];
+    if (ch === '"' || ch === "'") { const e = css.indexOf(ch, k + 1); if (e < 0) return -1; k = e; continue; }
+    if (ch === '{') depth++;
+    else if (ch === '}' && --depth === 0) return k;
+  }
+  return -1;
+}
+function _scopeCssText(css) {
+  let out = '', i = 0;
+  while (i < css.length) {
+    const open = css.indexOf('{', i);
+    if (open < 0) break;
+    const prelude = css.slice(i, open).trim();
+    if (prelude.startsWith('@') && prelude.indexOf(';') >= 0) {   // e.g. @import …; before the next block
+      const semi = css.indexOf(';', i); out += css.slice(i, semi + 1) + '\n'; i = semi + 1; continue;
+    }
+    const close = _matchBrace(css, open);
+    if (close < 0) break;
+    const inner = css.slice(open + 1, close);
+    if (/^@(media|supports)\b/i.test(prelude)) out += prelude + '{\n' + _scopeCssText(inner) + '}\n';
+    else if (prelude.startsWith('@')) out += prelude + '{' + inner + '}\n';
+    else {
+      let body = inner;
+      if (/(^|,)\s*(html|body|:root)\s*(,|$)/.test(prelude) && !/^:root$/.test(prelude)) {
+        // the page's own height / background belong to the page, not to the container
+        body = body.replace(/(^|;)\s*(min-height|background|background-color)\s*:[^;]*/g, '$1');
+      }
+      out += _scopeSelector(prelude) + '{' + body + '}\n';
+    }
+    i = close + 1;
+  }
+  return out;
+}
+function scopeBriefingCss(cssText) {
+  if (_briefCssCache.has(cssText)) return _briefCssCache.get(cssText);
+  let out;
+  try { out = _scopeCssText(String(cssText || '').replace(/\/\*[\s\S]*?\*\//g, '')); } catch (e) { out = ''; }   // unparsable: drop it rather than let page-wide rules leak
+  if (_briefCssCache.size > 20) _briefCssCache.clear();
+  _briefCssCache.set(cssText, out);
+  return out;
+}
+function scopeBriefingStyles(root) {
+  if (!root) return;
+  root.querySelectorAll('style:not([data-ni-scoped])').forEach(st => {
+    st.textContent = scopeBriefingCss(st.textContent || '');
+    st.setAttribute('data-ni-scoped', '1');
+  });
+}
+// every way a briefing reaches the screen (stream, final, cache, Recents, Archive, tabs) sets innerHTML on one of the two
+// containers, so one observer covers them all; it runs before the next paint, so the page-wide rules never show.
+(function () {
+  const start = () => {
+    ['resultContent', 'resultContent2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || el._niScopeObs) return;
+      el._niScopeObs = new MutationObserver(() => scopeBriefingStyles(el));
+      el._niScopeObs.observe(el, { childList: true, subtree: true });
+      scopeBriefingStyles(el);
+    });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
 
 function expandNotamTags(html, rawMap) {
   if (!html || html.indexOf('<n') < 0) return html;
