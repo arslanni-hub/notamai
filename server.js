@@ -21,6 +21,7 @@ const fs = require('fs');
 const path = require('path');
 const admin = require('firebase-admin');
 const risk = require('./risk');
+const rwyCond = require('./rwy-cond');
 const videoScript = require('./video-script');
 const runwayData = require('./runway-data');
 const alternates = require('./alternates');
@@ -1124,6 +1125,11 @@ function fetchURL(url, options = {}) {
 function classifyNotamSeverity(raw) {
   const t = (raw || '').toUpperCase();
   if (/RWY.*CLSD|CLSD.*RWY|U\/S|UNSERVICEABLE|JAMM|EMERG ONLY|PROHIBITED|TRIGGER/.test(t)) return 'CRITICAL';
+  // v3.149: runway surface condition (FICON / braking action) and volcanic ash used to fall through to LOW and never got a card
+  const cat = rwyCond.category(t);
+  if (cat === 'ash') return 'HIGH';
+  if (cat === 'rwy') { const c = rwyCond.parseNotam(t); return c && c.tier && c.tier <= 2 ? 'CRITICAL' : c && c.tier ? 'HIGH' : 'MEDIUM'; }
+  if (cat === 'bird') return 'MEDIUM';
   if (/TWY.*CLSD|ILS|VOR|NDB|GNSS|GPS|MILITARY|TFR|RESTRICTED|DANGER/.test(t)) return 'HIGH';
   if (/LGT.*U\/S|PAPI|VASI|OBST|CRANE|TOWER|TAXIWAY/.test(t)) return 'MEDIUM';
   return 'LOW';
@@ -2165,7 +2171,7 @@ NEVER say 'sınırlı bilgi', 'limited information', 'bu briefingde yer almıyor
 
 For transatlantic routes, always mention NAT (North Atlantic Track) system status and oceanic clearance requirements. For routes over conflict zones (Middle East, Eastern Europe), specifically check for active airspace closures and NOTAM to Airmen.
 
-Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover all NOTAM types including SNOWTAM, BIRDTAM, ASHTAM, Military, Navigation, Airspace, Aerodrome NOTAMs.
+Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover every NOTAM type present in the data (Military, Navigation, Airspace, Aerodrome, runway-condition / FICON, bird activity, volcanic activity). SNOWTAM, ASHTAM and BIRDTAM special-series messages are NOT part of this data: never state or imply that there is no SNOWTAM, ASHTAM or BIRDTAM, or that a runway is uncontaminated because none is listed. When the data contains a RUNWAY SURFACE CONDITION block for an aerodrome, add a short 'Runway surface' line to that aerodrome's weather / operational assessment with the decoded runway condition (say that it comes from the METAR runway state group or the named FICON / runway-condition NOTAM), and when the block says the SNOWTAM / runway condition report must be obtained, put that instruction in the Pilot Action Items as well.
 
 IMPORTANT: Be concise. Limit each NOTAM card to essential information only. Ensure ALL sections are completed including Go/No-Go and Footer.
 
@@ -2328,7 +2334,7 @@ REQUIRED SECTIONS IN ORDER:
   <div class="footer-disclaimer">AI-GENERATED BRIEFING — MAY CONTAIN ERRORS OR OMISSIONS. PROVIDED "AS-IS" FOR PLANNING PURPOSES ONLY; DOES NOT REPLACE OFFICIAL PRE-FLIGHT DOCUMENTATION. FLIGHT SAFETY IS THE OVERRIDING PRIORITY — INDEPENDENTLY VERIFY ALL NOTAM, WEATHER, AND ATC DATA AGAINST CURRENT OFFICIAL SOURCES BEFORE FLIGHT, AS CONDITIONS MAY HAVE CHANGED SINCE GENERATION. NOTAM INTELLIGENCE ASSUMES NO LIABILITY FOR DECISIONS MADE IN RELIANCE ON THIS BRIEFING WITHOUT SUCH INDEPENDENT VERIFICATION.</div>
 </div>
 
-Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover all NOTAM types including SNOWTAM, BIRDTAM, ASHTAM, Military, Navigation, Airspace, Aerodrome NOTAMs.
+Use real data from provided NOTAMs and weather. Be detailed and operationally specific. Cover every NOTAM type present in the data (Military, Navigation, Airspace, Aerodrome, runway-condition / FICON, bird activity, volcanic activity). SNOWTAM, ASHTAM and BIRDTAM special-series messages are NOT part of this data: never state or imply that there is no SNOWTAM, ASHTAM or BIRDTAM, or that a runway is uncontaminated because none is listed. When the data contains a RUNWAY SURFACE CONDITION block for an aerodrome, add a short 'Runway surface' line to that aerodrome's weather / operational assessment with the decoded runway condition (say that it comes from the METAR runway state group or the named FICON / runway-condition NOTAM), and when the block says the SNOWTAM / runway condition report must be obtained, put that instruction in the Pilot Action Items as well.
 
 IMPORTANT: Be concise. Limit each NOTAM card to essential information only. Ensure ALL sections are completed including Airport Operational Status and Footer.
 
@@ -2644,6 +2650,12 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, Object.assign(head, { 'Content-Length': st.size }));
       fs.createReadStream(f).pipe(res);
     }
+    return;
+  }
+  // v3.149: runway-condition helpers shared with the server (rwy-cond.js) — NOTAMs & MET panel
+  if (req.method === 'GET' && urlPath === '/rwy-cond.js') {
+    try { res.writeHead(200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'public, max-age=3600' }); res.end(fs.readFileSync(path.join(__dirname, 'rwy-cond.js'))); }
+    catch (e) { res.writeHead(404); res.end(); }
     return;
   }
   // v3.109: DOMPurify 3.4.17 (self-hosted, used to sanitise every briefing HTML on the page and on shared /b/ links)

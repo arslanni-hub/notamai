@@ -129,6 +129,7 @@ function out(t, word, win) {
   return new RegExp(`(?:${w})${C}{0,${win}}?(?:${u})`).test(t) || new RegExp(`(?:${u})${C}{0,20}?(?:${w})`).test(t);
 }
 
+const RwyCond = require('./rwy-cond');
 const rawOf = n => String((n && (n.raw || n.body)) || '');
 const UP = n => rawOf(n).toUpperCase();
 
@@ -395,6 +396,10 @@ function extractFact(n, scope) {
   const fullCl = rc.filter(c => !c.restricted), partCl = rc.filter(c => c.restricted);
   if (fullCl.length) return { type: 'RWY_CLOSURE', closures: fullCl };
   if (partCl.length) return { type: 'RWY_RESTRICTION', closures: partCl };
+
+  // v3.149: runway surface condition (FICON / RWYCC / braking action / friction) — only when it scores (wet-only and taxiway reports do not)
+  const cond = RwyCond.parseNotam(t);
+  if (cond && cond.tier) return { type: 'RWY_COND', cond };
 
   if (out(t, /\bLLWAS\b|LOW[- ]LEVEL\s+WIND\s*SHEAR/))
     return { type: 'LLWAS', comp: /LIDAR|LASER/.test(t) ? 'lidar' : /RADAR/.test(t) ? 'radar' : 'full' };
@@ -699,6 +704,18 @@ function assessAirport(a, now, cfg) {
     add('RWY_RESTRICTION', onlyBackup ? 3 : 2, `runway ${rkeys.join(', ')} restricted for some aircraft (category/size limits)`, rrRows.map(r => r.id));
   }
 
+  // v3.149: runway surface condition — runway-condition NOTAMs in force + METAR runway state groups (current).
+  // Tiers per ICAO GRF / RCAM (decision 6 Nov 2026): RWYCC 0–1 / braking NIL·POOR / friction ≤0.25 / SNOCLO / runway not operational -> 1,
+  // RWYCC 2–3 -> 2, contaminated but RWYCC 4–5 -> 3. Warning only: never an override (no forced NO-GO).
+  const condRows = live.filter(r => r.fact.type === 'RWY_COND');
+  const metarGroups = RwyCond.parseMetar(a.metar).filter(g => g.tier);
+  if (condRows.length || metarGroups.length) {
+    const items = condRows.map(r => ({ tier: r.fact.cond.tier, label: `${r.fact.cond.rwy ? 'RWY ' + r.fact.cond.rwy + ' ' : ''}${r.fact.cond.text} (${r.fact.cond.kind} NOTAM ${r.id})` }))
+      .concat(metarGroups.map(g => ({ tier: g.tier, label: g.snoclo ? 'METAR: ' + g.text : `RWY ${g.rwy} ${g.text} (METAR runway state ${g.raw})` })))
+      .sort((x, y) => x.tier - y.tier);
+    add('RWY_COND', items[0].tier, 'runway surface condition — ' + items.slice(0, 4).map(i => i.label).join('; ') + (items.length > 4 ? ` (+${items.length - 4} more)` : ''), condRows.map(r => r.id));
+  }
+
   // LLWAS
   const ll = live.filter(r => r.fact.type === 'LLWAS');
   if (ll.length) {
@@ -742,6 +759,7 @@ function assessAirport(a, now, cfg) {
       else if (t === 'RWY_CLOSURE') sev = rwFactor && rwFactor.tier === 1 ? 'CRITICAL' : 'HIGH';
       else if (t === 'RWY_RESTRICTION') sev = (factors.find(f => f.key.endsWith(':RWY_RESTRICTION')) || {}).tier === 3 ? 'MEDIUM' : 'HIGH';
       else if (t === 'LLWAS') sev = 'HIGH';
+      else if (t === 'RWY_COND') sev = r.fact.cond.tier === 1 ? 'CRITICAL' : r.fact.cond.tier === 2 ? 'HIGH' : 'MEDIUM';
       else if (['ILS', 'CAT23', 'RVR', 'LIGHTING', 'MINIMA', 'NAVAID', 'RFFS', 'AIRSPACE', 'GNSS_OUTAGE', 'APPROACH_OUT'].includes(t)) sev = 'HIGH';
       else sev = 'MEDIUM';
       if (!r.win.inWindow && sev !== 'LOW') sev = 'MEDIUM';
@@ -969,6 +987,27 @@ function buildModelBlock(input, r, opts) {
     return `${icao}: ${inf.count || 'unknown'} runways [${inf.disputed ? 'DISPUTED — ' + inf.note : (inf.source || 'unknown')}${inf.trusted ? '' : ' — unverified'}]`;
   });
   if (rw.length) L.push('RUNWAY DATA:\n' + rw.map(x => '- ' + x).join('\n'));
+
+  // v3.149: runway surface condition per aerodrome — METAR runway state groups, runway-condition NOTAMs, and the SNOWTAM gap.
+  // International SNOWTAMs (ICAO GRF format) are not distributed by the FAA NOTAM system the data comes from (FAA USNOF 21-02).
+  (input.airports || []).forEach(a => {
+    const groups = RwyCond.parseMetar(a.metar);
+    const conds = (a.notams || []).filter(n => !isAdminNotam(n)).map(n => ({ id: idOf(n), c: RwyCond.parseNotam(eText(n)) })).filter(x => x.c);
+    const winter = RwyCond.winterHint(a.metar, a.taf);
+    if (!groups.length && !conds.length && !winter.length) return;
+    const tierTxt = t => (t ? ` → rubric Tier ${t}` : ' → not scored');
+    const S = [];
+    groups.forEach(g => S.push(`- METAR runway state ${g.raw}: ${g.snoclo ? g.text : 'RWY ' + g.rwy + ' ' + g.text}${tierTxt(g.tier)} (decoded from the METAR — not a SNOWTAM)`));
+    conds.forEach(x => S.push(`- ${x.c.kind} NOTAM ${x.id}: ${x.c.rwy ? (x.c.rwy === 'TWY/APRON' ? 'taxiway/apron ' : 'RWY ' + x.c.rwy + ' ') : ''}${x.c.text}${tierTxt(x.c.tier)}`));
+    if (RwyCond.usesFicon(a.icao)) {
+      S.push(`- ${a.icao} is a US aerodrome: runway conditions are published as FICON NOTAMs (part of this data${conds.some(x => x.c.kind === 'FICON') ? '' : '; none in the data right now'}). ${winter.length ? 'Winter conditions are indicated (' + winter.join(', ') + '): tell the crew to confirm the current FICON / ATIS runway condition codes before flight.' : ''}`.trim());
+    } else if (winter.length) {
+      S.push(`- SNOWTAM: NOT AVAILABLE in this data (international SNOWTAMs in the ICAO GRF format are not distributed through the FAA NOTAM system this data comes from). Winter conditions are indicated (${winter.join(', ')}). The briefing MUST tell the crew to obtain the current SNOWTAM / runway condition report (RCR) for ${a.icao} from the State AIS, EAD or ATIS before flight. NEVER state or imply that there is no SNOWTAM or that the runway is uncontaminated because none is listed.`);
+    } else {
+      S.push(`- SNOWTAM: not available in this data; no winter signal in the METAR/TAF. Do not state that there is no SNOWTAM.`);
+    }
+    L.push(`RUNWAY SURFACE CONDITION — ${a.icao}:\n` + S.join('\n'));
+  });
 
   // coverage statement
   const cov = [];

@@ -52,6 +52,7 @@
 <link rel="apple-touch-icon" href="/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="/purify.min.js"></script>
+<script src="/rwy-cond.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -8998,18 +8999,99 @@ function filterRawNotams() {
   const items = document.querySelectorAll('#rawSection-notam .raw-notam-item');
   const q = _rawNorm(input ? input.value : '');
   let shown = 0;
+  const cat = window._rawNotamCat || 'all';
   items.forEach(it => {
     const hay = /[A-Z]{4,}/.test(q) ? _rawNorm(it.dataset.full) : _rawNorm(it.dataset.idline);
-    const ok = !q || hay.includes(q);
+    const ok = (!q || hay.includes(q)) && (cat === 'all' || it.dataset.cat === cat);
     it.style.display = ok ? '' : 'none';
     if (ok) shown++;
   });
+  document.querySelectorAll('#rawSection-notam .raw-cat-info').forEach(b => { b.style.display = b.dataset.for === cat ? 'block' : 'none'; });
+  document.querySelectorAll('#rawSection-notam .raw-cat-empty').forEach(b => {
+    const any = [...items].some(it => it.style.display !== 'none');
+    b.style.display = (cat !== 'all' && !any) ? 'block' : 'none';
+  });
+  document.querySelectorAll('#rawSection-notam .raw-admin-toggle').forEach(tg => { tg.style.display = cat === 'all' ? 'flex' : 'none'; });
   document.querySelectorAll('#rawSection-notam .raw-admin-sec').forEach(sec => {
     if (!q) return;
     const any = [...sec.querySelectorAll('.raw-notam-item')].some(it => it.style.display !== 'none');
     if (any) sec.style.display = 'block';
   });
-  if (count) count.textContent = q && items.length ? shown + ' / ' + items.length : '';
+  if (count) count.textContent = (q || cat !== 'all') && items.length ? shown + ' / ' + items.length : '';
+}
+
+// v3.149: NOTAMs tab sub-tabs (ALL · SNOWTAM/RWY · BIRD · ASH). Categories come from rwy-cond.js (same rules as the briefing).
+function setRawNotamCat(cat) {
+  window._rawNotamCat = cat;
+  document.querySelectorAll('#rawSection-notam .raw-cat-btn').forEach(b => {
+    const on = b.dataset.cat === cat;
+    b.style.color = on ? '#4a9eff' : (b.dataset.n === '0' ? '#2f4255' : '#8a9bb0');
+    b.style.borderColor = on ? 'rgba(74,158,255,0.6)' : '#1a2a3a';
+    b.style.background = on ? 'rgba(74,158,255,0.08)' : 'transparent';
+  });
+  filterRawNotams();
+}
+function rawCatOf(block) { try { return (window.RwyCond && RwyCond.category(block)) || ''; } catch (e) { return ''; } }
+// Sub-tab row + the info boxes of each sub-tab. blocks = NOTAM texts shown in the tab; metar = latest METAR line.
+function buildRawNotamCats(icao, blocks, metar, taf) {
+  const RC = window.RwyCond;
+  const wrap = document.createElement('div');
+  const counts = { all: blocks.length, rwy: 0, bird: 0, ash: 0 };
+  blocks.forEach(b => { const c = rawCatOf(b); if (counts[c] != null) counts[c]++; });
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 10px;';
+  [['all', 'ALL'], ['rwy', 'SNOWTAM · RWY'], ['bird', 'BIRD'], ['ash', 'ASH']].forEach(([k, label]) => {
+    const b = document.createElement('button');
+    b.className = 'raw-cat-btn'; b.dataset.cat = k; b.dataset.n = String(counts[k]);
+    b.textContent = label + ' (' + counts[k] + ')';
+    b.style.cssText = "padding:4px 8px;border:1px solid #1a2a3a;border-radius:12px;background:transparent;color:#8a9bb0;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:0.5px;cursor:pointer;white-space:nowrap;";
+    b.onclick = () => setRawNotamCat(k);
+    row.appendChild(b);
+  });
+  wrap.appendChild(row);
+
+  const box = (border, html) => {
+    const d = document.createElement('div');
+    d.style.cssText = "background:#0d1520;border:1px solid #1a2a3a;border-left:3px solid " + border + ";border-radius:4px;padding:9px 12px;margin-bottom:8px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cdd9e5;line-height:1.5;";
+    d.innerHTML = html; return d;
+  };
+  const E = s => escHtmlClient(String(s == null ? '' : s));
+  const us = RC ? RC.usesFicon(icao) : /^[KP]/.test(icao);
+  const winter = RC ? RC.winterHint(metar, taf) : [];
+  const groups = RC ? RC.parseMetar(metar) : [];
+  const tierColor = t => t === 1 ? '#e63946' : t === 2 ? '#f4841a' : t === 3 ? '#f2c641' : '#2ec4b6';
+  const tierWord = g => g.snoclo ? 'CLOSED' : (g.level != null && RC ? RC.BRAKE_WORD[g.level] : (g.tier === 1 ? 'NOT OPERATIONAL' : g.tier === 3 ? 'CONTAMINATED' : 'NO ISSUE'));
+
+  // SNOWTAM / RWY
+  const rwy = document.createElement('div'); rwy.className = 'raw-cat-info'; rwy.dataset.for = 'rwy'; rwy.style.display = 'none';
+  if (groups.length) {
+    const lines = groups.map(g => '<div style="display:flex;gap:8px;align-items:baseline;margin-top:4px;"><span style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:' + tierColor(g.tier) + ';border:1px solid ' + tierColor(g.tier) + '55;border-radius:3px;padding:0 5px;white-space:nowrap;">' + tierWord(g) + '</span><span><b>' + E(g.snoclo ? 'AERODROME' : 'RWY ' + g.rwy) + '</b> ' + E(g.text) + ' <span style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#4a5f72;">' + E(g.raw) + '</span></span></div>').join('');
+    rwy.appendChild(box(tierColor(Math.min(...groups.map(g => g.tier || 9)) <= 3 ? Math.min(...groups.map(g => g.tier || 9)) : null),
+      '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;letter-spacing:1px;color:#4a9eff;">RUNWAY STATE FROM THE METAR</div>' + lines +
+      '<div style="font-size:11px;color:#4a5f72;margin-top:6px;">Decoded from the runway state group of the latest METAR — not a SNOWTAM.</div>'));
+  }
+  rwy.appendChild(us
+    ? box('#4a9eff', '<b>US aerodrome:</b> runway conditions are published as <b>FICON NOTAMs</b> (RWYCC per runway third) — any in force are listed below. Confirm the current codes on the ATIS before flight.')
+    : box(winter.length ? '#f2c641' : '#4a9eff', '<b>SNOWTAM — not in our NOTAM source.</b> International SNOWTAMs (ICAO GRF format) are not distributed through the FAA NOTAM system our data comes from. Get the current SNOWTAM / runway condition report for ' + E(icao) + ' from the State AIS, EAD or the ATIS before flight.' +
+        (winter.length ? '<div style="color:#f2c641;font-size:12px;margin-top:4px;">Winter conditions: ' + E(winter.join(' · ')) + '</div>' : '') +
+        '<div style="font-size:11px;color:#4a5f72;margin-top:4px;">Runway-condition NOTAMs that are in the feed (braking action, friction, snow clearance, contamination) are listed below.</div>'));
+  wrap.appendChild(rwy);
+  const bird = document.createElement('div'); bird.className = 'raw-cat-info'; bird.dataset.for = 'bird'; bird.style.display = 'none';
+  bird.appendChild(box('#4a9eff', '<b>BIRDTAM</b> (bird-strike warnings for military low-level flying) is not part of our NOTAM source. Bird-activity / wildlife NOTAMs of ' + E(icao) + ' are listed below.'));
+  wrap.appendChild(bird);
+  const ash = document.createElement('div'); ash.className = 'raw-cat-info'; ash.dataset.for = 'ash'; ash.style.display = 'none';
+  ash.appendChild(box('#4a9eff', '<b>ASHTAM</b> (volcanic-ash special series) is not part of our NOTAM source. Volcanic-activity NOTAMs of ' + E(icao) + ' are listed below; check the volcanic-ash SIGMETs (SIGMET/AIRMET tab) and the VAAC advisories as well.'));
+  wrap.appendChild(ash);
+  const empty = document.createElement('div'); empty.className = 'raw-cat-empty'; empty.style.cssText = "display:none;font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;padding:6px 2px 12px;";
+  empty.textContent = 'No NOTAMs of this kind in the feed for ' + icao + '.';
+  wrap.appendChild(empty);
+  // ALL view: one line pointing at the SNOWTAM gap when winter conditions are indicated (non-US)
+  if (!us && winter.length) {
+    const hint = document.createElement('div'); hint.className = 'raw-cat-info'; hint.dataset.for = 'all'; hint.style.display = 'none';
+    hint.appendChild(box('#f2c641', 'Winter conditions at ' + E(icao) + ' (' + E(winter[0]) + ') — the SNOWTAM is not in our feed. <a href="#" style="color:#4a9eff;text-decoration:none;" onclick="setRawNotamCat(\'rwy\');return false;">SNOWTAM · RWY →</a>'));
+    wrap.appendChild(hint);
+  }
+  return wrap;
 }
 
 async function openAnalysisPanel(title, data, prompt, color) {
@@ -9290,6 +9372,7 @@ async function fetchRawData() {
       const empty = document.createElement('div');
       empty.style.cssText = "font-family:'Rajdhani',sans-serif;font-size:13px;color:#4a5f72;padding:12px 0;";
       empty.textContent = 'No active NOTAMs for ' + icao;
+      notamSection.appendChild(buildRawNotamCats(icao, [], (metarText || '').trim().split('\n')[0], tafText));
       notamSection.appendChild(empty);
       document.getElementById('rawTab-notam').textContent = 'NOTAMs';
     } else {
@@ -9304,6 +9387,7 @@ async function fetchRawData() {
         wrapper.className = 'raw-notam-item';
         wrapper.dataset.idline = String(block).replace(/^\[FUTURE NOTAM - NOT YET ACTIVE\]\n/, '').split('\n')[0];
         wrapper.dataset.full = String(block);
+        wrapper.dataset.cat = rawCatOf(block);
 
         const notamBox = document.createElement('div');
         notamBox.style.cssText = 'background:#060a0f;border:1px solid #1a2a3a;border-radius:4px;padding:10px 12px;font-family:Share Tech Mono,monospace;font-size:11px;color:#8a9bb0;line-height:1.8;white-space:pre-wrap;position:relative;transition:border-color 0.2s;cursor:default;';
@@ -9413,10 +9497,12 @@ async function fetchRawData() {
         targetSection.appendChild(wrapper);
       }
 
+      notamSection.appendChild(buildRawNotamCats(icao, notamBlocks, (metarText || '').trim().split('\n')[0], tafText));
       operationalBlocks.forEach(block => renderNotamBlock(block, notamSection));
 
       if (adminBlocks.length) {
         const adminToggle = document.createElement('div');
+        adminToggle.className = 'raw-admin-toggle';
         adminToggle.style.cssText = 'margin-top:12px;margin-bottom:4px;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;font-family:Share Tech Mono,monospace;font-size:10px;color:#4a5f72;letter-spacing:1px;';
         adminToggle.innerHTML = '<span class="adminArrow" style="transition:transform 0.2s;display:inline-block;transform:rotate(-90deg);">▼</span> ADMINISTRATIVE / TRIGGER NOTAMs (' + adminBlocks.length + ')';
         const adminSection = document.createElement('div');
@@ -9433,6 +9519,7 @@ async function fetchRawData() {
       }
     }
     notamSec.appendChild(notamSection);
+    setRawNotamCat('all');
 
     // METAR
     const metarSection = document.createElement('div');

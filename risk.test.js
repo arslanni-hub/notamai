@@ -814,6 +814,35 @@ test('v3.48 finalizeForClient hands the video briefing a risk summary (score, le
   const ok = R.finalizeForClient(R.assessRisk({ now: NOW, airports: [ap('EGLL', 'DEP'), ap('LTFM', 'ARR')], enroute: [] }), '');
   assert.strictEqual(ok.riskSummary.override, false); assert.ok(ok.riskSummary.score <= 3);
 });
+test('v3.149 runway surface condition: FICON RWYCC 1/1/2 is Tier 1 without override, card severity CRITICAL', () => {
+  const n = N('A0451', 'KJFK', '2610041800', '2610051800', 'RWY 04L FICON 1/1/2 100 PCT ICE, 100 PCT ICE, 100 PCT 1/8IN WET SN OBS AT 2610041800');
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'KJFK', role: 'DEP', notams: [n], runwayInfo: { count: 4, trusted: true } }, { icao: 'EGLL', role: 'ARR', notams: [] }] });
+  const f = r.factors.find(x => x.key === 'KJFK:RWY_COND');
+  assert.ok(f && f.tier === 1 && !f.override, JSON.stringify(f));
+  assert.strictEqual(r.override, false);
+  assert.strictEqual(r.level, 'HIGH');
+  assert.strictEqual((r.airportRows.KJFK || []).find(x => x.id === 'A0451/2026').sev, 'CRITICAL');
+});
+test('v3.149 METAR runway state group: friction 0.33 is Tier 2, wet with good friction scores nothing', () => {
+  const r = R.assessRisk({ now: NOW, airports: [{ icao: 'ULLI', role: 'DEP', notams: [], metar: 'ULLI 041900Z 00000MPS CAVOK M01/M03 Q1020 R28L/590133 NOSIG' }, { icao: 'EDDF', role: 'ARR', notams: [], metar: 'EDDF 041900Z 25005KT 9999 -RA BKN030 08/06 Q1010 R25C/290055' }] });
+  const f = r.factors.find(x => x.key === 'ULLI:RWY_COND');
+  assert.ok(f && f.tier === 2 && /R28L\/590133/.test(f.label), JSON.stringify(f));
+  assert.ok(!r.factors.find(x => x.key === 'EDDF:RWY_COND'));
+});
+test('v3.149 a wet FICON 5/5/5 is not a factor; the model block lists runway surface data and the SNOWTAM gap', () => {
+  const n = N('A0452', 'KDEN', '2610041800', '2610051800', 'RWY 16R FICON 5/5/5 100 PCT WET OBS AT 2610041800');
+  const input = { now: NOW, airports: [{ icao: 'KDEN', role: 'DEP', notams: [n], metar: 'KDEN 041853Z 36010KT 10SM -SN OVC020 M02/M05 A3001' }, { icao: 'ENGM', role: 'ARR', notams: [], metar: 'ENGM 041850Z 00000KT 9999 FEW020 M04/M07 Q1025 R01L/490395', taf: 'TAF ENGM 041700Z 0418/0524 VRB03KT 9999 -SN' }] };
+  const r = R.assessRisk(input);
+  assert.ok(!r.factors.find(x => x.key === 'KDEN:RWY_COND'));
+  const b = R.buildModelBlock(input, r);
+  assert.ok(/RUNWAY SURFACE CONDITION — ENGM/.test(b) && /SNOWTAM: NOT AVAILABLE/.test(b) && /R01L\/490395/.test(b), b);
+  assert.ok(/RUNWAY SURFACE CONDITION — KDEN/.test(b) && /FICON/.test(b) && /A0452/.test(b));
+  assert.ok(!/SNOWTAM: NOT AVAILABLE[^\n]*KDEN/.test(b));
+});
+test('v3.149 no winter signal, no runway data -> no runway surface block', () => {
+  const input = { now: NOW, airports: [{ icao: 'LTFM', role: 'DEP', notams: [], metar: 'LTFM 041850Z 20010KT CAVOK 18/09 Q1015', taf: 'TAF LTFM 041700Z 0418/0524 20010KT CAVOK' }] };
+  assert.ok(!/RUNWAY SURFACE CONDITION/.test(R.buildModelBlock(input, R.assessRisk(input))));
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
 
