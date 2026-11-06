@@ -40,6 +40,17 @@ service cloud.firestore {
     }
 
     // Single-doc read stays public so shared links keep working; listing is owner/admin only.
+    // v3.143: light list of a user's briefings (route, risk, date) for Recents / Archive — the HTML stays in briefings/{id}.
+    // Written by the page right after the briefing (must belong to the same user), filled for old briefings by the server.
+    match /briefingIndex/{briefingId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasOnly(['userId', 'route', 'riskLevel', 'createdAt'])
+        && getAfter(/databases/$(database)/documents/briefings/$(briefingId)).data.userId == request.auth.uid;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
     match /briefings/{briefingId} {
       allow get: if true;
       allow list: if isAdmin() || isOwnerOf(resource.data);

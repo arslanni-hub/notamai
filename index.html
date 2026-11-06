@@ -6159,17 +6159,40 @@ function generateReferralCode(uid) {
 }
 
 /* ═══ SIDEBAR HISTORY ═══ */
+// v3.143: the user's briefings as a light list { id, route, riskLevel, createdAt } from briefingIndex — no HTML. Falls
+// back to the old full query (which also fills briefingCache) if the index can't be read or is still empty (rules not
+// published yet, or the server has not finished filling the index for older briefings).
+async function fetchBriefingList(uid, limit) {
+  const toDate = v => (v && typeof v.toDate === 'function') ? v.toDate() : new Date();
+  try {
+    const snap = await db.collection('briefingIndex').where('userId', '==', uid).get();
+    if (!snap.empty) {
+      const list = snap.docs.map(d => { const x = d.data(); return { id: d.id, route: x.route, riskLevel: x.riskLevel, createdAt: toDate(x.createdAt) }; });
+      list.sort((a, b) => b.createdAt - a.createdAt);
+      return limit ? list.slice(0, limit) : list;
+    }
+  } catch (e) { console.warn('[BRIEFING INDEX] read failed, using full list:', e.code || e.message); }
+  let q = db.collection('briefings').where('userId', '==', uid).orderBy('createdAt', 'desc');
+  if (limit) q = q.limit(limit);
+  const snap = await q.get();
+  return snap.docs.map(d => { const x = d.data(); if (x.html) briefingCache[d.id] = x.html; return { id: d.id, route: x.route, riskLevel: x.riskLevel, createdAt: toDate(x.createdAt) }; });
+}
+function dropBriefingIndex(id) {
+  try { db.collection('briefingIndex').doc(id).delete().catch(() => {}); } catch (e) {}
+}
+
 async function saveBriefingToFirestore(route, riskLevel, htmlContent) {
   const user = firebase.auth().currentUser;
   if (!user) return null;
   try {
-    const docRef = await db.collection('briefings').add({
-      userId: user.uid,
-      route: route,
-      riskLevel: riskLevel || 'MEDIUM',
-      html: htmlContent,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    const docRef = db.collection('briefings').doc();
+    const ts = firebase.firestore.FieldValue.serverTimestamp();
+    await docRef.set({ userId: user.uid, route: route, riskLevel: riskLevel || 'MEDIUM', html: htmlContent, createdAt: ts });
+    // v3.143: light index entry (route / risk / date) so Recents and Archive never download the HTML. A failure here is
+    // not fatal — the server's index job adds missing entries within 10 min.
+    db.collection('briefingIndex').doc(docRef.id).set({ userId: user.uid, route: String(route || '').slice(0, 120), riskLevel: riskLevel || 'MEDIUM', createdAt: ts })
+      .catch(e => console.warn('[BRIEFING INDEX] write failed:', e.code || e.message));
+    briefingCache[docRef.id] = htmlContent;
     return docRef.id;
   } catch(e) {
     console.error('Firestore save error:', e);
@@ -6192,7 +6215,7 @@ async function loadBriefingHistory(attempt) {
     } catch (e) {}
   }
   const seq = ++recentsLoadSeq;
-  const briefQ = db.collection('briefings').where('userId', '==', user.uid).orderBy('createdAt', 'desc').limit(50).get();
+  const briefQ = fetchBriefingList(user.uid, 50);   // v3.143: index only, no HTML
   const chatQ  = db.collection('general_chats').where('userId', '==', user.uid).orderBy('createdAt', 'desc').limit(50).get();
   const vidQ   = db.collection('videos').where('userId', '==', user.uid).where('status', '==', 'completed').orderBy('createdAt', 'desc').limit(20).get();
   const [bRes, cRes, vRes] = await Promise.allSettled([briefQ, chatQ, vidQ]);
@@ -6204,16 +6227,8 @@ async function loadBriefingHistory(attempt) {
     return;                                                             // keep the cached list on screen meanwhile
   }
   const recents = [];
-  bRes.value.forEach(doc => {
-    const data = doc.data();
-    briefingCache[doc.id] = data.html;
-    recents.push({
-      id: doc.id,
-      type: 'briefing',
-      route: data.route,
-      riskLevel: data.riskLevel,
-      timestamp: data.createdAt?.toDate()?.toISOString() || new Date().toISOString()
-    });
+  bRes.value.forEach(b => {
+    recents.push({ id: b.id, type: 'briefing', route: b.route, riskLevel: b.riskLevel, timestamp: b.createdAt.toISOString() });
   });
   // General Aviation Expert Chat sessions (Pro/Max only — Free never creates these documents)
   if (cRes.status === 'fulfilled') {
@@ -6787,7 +6802,8 @@ function pmLoadArchive(tab) {
   }
   if (tab === 'briefings') {
     el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">Loading...</div>';
-    db.collection('briefings').where('userId','==',user.uid).orderBy('createdAt','desc').limit(30).get().then(snap => {
+    fetchBriefingList(user.uid, 30).then(list => {
+      const snap = { empty: !list.length, docs: list.map(b => ({ id: b.id, data: () => ({ route: b.route, riskLevel: b.riskLevel, createdAt: { toDate: () => b.createdAt } }) })) };
       if (snap.empty) { el.innerHTML = '<div style="color:#4a5f72;font-family:Rajdhani,sans-serif;font-size:13px;">No briefings yet.</div>'; return; }
       const riskColors = { CRITICAL:'#e63946', HIGH:'#f4841a', MEDIUM:'#f2c641', LOW:'#2ec4b6' };
       el.innerHTML = snap.docs.map(doc => {
@@ -6884,6 +6900,7 @@ async function pmOpenBriefing(id, route) {
       appendBriefingActions(content);
     } else {
       if (status) status.textContent = 'BRIEFING NOT FOUND';
+      if (!doc.exists) { dropBriefingIndex(id); setTimeout(() => { try { loadBriefingHistory(); } catch (e) {} }, 500); }   // stale index entry
     }
   } catch(e) {
     if (status) status.textContent = 'ERROR LOADING BRIEFING';
@@ -10904,18 +10921,8 @@ async function loadArchive() {
   }
   document.getElementById('archiveList').innerHTML = '<div style="text-align:center;padding:40px 0;font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#4a9eff;letter-spacing:2px;">LOADING...</div>';
   try {
-    const snapshot = await db.collection('briefings')
-      .where('userId', '==', user.uid)
-      .orderBy('createdAt', 'desc')
-      .get();
-    allArchiveBriefings = snapshot.docs.map(doc => ({
-      id: doc.id,
-      route: doc.data().route || 'Unknown Route',
-      riskLevel: doc.data().riskLevel || 'MEDIUM',
-      html: doc.data().html,
-      createdAt: doc.data().createdAt?.toDate() || new Date()
-    }));
-    allArchiveBriefings.forEach(b => { if (b.html) briefingCache[b.id] = b.html; });
+    const list = await fetchBriefingList(user.uid);   // v3.143: index only — the HTML is loaded when a briefing is opened
+    allArchiveBriefings = list.map(b => ({ id: b.id, route: b.route || 'Unknown Route', riskLevel: b.riskLevel || 'MEDIUM', createdAt: b.createdAt }));
     renderArchive(allArchiveBriefings);
   } catch(e) {
     document.getElementById('archiveList').innerHTML = '<div style="text-align:center;padding:40px 0;font-family:\'Rajdhani\',sans-serif;font-size:13px;color:#e63946;">Error loading archive</div>';
@@ -11053,6 +11060,7 @@ async function archiveMenuDelete() {
   if (!confirm('Delete this briefing from archive?')) return;
   try {
     await db.collection('briefings').doc(activeArchiveId).delete();
+    dropBriefingIndex(activeArchiveId);
     delete briefingCache[activeArchiveId];
     loadArchive();
     loadBriefingHistory();

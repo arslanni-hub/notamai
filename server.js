@@ -4154,7 +4154,7 @@ if (getAccessBtn) {
       try { const al = await adminDb.collection('alerts').where('userId', '==', userId).get(); await Promise.all(al.docs.map(d => d.ref.delete())); } catch (e) {}
       // v3.134: the Danger tab promises the account's content is deleted — briefings, expert chats and video briefings
       // (Firestore docs + the archived video files) go too. Usage counters / cost ledger stay (billing records).
-      for (const col of ['briefings', 'general_chats', 'videos']) {
+      for (const col of ['briefings', 'briefingIndex', 'general_chats', 'videos']) {
         try {
           const snap = await adminDb.collection(col).where('userId', '==', userId).get();
           for (let i = 0; i < snap.docs.length; i += 400) {
@@ -7064,6 +7064,61 @@ async function runSentinel() {
 }
 setInterval(() => runSentinel().catch(e => console.log('[SENTINEL ERROR]', e.message)), 30 * 60 * 1000);
 setTimeout(() => runSentinel().catch(e => console.log('[SENTINEL ERROR]', e.message)), 90 * 1000);
+
+// ── v3.143: light briefing index ──────────────────────────────────────────
+// Recents / Archive used to download every briefing's full HTML just to show route, risk and date. The page now lists
+// `briefingIndex/{briefingId}` = { userId, route, riskLevel, createdAt } (written by the page right after the briefing)
+// and loads the HTML only when a briefing is opened. This job (Admin SDK, field-selected reads, no HTML downloaded)
+// fills the index for briefings saved before v3.143 once, and every 10 min adds entries a page failed to write
+// (e.g. before the new Firestore rules were published).
+async function syncBriefingIndex(sinceDate) {
+  let q = adminDb.collection('briefings');
+  if (sinceDate) q = q.where('createdAt', '>=', sinceDate);
+  q = q.select('userId', 'route', 'riskLevel', 'createdAt').orderBy(sinceDate ? 'createdAt' : admin.firestore.FieldPath.documentId()).limit(400);
+  let last = null, added = 0, seen = 0;
+  for (;;) {
+    const snap = await (last ? q.startAfter(last) : q).get();
+    if (snap.empty) break;
+    seen += snap.size;
+    const refs = snap.docs.map(d => adminDb.collection('briefingIndex').doc(d.id));
+    const have = await adminDb.getAll(...refs, { fieldMask: ['userId'] });
+    const batch = adminDb.batch();
+    let n = 0;
+    snap.docs.forEach((d, i) => {
+      if (have[i].exists) return;
+      const b = d.data();
+      if (!b.userId) return;
+      batch.set(refs[i], { userId: b.userId, route: String(b.route || '').slice(0, 120), riskLevel: b.riskLevel || 'MEDIUM', createdAt: b.createdAt || admin.firestore.FieldValue.serverTimestamp() });
+      n++;
+    });
+    if (n) { await batch.commit(); added += n; }
+    if (snap.size < 400) break;
+    last = snap.docs[snap.docs.length - 1];
+  }
+  return { seen, added };
+}
+let briefingIndexMark = 0;
+async function briefingIndexJob(full) {
+  try {
+    const stRef = adminDb.collection('system').doc('briefing_index');
+    if (full) {
+      const st = await stRef.get();
+      if (st.exists && st.data().backfilledV1) return;
+      const r = await syncBriefingIndex(null);
+      await stRef.set({ backfilledV1: true, backfilledAt: new Date(), seen: r.seen, added: r.added }, { merge: true });
+      console.log('[BRIEFING INDEX] backfill done:', r.seen, 'briefings,', r.added, 'index entries added');
+    } else {
+      // everything saved since the last run (30 min overlap); after a restart the last 24 h
+      const started = Date.now();
+      const since = briefingIndexMark ? briefingIndexMark - 30 * 60 * 1000 : started - 24 * 3600 * 1000;
+      const r = await syncBriefingIndex(new Date(since));
+      briefingIndexMark = started;
+      if (r.added) console.log('[BRIEFING INDEX] catch-up added', r.added, 'of', r.seen);
+    }
+  } catch (e) { console.log('[BRIEFING INDEX ERROR]', e.message); }
+}
+setTimeout(() => briefingIndexJob(true), 30 * 1000);
+setInterval(() => briefingIndexJob(false), 10 * 60 * 1000);
 
 // ── 2–4. Lifecycle agent (onboarding nudge, win-back, upgrade nudge) — daily 10:00 UTC ──
 async function runLifecycleAgent() {
