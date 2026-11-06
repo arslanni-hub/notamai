@@ -3,7 +3,8 @@
 //
 // Sources we actually have:
 //   1. METAR runway state groups  R06L/450243, R24/CLRD62, R/SNOCLO (WMO FM-15 / ICAO Annex 3; reported in Europe/Russia/CIS)
-//   2. Runway-condition NOTAMs: US FICON NOTAMs (RWYCC a/b/c per runway third), ICAO-style RWYCC / braking action / friction wording
+//   2. Runway-condition NOTAMs: US FICON NOTAMs and Canadian RSC NOTAMs (RWYCC a/b/c per runway third; Canada replaced the SNOWTAM
+//      with the RSC NOTAM on 12 Aug 2021 and distributes it to the US), ICAO-style RWYCC / braking action / friction wording
 // Not available: international SNOWTAMs in the ICAO GRF format — the FAA NOTAM system (SkyLink's source) does not ingest or
 // distribute them (FAA safety alert USNOF 21-02, Sep 2021, still in force). Never claim "no SNOWTAM".
 (function (root, factory) {
@@ -114,11 +115,14 @@
   function parseNotam(text) {
     const t = String(text || '').toUpperCase().replace(/\s+/g, ' ');
     const isFicon = /\bFICON\b/.test(t), isSnowtam = /\bSNOWTAM\b/.test(t);
-    const codesM = /\b(?:FICON|RWYCC|RWY\s+COND(?:ITION)?\s+CODES?)\s*([0-6])\/([0-6])\/([0-6])\b/.exec(t);
+    // Canada (v3.150): "RSC 05 3/5/3 30 PCT 1/8IN DRY SNOW…" / "RSC 03/21 60 PCT 1/4IN DRY SNOW…" — the runway follows RSC, no 'RWY' word
+    const rscM = /\bRSC\s+(\d{2}[LCR]?(?:\/\d{2}[LCR]?)?)\b/.exec(t);
+    const isRsc = !!rscM;
+    const codesM = /\b(?:FICON|RWYCC|RWY\s+COND(?:ITION)?\s+CODES?)\s*([0-6])\/([0-6])\/([0-6])\b/.exec(t) || /\bRSC\s+\d{2}[LCR]?(?:\/\d{2}[LCR]?)?\s+([0-6])\/([0-6])\/([0-6])\b/.exec(t);
     const brM = BRAKE_RX.exec(t);
     const muM = /\b(?:FRICTION|FRICTION\s+COEF\w*|MU|COEFFICIENT)\s*(?:VALUES?\s*)?(0?[.,]\d{2}|\d{2}\b)/.exec(t);
-    if (!isFicon && !isSnowtam && !codesM && !brM && !muM) return null;
-    const rwyM = /\bRWY\s+(\d{2}[LCR]?(?:\/\d{2}[LCR]?)?)\b/.exec(t);
+    if (!isFicon && !isSnowtam && !isRsc && !codesM && !brM && !muM) return null;
+    const rwyM = /\bRWY\s+(\d{2}[LCR]?(?:\/\d{2}[LCR]?)?)\b/.exec(t) || rscM;
     const isTaxiOrApron = !rwyM && /\b(TWY|TAXIWAY|APRON|APN|RAMP)\b/.test(t);
     const deicing = /\b(?:DE-?IC|ANTI-?IC)/.test(t);
     const contamM = CONTAM_RX.exec(t.replace(/\b(?:DE|ANTI)-?IC\w*/g, ''));
@@ -131,10 +135,10 @@
     const scored = !isTaxiOrApron && !deicing;
     return {
       rwy: rwyM ? rwyM[1] : (isTaxiOrApron ? 'TWY/APRON' : null),
-      kind: isFicon ? 'FICON' : isSnowtam ? 'SNOWTAM' : 'RWY COND',
+      kind: isFicon ? 'FICON' : isRsc ? 'RSC' : isSnowtam ? 'SNOWTAM' : 'RWY COND',
       level, contaminated,
       tier: scored ? tierOf(level, contaminated, false) : null,
-      text: parts.join(', ') || (isFicon ? 'field condition report' : 'runway condition report'),
+      text: parts.join(', ') || (isFicon ? 'field condition report' : isRsc ? 'runway surface condition report' : 'runway condition report'),
     };
   }
 
@@ -142,7 +146,7 @@
   function category(text) {
     const t = String(text || '').toUpperCase();
     if (/\bASHTAM\b|\bVOLCAN\w*|\bVOLCANIC\s+ASH\b|\bASH\s+(?:CLOUD|CLD|PLUME|FALL)|\bVA\s+(?:CLD|CLOUD|ADVISORY)|\bERUPTI\w*|\bVAAC\b|Q\)\s*[A-Z]{4}\/QWW/.test(t)) return 'ash';
-    if (/\bSNOWTAM\b|\bFICON\b|\bRWYCC\b|\bBRAKING\s+ACTION\b|\bBA\s+(?:NIL|POOR|MEDIUM|GOOD)\b|\bFRICTION\b|\bSNOW\s*(?:REMOVAL|CLEARANCE|CLEARING|PLOUGH\w*|PLOW\w*|BANKS?)\b|\bSN\s*(?:BANKS?|REMOVAL)\b/.test(t)) return 'rwy';
+    if (/\bSNOWTAM\b|\bFICON\b|\bRSC\s+\d{2}|\bRWYCC\b|\bBRAKING\s+ACTION\b|\bBA\s+(?:NIL|POOR|MEDIUM|GOOD)\b|\bFRICTION\b|\bSNOW\s*(?:REMOVAL|CLEARANCE|CLEARING|PLOUGH\w*|PLOW\w*|BANKS?)\b|\bSN\s*(?:BANKS?|REMOVAL)\b/.test(t)) return 'rwy';
     if (/\b(?:RWY|TWY|APRON|APN)\b/.test(t) && /\b(?:SLUSH|(?<!DE-|ANTI-)ICE|ICY|FROST|COMPACTED\s+SN\w*|WET\s+SN\w*|DRY\s+SN\w*|STANDING\s+WATER|CONTAMINA\w*|SNOW)\b/.test(t)) return 'rwy';
     if (/\bBIRDTAM\b|\bBIRDS?\b|\bBIRD\s*STRIKE|\bWILDLIFE\b|\bBIRD\s+(?:ACT\w*|HAZARD|CONCENTRATION|MIGRATION)/.test(t)) return 'bird';
     return null;
@@ -163,8 +167,10 @@
     return reasons;
   }
 
-  // US aerodromes report runway conditions as FICON NOTAMs (part of the feed); elsewhere the SNOWTAM is the source we don't have.
-  const usesFicon = icao => /^[KP]/.test(String(icao || '').toUpperCase());
+  // US aerodromes report runway conditions as FICON NOTAMs and Canadian ones as RSC NOTAMs — both are in the feed; elsewhere the
+  // SNOWTAM is the source we don't have. usesFicon kept as the name for both (true for K…, P…, C…).
+  const usesFicon = icao => /^[KPC]/.test(String(icao || '').toUpperCase());
+  const notamFormatOf = icao => /^C/.test(String(icao || '').toUpperCase()) ? 'RSC' : 'FICON';
 
-  return { parseMetar, parseNotam, category, winterHint, usesFicon, tierOf, BRAKE_WORD };
+  return { parseMetar, parseNotam, category, winterHint, usesFicon, notamFormatOf, tierOf, BRAKE_WORD };
 });

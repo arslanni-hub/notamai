@@ -46,5 +46,7 @@ t('winterHint', () => {
   assert.strictEqual(R.winterHint('LTFM 061200Z 20010KT CAVOK 18/09 Q1015', 'TAF LTFM 0612/0718 20010KT CAVOK').length, 0);
   assert.ok(R.winterHint('LTFM 061200Z CAVOK 08/02', 'TAF LTFM 0612/0718 9999 TEMPO 0700/0706 FZFG').length === 1);
 });
-t('usesFicon', () => { assert.ok(R.usesFicon('KJFK')); assert.ok(!R.usesFicon('ENGM')); });
+t('usesFicon', () => { assert.ok(R.usesFicon('KJFK')); assert.ok(R.usesFicon('CYYZ')); assert.ok(!R.usesFicon('ENGM')); assert.strictEqual(R.notamFormatOf('CYYZ'), 'RSC'); });
+t('Canadian RSC NOTAM with thirds -> RWYCC 3/5/3 tier 2', () => { const x = R.parseNotam('RSC 05 3/5/3 30 PCT 1/8IN DRY SNOW, 50 PCT 1/8IN SLUSH, 40 PCT 1/8IN DRY SNOW. 175FT WIDTH. CHEMICALLY TREATED AT 1430.'); assert.strictEqual(x.kind, 'RSC'); assert.strictEqual(x.rwy, '05'); assert.strictEqual(x.level, 3); assert.strictEqual(x.tier, 2); assert.strictEqual(R.category('RSC 05 3/5/3 30 PCT 1/8IN DRY SNOW'), 'rwy'); });
+t('Canadian RSC NOTAM without codes -> contaminated tier 3', () => { const x = R.parseNotam('RSC 03/21 60 PCT 1/4IN DRY SNOW. 70FT WIDTH. REMAINING WIDTH 1/4IN DRY SNOW ON TOP OF COMPACTED SNOW.'); assert.strictEqual(x.rwy, '03/21'); assert.strictEqual(x.level, null); assert.strictEqual(x.tier, 3); });
 console.log('rwy-cond tests passed:', n);

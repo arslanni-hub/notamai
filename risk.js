@@ -1000,7 +1000,8 @@ function buildModelBlock(input, r, opts) {
     groups.forEach(g => S.push(`- METAR runway state ${g.raw}: ${g.snoclo ? g.text : 'RWY ' + g.rwy + ' ' + g.text}${tierTxt(g.tier)} (decoded from the METAR — not a SNOWTAM)`));
     conds.forEach(x => S.push(`- ${x.c.kind} NOTAM ${x.id}: ${x.c.rwy ? (x.c.rwy === 'TWY/APRON' ? 'taxiway/apron ' : 'RWY ' + x.c.rwy + ' ') : ''}${x.c.text}${tierTxt(x.c.tier)}`));
     if (RwyCond.usesFicon(a.icao)) {
-      S.push(`- ${a.icao} is a US aerodrome: runway conditions are published as FICON NOTAMs (part of this data${conds.some(x => x.c.kind === 'FICON') ? '' : '; none in the data right now'}). ${winter.length ? 'Winter conditions are indicated (' + winter.join(', ') + '): tell the crew to confirm the current FICON / ATIS runway condition codes before flight.' : ''}`.trim());
+      const fmt = RwyCond.notamFormatOf(a.icao), land = fmt === 'RSC' ? 'a Canadian' : 'a US';
+      S.push(`- ${a.icao} is ${land} aerodrome: runway conditions are published as ${fmt} NOTAMs (part of this data${conds.some(x => x.c.kind === fmt) ? '' : '; none in the data right now'}). ${winter.length ? 'Winter conditions are indicated (' + winter.join(', ') + '): tell the crew to confirm the current ' + fmt + ' / ATIS runway condition codes before flight.' : ''}`.trim());
     } else if (winter.length) {
       S.push(`- SNOWTAM: NOT AVAILABLE in this data (international SNOWTAMs in the ICAO GRF format are not distributed through the FAA NOTAM system this data comes from). Winter conditions are indicated (${winter.join(', ')}). The briefing MUST tell the crew to obtain the current SNOWTAM / runway condition report (RCR) for ${a.icao} from the State AIS, EAD or ATIS before flight. NEVER state or imply that there is no SNOWTAM or that the runway is uncontaminated because none is listed.`);
     } else {
