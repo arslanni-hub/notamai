@@ -18,6 +18,10 @@ const MAX_RADIUS_NM = 350;
 const NEVER = new Set(['LTBA']);  // closed to commercial traffic
 let blockedPrefixes = [];         // ICAO prefixes of countries whose aerodromes are no-go / high-risk (risk.js conflictZones), set by the server
 function setBlockedPrefixes(list) { blockedPrefixes = (list || []).map(p => String(p || '').toUpperCase()).filter(Boolean); }
+// v3.148: aerodromes inside a no-go / high-risk PORTION of a FIR (risk.js conflictZones[].map.areas, e.g. Saudi Arabia) are kept but
+// flagged (decision 6 Nov 2026: warn, don't force) — set by the server; fn(lat, lon) returns the portion's name or ''.
+let zonePoint = null;
+function setBlockedPoint(fn) { zonePoint = typeof fn === 'function' ? fn : null; }
 const isBlocked = icao => blockedPrefixes.some(p => icao.startsWith(p));
 
 let airports = null;              // Map<ICAO, { icao, name, city, country, lat, lon, cand:boolean }>
@@ -196,35 +200,48 @@ function distNm(a, b) {
 }
 
 // Pure: nearest candidates to `icao`, excluding the listed codes. Runway length is required only when runway data was loaded.
-function nearestCandidates(icao, exclude, count, airportsMap, runways) {
+function nearestCandidates(icao, exclude, count, airportsMap, runways, stats) {
   const home = airportsMap && airportsMap.get(icao);
   if (!home) return [];
   const out = [];
   for (const a of airportsMap.values()) {
-    if (!a.cand || a.icao === icao || (exclude && exclude.includes(a.icao)) || isBlocked(a.icao)) continue;
+    if (!a.cand || a.icao === icao || (exclude && exclude.includes(a.icao))) continue;
     if (Math.abs(a.lat - home.lat) > 6) continue;           // cheap pre-filter (about 360 NM)
     const d = distNm(home, a);
     if (d > MAX_RADIUS_NM) continue;
     const ft = runways ? runways.get(a.icao) : null;
     if (runways && !(ft >= MIN_RWY_FT)) continue;
-    out.push({ icao: a.icao, name: a.name, city: a.city, country: a.country, nm: Math.round(d), rwyM: ft ? Math.round(ft * 0.3048 / 10) * 10 : null });
+    if (isBlocked(a.icao)) { if (stats) stats.blocked = (stats.blocked || 0) + 1; continue; }   // v3.148: counted, so the block can say why the list is empty
+    const zone = zonePoint && a.lat != null ? (zonePoint(a.lat, a.lon) || '') : '';
+    out.push({ icao: a.icao, name: a.name, city: a.city, country: a.country, nm: Math.round(d), rwyM: ft ? Math.round(ft * 0.3048 / 10) * 10 : null, zone });
   }
   out.sort((x, y) => x.nm - y.nm);
   return out.slice(0, count);
 }
 
-const fmt = c => c.icao + ' ' + c.name + (c.city ? ' (' + c.city + ')' : '') + ' — ' + c.nm + ' NM' + (c.rwyM ? ', longest runway ' + c.rwyM + ' m' : '');
+const fmt = c => c.icao + ' ' + c.name + (c.city ? ' (' + c.city + ')' : '') + ' — ' + c.nm + ' NM' + (c.rwyM ? ', longest runway ' + c.rwyM + ' m' : '') + (c.zone ? ' [⚠ inside ' + c.zone + ' — EASA CZIB]' : '');
 
 // Pure: the text block for the briefing prompt ('' when nothing usable).
 function buildBlock(dep, arr, airportsMap, runways) {
   const exclude = [dep, arr];
-  const arrC = nearestCandidates(arr, exclude, 4, airportsMap, runways);
-  const depC = nearestCandidates(dep, exclude, 2, airportsMap, runways);
-  if (!arrC.length && !depC.length) return '';
+  const arrS = {}, depS = {};
+  const arrC = nearestCandidates(arr, exclude, 4, airportsMap, runways, arrS);
+  const depC = nearestCandidates(dep, exclude, 2, airportsMap, runways, depS);
+  // v3.148: every suitable aerodrome nearby lies in a conflict zone — say so, otherwise the model would name one of them itself
+  const noneNote = (id, st) => 'Near ' + id + ': no candidate — the ' + st.blocked + ' suitable aerodrome' + (st.blocked > 1 ? 's' : '') + ' within ' + MAX_RADIUS_NM + ' NM lie in EASA/FAA no-go or high-risk conflict zones; do not name any of them as an alternate — state that alternate planning needs the operator\'s own assessment.';
+  if (!arrC.length && !depC.length) {
+    const notes = [];
+    if (arrS.blocked) notes.push(noneNote(arr, arrS));
+    if (depS.blocked && dep !== arr) notes.push(noneNote(dep, depS));
+    return notes.length ? '\nCANDIDATE ALTERNATES (computed by the server from OurAirports data):\n' + notes.join('\n') + '\n' : '';
+  }
   const lines = ['CANDIDATE ALTERNATES (computed by the server from OurAirports data: scheduled-service aerodromes with a runway of at least 2,000 m, nearest first, aerodromes in EASA/FAA no-go or high-risk conflict zones left out; their weather and NOTAMs were NOT checked):'];
   if (arrC.length) lines.push('Near ' + arr + ' (destination alternates): ' + arrC.map(fmt).join('; '));
+  else if (arrS.blocked) lines.push(noneNote(arr, arrS));
   if (depC.length) lines.push('Near ' + dep + ' (take-off alternates): ' + depC.map(fmt).join('; '));
+  else if (depS.blocked) lines.push(noneNote(dep, depS));
   lines.push('Use these as the named candidates in the ALTERNATE card and in the Dispatch Notes (ICAO code and name exactly as listed), labelled as candidates to verify. Do not invent other alternates.');
+  if ([...arrC, ...depC].some(c => c.zone)) lines.push('Candidates marked ⚠ lie inside an EASA CZIB no-go portion: prefer the unmarked ones; if a marked one is named, say it is inside the CZIB portion and that the operator\'s own risk assessment applies.');
   return '\n' + lines.join('\n') + '\n';
 }
 
@@ -305,4 +322,4 @@ function searchAirports(query, limit) {
   try { return searchIn(searchIndex, query, limit); } catch (e) { return null; }
 }
 
-module.exports = { buildRunwayList, init, setBlockedPrefixes, candidateBlock, searchAirports, airportPoint, distanceBearing, localDistance, buildSearchIndex, searchIn, norm, buildAirports, buildRunwayLengths, nearestCandidates, buildBlock, distNm };
+module.exports = { buildRunwayList, init, setBlockedPrefixes, setBlockedPoint, candidateBlock, searchAirports, airportPoint, distanceBearing, localDistance, buildSearchIndex, searchIn, norm, buildAirports, buildRunwayLengths, nearestCandidates, buildBlock, distNm };

@@ -27,6 +27,9 @@ const alternates = require('./alternates');
 // Never offer an alternate inside a country whose aerodromes are no-go / high-risk in the conflict-zone list (e.g. OIBA Abu Musa for OMDB).
 // CAUTION/INFO zones (Gulf states, Jordan, Lebanon, Pakistan...) stay, they are normal alternates.
 alternates.setBlockedPrefixes(risk.CONFIG.conflictZones.filter(z => z.endpoint === 'NOGO' || z.endpoint === 'HIGH').flatMap(z => z.prefixes || []));
+// v3.148: aerodromes inside a NOGO/HIGH portion of a FIR (Saudi CZIB areas) stay in the list but are flagged, checked by position
+{ const areaZones = risk.CONFIG.conflictZones.map(z => Object.assign({}, z, { map: Object.assign({}, z.map, { areas: ((z.map && z.map.areas) || []).filter(a => a.level === 'NOGO' || a.level === 'HIGH') }) })).filter(z => z.map.areas.length);
+  if (areaZones.length) alternates.setBlockedPoint((lat, lon) => { const h = require('./route-firs').areaHits({ lat, lon }, null, areaZones); const k = Object.keys(h)[0]; return k ? h[k][0].name : ''; }); }
 // RISK_MODE (Render env): 'shadow' (default) = compute + log only; 'active' = the rubric sets the rating floor, the model
 // receives the complete information and the client header is corrected to never fall below the floor.
 const RISK_MODE = (process.env.RISK_MODE || 'shadow').toLowerCase();
