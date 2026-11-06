@@ -170,4 +170,27 @@ function routeFirTimeline(dep, arr) {
   timelineCache.set(key, out);
   return out;
 }
-module.exports = { routeFirs, firsAt, routeFirTimeline };
+// v3.146: which CZIB portions (risk.js conflictZones[].map.areas) the departure / arrival aerodrome lies in or the great circle crosses.
+// A point counts only inside area ∩ the zone's FIRs (the area rings close outside the FIR). arr may be null (single-airport briefing).
+// Returns { [zone name]: [{ name, atEnd, crossing }] } for risk.assessRisk input.zoneAreas.
+function areaHits(dep, arr, zones) {
+  const out = {};
+  for (const z of zones || []) {
+    const areas = (z.map && z.map.areas) || [];
+    if (!areas.length) continue;
+    for (const a of areas) {
+      const flat = [];
+      for (const [x, y] of a.line.concat(a.close || [])) flat.push(x, y);
+      const inArea = q => q && q.lat != null && inRing(flat, q.lon, q.lat) && (z.firs || []).some(id => firsAt(q.lat, q.lon).has(id));
+      const atEnd = inArea(dep) || inArea(arr);
+      let crossing = false;
+      if (dep && arr && dep.lat != null && arr.lat != null) {
+        const total = interp(dep, arr, 0.5).d * 2 || 0, n = Math.min(400, Math.max(20, Math.ceil(total / 15)));
+        for (let i = 1; i < n && !crossing; i++) if (inArea(interp(dep, arr, i / n))) crossing = true;
+      }
+      if (atEnd || crossing) (out[z.name] = out[z.name] || []).push({ name: a.name, atEnd, crossing });
+    }
+  }
+  return out;
+}
+module.exports = { routeFirs, firsAt, routeFirTimeline, areaHits };

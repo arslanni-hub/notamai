@@ -1180,7 +1180,13 @@ async function computeBriefingRisk({ icao_dep, icao_arr, isSingleAirport, notamD
   // FIRs the great-circle track passes through (and those within the corridor) — used by the conflict-zone check. Never blocks the briefing.
   let routeFirList = null;
   if (route) { try { routeFirList = require('./route-firs').routeFirs(route.dep, route.arr); } catch (e) { console.warn('route FIR calc failed:', e.message); } }
-  const input = { now: new Date(), airports, enroute: enrouteCollector || [], route, routeFirs: routeFirList ? routeFirList.track : [], routeNearFirs: routeFirList ? routeFirList.near : [] };
+  // v3.146: CZIB portions of a FIR (Saudi Arabia) need the aerodrome positions — also for single-airport briefings
+  let zoneAreas = {};
+  try {
+    const pDep = route ? route.dep : (isSingleAirport ? await runwayData.getAirportPosition(icao_dep, { fetchJson: fetchURL }) : null);
+    if (pDep) zoneAreas = require('./route-firs').areaHits(pDep, route ? route.arr : null, risk.CONFIG.conflictZones);
+  } catch (e) { console.warn('zone area check failed:', e.message); }
+  const input = { now: new Date(), airports, enroute: enrouteCollector || [], route, routeFirs: routeFirList ? routeFirList.track : [], routeNearFirs: routeFirList ? routeFirList.near : [], zoneAreas };
   const r = risk.assessRisk(input);
   r.route = route;
   r.modelBlock = risk.buildModelBlock(input, r);

@@ -97,14 +97,16 @@ const CONFIG = {
     { name: 'Persian Gulf and Gulf of Oman (Bahrain, Kuwait, Qatar, UAE, Oman FIRs)', firs: ['OBBB', 'OKAC', 'OTDF', 'OTBD', 'OMAE', 'OOMM'], prefixes: ['OB', 'OK', 'OT', 'OM', 'OO'], endpoint: 'INFO', crossing: 'CAUTION', until: '2026-11-16', src: 'EASA CZIB-2026-07-R3', rec: 'do not operate over Gulf waters (except arrivals/departures) or the Gulf of Oman west of 58°E; exercise caution over land',
       map: { waterOnly: true, maxLon: { OOMM: 58 }, minLat: { OOMM: 22.4 } } },   // loading-screen map only (route-firs.js): the CZIB covers the waters; in the Muscat FIR only the Gulf of Oman (north of ~22.4°N) west of 58°E
     { name: 'Saudi Arabia (defined portion of Jeddah FIR)', firs: ['OEJD'], prefixes: [], endpoint: null, crossing: 'CAUTION', until: '2026-11-16', src: 'EASA CZIB-2026-09-R1 (9 Oct 2026); FAA KICZ A0056/26', rec: 'do not operate at any level in the defined portion of the Jeddah FIR (bounded by the lines RIBOK–BOSUT–MIGDA–RAGNO–MIXUG–DEKLO–OBSAM–SILPA and ULBAM–TOTEB–DURMA–LAKSO–SOLAT); exercise caution in the rest of the FIR',
-      // v3.145: loading-screen map only — the two no-go portions drawn from the CZIB lines. Waypoints [lon, lat] from the
+      // v3.145: the two no-go portions drawn from the CZIB lines. v3.146 (decision 6 Nov 2026): they also count in the rating as
+      // HIGH, never NOGO — an aerodrome inside = Tier 1 'risk assessment required' (no forced NO-GO: an EASA recommendation for EU
+      // operators; Saudi aerodromes stay open and other operators keep flying), a route crossing one = re-route note. Waypoints [lon, lat] from the
       // Saudi eAIP ENR 4.4 (AIRAC AMDT 12/26, 26 Nov 2026; SOLAT from the Kuwait/Iraq data). `close` points lie outside the
       // Jeddah FIR, so the area = this ring ∩ the FIR (the closing side follows the FIR boundary, as the CZIB says).
       map: { areas: [
-        { name: 'Saudi Arabia (no-go portion, south-west)', level: 'NOGO',
+        { name: 'Saudi Arabia (no-go portion, south-west)', level: 'HIGH',
           line: [[41.8750, 15.7833], [39.5328, 20.7847], [38.7147, 22.6414], [37.1897, 25.2714], [40.1844, 25.2603], [41.3522, 21.9114], [43.4725, 21.3222], [51.0328, 18.8314]],   // RIBOK BOSUT MIGDA RAGNO MIXUG DEKLO OBSAM SILPA
           close: [[51.6, 17.4], [45.0, 13.0], [42.6, 13.4], [41.4, 15.4]] },
-        { name: 'Saudi Arabia (no-go portion, east)', level: 'NOGO',
+        { name: 'Saudi Arabia (no-go portion, east)', level: 'HIGH',
           line: [[50.8664, 24.5369], [46.5311, 23.9047], [45.7694, 24.4528], [45.6914, 28.7975], [46.6361, 29.1617]],   // ULBAM TOTEB DURMA LAKSO SOLAT
           close: [[47.6, 30.2], [50.5, 29.6], [52.0, 26.2]] }
       ] } },
@@ -795,6 +797,15 @@ function assessConflictZones(input, cfg, now, coveredFirs) {
     const atEnd = icaos.some(ic => (z.prefixes || []).some(p => ic.startsWith(p)));
     const crosses = (z.firs || []).some(f => firs.has(f));
     const near = !crosses && (z.firs || []).some(f => nearFirs.has(f));
+    // v3.146: CZIB portions of the FIR (map.areas) — input.zoneAreas[zone name] = [{ name, atEnd, crossing }] from route-firs.js areaHits
+    for (const ah of ((input.zoneAreas || {})[z.name] || [])) {
+      const area = ((z.map && z.map.areas) || []).find(a => a.name === ah.name);
+      if (!area || (!ah.atEnd && !ah.crossing)) continue;
+      const az = { name: area.name, src: z.src, until: z.until, firs: z.firs,
+        rec: area.rec || 'do not operate at any level in this portion of the FIR (EASA recommendation for EU operators; no exception for arrivals/departures) — the operator\'s own risk assessment applies' };
+      const alv = ah.atEnd ? (area.level || 'HIGH') : ((area.level === 'NOGO' || area.level === 'HIGH') ? 'REROUTE' : area.level);
+      hits.push({ z: az, lv: alv, atEnd: !!ah.atEnd, covered: false, overdue: z.until && new Date(z.until + 'T23:59:59Z') < now, area: true });
+    }
     if (!atEnd && !crosses && !near) continue;
     // Aerodrome inside the zone: the endpoint rule applies. A route that only crosses the zone on the great-circle track normally flies around it,
     // so a NO-GO/HIGH zone becomes a "re-route needed" note (Tier 2) rather than a block; a zone only within the corridor is information.
