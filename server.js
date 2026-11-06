@@ -7266,3 +7266,30 @@ async function runConflictWatch() {
   console.log('[CONFLICT WATCH] Checked. New:', added.length);
 }
 runWeekly(1, 7, 0, () => runConflictWatch().catch(async e => { console.log('[CONFLICT WATCH ERROR]', e.message); await sendAdminNotification('⚠️ Conflict watch failed', `<div style="font-size:13px;color:#b91c1c;">${escHtml(e.message)}</div>`); }), 'CONFLICT WATCH');
+
+// ── 6b. v3.147: conflict-zone expiry reminder — daily 07:05 UTC. The CZIB watcher above only sees NEW bulletin numbers; an
+// extension without a new number (or a lapsed list entry) would go unnoticed. One admin mail when an entry of risk.js
+// CONFIG.conflictZones is 2 days from its `until` date, one when it has passed (once per zone + date, state in system/conflict_expiry).
+async function runConflictExpiry() {
+  const zones = (risk.CONFIG.conflictZones || []).filter(z => z.until);
+  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+  const days = u => Math.round((new Date(u + 'T00:00:00Z') - today) / 86400000);   // 0 = valid through today
+  const soon = zones.filter(z => days(z.until) >= 0 && days(z.until) <= 2), lapsed = zones.filter(z => days(z.until) < 0);
+  if (!soon.length && !lapsed.length) return;
+  const ref = adminDb.collection('system').doc('conflict_expiry');
+  const st = (await ref.get()).data() || {};
+  const sent = st.sent || {};
+  const key = (z, k) => (k + '|' + z.name + '|' + z.until).replace(/[.\/]/g, '_');
+  const newSoon = soon.filter(z => !sent[key(z, 'soon')]), newLapsed = lapsed.filter(z => !sent[key(z, 'lapsed')]);
+  if (!newSoon.length && !newLapsed.length) return;
+  const row = z => `<div style="font-size:12px;color:#1e293b;margin:2px 0;"><strong>${escHtml(z.name)}</strong> — valid to ${escHtml(z.until)} · ${escHtml(String(z.src || '').split(';')[0])}</div>`;
+  await sendAdminNotification(newLapsed.length ? '⏰ Conflict-zone entries past their EASA date' : '⏰ Conflict-zone entries expire soon',
+    (newLapsed.length ? `<div style="font-size:13px;color:#b91c1c;margin:0 0 6px;">Past the date (still applied, briefings say "review overdue — verify"):</div>${newLapsed.map(row).join('')}` : '')
+    + (newSoon.length ? `<div style="font-size:13px;color:#b45309;margin:10px 0 6px;">Expire within 2 days:</div>${newSoon.map(row).join('')}` : '')
+    + `<div style="font-size:12px;color:#475569;margin-top:10px;">Check https://www.easa.europa.eu/en/domains/air-operations/czibs — if a bulletin was extended or revised, update risk.js conflictZones (until, rec, lines/areas) and conflictZonesAsOf.</div>`);
+  for (const z of newSoon) sent[key(z, 'soon')] = new Date().toISOString();
+  for (const z of newLapsed) sent[key(z, 'lapsed')] = new Date().toISOString();
+  await ref.set({ sent, checkedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+  console.log('[CONFLICT EXPIRY] mailed: soon', newSoon.length, 'lapsed', newLapsed.length);
+}
+runDaily(7, 5, runConflictExpiry, 'CONFLICT EXPIRY');
