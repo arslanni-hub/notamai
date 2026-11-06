@@ -2864,6 +2864,12 @@ const server = http.createServer(async (req, res) => {
       const extra = { canceling: 0, lost: 0, trialing: 0 };
       const weeks = {};   // ISO date of the week's Monday -> { signup, activated, paying }
       const candidates = [];
+      // v3.144: invites — an invite code is 'NI-' + the first 6 characters of the inviter's uid, upper case (index.html
+      // generateReferralCode); users.referredBy holds the code the invitee arrived with (typed at sign-up or ?ref=).
+      const codeOwners = {};   // code -> [email]; two uids can share the same upper-cased 6-character prefix
+      for (const a of authUsers) { const c = a.uid.substring(0, 6).toUpperCase(); (codeOwners[c] = codeOwners[c] || []).push(a.email || a.uid); }
+      const refByCode = {};    // code -> { invited, verified, activated, paying }
+      const refRecent = [];
       for (const a of authUsers) {
         if (ADMIN_MAILS.includes(a.email)) continue;
         const d = docs[a.uid] || {};
@@ -2884,6 +2890,14 @@ const server = http.createServer(async (req, res) => {
         if (rev.kind === 'trial') extra.trialing++;
         if (rev.kind === 'paying' && d.cancelAtPeriodEnd) extra.canceling++;
         if (d.stripeSubscriptionId && (!d.plan || d.plan === 'free')) extra.lost++;
+        const rawRef = String(d.referredBy || '').trim().toUpperCase().replace(/^NI-?/, '');
+        if (/^[A-Z0-9]{6}$/.test(rawRef) && rawRef !== a.uid.substring(0, 6).toUpperCase()) {
+          const isVerified = a.emailVerified || (a.providerData || []).some(p => p.providerId === 'google.com');
+          const R = (refByCode[rawRef] = refByCode[rawRef] || { invited: 0, verified: 0, activated: 0, paying: 0 });
+          R.invited++; if (isVerified) R.verified++; if (u.total >= 1) R.activated++; if (rev.kind === 'paying') R.paying++;
+          refRecent.push({ email: a.email || a.uid, signup: new Date(created).toISOString().slice(0, 10), t: created, code: 'NI-' + rawRef,
+            status: rev.kind === 'paying' ? 'Paying' : rev.kind === 'trial' ? 'Trial' : u.total >= 1 ? 'First briefing' : isVerified ? 'Verified' : 'Signed up' });
+        }
         const wd = new Date(created); wd.setUTCHours(0, 0, 0, 0); wd.setUTCDate(wd.getUTCDate() - ((wd.getUTCDay() + 6) % 7));
         const wk = wd.toISOString().slice(0, 10);
         const w = (weeks[wk] = weeks[wk] || { signup: 0, activated: 0, paying: 0 });
@@ -2891,8 +2905,16 @@ const server = http.createServer(async (req, res) => {
       }
       const weekRows = Object.entries(weeks).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 12).map(([week, v]) => Object.assign({ week }, v));
       candidates.sort((a, b) => b.thisMonth - a.thisMonth);
+      const owner = c => (codeOwners[c] || []).join(' / ') || 'unknown code';
+      const referrers = Object.entries(refByCode).map(([c, v]) => Object.assign({ code: 'NI-' + c, inviter: owner(c) }, v))
+        .sort((a, b) => b.invited - a.invited || b.paying - a.paying).slice(0, 50);
+      refRecent.sort((a, b) => b.t - a.t);
+      const referrals = {
+        invited: refRecent.length, referrers,
+        recent: refRecent.slice(0, 25).map(r => ({ email: r.email, signup: r.signup, code: r.code, inviter: owner(r.code.slice(3)), status: r.status }))
+      };
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ days, steps, extra, weeks: weekRows, candidates }));
+      res.end(JSON.stringify({ days, steps, extra, weeks: weekRows, candidates, referrals }));
     } catch (e) { console.log('[ADMIN FUNNEL] error:', e.message); res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'unavailable' })); }
     return;
   }

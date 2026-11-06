@@ -411,6 +411,16 @@ async function loadRevenue() {
 
 // v3.96: Free -> paid conversion funnel (server: /api/admin/funnel)
 let funnelDays = 30;
+// v3.144: invites (users.referredBy) — who brought how many accounts, and how far those accounts got
+function refHtml(R, signups, esc, pct) {
+  if (!R) return '';
+  const top = (R.referrers || []).map(r => '<tr><td>' + esc(r.inviter) + '<div style="font-size:11px;color:#4a5f72;">' + esc(r.code) + '</div></td><td style="font-family:Orbitron,sans-serif;">' + r.invited + '</td><td>' + r.verified + '</td><td>' + r.activated + ' (' + pct(r.activated, r.invited) + ')</td><td>' + r.paying + ' (' + pct(r.paying, r.invited) + ')</td></tr>').join('');
+  const recent = (R.recent || []).map(r => '<tr><td>' + esc(r.email) + '</td><td>' + esc(r.signup) + '</td><td>' + esc(r.inviter) + '<div style="font-size:11px;color:#4a5f72;">' + esc(r.code) + '</div></td><td>' + esc(r.status) + '</td></tr>').join('');
+  return '<div class="section-title">INVITES — ' + R.invited + ' OF ' + signups + ' SIGNUPS (' + pct(R.invited, signups) + ') CAME WITH AN INVITE CODE</div>' +
+    '<div class="table-wrap"><table><thead><tr><th>INVITER</th><th>INVITED</th><th>VERIFIED</th><th>FIRST BRIEFING</th><th>PAYING NOW</th></tr></thead><tbody>' + (top || '<tr><td colspan="5">No invited signups in this period</td></tr>') + '</tbody></table></div>' +
+    (recent ? '<div class="section-title">LATEST INVITED ACCOUNTS</div><div class="table-wrap"><table><thead><tr><th>ACCOUNT</th><th>SIGNED UP</th><th>INVITED BY</th><th>FURTHEST STEP</th></tr></thead><tbody>' + recent + '</tbody></table></div>' : '');
+}
+
 async function loadFunnel(days) {
   if (typeof days === 'number') funnelDays = days;
   const el = document.getElementById('tab-funnel');
@@ -451,7 +461,8 @@ async function loadFunnel(days) {
       '<div class="section-title">CONVERSION FUNNEL</div><div class="table-wrap"><table><thead><tr><th>STEP</th><th>USERS</th><th>% OF SIGNUPS</th><th>% OF PREVIOUS</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="section-title">BY SIGNUP WEEK (MONDAY, UTC)</div><div class="table-wrap"><table><thead><tr><th>WEEK</th><th>SIGNUPS</th><th>FIRST BRIEFING</th><th>PAYING NOW</th></tr></thead><tbody>' + (weeks || '<tr><td colspan="4">No signups in this period</td></tr>') + '</tbody></table></div>' +
       '<div class="section-title">UPGRADE CANDIDATES — FREE ACCOUNTS AT THE 3-BRIEFING LIMIT THIS MONTH</div><div class="table-wrap"><table><thead><tr><th>USER</th><th>SIGNED UP</th><th>BRIEFINGS THIS MONTH</th><th>ALL-TIME</th><th>FREE TRIAL</th></tr></thead><tbody>' + (cands || '<tr><td colspan="5">None this month</td></tr>') + '</tbody></table></div>' +
-      '<div style="font-size:11px;color:#4a5f72;">Steps are counted for accounts created in the period (admin accounts excluded); a user counts in a step if they ever reached it. Upgrade candidates are listed regardless of signup date.</div>';
+      refHtml(j.referrals, S.signup, esc, pct) +
+      '<div style="font-size:11px;color:#4a5f72;">Steps are counted for accounts created in the period (admin accounts excluded); a user counts in a step if they ever reached it. Upgrade candidates are listed regardless of signup date. Invites count accounts created in the period that arrived with someone\'s invite code.</div>';
   } catch (e) { el.innerHTML = '<div class="loading">Funnel error: ' + e.message + '</div>'; }
 }
 
