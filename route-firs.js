@@ -114,6 +114,8 @@ function routeFirTimeline(dep, arr) {
     ring.push([f.r[0], f.r[1]]);
     rings.push({ id: f.id, ring });
   }
+  // v3.152: the loading map's zone card shows the recommendation — first clause only, at most ~140 characters
+  const shortRec = t => { let r = String(t || '').split(/;\s*/)[0].replace(/^EASA R\d+:\s*/, '').trim(); if (r.length > 140) r = r.slice(0, 137).replace(/\s+\S*$/, '') + '…'; return r; };
   // v3.106: conflict zones (risk.js CONFIG.conflictZones, defined by FIR codes) the route crosses, comes within ~120 NM of, or starts/ends in
   const zones = [];
   try {
@@ -150,7 +152,7 @@ function routeFirTimeline(dep, arr) {
         ring.push(ring[0].slice());
         zr.push(ring);
       }
-      zones.push({ name: z.name, level, waterOnly: !!(z.map && z.map.waterOnly), crossing: crossed.length > 0, atEnd, from: crossed.length ? Math.min(...crossed.map(c => c.from)) : null, to: crossed.length ? Math.max(...crossed.map(c => c.to)) : null, src: String(z.src || '').split(';')[0], rings: zr });
+      zones.push({ name: z.name, level, waterOnly: !!(z.map && z.map.waterOnly), crossing: crossed.length > 0, atEnd, from: crossed.length ? Math.min(...crossed.map(c => c.from)) : null, to: crossed.length ? Math.max(...crossed.map(c => c.to)) : null, src: String(z.src || '').split(';')[0], until: z.until || null, rec: shortRec(z.rec), rings: zr });
       // v3.145: CZIB portions of a FIR (z.map.areas: waypoint line + closing points outside the FIR). Sent as extra zones
       // with the same FIR rings plus a `clip` ring; the page draws FIR ∩ clip on top of the FIR's own (lower) level.
       for (const a of (z.map && z.map.areas) || []) {
@@ -161,7 +163,7 @@ function routeFirTimeline(dep, arr) {
         for (let i = 0; i <= n; i++) { const f = i / n, q = interp(dep, arr, f); if (inArea(q)) { if (c) c.to = f; else c = { from: f, to: f }; } }
         const aEnd = [dep, arr].some(q => q && q.lat != null && inArea(q));
         if (!c && !aEnd) continue;
-        zones.push({ name: a.name, level: a.level, waterOnly: false, crossing: !!c, atEnd: aEnd, from: c ? c.from : null, to: c ? c.to : null, src: String(z.src || '').split(';')[0], rings: zr, clip: [ring.concat([ring[0]])] });
+        zones.push({ name: a.name, level: a.level, waterOnly: false, crossing: !!c, atEnd: aEnd, from: c ? c.from : null, to: c ? c.to : null, src: String(z.src || '').split(';')[0], until: z.until || null, rec: a.rec || 'do not operate at any level in this portion of the FIR', rings: zr, clip: [ring.concat([ring[0]])] });
       }
     }
   } catch (e) { /* zones optional */ }
